@@ -209,7 +209,7 @@ function normalizePhone(phone: string) {
 function escapeCsvValue(value: string | number) {
   const stringValue = String(value ?? "");
   if (/[",\n]/.test(stringValue)) {
-    return `"${stringValue.replaceAll('"', '""')}"`;
+    return `"${stringValue.replace(/"/g, '""')}"`;
   }
   return stringValue;
 }

@@ -13,6 +13,8 @@ export type CampaignCategory =
 
 export type BillingPlan = "Starter" | "Professional" | "Enterprise";
 
+export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled";
+
 export interface Campaign {
   id: string;
   title: string;
@@ -60,14 +62,29 @@ export interface AuthorityRule {
 }
 
 export interface Organization {
+  id: string;
   name: string;
   plan: BillingPlan;
+  subscriptionStatus: SubscriptionStatus;
   trialEndsAt: string;
   monthlySignatureLimit: number;
   monthlyScanLimit: number;
   customBranding: boolean;
   customDomain: string;
   ownerEmail: string;
+  billingEmail: string;
+  seats: number;
+  paymentReference: string;
+}
+
+export interface SubscriptionPlan {
+  name: BillingPlan;
+  price: string;
+  monthlySignatureLimit: number;
+  monthlyScanLimit: number;
+  campaignLimit: number | "Unlimited";
+  features: string[];
+  recommended?: boolean;
 }
 
 export interface ScanReviewItem {

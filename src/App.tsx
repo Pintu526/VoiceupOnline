@@ -24,7 +24,14 @@ import {
   WalletCards
 } from "lucide-react";
 import Tesseract from "tesseract.js";
-import { initialAuthorities, initialCampaigns, initialOrganization, initialSigners, suggestedFeatures } from "./data";
+import {
+  initialAuthorities,
+  initialCampaigns,
+  initialOrganization,
+  initialSigners,
+  subscriptionPlans,
+  suggestedFeatures
+} from "./data";
 import {
   createId,
   createScanReviewItem,
@@ -43,7 +50,16 @@ import type { AuthorityRule, BillingPlan, Campaign, CampaignCategory, Organizati
 type Tab = "dashboard" | "campaigns" | "public" | "scans" | "reports" | "saas" | "ideas";
 
 const categories: CampaignCategory[] = ["Civic", "Environment", "Education", "Health", "Transport", "Housing", "Other"];
-const plans: BillingPlan[] = ["Starter", "Professional", "Enterprise"];
+const storagePrefix = "voiceup-clean-v2";
+const emptyMetrics = {
+  total: 0,
+  verified: 0,
+  pending: 0,
+  duplicates: 0,
+  online: 0,
+  scanned: 0,
+  progress: 0
+};
 
 const blankSigner = {
   name: "",
@@ -55,17 +71,17 @@ const blankSigner = {
 };
 
 function App() {
-  const [campaigns, setCampaigns] = usePersistentState<Campaign[]>("voiceup-campaigns", initialCampaigns);
-  const [signers, setSigners] = usePersistentState<Signer[]>("voiceup-signers", initialSigners);
-  const [authorities, setAuthorities] = usePersistentState<AuthorityRule[]>("voiceup-authorities", initialAuthorities);
-  const [organization, setOrganization] = usePersistentState<Organization>("voiceup-organization", initialOrganization);
-  const [scanItems, setScanItems] = usePersistentState<ScanReviewItem[]>("voiceup-scan-items", []);
+  const [campaigns, setCampaigns] = usePersistentState<Campaign[]>(`${storagePrefix}-campaigns`, initialCampaigns);
+  const [signers, setSigners] = usePersistentState<Signer[]>(`${storagePrefix}-signers`, initialSigners);
+  const [authorities, setAuthorities] = usePersistentState<AuthorityRule[]>(`${storagePrefix}-authorities`, initialAuthorities);
+  const [organization, setOrganization] = usePersistentState<Organization>(`${storagePrefix}-organization`, initialOrganization);
+  const [scanItems, setScanItems] = usePersistentState<ScanReviewItem[]>(`${storagePrefix}-scan-items`, []);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
-  const [activeCampaignId, setActiveCampaignId] = useState(initialCampaigns[0].id);
-  const [campaignDraft, setCampaignDraft] = useState<Campaign>(campaigns[0]);
+  const [activeCampaignId, setActiveCampaignId] = useState(initialCampaigns[0]?.id ?? "");
+  const [campaignDraft, setCampaignDraft] = useState<Campaign | null>(campaigns[0] ?? null);
   const [publicForm, setPublicForm] = useState(blankSigner);
   const [publicMessage, setPublicMessage] = useState("");
-  const [scanText, setScanText] = useState(sampleScanText);
+  const [scanText, setScanText] = useState(blankScanTemplate);
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
 
@@ -74,20 +90,33 @@ function App() {
     [activeCampaignId, campaigns]
   );
   const campaignSigners = useMemo(
-    () => getCampaignSigners(activeCampaign.id, signers),
-    [activeCampaign.id, signers]
+    () => (activeCampaign ? getCampaignSigners(activeCampaign.id, signers) : []),
+    [activeCampaign, signers]
   );
-  const metrics = useMemo(() => getCampaignMetrics(activeCampaign, signers), [activeCampaign, signers]);
-  const authorityMatch = useMemo(() => matchAuthority(activeCampaign, authorities), [activeCampaign, authorities]);
+  const metrics = useMemo(
+    () => (activeCampaign ? getCampaignMetrics(activeCampaign, signers) : emptyMetrics),
+    [activeCampaign, signers]
+  );
+  const authorityMatch = useMemo(
+    () => (activeCampaign ? matchAuthority(activeCampaign, authorities) : undefined),
+    [activeCampaign, authorities]
+  );
   const dailyTotals = useMemo(() => groupSignersByDay(campaignSigners), [campaignSigners]);
   const weeklyTotals = useMemo(() => groupSignersByWeek(campaignSigners), [campaignSigners]);
 
   useEffect(() => {
-    setCampaignDraft(activeCampaign);
+    if (!campaigns.some((campaign) => campaign.id === activeCampaignId)) {
+      setActiveCampaignId(campaigns[0]?.id ?? "");
+    }
+  }, [activeCampaignId, campaigns]);
+
+  useEffect(() => {
+    setCampaignDraft(activeCampaign ?? null);
   }, [activeCampaign]);
 
   function saveCampaign(event: FormEvent) {
     event.preventDefault();
+    if (!campaignDraft) return;
     setCampaigns((currentCampaigns) =>
       currentCampaigns.map((campaign) => (campaign.id === campaignDraft.id ? campaignDraft : campaign))
     );
@@ -119,6 +148,7 @@ function App() {
   }
 
   function publishCampaign() {
+    if (!campaignDraft) return;
     const publishedCampaign = {
       ...campaignDraft,
       status: "Published" as const,
@@ -132,6 +162,10 @@ function App() {
 
   function submitPublicSignature(event: FormEvent) {
     event.preventDefault();
+    if (!activeCampaign) {
+      setPublicMessage("Create and publish a campaign before collecting signatures.");
+      return;
+    }
     if (!publicForm.name || !publicForm.phone) {
       setPublicMessage("Name and phone are required to sign this campaign.");
       return;
@@ -147,6 +181,10 @@ function App() {
   }
 
   async function uploadScan(file: File) {
+    if (!activeCampaign) {
+      setScanMessage("Create a campaign before uploading scanned signatures.");
+      return;
+    }
     setIsScanning(true);
     setScanMessage(`Reading ${file.name} with OCR. Handwriting may need manual correction.`);
     try {
@@ -166,6 +204,10 @@ function App() {
   }
 
   function createManualScanItem() {
+    if (!activeCampaign) {
+      setScanMessage("Create a campaign before adding scanned signatures.");
+      return;
+    }
     const item = createScanReviewItem(activeCampaign.id, "manual-scan-entry.txt", scanText);
     setScanItems((currentItems) => [item, ...currentItems]);
     setScanMessage("Manual scan review item created.");
@@ -180,6 +222,7 @@ function App() {
   }
 
   function approveScan(scan: ScanReviewItem) {
+    if (!activeCampaign) return;
     const duplicate = detectDuplicate(scan.parsedSigner, campaignSigners);
     const signer: Signer = {
       id: createId("sig"),
@@ -204,6 +247,10 @@ function App() {
   }
 
   function addAuthorityRule() {
+    if (!activeCampaign) {
+      setActiveTab("campaigns");
+      return;
+    }
     const rule: AuthorityRule = {
       id: createId("auth"),
       name: "New Authority",
@@ -216,6 +263,19 @@ function App() {
       confidence: 70
     };
     setAuthorities((currentAuthorities) => [rule, ...currentAuthorities]);
+  }
+
+  function selectSubscriptionPlan(planName: BillingPlan) {
+    const plan = subscriptionPlans.find((candidate) => candidate.name === planName);
+    if (!plan) return;
+    setOrganization((currentOrganization) => ({
+      ...currentOrganization,
+      plan: plan.name,
+      monthlySignatureLimit: plan.monthlySignatureLimit,
+      monthlyScanLimit: plan.monthlyScanLimit,
+      subscriptionStatus: currentOrganization.subscriptionStatus === "Cancelled" ? "Trial" : currentOrganization.subscriptionStatus,
+      customBranding: plan.name !== "Starter" ? currentOrganization.customBranding : false
+    }));
   }
 
   return (
@@ -250,12 +310,20 @@ function App() {
         <header className="topbar">
           <div>
             <span className="eyebrow">Selected campaign</span>
-            <select value={activeCampaignId} onChange={(event) => setActiveCampaignId(event.target.value)}>
-              {campaigns.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>
-                  {campaign.title}
-                </option>
-              ))}
+            <select
+              value={activeCampaignId}
+              onChange={(event) => setActiveCampaignId(event.target.value)}
+              disabled={campaigns.length === 0}
+            >
+              {campaigns.length === 0 ? (
+                <option>No campaign yet</option>
+              ) : (
+                campaigns.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>
+                    {campaign.title}
+                  </option>
+                ))
+              )}
             </select>
           </div>
           <button className="secondary-button" type="button" onClick={createCampaign}>
@@ -265,13 +333,23 @@ function App() {
 
         {activeTab === "dashboard" && (
           <section className="page-stack">
-            <Hero campaign={activeCampaign} metrics={metrics} authority={authorityMatch?.authority} />
-            <div className="metric-grid">
-              <MetricCard icon={<Users />} label="Total signers" value={metrics.total} detail={`${metrics.verified} verified`} />
-              <MetricCard icon={<Globe2 />} label="Online signatures" value={metrics.online} detail="Collected from public page" />
-              <MetricCard icon={<FileScan />} label="Scanned records" value={metrics.scanned} detail={`${metrics.pending} awaiting review`} />
-              <MetricCard icon={<SearchCheck />} label="Duplicates" value={metrics.duplicates} detail="Flagged automatically" />
-            </div>
+            {activeCampaign ? (
+              <>
+                <Hero campaign={activeCampaign} metrics={metrics} authority={authorityMatch?.authority} />
+                <div className="metric-grid">
+                  <MetricCard icon={<Users />} label="Total signers" value={metrics.total} detail={`${metrics.verified} verified`} />
+                  <MetricCard icon={<Globe2 />} label="Online signatures" value={metrics.online} detail="Collected from public page" />
+                  <MetricCard icon={<FileScan />} label="Scanned records" value={metrics.scanned} detail={`${metrics.pending} awaiting review`} />
+                  <MetricCard icon={<SearchCheck />} label="Duplicates" value={metrics.duplicates} detail="Flagged automatically" />
+                </div>
+              </>
+            ) : (
+              <EmptyWorkspace
+                organization={organization}
+                onCreateCampaign={createCampaign}
+                onOpenSubscription={() => setActiveTab("saas")}
+              />
+            )}
 
             <div className="two-column">
               <Panel title="Daily campaign status" icon={<CalendarDays />}>
@@ -299,7 +377,8 @@ function App() {
         {activeTab === "campaigns" && (
           <section className="page-stack">
             <Panel title="Campaign configuration" icon={<Settings />}>
-              <form className="form-grid" onSubmit={saveCampaign}>
+              {campaignDraft ? (
+                <form className="form-grid" onSubmit={saveCampaign}>
                 <Field label="Campaign name">
                   <input
                     value={campaignDraft.title}
@@ -423,7 +502,14 @@ function App() {
                     <Rocket size={18} /> Publish campaign
                   </button>
                 </div>
-              </form>
+                </form>
+              ) : (
+                <NoCampaignPanel
+                  title="Create the first campaign"
+                  description="This workspace is clean and has no sample data. Start by creating a real campaign for your organization or customer."
+                  onCreateCampaign={createCampaign}
+                />
+              )}
             </Panel>
 
             <Panel title="Authority rules" icon={<Landmark />}>
@@ -477,220 +563,249 @@ function App() {
         )}
 
         {activeTab === "public" && (
-          <section className="public-layout">
-            <div className="campaign-page">
-              <span className="status-pill">{activeCampaign.status}</span>
-              <h1>{activeCampaign.title}</h1>
-              <p>{activeCampaign.description}</p>
-              <div className="public-progress">
-                <div className="progress">
-                  <div style={{ width: `${metrics.progress}%` }} />
+          activeCampaign ? (
+            <section className="public-layout">
+              <div className="campaign-page">
+                <span className="status-pill">{activeCampaign.status}</span>
+                <h1>{activeCampaign.title}</h1>
+                <p>{activeCampaign.description}</p>
+                <div className="public-progress">
+                  <div className="progress">
+                    <div style={{ width: `${metrics.progress}%` }} />
+                  </div>
+                  <strong>{metrics.verified.toLocaleString()}</strong> of {activeCampaign.goal.toLocaleString()} verified
+                  signatures
                 </div>
-                <strong>{metrics.verified.toLocaleString()}</strong> of {activeCampaign.goal.toLocaleString()} verified
-                signatures
-              </div>
-              <div className="qr-box">
-                <QrCode size={40} />
-                <div>
-                  <strong>{activeCampaign.qrLabel}</strong>
-                  <span>{activeCampaign.shareUrl}</span>
+                <div className="qr-box">
+                  <QrCode size={40} />
+                  <div>
+                    <strong>{activeCampaign.qrLabel}</strong>
+                    <span>{activeCampaign.shareUrl}</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <Panel title="Support this campaign" icon={<ClipboardList />}>
-              <form className="form-stack" onSubmit={submitPublicSignature}>
-                <input
-                  placeholder="Full name"
-                  value={publicForm.name}
-                  onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
-                />
-                <input
-                  placeholder="Email"
-                  type="email"
-                  value={publicForm.email}
-                  onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
-                />
-                <input
-                  placeholder="Phone"
-                  value={publicForm.phone}
-                  onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
-                />
-                <input
-                  placeholder="Address"
-                  value={publicForm.address}
-                  onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
-                />
-                <input
-                  placeholder="Postal code"
-                  value={publicForm.postalCode}
-                  onChange={(event) => setPublicForm({ ...publicForm, postalCode: event.target.value })}
-                />
-                <textarea
-                  placeholder="Optional comment"
-                  rows={3}
-                  value={publicForm.comment}
-                  onChange={(event) => setPublicForm({ ...publicForm, comment: event.target.value })}
-                />
-                <label className="check-row">
-                  <input required type="checkbox" /> {activeCampaign.consentText}
-                </label>
-                <button className="primary-button" type="submit">
-                  <CheckCircle2 size={18} /> Sign campaign
-                </button>
-                {publicMessage && <p className="success-message">{publicMessage}</p>}
-              </form>
-            </Panel>
-          </section>
+              <Panel title="Support this campaign" icon={<ClipboardList />}>
+                <form className="form-stack" onSubmit={submitPublicSignature}>
+                  <input
+                    placeholder="Full name"
+                    value={publicForm.name}
+                    onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
+                  />
+                  <input
+                    placeholder="Email"
+                    type="email"
+                    value={publicForm.email}
+                    onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
+                  />
+                  <input
+                    placeholder="Phone"
+                    value={publicForm.phone}
+                    onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
+                  />
+                  <input
+                    placeholder="Address"
+                    value={publicForm.address}
+                    onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
+                  />
+                  <input
+                    placeholder="Postal code"
+                    value={publicForm.postalCode}
+                    onChange={(event) => setPublicForm({ ...publicForm, postalCode: event.target.value })}
+                  />
+                  <textarea
+                    placeholder="Optional comment"
+                    rows={3}
+                    value={publicForm.comment}
+                    onChange={(event) => setPublicForm({ ...publicForm, comment: event.target.value })}
+                  />
+                  <label className="check-row">
+                    <input required type="checkbox" /> {activeCampaign.consentText}
+                  </label>
+                  <button className="primary-button" type="submit">
+                    <CheckCircle2 size={18} /> Sign campaign
+                  </button>
+                  {publicMessage && <p className="success-message">{publicMessage}</p>}
+                </form>
+              </Panel>
+            </section>
+          ) : (
+            <NoCampaignPanel
+              title="No public campaign yet"
+              description="Create and publish a campaign before collecting signatures from the public page."
+              onCreateCampaign={createCampaign}
+            />
+          )
         )}
 
         {activeTab === "scans" && (
-          <section className="page-stack">
-            <Panel title="Scan hard-copy signatures" icon={<Upload />}>
-              <div className="scan-grid">
-                <label className="drop-zone">
-                  <FileScan size={34} />
-                  <strong>Upload scanned image</strong>
-                  <span>PNG, JPG, WEBP, or scanned image files work best for OCR.</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) void uploadScan(file);
-                    }}
-                  />
-                </label>
-                <div>
-                  <span className="label">Manual OCR correction or paste</span>
-                  <textarea rows={8} value={scanText} onChange={(event) => setScanText(event.target.value)} />
-                  <button className="secondary-button" type="button" onClick={createManualScanItem}>
-                    <Plus size={18} /> Create review item
-                  </button>
+          activeCampaign ? (
+            <section className="page-stack">
+              <Panel title="Scan hard-copy signatures" icon={<Upload />}>
+                <div className="scan-grid">
+                  <label className="drop-zone">
+                    <FileScan size={34} />
+                    <strong>Upload scanned image</strong>
+                    <span>PNG, JPG, WEBP, or scanned image files work best for OCR.</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void uploadScan(file);
+                      }}
+                    />
+                  </label>
+                  <div>
+                    <span className="label">Manual OCR correction or paste</span>
+                    <textarea rows={8} value={scanText} onChange={(event) => setScanText(event.target.value)} />
+                    <button className="secondary-button" type="button" onClick={createManualScanItem}>
+                      <Plus size={18} /> Create review item
+                    </button>
+                  </div>
                 </div>
-              </div>
-              {isScanning && <p className="info-message">OCR processing is running...</p>}
-              {scanMessage && <p className="success-message">{scanMessage}</p>}
-            </Panel>
+                {isScanning && <p className="info-message">OCR processing is running...</p>}
+                {scanMessage && <p className="success-message">{scanMessage}</p>}
+              </Panel>
 
-            <Panel title="Scan review queue" icon={<SearchCheck />}>
-              <div className="review-list">
-                {scanItems.filter((item) => item.campaignId === activeCampaign.id).length === 0 && (
-                  <p>No scans are waiting for review.</p>
-                )}
-                {scanItems
-                  .filter((item) => item.campaignId === activeCampaign.id)
-                  .map((item) => (
-                    <div className="review-card" key={item.id}>
-                      <div>
-                        <strong>{item.fileName}</strong>
-                        <span className="status-pill">{item.status}</span>
-                      </div>
-                      <div className="form-grid compact">
-                        {(["name", "email", "phone", "address", "postalCode", "comment"] as const).map((field) => (
-                          <Field key={field} label={field}>
-                            <input
-                              value={item.parsedSigner[field]}
-                              onChange={(event) => updateScanParsedSigner(item.id, field, event.target.value)}
-                            />
-                          </Field>
-                        ))}
-                      </div>
-                      <details>
-                        <summary>Extracted text</summary>
-                        <pre>{item.extractedText}</pre>
-                      </details>
-                      <div className="button-row">
-                        <button className="primary-button" type="button" onClick={() => approveScan(item)}>
-                          <CheckCircle2 size={18} /> Approve into signer list
-                        </button>
-                        <button
-                          className="secondary-button"
-                          type="button"
-                          onClick={() =>
-                            setScanItems((currentItems) =>
-                              currentItems.map((currentItem) =>
-                                currentItem.id === item.id ? { ...currentItem, status: "Rejected" } : currentItem
+              <Panel title="Scan review queue" icon={<SearchCheck />}>
+                <div className="review-list">
+                  {scanItems.filter((item) => item.campaignId === activeCampaign.id).length === 0 && (
+                    <p>No scans are waiting for review.</p>
+                  )}
+                  {scanItems
+                    .filter((item) => item.campaignId === activeCampaign.id)
+                    .map((item) => (
+                      <div className="review-card" key={item.id}>
+                        <div>
+                          <strong>{item.fileName}</strong>
+                          <span className="status-pill">{item.status}</span>
+                        </div>
+                        <div className="form-grid compact">
+                          {(["name", "email", "phone", "address", "postalCode", "comment"] as const).map((field) => (
+                            <Field key={field} label={field}>
+                              <input
+                                value={item.parsedSigner[field]}
+                                onChange={(event) => updateScanParsedSigner(item.id, field, event.target.value)}
+                              />
+                            </Field>
+                          ))}
+                        </div>
+                        <details>
+                          <summary>Extracted text</summary>
+                          <pre>{item.extractedText}</pre>
+                        </details>
+                        <div className="button-row">
+                          <button className="primary-button" type="button" onClick={() => approveScan(item)}>
+                            <CheckCircle2 size={18} /> Approve into signer list
+                          </button>
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            onClick={() =>
+                              setScanItems((currentItems) =>
+                                currentItems.map((currentItem) =>
+                                  currentItem.id === item.id ? { ...currentItem, status: "Rejected" } : currentItem
+                                )
                               )
-                            )
-                          }
-                        >
-                          Reject
-                        </button>
+                            }
+                          >
+                            Reject
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-              </div>
-            </Panel>
-          </section>
+                    ))}
+                </div>
+              </Panel>
+            </section>
+          ) : (
+            <NoCampaignPanel
+              title="No campaign for scans"
+              description="Create a campaign before importing hard-copy signatures or OCR scan batches."
+              onCreateCampaign={createCampaign}
+            />
+          )
         )}
 
         {activeTab === "reports" && (
-          <section className="page-stack">
-            <Panel title="Reports and exports" icon={<Download />}>
-              <div className="button-row">
-                <button className="primary-button" type="button" onClick={() => exportPdf(activeCampaign, campaignSigners, authorityMatch?.authority)}>
-                  <FileText size={18} /> Download PDF report
-                </button>
-                <button className="secondary-button" type="button" onClick={() => exportCsv(activeCampaign, campaignSigners)}>
-                  <Download size={18} /> Download CSV
-                </button>
-              </div>
-              <div className="report-grid">
-                <ReportBlock title="Daily status" data={dailyTotals} />
-                <ReportBlock title="Weekly status" data={weeklyTotals} />
-              </div>
-            </Panel>
-            <Panel title="Signer register" icon={<Users />}>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Phone</th>
-                      <th>Source</th>
-                      <th>Status</th>
-                      <th>Signed at</th>
-                      <th>Review</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {campaignSigners.map((signer) => (
-                      <tr key={signer.id}>
-                        <td>
-                          <strong>{signer.name}</strong>
-                          <span>{signer.email}</span>
-                        </td>
-                        <td>{signer.phone}</td>
-                        <td>{signer.source}</td>
-                        <td>
-                          <select
-                            value={signer.status}
-                            onChange={(event) => updateSignerStatus(signer.id, event.target.value as Signer["status"])}
-                          >
-                            <option value="verified">verified</option>
-                            <option value="pending">pending</option>
-                            <option value="duplicate">duplicate</option>
-                            <option value="rejected">rejected</option>
-                          </select>
-                        </td>
-                        <td>{new Date(signer.signedAt).toLocaleString()}</td>
-                        <td>{signer.reviewerNote ?? "Ready"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
-          </section>
+          activeCampaign ? (
+            <section className="page-stack">
+              <Panel title="Reports and exports" icon={<Download />}>
+                <div className="button-row">
+                  <button className="primary-button" type="button" onClick={() => exportPdf(activeCampaign, campaignSigners, authorityMatch?.authority)}>
+                    <FileText size={18} /> Download PDF report
+                  </button>
+                  <button className="secondary-button" type="button" onClick={() => exportCsv(activeCampaign, campaignSigners)}>
+                    <Download size={18} /> Download CSV
+                  </button>
+                </div>
+                <div className="report-grid">
+                  <ReportBlock title="Daily status" data={dailyTotals} />
+                  <ReportBlock title="Weekly status" data={weeklyTotals} />
+                </div>
+              </Panel>
+              <Panel title="Signer register" icon={<Users />}>
+                {campaignSigners.length === 0 ? (
+                  <p>No signers have been collected for this campaign yet.</p>
+                ) : (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Phone</th>
+                          <th>Source</th>
+                          <th>Status</th>
+                          <th>Signed at</th>
+                          <th>Review</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {campaignSigners.map((signer) => (
+                          <tr key={signer.id}>
+                            <td>
+                              <strong>{signer.name}</strong>
+                              <span>{signer.email}</span>
+                            </td>
+                            <td>{signer.phone}</td>
+                            <td>{signer.source}</td>
+                            <td>
+                              <select
+                                value={signer.status}
+                                onChange={(event) => updateSignerStatus(signer.id, event.target.value as Signer["status"])}
+                              >
+                                <option value="verified">verified</option>
+                                <option value="pending">pending</option>
+                                <option value="duplicate">duplicate</option>
+                                <option value="rejected">rejected</option>
+                              </select>
+                            </td>
+                            <td>{new Date(signer.signedAt).toLocaleString()}</td>
+                            <td>{signer.reviewerNote ?? "Ready"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Panel>
+            </section>
+          ) : (
+            <NoCampaignPanel
+              title="Reports will appear after campaign setup"
+              description="Create a campaign and collect signatures before downloading PDF or CSV reports."
+              onCreateCampaign={createCampaign}
+            />
+          )
         )}
 
         {activeTab === "saas" && (
           <section className="page-stack">
-            <Panel title="SaaS organization settings" icon={<Building2 />}>
+            <Panel title="Customer organization subscription" icon={<Building2 />}>
               <form className="form-grid">
                 <Field label="Organization name">
                   <input
+                    placeholder="Organization or customer name"
                     value={organization.name}
                     onChange={(event) => setOrganization({ ...organization, name: event.target.value })}
                   />
@@ -698,18 +813,43 @@ function App() {
                 <Field label="Owner email">
                   <input
                     type="email"
+                    placeholder="owner@example.org"
                     value={organization.ownerEmail}
                     onChange={(event) => setOrganization({ ...organization, ownerEmail: event.target.value })}
+                  />
+                </Field>
+                <Field label="Billing email">
+                  <input
+                    type="email"
+                    placeholder="billing@example.org"
+                    value={organization.billingEmail}
+                    onChange={(event) => setOrganization({ ...organization, billingEmail: event.target.value })}
                   />
                 </Field>
                 <Field label="Subscription plan">
                   <select
                     value={organization.plan}
-                    onChange={(event) => setOrganization({ ...organization, plan: event.target.value as BillingPlan })}
+                    onChange={(event) => selectSubscriptionPlan(event.target.value as BillingPlan)}
                   >
-                    {plans.map((plan) => (
-                      <option key={plan}>{plan}</option>
+                    {subscriptionPlans.map((plan) => (
+                      <option key={plan.name}>{plan.name}</option>
                     ))}
+                  </select>
+                </Field>
+                <Field label="Subscription status">
+                  <select
+                    value={organization.subscriptionStatus}
+                    onChange={(event) =>
+                      setOrganization({
+                        ...organization,
+                        subscriptionStatus: event.target.value as Organization["subscriptionStatus"]
+                      })
+                    }
+                  >
+                    <option>Trial</option>
+                    <option>Active</option>
+                    <option>Past due</option>
+                    <option>Cancelled</option>
                   </select>
                 </Field>
                 <Field label="Trial ends">
@@ -717,6 +857,14 @@ function App() {
                     type="date"
                     value={organization.trialEndsAt}
                     onChange={(event) => setOrganization({ ...organization, trialEndsAt: event.target.value })}
+                  />
+                </Field>
+                <Field label="Team seats">
+                  <input
+                    type="number"
+                    min="1"
+                    value={organization.seats}
+                    onChange={(event) => setOrganization({ ...organization, seats: Number(event.target.value) })}
                   />
                 </Field>
                 <Field label="Monthly signature limit">
@@ -739,8 +887,16 @@ function App() {
                 </Field>
                 <Field label="Custom domain">
                   <input
+                    placeholder="campaigns.customer.org"
                     value={organization.customDomain}
                     onChange={(event) => setOrganization({ ...organization, customDomain: event.target.value })}
+                  />
+                </Field>
+                <Field label="Payment reference">
+                  <input
+                    placeholder="Stripe/customer reference"
+                    value={organization.paymentReference}
+                    onChange={(event) => setOrganization({ ...organization, paymentReference: event.target.value })}
                   />
                 </Field>
                 <label className="check-row wide">
@@ -755,22 +911,22 @@ function App() {
             </Panel>
 
             <div className="plan-grid">
-              <PlanCard
-                title="Starter"
-                price="$29/month"
-                features={["1 campaign", "Online signatures", "CSV export", "Basic dashboard"]}
-              />
-              <PlanCard
-                title="Professional"
-                price="$99/month"
-                features={["Unlimited campaigns", "OCR scan review", "PDF reports", "Authority routing"]}
-                highlighted
-              />
-              <PlanCard
-                title="Enterprise"
-                price="Custom"
-                features={["White label", "Custom domain", "Audit logs", "API and integrations"]}
-              />
+              {subscriptionPlans.map((plan) => (
+                <PlanCard
+                  key={plan.name}
+                  title={plan.name}
+                  price={plan.price}
+                  features={[
+                    `${plan.campaignLimit} campaign${plan.campaignLimit === 1 ? "" : "s"}`,
+                    `${plan.monthlySignatureLimit.toLocaleString()} signatures/month`,
+                    `${plan.monthlyScanLimit.toLocaleString()} scans/month`,
+                    ...plan.features
+                  ]}
+                  highlighted={organization.plan === plan.name || plan.recommended}
+                  actionLabel={organization.plan === plan.name ? "Selected" : `Select ${plan.name}`}
+                  onSelect={() => selectSubscriptionPlan(plan.name)}
+                />
+              ))}
             </div>
           </section>
         )}
@@ -933,12 +1089,16 @@ function PlanCard({
   title,
   price,
   features,
-  highlighted
+  highlighted,
+  actionLabel,
+  onSelect
 }: {
   title: string;
   price: string;
   features: string[];
   highlighted?: boolean;
+  actionLabel?: string;
+  onSelect?: () => void;
 }) {
   return (
     <div className={highlighted ? "plan-card highlighted" : "plan-card"}>
@@ -949,6 +1109,77 @@ function PlanCard({
           <li key={feature}>{feature}</li>
         ))}
       </ul>
+      {onSelect && (
+        <button className={actionLabel === "Selected" ? "primary-button" : "secondary-button"} type="button" onClick={onSelect}>
+          {actionLabel ?? "Select plan"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function EmptyWorkspace({
+  organization,
+  onCreateCampaign,
+  onOpenSubscription
+}: {
+  organization: Organization;
+  onCreateCampaign: () => void;
+  onOpenSubscription: () => void;
+}) {
+  return (
+    <div className="empty-state">
+      <span className="eyebrow">Clean workspace</span>
+      <h1>Start with your real organization and campaign.</h1>
+      <p>
+        No demo campaigns, fake signers, or sample authority records are loaded. Configure the customer organization,
+        choose a SaaS subscription, then create the first campaign.
+      </p>
+      <div className="onboarding-grid">
+        <div>
+          <strong>1. Configure organization</strong>
+          <span>{organization.name || "Organization details are not set yet."}</span>
+        </div>
+        <div>
+          <strong>2. Select subscription</strong>
+          <span>
+            {organization.plan} plan, {organization.subscriptionStatus.toLowerCase()} status
+          </span>
+        </div>
+        <div>
+          <strong>3. Create campaign</strong>
+          <span>Set goal, public page, authority rules, and required signer fields.</span>
+        </div>
+      </div>
+      <div className="button-row">
+        <button className="primary-button" type="button" onClick={onCreateCampaign}>
+          <Plus size={18} /> Create first campaign
+        </button>
+        <button className="secondary-button" type="button" onClick={onOpenSubscription}>
+          <WalletCards size={18} /> Configure subscription
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NoCampaignPanel({
+  title,
+  description,
+  onCreateCampaign
+}: {
+  title: string;
+  description: string;
+  onCreateCampaign: () => void;
+}) {
+  return (
+    <div className="empty-state compact-empty">
+      <span className="eyebrow">No campaign data</span>
+      <h2>{title}</h2>
+      <p>{description}</p>
+      <button className="primary-button" type="button" onClick={onCreateCampaign}>
+        <Plus size={18} /> Create campaign
+      </button>
     </div>
   );
 }
@@ -971,11 +1202,11 @@ function usePersistentState<T>(key: string, initialValue: T) {
   return [value, setValue] as const;
 }
 
-const sampleScanText = `Name: Meera Patel
-Email: meera.patel@example.com
-Phone: +91 90000 12005
-Address: 15 River Road, North Ward
-Postal Code: 56001
-Comment: Please fix the water supply issue.`;
+const blankScanTemplate = `Name:
+Email:
+Phone:
+Address:
+Postal Code:
+Comment:`;
 
 export default App;

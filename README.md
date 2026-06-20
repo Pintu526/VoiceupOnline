@@ -2,6 +2,8 @@
 
 Voiceup Online is a campaign management SaaS MVP for organizations that need to create campaigns, publish a signing page, collect supporter details, scan existing hard-copy signatures, route a campaign to the right authority, and download daily or weekly reports.
 
+The app now starts as a clean workspace with no fake campaigns, no fake signers, and no preloaded authority records.
+
 ## What is included
 
 - Campaign admin panel with title, goal, location, dates, required fields, consent text, and publish action
@@ -12,7 +14,7 @@ Voiceup Online is a campaign management SaaS MVP for organizations that need to 
 - Authority routing rules by category, location keyword, and postal prefix
 - Daily and weekly campaign status reports
 - PDF and CSV report downloads
-- SaaS organization settings for subscription plan, limits, branding, owner email, and custom domain
+- SaaS organization settings for subscription plan, billing details, limits, branding, owner email, and custom domain
 - Suggested next features and production-readiness checklist
 
 ## Run locally
@@ -55,7 +57,7 @@ Recommended settings:
 
 ## Important production notes
 
-This first version stores data in browser local storage so the workflow can be demonstrated without a server. Before selling it as a real SaaS product, add:
+This first version stores data in browser local storage so the workflow can be tested without a server. Before selling it as a real SaaS product, add:
 
 - Secure authentication
 - Tenant-isolated backend database

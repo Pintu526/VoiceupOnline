@@ -24,6 +24,7 @@ import {
   MessageCircle,
   Share2,
   Image as ImageIcon,
+  Trash2,
   WalletCards
 } from "lucide-react";
 import Tesseract from "tesseract.js";
@@ -57,7 +58,12 @@ import {
   getDistrictOptions,
   getPinOptions,
   getPanchayatOptions,
+  hasBlockOverride,
+  hasDistrictOverride,
+  hasPanchayatOverride,
   indianStatesAndUnionTerritories,
+  removeLocationOverride,
+  type LocationOverrideLevel,
   type LocationOverrides,
   type LocationWithPin
 } from "./geography";
@@ -329,6 +335,10 @@ function App() {
     setLocationOverrides((currentOverrides) => addLocationOverride(currentOverrides, values));
   }
 
+  function removeAdminLocationOption(values: LocationWithPin, level: LocationOverrideLevel) {
+    setLocationOverrides((currentOverrides) => removeLocationOverride(currentOverrides, values, level));
+  }
+
   function selectSubscriptionPlan(planName: BillingPlan) {
     const plan = subscriptionPlans.find((candidate) => candidate.name === planName);
     if (!plan) return;
@@ -521,6 +531,7 @@ function App() {
                     locationOverrides={locationOverrides}
                     allowInlineAdd
                     onAddLocation={addAdminLocationOption}
+                    onRemoveLocation={removeAdminLocationOption}
                   />
                   <Field label="Start date">
                   <input
@@ -1412,7 +1423,8 @@ function IndiaLocationFields({
   onChange,
   locationOverrides,
   allowInlineAdd = false,
-  onAddLocation
+  onAddLocation,
+  onRemoveLocation
 }: {
   idPrefix: string;
   values: LocationWithPin;
@@ -1420,6 +1432,7 @@ function IndiaLocationFields({
   locationOverrides: LocationOverrides;
   allowInlineAdd?: boolean;
   onAddLocation?: (values: LocationWithPin) => void;
+  onRemoveLocation?: (values: LocationWithPin, level: LocationOverrideLevel) => void;
 }) {
   const [newDistrict, setNewDistrict] = useState("");
   const [newBlock, setNewBlock] = useState("");
@@ -1427,7 +1440,23 @@ function IndiaLocationFields({
   const districtOptions = getDistrictOptions(values.state, locationOverrides);
   const blockOptions = getBlockOptions(values.state, values.district, locationOverrides);
   const panchayatOptions = getPanchayatOptions(values.state, values.district, values.block, locationOverrides);
+  const baseDistrictOptions = getDistrictOptions(values.state);
+  const baseBlockOptions = getBlockOptions(values.state, values.district);
+  const basePanchayatOptions = getPanchayatOptions(values.state, values.district, values.block);
   const pinOptions = getPinOptions(values);
+  const canDeleteDistrict =
+    hasDistrictOverride(locationOverrides, values.state, values.district) &&
+    !optionExists(baseDistrictOptions, values.district);
+  const canDeleteBlock =
+    hasBlockOverride(locationOverrides, values.state, values.district, values.block) &&
+    !optionExists(baseBlockOptions, values.block);
+  const canDeletePanchayat = hasPanchayatOverride(
+    locationOverrides,
+    values.state,
+    values.district,
+    values.block,
+    values.panchayat
+  ) && !optionExists(basePanchayatOptions, values.panchayat);
 
   function updateLocation(nextValues: LocationWithPin) {
     const matchedPin = findPinCode(nextValues);
@@ -1493,6 +1522,21 @@ function IndiaLocationFields({
     setNewPanchayat("");
   }
 
+  function deleteDistrict() {
+    onRemoveLocation?.(values, "district");
+    updateLocation({ ...values, district: "", block: "", panchayat: "", postalCode: "" });
+  }
+
+  function deleteBlock() {
+    onRemoveLocation?.(values, "block");
+    updateLocation({ ...values, block: "", panchayat: "", postalCode: "" });
+  }
+
+  function deletePanchayat() {
+    onRemoveLocation?.(values, "panchayat");
+    updateLocation({ ...values, panchayat: "", postalCode: "" });
+  }
+
   return (
     <>
       <Field label="State / Union Territory">
@@ -1522,14 +1566,19 @@ function IndiaLocationFields({
           ))}
         </select>
         {allowInlineAdd && (
-          <InlineAddOption
-            placeholder="Add missing district"
-            value={newDistrict}
-            onChange={setNewDistrict}
-            onAdd={addDistrict}
-            disabled={!values.state || !newDistrict.trim() || optionExists(districtOptions, newDistrict)}
-            duplicate={Boolean(newDistrict.trim() && optionExists(districtOptions, newDistrict))}
-          />
+          <>
+            <InlineAddOption
+              placeholder="Add missing district"
+              value={newDistrict}
+              onChange={setNewDistrict}
+              onAdd={addDistrict}
+              disabled={!values.state || !newDistrict.trim() || optionExists(districtOptions, newDistrict)}
+              duplicate={Boolean(newDistrict.trim() && optionExists(districtOptions, newDistrict))}
+            />
+            {canDeleteDistrict && (
+              <InlineDeleteOption label={`Delete admin-added district "${values.district}"`} onDelete={deleteDistrict} />
+            )}
+          </>
         )}
       </Field>
       <Field label="Block / Tehsil / Taluk">
@@ -1546,14 +1595,19 @@ function IndiaLocationFields({
           ))}
         </select>
         {allowInlineAdd && (
-          <InlineAddOption
-            placeholder="Add missing block"
-            value={newBlock}
-            onChange={setNewBlock}
-            onAdd={addBlock}
-            disabled={!values.district || !newBlock.trim() || optionExists(blockOptions, newBlock)}
-            duplicate={Boolean(newBlock.trim() && optionExists(blockOptions, newBlock))}
-          />
+          <>
+            <InlineAddOption
+              placeholder="Add missing block"
+              value={newBlock}
+              onChange={setNewBlock}
+              onAdd={addBlock}
+              disabled={!values.district || !newBlock.trim() || optionExists(blockOptions, newBlock)}
+              duplicate={Boolean(newBlock.trim() && optionExists(blockOptions, newBlock))}
+            />
+            {canDeleteBlock && (
+              <InlineDeleteOption label={`Delete admin-added block "${values.block}"`} onDelete={deleteBlock} />
+            )}
+          </>
         )}
       </Field>
       <Field label="Gram Panchayat / Ward">
@@ -1570,14 +1624,19 @@ function IndiaLocationFields({
           ))}
         </select>
         {allowInlineAdd && (
-          <InlineAddOption
-            placeholder="Add missing panchayat/ward"
-            value={newPanchayat}
-            onChange={setNewPanchayat}
-            onAdd={addPanchayat}
-            disabled={!values.block || !newPanchayat.trim() || optionExists(panchayatOptions, newPanchayat)}
-            duplicate={Boolean(newPanchayat.trim() && optionExists(panchayatOptions, newPanchayat))}
-          />
+          <>
+            <InlineAddOption
+              placeholder="Add missing panchayat/ward"
+              value={newPanchayat}
+              onChange={setNewPanchayat}
+              onAdd={addPanchayat}
+              disabled={!values.block || !newPanchayat.trim() || optionExists(panchayatOptions, newPanchayat)}
+              duplicate={Boolean(newPanchayat.trim() && optionExists(panchayatOptions, newPanchayat))}
+            />
+            {canDeletePanchayat && (
+              <InlineDeleteOption label={`Delete admin-added panchayat/ward "${values.panchayat}"`} onDelete={deletePanchayat} />
+            )}
+          </>
         )}
       </Field>
       <Field label="PIN code">
@@ -1622,6 +1681,23 @@ function InlineAddOption({
       </button>
       {duplicate && <small>Already in dropdown</small>}
     </div>
+  );
+}
+
+function InlineDeleteOption({ label, onDelete }: { label: string; onDelete: () => void }) {
+  return (
+    <button
+      className="inline-delete-option"
+      type="button"
+      onClick={() => {
+        if (window.confirm(`${label}?`)) {
+          onDelete();
+        }
+      }}
+    >
+      <Trash2 size={16} />
+      {label}
+    </button>
   );
 }
 

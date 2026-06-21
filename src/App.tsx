@@ -117,10 +117,15 @@ function App() {
   const [scanText, setScanText] = useState(blankScanTemplate);
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
+  const publicCampaignSlug = getPublicCampaignSlug();
+  const isPublicCampaignRoute = Boolean(publicCampaignSlug);
 
   const activeCampaign = useMemo(
-    () => campaigns.find((campaign) => campaign.id === activeCampaignId) ?? campaigns[0],
-    [activeCampaignId, campaigns]
+    () =>
+      publicCampaignSlug
+        ? campaigns.find((campaign) => campaign.slug === publicCampaignSlug)
+        : campaigns.find((campaign) => campaign.id === activeCampaignId) ?? campaigns[0],
+    [activeCampaignId, campaigns, publicCampaignSlug]
   );
   const campaignSigners = useMemo(
     () => (activeCampaign ? getCampaignSigners(activeCampaign.id, signers) : []),
@@ -369,6 +374,25 @@ function App() {
     await navigator.clipboard.writeText(text);
     setCopiedMessage("Copied message to clipboard.");
     window.setTimeout(() => setCopiedMessage(""), 2500);
+  }
+
+  if (isPublicCampaignRoute) {
+    return activeCampaign ? (
+      <div className="public-only-shell">
+        <PublicCampaignSection
+          campaign={activeCampaign}
+          metrics={metrics}
+          publicForm={publicForm}
+          setPublicForm={setPublicForm}
+          publicMessage={publicMessage}
+          lastSignedSigner={lastSignedSigner}
+          locationOverrides={locationOverrides}
+          onSubmit={submitPublicSignature}
+        />
+      </div>
+    ) : (
+      <PublicCampaignNotFound />
+    );
   }
 
   return (
@@ -752,107 +776,16 @@ function App() {
 
         {activeTab === "public" && (
           activeCampaign ? (
-            <section className="public-layout">
-              <div
-                className={activeCampaign.heroImage ? "campaign-page campaign-page-with-media" : "campaign-page"}
-                style={{
-                  backgroundImage: activeCampaign.heroImage
-                    ? `linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.34)), url(${activeCampaign.heroImage})`
-                    : undefined,
-                  backgroundPosition: activeCampaign.heroImagePosition,
-                  backgroundSize: `${activeCampaign.heroImageZoom}%`
-                }}
-              >
-                <span className="status-pill">{activeCampaign.status}</span>
-                <h1>{activeCampaign.title}</h1>
-                <p>{activeCampaign.description}</p>
-                <div className="public-progress">
-                  <div className="progress">
-                    <div style={{ width: `${metrics.progress}%` }} />
-                  </div>
-                  <strong>{metrics.verified.toLocaleString()}</strong> of {activeCampaign.goal.toLocaleString()} verified
-                  signatures
-                </div>
-                <div className="qr-box">
-                  <QrCode size={40} />
-                  <div>
-                    <strong>{activeCampaign.qrLabel}</strong>
-                    <span>{activeCampaign.shareUrl}</span>
-                  </div>
-                </div>
-                {activeCampaign.campaignVideoUrl && (
-                  <a className="video-link" href={activeCampaign.campaignVideoUrl} target="_blank" rel="noreferrer">
-                    Watch campaign video
-                  </a>
-                )}
-              </div>
-
-              <Panel title="Support this campaign" icon={<ClipboardList />}>
-                <form className="form-stack" onSubmit={submitPublicSignature}>
-                  <input
-                    placeholder="Full name"
-                    value={publicForm.name}
-                    onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
-                  />
-                  <input
-                    placeholder="Email"
-                    type="email"
-                    value={publicForm.email}
-                    onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
-                  />
-                  <input
-                    placeholder="Phone"
-                    value={publicForm.phone}
-                    onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
-                  />
-                  <IndiaLocationFields
-                    idPrefix="public-signer-location"
-                    values={publicForm}
-                    onChange={(values) => setPublicForm({ ...publicForm, ...values })}
-                    locationOverrides={locationOverrides}
-                  />
-                  <input
-                    placeholder="Address"
-                    value={publicForm.address}
-                    onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
-                  />
-                  <textarea
-                    placeholder="Optional comment"
-                    rows={3}
-                    value={publicForm.comment}
-                    onChange={(event) => setPublicForm({ ...publicForm, comment: event.target.value })}
-                  />
-                  <label className="check-row">
-                    <input required type="checkbox" /> {activeCampaign.consentText}
-                  </label>
-                  <button className="primary-button" type="submit">
-                    <CheckCircle2 size={18} /> Sign campaign
-                  </button>
-                  {publicMessage && <p className="success-message">{publicMessage}</p>}
-                  {lastSignedSigner?.campaignId === activeCampaign.id && (
-                    <div className="participant-actions">
-                      <strong>Send thank-you message</strong>
-                      <div className="button-row">
-                        <a
-                          className="secondary-link-button"
-                          href={whatsAppLink(lastSignedSigner.phone, renderCampaignMessage(activeCampaign.thankYouMessage, activeCampaign, metrics))}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          WhatsApp
-                        </a>
-                        <a
-                          className="secondary-link-button"
-                          href={smsLink(lastSignedSigner.phone, renderCampaignMessage(activeCampaign.thankYouMessage, activeCampaign, metrics))}
-                        >
-                          SMS
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                </form>
-              </Panel>
-            </section>
+            <PublicCampaignSection
+              campaign={activeCampaign}
+              metrics={metrics}
+              publicForm={publicForm}
+              setPublicForm={setPublicForm}
+              publicMessage={publicMessage}
+              lastSignedSigner={lastSignedSigner}
+              locationOverrides={locationOverrides}
+              onSubmit={submitPublicSignature}
+            />
           ) : (
             <NoCampaignPanel
               title="No public campaign yet"
@@ -1341,6 +1274,144 @@ function NavButton({
   );
 }
 
+function PublicCampaignSection({
+  campaign,
+  metrics,
+  publicForm,
+  setPublicForm,
+  publicMessage,
+  lastSignedSigner,
+  locationOverrides,
+  onSubmit
+}: {
+  campaign: Campaign;
+  metrics: ReturnType<typeof getCampaignMetrics>;
+  publicForm: typeof blankSigner;
+  setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;
+  publicMessage: string;
+  lastSignedSigner: Signer | null;
+  locationOverrides: LocationOverrides;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <section className="public-layout">
+      <div
+        className={campaign.heroImage ? "campaign-page campaign-page-with-media" : "campaign-page"}
+        style={{
+          backgroundImage: campaign.heroImage
+            ? `linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.34)), url(${campaign.heroImage})`
+            : undefined,
+          backgroundPosition: campaign.heroImagePosition,
+          backgroundSize: `${campaign.heroImageZoom}%`
+        }}
+      >
+        <span className="status-pill">{campaign.status}</span>
+        <h1>{campaign.title}</h1>
+        <p>{campaign.description}</p>
+        <div className="public-progress">
+          <div className="progress">
+            <div style={{ width: `${metrics.progress}%` }} />
+          </div>
+          <strong>{metrics.verified.toLocaleString()}</strong> of {campaign.goal.toLocaleString()} verified signatures
+        </div>
+        <div className="qr-box">
+          <QrCode size={40} />
+          <div>
+            <strong>{campaign.qrLabel}</strong>
+            <span>{campaign.shareUrl}</span>
+          </div>
+        </div>
+        {campaign.campaignVideoUrl && (
+          <a className="video-link" href={campaign.campaignVideoUrl} target="_blank" rel="noreferrer">
+            Watch campaign video
+          </a>
+        )}
+      </div>
+
+      <Panel title="Support this campaign" icon={<ClipboardList />}>
+        <form className="form-stack" onSubmit={onSubmit}>
+          <input
+            placeholder="Full name"
+            value={publicForm.name}
+            onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
+          />
+          <input
+            placeholder="Email"
+            type="email"
+            value={publicForm.email}
+            onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
+          />
+          <input
+            placeholder="Phone"
+            value={publicForm.phone}
+            onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
+          />
+          <IndiaLocationFields
+            idPrefix="public-signer-location"
+            values={publicForm}
+            onChange={(values) => setPublicForm({ ...publicForm, ...values })}
+            locationOverrides={locationOverrides}
+          />
+          <input
+            placeholder="Address"
+            value={publicForm.address}
+            onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
+          />
+          <textarea
+            placeholder="Optional comment"
+            rows={3}
+            value={publicForm.comment}
+            onChange={(event) => setPublicForm({ ...publicForm, comment: event.target.value })}
+          />
+          <label className="check-row">
+            <input required type="checkbox" /> {campaign.consentText}
+          </label>
+          <button className="primary-button" type="submit">
+            <CheckCircle2 size={18} /> Sign campaign
+          </button>
+          {publicMessage && <p className="success-message">{publicMessage}</p>}
+          {lastSignedSigner?.campaignId === campaign.id && (
+            <div className="participant-actions">
+              <strong>Send thank-you message</strong>
+              <div className="button-row">
+                <a
+                  className="secondary-link-button"
+                  href={whatsAppLink(lastSignedSigner.phone, renderCampaignMessage(campaign.thankYouMessage, campaign, metrics))}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  WhatsApp
+                </a>
+                <a
+                  className="secondary-link-button"
+                  href={smsLink(lastSignedSigner.phone, renderCampaignMessage(campaign.thankYouMessage, campaign, metrics))}
+                >
+                  SMS
+                </a>
+              </div>
+            </div>
+          )}
+        </form>
+      </Panel>
+    </section>
+  );
+}
+
+function PublicCampaignNotFound() {
+  return (
+    <main className="public-only-shell">
+      <section className="empty-state public-not-found">
+        <span className="eyebrow">Campaign link</span>
+        <h1>This campaign is not available.</h1>
+        <p>
+          Please check the campaign link or ask the campaign organizer to publish the campaign again. The public signing
+          page shows only campaign content when a published campaign is available.
+        </p>
+      </section>
+    </main>
+  );
+}
+
 function Hero({
   campaign,
   metrics,
@@ -1733,6 +1804,11 @@ function getCampaignBaseUrl(organization: Organization) {
   }
 
   return "https://voiceup.in";
+}
+
+function getPublicCampaignSlug() {
+  if (typeof window === "undefined") return "";
+  return window.location.pathname.match(/^\/c\/([^/]+)/)?.[1] ?? "";
 }
 
 function renderCampaignMessage(

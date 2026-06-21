@@ -383,6 +383,21 @@ td span {
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
 }
 
+.public-only-shell {
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.public-only-shell .public-layout {
+  margin: 0 auto;
+  max-width: 1180px;
+}
+
+.public-not-found {
+  margin: 8vh auto;
+  max-width: 860px;
+}
+
 .panel {
   padding: 22px;
 }

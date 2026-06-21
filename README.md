@@ -15,6 +15,7 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - PIN-code lookup that can auto-fill PIN from selected geography, or auto-select geography from a known PIN
 - Campaign banner upload with simple crop/zoom/focus controls and public campaign background display
 - Campaign video URL, social share text, and same-domain `/c/campaign-slug` publishing path
+- Public `/c/campaign-slug` links render only the public campaign signing page, without admin dashboard navigation
 - Local duplicate detection by phone, email, and name
 - Hard-copy scan upload with OCR through `tesseract.js`
 - Manual review queue for scanned signer details

@@ -16,6 +16,8 @@ interface LocationCatalogEntry {
 
 export interface PinCodeEntry extends LocationWithPin {}
 
+export type LocationOverrides = Record<string, Record<string, Record<string, string[]>>>;
+
 export const indianStatesAndUnionTerritories = [
   "Andhra Pradesh",
   "Arunachal Pradesh",
@@ -303,27 +305,88 @@ export const blankLocation: LocationValues = {
   panchayat: ""
 };
 
-export function getDistrictOptions(state: string) {
+export function getDistrictOptions(state: string, overrides: LocationOverrides = {}) {
   const entry = indiaLocationCatalog.find((item) => item.state === state);
   const catalogDistricts = entry ? Object.keys(entry.districts) : [];
   const fallbackDistricts = districtOptionsByState[state] ?? [];
-  return uniqueOptions([...catalogDistricts, ...fallbackDistricts]);
+  const customDistricts = Object.keys(overrides[state] ?? {});
+  return uniqueOptions([...catalogDistricts, ...fallbackDistricts, ...customDistricts]);
 }
 
-export function getBlockOptions(state: string, district: string) {
+export function getBlockOptions(state: string, district: string, overrides: LocationOverrides = {}) {
   const entry = indiaLocationCatalog.find((item) => item.state === state);
   const blocks = entry?.districts[district];
-  if (blocks) return Object.keys(blocks);
+  const customBlocks = Object.keys(overrides[state]?.[district] ?? {});
+  if (blocks) return uniqueOptions([...Object.keys(blocks), ...customBlocks]);
   if (!district) return [];
-  return [`${district} Sadar`, `${district} Rural Block`, `${district} Urban Ward`, `${district} Development Block`];
+  return uniqueOptions([
+    ...customBlocks,
+    `${district} Sadar`,
+    `${district} Rural Block`,
+    `${district} Urban Ward`,
+    `${district} Development Block`
+  ]);
 }
 
-export function getPanchayatOptions(state: string, district: string, block: string) {
+export function getPanchayatOptions(state: string, district: string, block: string, overrides: LocationOverrides = {}) {
   const entry = indiaLocationCatalog.find((item) => item.state === state);
   const panchayats = entry?.districts[district]?.[block];
-  if (panchayats) return panchayats;
+  const customPanchayats = overrides[state]?.[district]?.[block] ?? [];
+  if (panchayats) return uniqueOptions([...panchayats, ...customPanchayats]);
   if (!block) return [];
-  return [`${block} Gram Panchayat`, `${block} Ward 1`, `${block} Ward 2`, `${block} Ward 3`];
+  return uniqueOptions([
+    ...customPanchayats,
+    `${block} Gram Panchayat`,
+    `${block} Ward 1`,
+    `${block} Ward 2`,
+    `${block} Ward 3`
+  ]);
+}
+
+export function addLocationOverride(overrides: LocationOverrides, values: LocationValues) {
+  if (!values.state.trim() || !values.district.trim()) return overrides;
+
+  const state = values.state.trim();
+  const district = values.district.trim();
+  const block = values.block.trim();
+  const panchayat = values.panchayat.trim();
+  const stateOverrides = overrides[state] ?? {};
+  const districtOverrides = stateOverrides[district] ?? {};
+
+  if (!block) {
+    return {
+      ...overrides,
+      [state]: {
+        ...stateOverrides,
+        [district]: districtOverrides
+      }
+    };
+  }
+
+  const existingPanchayats = districtOverrides[block] ?? [];
+  return {
+    ...overrides,
+    [state]: {
+      ...stateOverrides,
+      [district]: {
+        ...districtOverrides,
+        [block]: panchayat ? uniqueOptions([...existingPanchayats, panchayat]) : existingPanchayats
+      }
+    }
+  };
+}
+
+export function flattenLocationOverrides(overrides: LocationOverrides) {
+  return Object.entries(overrides).flatMap(([state, districts]) =>
+    Object.entries(districts).flatMap(([district, blocks]) => {
+      const blockEntries = Object.entries(blocks);
+      if (blockEntries.length === 0) return [{ state, district, block: "", panchayat: "" }];
+      return blockEntries.flatMap(([block, panchayats]) => {
+        if (panchayats.length === 0) return [{ state, district, block, panchayat: "" }];
+        return panchayats.map((panchayat) => ({ state, district, block, panchayat }));
+      });
+    })
+  );
 }
 
 export function findPinCode(values: LocationValues) {

@@ -454,9 +454,31 @@ td span {
 .authority-card,
 .form-stack,
 .review-list,
-.authority-list {
+.authority-list,
+.custom-location-list {
   display: grid;
   gap: 12px;
+}
+
+.helper-text {
+  color: var(--text-soft);
+}
+
+.custom-location-list {
+  margin-top: 16px;
+}
+
+.custom-location-chip {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.custom-location-chip span {
+  color: var(--text-soft);
 }
 
 .form-grid {

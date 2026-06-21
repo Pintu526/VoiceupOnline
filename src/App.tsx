@@ -24,6 +24,7 @@ import {
   MessageCircle,
   Share2,
   Image as ImageIcon,
+  MapPin as MapPinIcon,
   WalletCards
 } from "lucide-react";
 import Tesseract from "tesseract.js";
@@ -50,13 +51,16 @@ import {
   matchAuthority
 } from "./lib";
 import {
+  addLocationOverride,
   findLocationByPin,
   findPinCode,
+  flattenLocationOverrides,
   getBlockOptions,
   getDistrictOptions,
   getPinOptions,
   getPanchayatOptions,
   indianStatesAndUnionTerritories,
+  type LocationOverrides,
   type LocationWithPin
 } from "./geography";
 import type { AuthorityRule, BillingPlan, Campaign, CampaignCategory, Organization, ScanReviewItem, Signer } from "./types";
@@ -94,6 +98,10 @@ function App() {
   const [authorities, setAuthorities] = usePersistentState<AuthorityRule[]>(`${storagePrefix}-authorities`, initialAuthorities);
   const [organization, setOrganization] = usePersistentState<Organization>(`${storagePrefix}-organization`, initialOrganization);
   const [scanItems, setScanItems] = usePersistentState<ScanReviewItem[]>(`${storagePrefix}-scan-items`, []);
+  const [locationOverrides, setLocationOverrides] = usePersistentState<LocationOverrides>(
+    `${storagePrefix}-location-overrides`,
+    {}
+  );
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [activeCampaignId, setActiveCampaignId] = useState(initialCampaigns[0]?.id ?? "");
   const [campaignDraft, setCampaignDraft] = useState<Campaign | null>(campaigns[0] ?? null);
@@ -102,6 +110,13 @@ function App() {
   const [lastSignedSigner, setLastSignedSigner] = useState<Signer | null>(null);
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [copiedMessage, setCopiedMessage] = useState("");
+  const [locationManagerForm, setLocationManagerForm] = useState<LocationWithPin>({
+    state: "",
+    district: "",
+    block: "",
+    panchayat: "",
+    postalCode: ""
+  });
   const [scanText, setScanText] = useState(blankScanTemplate);
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
@@ -128,6 +143,7 @@ function App() {
   const districtTotals = useMemo(() => groupSignersByLocation(campaignSigners, "district"), [campaignSigners]);
   const blockTotals = useMemo(() => groupSignersByLocation(campaignSigners, "block"), [campaignSigners]);
   const panchayatTotals = useMemo(() => groupSignersByLocation(campaignSigners, "panchayat"), [campaignSigners]);
+  const customLocationRows = useMemo(() => flattenLocationOverrides(locationOverrides), [locationOverrides]);
 
   useEffect(() => {
     if (!campaigns.some((campaign) => campaign.id === activeCampaignId)) {
@@ -319,6 +335,12 @@ function App() {
     setAuthorities((currentAuthorities) => [rule, ...currentAuthorities]);
   }
 
+  function addAdminLocationOption(event: FormEvent) {
+    event.preventDefault();
+    setLocationOverrides((currentOverrides) => addLocationOverride(currentOverrides, locationManagerForm));
+    setLocationManagerForm({ state: locationManagerForm.state, district: "", block: "", panchayat: "", postalCode: "" });
+  }
+
   function selectSubscriptionPlan(planName: BillingPlan) {
     const plan = subscriptionPlans.find((candidate) => candidate.name === planName);
     if (!plan) return;
@@ -508,6 +530,7 @@ function App() {
                     idPrefix="campaign-location"
                     values={campaignDraft}
                     onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values })}
+                    locationOverrides={locationOverrides}
                   />
                   <Field label="Start date">
                   <input
@@ -676,6 +699,75 @@ function App() {
               )}
             </Panel>
 
+            <Panel title="Manage location dropdowns" icon={<MapPinIcon />}>
+              <form className="form-grid" onSubmit={addAdminLocationOption}>
+                <Field label="State / Union Territory">
+                  <select
+                    value={locationManagerForm.state}
+                    required
+                    onChange={(event) =>
+                      setLocationManagerForm({
+                        state: event.target.value,
+                        district: "",
+                        block: "",
+                        panchayat: "",
+                        postalCode: ""
+                      })
+                    }
+                  >
+                    <option value="">Select state</option>
+                    {indianStatesAndUnionTerritories.map((state) => (
+                      <option key={state} value={state}>
+                        {state}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="District to add">
+                  <input
+                    placeholder="Enter missing district"
+                    value={locationManagerForm.district}
+                    onChange={(event) => setLocationManagerForm({ ...locationManagerForm, district: event.target.value })}
+                    required
+                  />
+                </Field>
+                <Field label="Block / Tehsil / Taluk to add">
+                  <input
+                    placeholder="Optional block"
+                    value={locationManagerForm.block}
+                    onChange={(event) => setLocationManagerForm({ ...locationManagerForm, block: event.target.value })}
+                  />
+                </Field>
+                <Field label="Gram Panchayat / Ward to add">
+                  <input
+                    placeholder="Optional panchayat or ward"
+                    value={locationManagerForm.panchayat}
+                    onChange={(event) => setLocationManagerForm({ ...locationManagerForm, panchayat: event.target.value })}
+                  />
+                </Field>
+                <div className="wide button-row">
+                  <button className="primary-button" type="submit">
+                    <Plus size={18} /> Add to dropdowns
+                  </button>
+                  <span className="helper-text">
+                    Added values are available immediately in Campaign Admin and Public Signing forms.
+                  </span>
+                </div>
+              </form>
+              <div className="custom-location-list">
+                {customLocationRows.length === 0 ? (
+                  <p>No admin-added locations yet.</p>
+                ) : (
+                  customLocationRows.map((row) => (
+                    <div className="custom-location-chip" key={`${row.state}-${row.district}-${row.block}-${row.panchayat}`}>
+                      <strong>{row.district}</strong>
+                      <span>{[row.panchayat, row.block, row.state].filter(Boolean).join(" / ")}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Panel>
+
             <Panel title="Authority rules" icon={<Landmark />}>
               <button className="secondary-button" type="button" onClick={addAuthorityRule}>
                 <Plus size={18} /> Add authority rule
@@ -785,6 +877,7 @@ function App() {
                     idPrefix="public-signer-location"
                     values={publicForm}
                     onChange={(values) => setPublicForm({ ...publicForm, ...values })}
+                    locationOverrides={locationOverrides}
                   />
                   <input
                     placeholder="Address"
@@ -1395,15 +1488,17 @@ function Field({ label, wide, children }: { label: string; wide?: boolean; child
 function IndiaLocationFields({
   idPrefix,
   values,
-  onChange
+  onChange,
+  locationOverrides
 }: {
   idPrefix: string;
   values: LocationWithPin;
   onChange: (values: LocationWithPin) => void;
+  locationOverrides: LocationOverrides;
 }) {
-  const districtOptions = getDistrictOptions(values.state);
-  const blockOptions = getBlockOptions(values.state, values.district);
-  const panchayatOptions = getPanchayatOptions(values.state, values.district, values.block);
+  const districtOptions = getDistrictOptions(values.state, locationOverrides);
+  const blockOptions = getBlockOptions(values.state, values.district, locationOverrides);
+  const panchayatOptions = getPanchayatOptions(values.state, values.district, values.block, locationOverrides);
   const pinOptions = getPinOptions(values);
 
   function updateLocation(nextValues: LocationWithPin) {
@@ -1412,25 +1507,25 @@ function IndiaLocationFields({
   }
 
   function selectState(state: string) {
-    const districts = getDistrictOptions(state);
+    const districts = getDistrictOptions(state, locationOverrides);
     const district = districts[0] ?? "";
-    const blocks = getBlockOptions(state, district);
+    const blocks = getBlockOptions(state, district, locationOverrides);
     const block = blocks[0] ?? "";
-    const panchayats = getPanchayatOptions(state, district, block);
+    const panchayats = getPanchayatOptions(state, district, block, locationOverrides);
     const panchayat = panchayats[0] ?? "";
     updateLocation({ state, district, block, panchayat, postalCode: "" });
   }
 
   function selectDistrict(district: string) {
-    const blocks = getBlockOptions(values.state, district);
+    const blocks = getBlockOptions(values.state, district, locationOverrides);
     const block = blocks[0] ?? "";
-    const panchayats = getPanchayatOptions(values.state, district, block);
+    const panchayats = getPanchayatOptions(values.state, district, block, locationOverrides);
     const panchayat = panchayats[0] ?? "";
     updateLocation({ ...values, district, block, panchayat, postalCode: "" });
   }
 
   function selectBlock(block: string) {
-    const panchayats = getPanchayatOptions(values.state, values.district, block);
+    const panchayats = getPanchayatOptions(values.state, values.district, block, locationOverrides);
     const panchayat = panchayats[0] ?? "";
     updateLocation({ ...values, block, panchayat, postalCode: "" });
   }

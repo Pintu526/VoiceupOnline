@@ -47,8 +47,7 @@ import {
   groupSignersByLocation,
   groupSignersByDay,
   groupSignersByWeek,
-  makePublicSigner,
-  matchAuthority
+  makePublicSigner
 } from "./lib";
 import {
   addLocationOverride,
@@ -67,7 +66,16 @@ import {
   type LocationOverrides,
   type LocationWithPin
 } from "./geography";
-import type { AuthorityRule, BillingPlan, Campaign, CampaignCategory, Organization, ScanReviewItem, Signer } from "./types";
+import type {
+  AuthorityRule,
+  AuthorityTargetLevel,
+  BillingPlan,
+  Campaign,
+  CampaignCategory,
+  Organization,
+  ScanReviewItem,
+  Signer
+} from "./types";
 
 type Tab = "dashboard" | "campaigns" | "public" | "scans" | "reports" | "engagement" | "saas" | "ideas";
 
@@ -154,8 +162,11 @@ function App() {
     [activeCampaign, signers]
   );
   const authorityMatch = useMemo(
-    () => (activeCampaign ? matchAuthority(activeCampaign, authorities) : undefined),
-    [activeCampaign, authorities]
+    () =>
+      activeCampaign
+        ? { authority: getAppealAuthority(activeCampaign), score: 100 }
+        : undefined,
+    [activeCampaign]
   );
   const dailyTotals = useMemo(() => groupSignersByDay(campaignSigners), [campaignSigners]);
   const weeklyTotals = useMemo(() => groupSignersByWeek(campaignSigners), [campaignSigners]);
@@ -208,6 +219,9 @@ function App() {
       slug: `new-campaign-${Date.now()}`,
       category: "Civic",
       description: "Describe the public issue, requested action, and why citizens should support it.",
+      appealContent:
+        "I support this appeal and request the selected authority to take appropriate action for the public cause described in this campaign.",
+      authorityTargetLevel: "district",
       state: "",
       district: "",
       block: "",
@@ -271,7 +285,16 @@ function App() {
       setPublicMessage(`${signerFieldLabel(missingRequiredField)} is required to sign this campaign.`);
       return;
     }
-    const signer = makePublicSigner(activeCampaign.id, publicForm, campaignSigners);
+    const signer = makePublicSigner(
+      activeCampaign.id,
+      {
+        ...publicForm,
+        comment: `Accepted published appeal to ${getAppealAuthority(activeCampaign).name}: ${
+          activeCampaign.appealContent || activeCampaign.description
+        }`
+      },
+      campaignSigners
+    );
     setSigners((currentSigners) => [signer, ...currentSigners]);
     setPublicForm(blankSigner);
     setLastSignedSigner(signer);
@@ -708,6 +731,31 @@ function App() {
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, description: event.target.value })}
                   />
                 </Field>
+                  <Field label="Appeal / cause text shown on public signing page" wide>
+                    <textarea
+                      rows={5}
+                      value={campaignDraft.appealContent ?? ""}
+                      onChange={(event) => setCampaignDraft({ ...campaignDraft, appealContent: event.target.value })}
+                    />
+                  </Field>
+                  <Field label="Appeal should go to authority">
+                    <select
+                      value={campaignDraft.authorityTargetLevel ?? "district"}
+                      onChange={(event) =>
+                        setCampaignDraft({
+                          ...campaignDraft,
+                          authorityTargetLevel: event.target.value as AuthorityTargetLevel
+                        })
+                      }
+                    >
+                      <option value="district">District level - District Collector</option>
+                      <option value="state">State level - Chief Minister</option>
+                      <option value="country">Country level - Prime Minister of India</option>
+                    </select>
+                  </Field>
+                  <Field label="Selected appeal authority">
+                    <input value={getAppealAuthority(campaignDraft).name} readOnly />
+                  </Field>
                   <Field label="Consent text" wide>
                   <textarea
                     rows={3}
@@ -1429,6 +1477,10 @@ function PublicCampaignSection({
         <span className="status-pill">{campaign.status}</span>
         <h1>{campaign.title}</h1>
         <p>{campaign.description}</p>
+        <div className="appeal-card">
+          <span className="eyebrow">Appeal to {getAppealAuthority(campaign).name}</span>
+          <p>{campaign.appealContent || campaign.description}</p>
+        </div>
         <div className="public-progress">
           <div className="progress">
             <div style={{ width: `${metrics.progress}%` }} />
@@ -1479,12 +1531,9 @@ function PublicCampaignSection({
             value={publicForm.address}
             onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
           />
-          <textarea
-            placeholder="Optional comment"
-            rows={3}
-            value={publicForm.comment}
-            onChange={(event) => setPublicForm({ ...publicForm, comment: event.target.value })}
-          />
+          <label className="check-row">
+            <input required type="checkbox" /> I have read and support the campaign appeal/cause shown above.
+          </label>
           <label className="check-row">
             <input required type="checkbox" /> {campaign.consentText}
           </label>
@@ -2014,6 +2063,50 @@ function getCampaignAdminEmail(campaign: Campaign) {
 
 function getCampaignAdminPasscode(campaign: Campaign) {
   return campaign.adminPasscode || "voiceup-admin";
+}
+
+function getAppealAuthority(campaign: Campaign): AuthorityRule {
+  const level = campaign.authorityTargetLevel ?? "district";
+
+  if (level === "country") {
+    return {
+      id: "authority-prime-minister-india",
+      name: "Prime Minister of India",
+      department: "Government of India",
+      category: "Any",
+      locationKeyword: "india",
+      postalPrefix: "",
+      email: "pmopg@gov.in",
+      submissionMethod: "Portal",
+      confidence: 100
+    };
+  }
+
+  if (level === "state") {
+    return {
+      id: `authority-chief-minister-${campaign.state || "state"}`,
+      name: campaign.state ? `Chief Minister of ${campaign.state}` : "Chief Minister of the selected state",
+      department: "State Government",
+      category: "Any",
+      locationKeyword: campaign.state,
+      postalPrefix: "",
+      email: "Configure official CMO contact",
+      submissionMethod: "Portal",
+      confidence: 100
+    };
+  }
+
+  return {
+    id: `authority-district-collector-${campaign.district || "district"}`,
+    name: campaign.district ? `District Collector, ${campaign.district}` : "District Collector of the selected district",
+    department: "District Administration",
+    category: "Any",
+    locationKeyword: campaign.district,
+    postalPrefix: campaign.postalCode.slice(0, 3),
+    email: "Configure official district collector contact",
+    submissionMethod: "Email",
+    confidence: 100
+  };
 }
 
 function readAuthenticatedAdminSlugs() {

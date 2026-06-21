@@ -8,6 +8,8 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 
 - Campaign admin panel with title, goal, location, dates, required fields, consent text, and publish action
 - Public campaign page for online signers
+- Admin-published appeal/cause text that public signers accept instead of entering optional public comments
+- Authority targeting for district, state, or country level appeals: District Collector, Chief Minister, or Prime Minister of India
 - India location hierarchy with state, district, block/tehsil/taluk, and gram panchayat/ward fields
 - True dependent dropdowns for district, block/tehsil/taluk, and gram panchayat/ward after state selection
 - District dropdown coverage for every Indian state/UT, with fallback block and panchayat/ward choices when full official local-body data is not yet connected

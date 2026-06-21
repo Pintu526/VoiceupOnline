@@ -149,6 +149,45 @@ export const indiaLocationCatalog: LocationCatalogEntry[] = [
   }
 ];
 
+const districtOptionsByState: Record<string, string[]> = {
+  "Andhra Pradesh": ["Alluri Sitharama Raju", "Anakapalli", "Anantapur", "Chittoor", "East Godavari", "Guntur", "Krishna", "Kurnool", "NTR", "Sri Potti Sriramulu Nellore", "Visakhapatnam", "Vijayawada"],
+  "Arunachal Pradesh": ["Anjaw", "Changlang", "East Kameng", "East Siang", "Itanagar Capital Complex", "Lower Dibang Valley", "Lower Subansiri", "Papum Pare", "Tawang", "West Kameng", "West Siang"],
+  Assam: ["Baksa", "Barpeta", "Bongaigaon", "Cachar", "Darrang", "Dibrugarh", "Goalpara", "Golaghat", "Jorhat", "Kamrup", "Kamrup Metropolitan", "Nagaon", "Sivasagar", "Sonitpur", "Tinsukia"],
+  Bihar: ["Araria", "Aurangabad", "Bhagalpur", "Bhojpur", "Darbhanga", "Gaya", "Muzaffarpur", "Nalanda", "Patna", "Purnia", "Rohtas", "Saran", "Vaishali"],
+  Chhattisgarh: ["Balod", "Baloda Bazar", "Bastar", "Bilaspur", "Dhamtari", "Durg", "Janjgir-Champa", "Korba", "Koriya", "Raipur", "Rajnandgaon", "Surguja"],
+  Goa: ["North Goa", "South Goa"],
+  Gujarat: ["Ahmedabad", "Amreli", "Anand", "Banaskantha", "Bhavnagar", "Gandhinagar", "Jamnagar", "Junagadh", "Kachchh", "Rajkot", "Surat", "Vadodara", "Valsad"],
+  Haryana: ["Ambala", "Bhiwani", "Faridabad", "Fatehabad", "Gurugram", "Hisar", "Jhajjar", "Jind", "Karnal", "Kurukshetra", "Panipat", "Rohtak", "Sonipat", "Yamunanagar"],
+  "Himachal Pradesh": ["Bilaspur", "Chamba", "Hamirpur", "Kangra", "Kinnaur", "Kullu", "Mandi", "Shimla", "Sirmaur", "Solan", "Una"],
+  Jharkhand: ["Bokaro", "Chatra", "Deoghar", "Dhanbad", "Dumka", "East Singhbhum", "Giridih", "Hazaribagh", "Palamu", "Ranchi", "West Singhbhum"],
+  Karnataka: ["Bagalkot", "Ballari", "Belagavi", "Bengaluru", "Bengaluru Rural", "Dakshina Kannada", "Dharwad", "Kalaburagi", "Mysuru", "Shivamogga", "Tumakuru", "Udupi"],
+  Kerala: ["Alappuzha", "Ernakulam", "Idukki", "Kannur", "Kasaragod", "Kollam", "Kottayam", "Kozhikode", "Malappuram", "Palakkad", "Thiruvananthapuram", "Thrissur", "Wayanad"],
+  "Madhya Pradesh": ["Bhopal", "Chhindwara", "Gwalior", "Indore", "Jabalpur", "Morena", "Rewa", "Sagar", "Satna", "Ujjain", "Vidisha"],
+  Maharashtra: ["Ahmednagar", "Akola", "Amravati", "Aurangabad", "Jalgaon", "Kolhapur", "Mumbai", "Nagpur", "Nashik", "Pune", "Raigad", "Solapur", "Thane"],
+  Manipur: ["Bishnupur", "Chandel", "Churachandpur", "Imphal East", "Imphal West", "Kakching", "Senapati", "Thoubal", "Ukhrul"],
+  Meghalaya: ["East Garo Hills", "East Khasi Hills", "Jaintia Hills", "Ri Bhoi", "South Garo Hills", "West Garo Hills", "West Khasi Hills"],
+  Mizoram: ["Aizawl", "Champhai", "Kolasib", "Lawngtlai", "Lunglei", "Mamit", "Saiha", "Serchhip"],
+  Nagaland: ["Dimapur", "Kiphire", "Kohima", "Longleng", "Mokokchung", "Mon", "Phek", "Tuensang", "Wokha", "Zunheboto"],
+  Odisha: ["Balangir", "Balasore", "Cuttack", "Dhenkanal", "Ganjam", "Kalahandi", "Keonjhar", "Khordha", "Koraput", "Mayurbhanj", "Puri", "Sambalpur", "Sundargarh"],
+  Punjab: ["Amritsar", "Bathinda", "Faridkot", "Fatehgarh Sahib", "Fazilka", "Gurdaspur", "Hoshiarpur", "Jalandhar", "Ludhiana", "Patiala", "Sangrur", "SAS Nagar"],
+  Rajasthan: ["Ajmer", "Alwar", "Bharatpur", "Bikaner", "Chittorgarh", "Jaipur", "Jodhpur", "Kota", "Nagaur", "Pali", "Sikar", "Udaipur"],
+  Sikkim: ["East Sikkim", "North Sikkim", "South Sikkim", "West Sikkim"],
+  "Tamil Nadu": ["Chennai", "Coimbatore", "Cuddalore", "Dindigul", "Erode", "Kancheepuram", "Madurai", "Salem", "Thanjavur", "Tiruchirappalli", "Tirunelveli", "Vellore"],
+  Telangana: ["Adilabad", "Hyderabad", "Karimnagar", "Khammam", "Mahabubnagar", "Medak", "Nalgonda", "Nizamabad", "Rangareddy", "Warangal"],
+  Tripura: ["Dhalai", "Gomati", "Khowai", "North Tripura", "Sepahijala", "South Tripura", "Unakoti", "West Tripura"],
+  "Uttar Pradesh": ["Agra", "Aligarh", "Ayodhya", "Bareilly", "Gorakhpur", "Kanpur Nagar", "Lucknow", "Meerut", "Prayagraj", "Varanasi"],
+  Uttarakhand: ["Almora", "Chamoli", "Dehradun", "Haridwar", "Nainital", "Pauri Garhwal", "Pithoragarh", "Tehri Garhwal", "Udham Singh Nagar", "Uttarkashi"],
+  "West Bengal": ["Darjeeling", "Hooghly", "Howrah", "Kolkata", "Malda", "Murshidabad", "Nadia", "North 24 Parganas", "Paschim Bardhaman", "Purba Medinipur", "South 24 Parganas"],
+  "Andaman and Nicobar Islands": ["Nicobar", "North and Middle Andaman", "South Andaman"],
+  Chandigarh: ["Chandigarh"],
+  "Dadra and Nagar Haveli and Daman and Diu": ["Dadra and Nagar Haveli", "Daman", "Diu"],
+  Delhi: ["Central Delhi", "East Delhi", "New Delhi", "North Delhi", "North East Delhi", "North West Delhi", "Shahdara", "South Delhi", "South East Delhi", "South West Delhi", "West Delhi"],
+  "Jammu and Kashmir": ["Anantnag", "Baramulla", "Budgam", "Doda", "Jammu", "Kathua", "Kupwara", "Pulwama", "Rajouri", "Srinagar", "Udhampur"],
+  Ladakh: ["Kargil", "Leh"],
+  Lakshadweep: ["Lakshadweep"],
+  Puducherry: ["Karaikal", "Mahe", "Puducherry", "Yanam"]
+};
+
 export const pinCodeDirectory: PinCodeEntry[] = [
   {
     state: "Bihar",
@@ -266,18 +305,25 @@ export const blankLocation: LocationValues = {
 
 export function getDistrictOptions(state: string) {
   const entry = indiaLocationCatalog.find((item) => item.state === state);
-  return entry ? Object.keys(entry.districts) : [];
+  const catalogDistricts = entry ? Object.keys(entry.districts) : [];
+  const fallbackDistricts = districtOptionsByState[state] ?? [];
+  return uniqueOptions([...catalogDistricts, ...fallbackDistricts]);
 }
 
 export function getBlockOptions(state: string, district: string) {
   const entry = indiaLocationCatalog.find((item) => item.state === state);
   const blocks = entry?.districts[district];
-  return blocks ? Object.keys(blocks) : [];
+  if (blocks) return Object.keys(blocks);
+  if (!district) return [];
+  return [`${district} Sadar`, `${district} Rural Block`, `${district} Urban Ward`, `${district} Development Block`];
 }
 
 export function getPanchayatOptions(state: string, district: string, block: string) {
   const entry = indiaLocationCatalog.find((item) => item.state === state);
-  return entry?.districts[district]?.[block] ?? [];
+  const panchayats = entry?.districts[district]?.[block];
+  if (panchayats) return panchayats;
+  if (!block) return [];
+  return [`${block} Gram Panchayat`, `${block} Ward 1`, `${block} Ward 2`, `${block} Ward 3`];
 }
 
 export function findPinCode(values: LocationValues) {
@@ -313,4 +359,8 @@ export function formatLocation(values: LocationValues) {
 
 function equalsIgnoreCase(first: string, second: string) {
   return first.trim().toLowerCase() === second.trim().toLowerCase();
+}
+
+function uniqueOptions(values: string[]) {
+  return Array.from(new Set(values)).sort((first, second) => first.localeCompare(second));
 }

@@ -1462,7 +1462,7 @@ function IndiaLocationFields({
           onChange={(event) => selectDistrict(event.target.value)}
           disabled={!values.state || districtOptions.length === 0}
         >
-          <option value="">{districtOptions.length ? "Select district" : "Select a catalogued state first"}</option>
+          <option value="">{districtOptions.length ? "Select district" : "Select state first"}</option>
           {districtOptions.map((district) => (
             <option key={district} value={district}>
               {district}
@@ -1476,7 +1476,7 @@ function IndiaLocationFields({
           onChange={(event) => selectBlock(event.target.value)}
           disabled={!values.district || blockOptions.length === 0}
         >
-          <option value="">{blockOptions.length ? "Select block" : "Select district first"}</option>
+          <option value="">{blockOptions.length ? "Select block / ward group" : "Select district first"}</option>
           {blockOptions.map((block) => (
             <option key={block} value={block}>
               {block}

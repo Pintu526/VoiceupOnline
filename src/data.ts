@@ -76,5 +76,25 @@ export const suggestedFeatures: SuggestedFeature[] = [
     title: "Audit log and legal evidence pack",
     benefit: "Export a submission bundle with consent, timestamps, scans, reviewer actions, and authority details.",
     tier: "Enterprise"
+  },
+  {
+    title: "AI campaign assistant",
+    benefit: "Generate campaign copy, supporter updates, authority submission letters, and regional-language social posts.",
+    tier: "Professional"
+  },
+  {
+    title: "Influencer and ambassador tracking",
+    benefit: "Track which volunteer, RWA leader, creator, or field team brought each supporter into the campaign.",
+    tier: "Enterprise"
+  },
+  {
+    title: "Multilingual campaign pages",
+    benefit: "Publish the same campaign in English, Hindi, and local Indian languages for higher participation.",
+    tier: "Professional"
+  },
+  {
+    title: "Automated milestone journeys",
+    benefit: "Trigger thank-you, 25%, 50%, final submission, and victory messages through WhatsApp, SMS, and email.",
+    tier: "Enterprise"
   }
 ];

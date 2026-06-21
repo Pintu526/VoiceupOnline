@@ -211,6 +211,35 @@ textarea {
   padding: 34px;
 }
 
+.marketing-banner {
+  background:
+    linear-gradient(135deg, rgba(255, 153, 51, 0.95), rgba(255, 255, 255, 0.94), rgba(19, 136, 8, 0.9)),
+    #ffffff;
+  border: 1px solid rgba(11, 61, 145, 0.18);
+  border-radius: 24px;
+  display: grid;
+  gap: 8px;
+  padding: 24px;
+}
+
+.marketing-banner span {
+  color: var(--chakra);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.marketing-banner strong {
+  color: #101828;
+  font-size: clamp(1.8rem, 3vw, 3.2rem);
+  line-height: 1.05;
+}
+
+.marketing-banner small {
+  color: #334155;
+  font-size: 1rem;
+}
+
 .empty-state h1,
 .empty-state h2 {
   margin: 0;
@@ -511,6 +540,113 @@ td span {
   padding: 16px;
 }
 
+.campaign-page-with-media {
+  background-repeat: no-repeat;
+  color: #ffffff;
+  overflow: hidden;
+}
+
+.campaign-page-with-media p {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.campaign-page-with-media .public-progress,
+.campaign-page-with-media .qr-box {
+  background: rgba(15, 23, 42, 0.68);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.campaign-page-with-media .qr-box span {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.video-link,
+.secondary-link-button {
+  align-items: center;
+  background: #eef3ff;
+  border-radius: 13px;
+  color: var(--primary-dark);
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 15px;
+  text-decoration: none;
+}
+
+.video-link {
+  background: rgba(255, 255, 255, 0.92);
+  margin-top: 16px;
+}
+
+.media-editor {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 16px;
+}
+
+.compact-drop {
+  min-height: 160px;
+}
+
+.media-preview {
+  align-items: center;
+  background:
+    linear-gradient(135deg, rgba(255, 153, 51, 0.18), rgba(19, 136, 8, 0.15)),
+    #ffffff;
+  background-repeat: no-repeat;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  color: var(--text-soft);
+  display: grid;
+  min-height: 220px;
+  padding: 18px;
+  place-items: center;
+}
+
+.participant-actions,
+.engagement-card,
+.participant-message-card {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.engagement-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.engagement-card p,
+.participant-message-card span,
+.participant-message-card small {
+  color: var(--text-soft);
+}
+
+.participant-message-list {
+  display: grid;
+  gap: 12px;
+}
+
+.participant-message-card {
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.participant-message-card span,
+.participant-message-card small {
+  display: block;
+}
+
 .qr-box {
   align-items: center;
   display: flex;
@@ -655,7 +791,9 @@ td span {
   .hero,
   .two-column,
   .public-layout,
-  .scan-grid {
+  .scan-grid,
+  .media-editor,
+  .engagement-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -681,6 +819,7 @@ td span {
   .form-grid.compact,
   .authority-editor,
   .onboarding-grid,
+  .participant-message-card,
   .nav {
     grid-template-columns: 1fr;
   }

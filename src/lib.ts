@@ -127,7 +127,7 @@ export function createScanReviewItem(
 
 export function exportCsv(campaign: Campaign, signers: Signer[]) {
   const rows = [
-    ["Campaign", "Name", "Email", "Phone", "Address", "Postal Code", "Source", "Status", "Signed At", "Comment"],
+    ["Campaign", "Name", "Email", "Phone", "Address", "PIN Code", "Source", "Status", "Signed At", "Comment"],
     ...signers.map((signer) => [
       campaign.title,
       signer.name,
@@ -157,7 +157,7 @@ export function exportPdf(campaign: Campaign, signers: Signer[], authority: Auth
   doc.setFontSize(12);
   doc.text(`Campaign: ${campaign.title}`, 14, 32);
   doc.text(`Status: ${campaign.status}`, 14, 40);
-  doc.text(`Location: ${campaign.location} ${campaign.postalCode}`, 14, 48);
+  doc.text(`Location / PIN: ${campaign.location} ${campaign.postalCode}`, 14, 48);
   doc.text(`Verified signatures: ${metrics.verified} / ${campaign.goal} (${metrics.progress}%)`, 14, 56);
   doc.text(`Online: ${metrics.online} | Scanned: ${metrics.scanned} | Pending review: ${metrics.pending}`, 14, 64);
 

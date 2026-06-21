@@ -15,12 +15,21 @@ export type BillingPlan = "Starter" | "Professional" | "Enterprise";
 
 export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled";
 
+export type SignerRequiredField = keyof Pick<
+  Signer,
+  "name" | "email" | "phone" | "address" | "postalCode" | "state" | "district" | "block" | "panchayat"
+>;
+
 export interface Campaign {
   id: string;
   title: string;
   slug: string;
   category: CampaignCategory;
   description: string;
+  state: string;
+  district: string;
+  block: string;
+  panchayat: string;
   location: string;
   postalCode: string;
   startDate: string;
@@ -28,7 +37,7 @@ export interface Campaign {
   goal: number;
   status: "Draft" | "Published" | "Paused" | "Closed";
   consentText: string;
-  requiredFields: Array<keyof Pick<Signer, "name" | "email" | "phone" | "address" | "postalCode">>;
+  requiredFields: SignerRequiredField[];
   shareUrl: string;
   qrLabel: string;
 }
@@ -39,6 +48,10 @@ export interface Signer {
   name: string;
   email: string;
   phone: string;
+  state: string;
+  district: string;
+  block: string;
+  panchayat: string;
   address: string;
   postalCode: string;
   comment: string;

@@ -8,11 +8,13 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 
 - Campaign admin panel with title, goal, location, dates, required fields, consent text, and publish action
 - Public campaign page for online signers
+- India location hierarchy with state, district, block/tehsil/taluk, and gram panchayat/ward fields
 - Local duplicate detection by phone, email, and name
 - Hard-copy scan upload with OCR through `tesseract.js`
 - Manual review queue for scanned signer details
 - Authority routing rules by category, location keyword, and postal prefix
 - Daily and weekly campaign status reports
+- State-wise, district-wise, block-wise, and panchayat/ward-wise campaign performance counts
 - PDF and CSV report downloads
 - SaaS organization settings for INR subscription plan, billing details, limits, branding, owner email, and custom domain
 - Suggested next features and production-readiness checklist

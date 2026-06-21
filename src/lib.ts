@@ -49,6 +49,17 @@ export function groupSignersByWeek(signers: Signer[]) {
   }, {});
 }
 
+export function groupSignersByLocation(
+  signers: Signer[],
+  level: "state" | "district" | "block" | "panchayat"
+) {
+  return signers.reduce<Record<string, number>>((accumulator, signer) => {
+    const label = signer[level]?.trim() || "Not captured";
+    accumulator[label] = (accumulator[label] ?? 0) + 1;
+    return accumulator;
+  }, {});
+}
+
 export function detectDuplicate(candidate: Pick<Signer, "email" | "phone" | "name">, signers: Signer[]) {
   const email = candidate.email.trim().toLowerCase();
   const phone = normalizePhone(candidate.phone);
@@ -68,7 +79,15 @@ export function detectDuplicate(candidate: Pick<Signer, "email" | "phone" | "nam
 }
 
 export function matchAuthority(campaign: Campaign, authorities: AuthorityRule[]) {
-  const normalizedLocation = campaign.location.toLowerCase();
+  const normalizedLocation = [
+    campaign.location,
+    campaign.panchayat,
+    campaign.block,
+    campaign.district,
+    campaign.state
+  ]
+    .join(" ")
+    .toLowerCase();
   const matches = authorities
     .map((authority) => {
       let score = authority.confidence;
@@ -103,6 +122,10 @@ export function parseSignerFromText(text: string) {
     name: valueFor(["name", "full name", "signer"]),
     email: valueFor(["email", "e-mail"]),
     phone: valueFor(["phone", "mobile", "contact"]),
+    state: valueFor(["state"]),
+    district: valueFor(["district"]),
+    block: valueFor(["block", "taluk", "tehsil"]),
+    panchayat: valueFor(["panchayat", "gram panchayat", "ward", "village"]),
     address: valueFor(["address", "location"]),
     postalCode: valueFor(["postal code", "postcode", "pin", "zip"]),
     comment: valueFor(["comment", "message", "reason"]) || "Imported from scanned hard copy."
@@ -127,12 +150,31 @@ export function createScanReviewItem(
 
 export function exportCsv(campaign: Campaign, signers: Signer[]) {
   const rows = [
-    ["Campaign", "Name", "Email", "Phone", "Address", "PIN Code", "Source", "Status", "Signed At", "Comment"],
+    [
+      "Campaign",
+      "Name",
+      "Email",
+      "Phone",
+      "State",
+      "District",
+      "Block",
+      "Gram Panchayat / Ward",
+      "Address",
+      "PIN Code",
+      "Source",
+      "Status",
+      "Signed At",
+      "Comment"
+    ],
     ...signers.map((signer) => [
       campaign.title,
       signer.name,
       signer.email,
       signer.phone,
+      signer.state,
+      signer.district,
+      signer.block,
+      signer.panchayat,
       signer.address,
       signer.postalCode,
       signer.source,
@@ -150,6 +192,10 @@ export function exportPdf(campaign: Campaign, signers: Signer[], authority: Auth
   const metrics = getCampaignMetrics(campaign, signers);
   const daily = groupSignersByDay(signers);
   const weekly = groupSignersByWeek(signers);
+  const byState = groupSignersByLocation(signers, "state");
+  const byDistrict = groupSignersByLocation(signers, "district");
+  const byBlock = groupSignersByLocation(signers, "block");
+  const byPanchayat = groupSignersByLocation(signers, "panchayat");
   const doc = new jsPDF();
 
   doc.setFontSize(18);
@@ -157,18 +203,19 @@ export function exportPdf(campaign: Campaign, signers: Signer[], authority: Auth
   doc.setFontSize(12);
   doc.text(`Campaign: ${campaign.title}`, 14, 32);
   doc.text(`Status: ${campaign.status}`, 14, 40);
-  doc.text(`Location / PIN: ${campaign.location} ${campaign.postalCode}`, 14, 48);
-  doc.text(`Verified signatures: ${metrics.verified} / ${campaign.goal} (${metrics.progress}%)`, 14, 56);
-  doc.text(`Online: ${metrics.online} | Scanned: ${metrics.scanned} | Pending review: ${metrics.pending}`, 14, 64);
+  doc.text(`Location: ${[campaign.panchayat, campaign.block, campaign.district, campaign.state].filter(Boolean).join(", ")}`, 14, 48);
+  doc.text(`Local detail / PIN: ${campaign.location} ${campaign.postalCode}`, 14, 56);
+  doc.text(`Verified signatures: ${metrics.verified} / ${campaign.goal} (${metrics.progress}%)`, 14, 64);
+  doc.text(`Online: ${metrics.online} | Scanned: ${metrics.scanned} | Pending review: ${metrics.pending}`, 14, 72);
 
   if (authority) {
-    doc.text(`Suggested authority: ${authority.name}`, 14, 76);
-    doc.text(`Department: ${authority.department}`, 14, 84);
-    doc.text(`Submission: ${authority.submissionMethod} - ${authority.email}`, 14, 92);
+    doc.text(`Suggested authority: ${authority.name}`, 14, 84);
+    doc.text(`Department: ${authority.department}`, 14, 92);
+    doc.text(`Submission: ${authority.submissionMethod} - ${authority.email}`, 14, 100);
   }
 
-  doc.text("Daily totals", 14, 108);
-  let y = 116;
+  doc.text("Daily totals", 14, 116);
+  let y = 124;
   Object.entries(daily).forEach(([day, count]) => {
     doc.text(`${day}: ${count}`, 18, y);
     y += 8;
@@ -182,12 +229,20 @@ export function exportPdf(campaign: Campaign, signers: Signer[], authority: Auth
     y += 8;
   });
 
+  y = writePdfSection(doc, "State totals", byState, y + 8);
+  y = writePdfSection(doc, "District totals", byDistrict, y + 8);
+  y = writePdfSection(doc, "Block totals", byBlock, y + 8);
+  writePdfSection(doc, "Gram Panchayat / Ward totals", byPanchayat, y + 8);
+
   doc.save(`${campaign.slug}-campaign-report.pdf`);
 }
 
 export function makePublicSigner(
   campaignId: string,
-  values: Pick<Signer, "name" | "email" | "phone" | "address" | "postalCode" | "comment">,
+  values: Pick<
+    Signer,
+    "name" | "email" | "phone" | "state" | "district" | "block" | "panchayat" | "address" | "postalCode" | "comment"
+  >,
   signers: Signer[]
 ): Signer {
   const duplicate = detectDuplicate(values, signers);
@@ -200,6 +255,25 @@ export function makePublicSigner(
     signedAt: new Date().toISOString(),
     reviewerNote: duplicate ? `Possible duplicate of ${duplicate.name}` : undefined
   };
+}
+
+function writePdfSection(doc: jsPDF, title: string, data: Record<string, number>, startY: number) {
+  let y = startY;
+  if (y > 260) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.text(title, 14, y);
+  y += 8;
+  Object.entries(data).forEach(([label, count]) => {
+    if (y > 280) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(`${label}: ${count}`, 18, y);
+    y += 8;
+  });
+  return y;
 }
 
 function normalizePhone(phone: string) {

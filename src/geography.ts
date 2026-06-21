@@ -351,26 +351,32 @@ export function addLocationOverride(overrides: LocationOverrides, values: Locati
   const block = values.block.trim();
   const panchayat = values.panchayat.trim();
   const stateOverrides = overrides[state] ?? {};
-  const districtOverrides = stateOverrides[district] ?? {};
+  const districtKey = findExistingKey(Object.keys(stateOverrides), district) ?? district;
+  const districtOverrides = stateOverrides[districtKey] ?? {};
 
   if (!block) {
     return {
       ...overrides,
       [state]: {
         ...stateOverrides,
-        [district]: districtOverrides
+        [districtKey]: districtOverrides
       }
     };
   }
 
-  const existingPanchayats = districtOverrides[block] ?? [];
+  const blockKey = findExistingKey(Object.keys(districtOverrides), block) ?? block;
+  const existingPanchayats = districtOverrides[blockKey] ?? [];
+  const nextPanchayats =
+    panchayat && !existingPanchayats.some((existing) => equalsIgnoreCase(existing, panchayat))
+      ? uniqueOptions([...existingPanchayats, panchayat])
+      : existingPanchayats;
   return {
     ...overrides,
     [state]: {
       ...stateOverrides,
-      [district]: {
+      [districtKey]: {
         ...districtOverrides,
-        [block]: panchayat ? uniqueOptions([...existingPanchayats, panchayat]) : existingPanchayats
+        [blockKey]: nextPanchayats
       }
     }
   };
@@ -426,4 +432,8 @@ function equalsIgnoreCase(first: string, second: string) {
 
 function uniqueOptions(values: string[]) {
   return Array.from(new Set(values)).sort((first, second) => first.localeCompare(second));
+}
+
+function findExistingKey(keys: string[], value: string) {
+  return keys.find((key) => equalsIgnoreCase(key, value));
 }

@@ -454,31 +454,9 @@ td span {
 .authority-card,
 .form-stack,
 .review-list,
-.authority-list,
-.custom-location-list {
+.authority-list {
   display: grid;
   gap: 12px;
-}
-
-.helper-text {
-  color: var(--text-soft);
-}
-
-.custom-location-list {
-  margin-top: 16px;
-}
-
-.custom-location-chip {
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-}
-
-.custom-location-chip span {
-  color: var(--text-soft);
 }
 
 .form-grid {
@@ -494,6 +472,33 @@ td span {
 .field {
   display: grid;
   gap: 7px;
+}
+
+.inline-add-option {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 44px;
+}
+
+.inline-add-option small {
+  color: #9a3412;
+  grid-column: 1 / -1;
+}
+
+.inline-add-button {
+  align-items: center;
+  background: var(--primary);
+  border: 0;
+  border-radius: 12px;
+  color: #ffffff;
+  display: grid;
+  min-height: 42px;
+  place-items: center;
+}
+
+.inline-add-button:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
 }
 
 .wide {

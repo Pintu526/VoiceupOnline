@@ -47,8 +47,7 @@ import {
   groupSignersByLocation,
   groupSignersByDay,
   groupSignersByWeek,
-  makePublicSigner,
-  matchAuthority
+  makePublicSigner
 } from "./lib";
 import {
   addLocationOverride,
@@ -67,7 +66,16 @@ import {
   type LocationOverrides,
   type LocationWithPin
 } from "./geography";
-import type { AuthorityRule, BillingPlan, Campaign, CampaignCategory, Organization, ScanReviewItem, Signer } from "./types";
+import type {
+  AuthorityRule,
+  AuthorityTargetLevel,
+  BillingPlan,
+  Campaign,
+  CampaignCategory,
+  Organization,
+  ScanReviewItem,
+  Signer
+} from "./types";
 
 type Tab = "dashboard" | "campaigns" | "public" | "scans" | "reports" | "engagement" | "saas" | "ideas";
 
@@ -96,6 +104,11 @@ const blankSigner = {
   comment: ""
 };
 
+const blankAdminLogin = {
+  email: "",
+  passcode: ""
+};
+
 function App() {
   const [campaigns, setCampaigns] = usePersistentState<Campaign[]>(`${storagePrefix}-campaigns`, initialCampaigns);
   const [signers, setSigners] = usePersistentState<Signer[]>(`${storagePrefix}-signers`, initialSigners);
@@ -122,14 +135,23 @@ function App() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
   const publicCampaignSlug = getPublicCampaignSlug();
+  const adminCampaignSlug = getCampaignAdminSlug();
   const isPublicCampaignRoute = Boolean(publicCampaignSlug);
+  const isCampaignAdminRoute = Boolean(adminCampaignSlug);
+  const [adminLogin, setAdminLogin] = useState(blankAdminLogin);
+  const [adminLoginMessage, setAdminLoginMessage] = useState("");
+  const [authenticatedAdminSlugs, setAuthenticatedAdminSlugs] = useState<Record<string, boolean>>(() =>
+    readAuthenticatedAdminSlugs()
+  );
 
   const activeCampaign = useMemo(
     () =>
       publicCampaignSlug
         ? campaigns.find((campaign) => campaign.slug === publicCampaignSlug)
+        : adminCampaignSlug
+          ? campaigns.find((campaign) => campaign.slug === adminCampaignSlug)
         : campaigns.find((campaign) => campaign.id === activeCampaignId) ?? campaigns[0],
-    [activeCampaignId, campaigns, publicCampaignSlug]
+    [activeCampaignId, adminCampaignSlug, campaigns, publicCampaignSlug]
   );
   const campaignSigners = useMemo(
     () => (activeCampaign ? getCampaignSigners(activeCampaign.id, signers) : []),
@@ -140,8 +162,11 @@ function App() {
     [activeCampaign, signers]
   );
   const authorityMatch = useMemo(
-    () => (activeCampaign ? matchAuthority(activeCampaign, authorities) : undefined),
-    [activeCampaign, authorities]
+    () =>
+      activeCampaign
+        ? { authority: getAppealAuthority(activeCampaign), score: 100 }
+        : undefined,
+    [activeCampaign]
   );
   const dailyTotals = useMemo(() => groupSignersByDay(campaignSigners), [campaignSigners]);
   const weeklyTotals = useMemo(() => groupSignersByWeek(campaignSigners), [campaignSigners]);
@@ -170,6 +195,15 @@ function App() {
     }
   }, [campaigns]);
 
+  useEffect(() => {
+    if (!adminCampaignSlug) return;
+    const campaignFromPath = campaigns.find((campaign) => campaign.slug === adminCampaignSlug);
+    if (campaignFromPath) {
+      setActiveCampaignId(campaignFromPath.id);
+      setActiveTab((currentTab) => (currentTab === "saas" || currentTab === "ideas" ? "dashboard" : currentTab));
+    }
+  }, [adminCampaignSlug, campaigns]);
+
   function saveCampaign(event: FormEvent) {
     event.preventDefault();
     if (!campaignDraft) return;
@@ -185,6 +219,9 @@ function App() {
       slug: `new-campaign-${Date.now()}`,
       category: "Civic",
       description: "Describe the public issue, requested action, and why citizens should support it.",
+      appealContent:
+        "I support this appeal and request the selected authority to take appropriate action for the public cause described in this campaign.",
+      authorityTargetLevel: "district",
       state: "",
       district: "",
       block: "",
@@ -199,6 +236,9 @@ function App() {
         "I consent to this organization storing my details and using them only for this campaign submission in India.",
       requiredFields: ["name", "email", "phone", "state", "district", "block", "panchayat", "address", "postalCode"],
       shareUrl: `${getCampaignBaseUrl(organization)}/c/new-campaign`,
+      adminUrl: `${getCampaignBaseUrl(organization)}/admin/new-campaign`,
+      adminEmail: organization.ownerEmail || organization.billingEmail || "",
+      adminPasscode: createAdminPasscode(),
       qrLabel: "VOICEUP-INDIA-CAMPAIGN",
       heroImage: "",
       heroImagePosition: "center center",
@@ -221,7 +261,8 @@ function App() {
     const publishedCampaign = {
       ...campaignDraft,
       status: "Published" as const,
-      shareUrl: `${getCampaignBaseUrl(organization)}/c/${campaignDraft.slug}`
+      shareUrl: `${getCampaignBaseUrl(organization)}/c/${campaignDraft.slug}`,
+      adminUrl: `${getCampaignBaseUrl(organization)}/admin/${campaignDraft.slug}`
     };
     setCampaignDraft(publishedCampaign);
     setCampaigns((currentCampaigns) =>
@@ -244,7 +285,16 @@ function App() {
       setPublicMessage(`${signerFieldLabel(missingRequiredField)} is required to sign this campaign.`);
       return;
     }
-    const signer = makePublicSigner(activeCampaign.id, publicForm, campaignSigners);
+    const signer = makePublicSigner(
+      activeCampaign.id,
+      {
+        ...publicForm,
+        comment: `Accepted published appeal to ${getAppealAuthority(activeCampaign).name}: ${
+          activeCampaign.appealContent || activeCampaign.description
+        }`
+      },
+      campaignSigners
+    );
     setSigners((currentSigners) => [signer, ...currentSigners]);
     setPublicForm(blankSigner);
     setLastSignedSigner(signer);
@@ -386,6 +436,34 @@ function App() {
     window.setTimeout(() => setCopiedMessage(""), 2500);
   }
 
+  function submitCampaignAdminLogin(event: FormEvent) {
+    event.preventDefault();
+    if (!activeCampaign) return;
+
+    const expectedEmail = getCampaignAdminEmail(activeCampaign);
+    const expectedPasscode = getCampaignAdminPasscode(activeCampaign);
+    const emailMatches = adminLogin.email.trim().toLowerCase() === expectedEmail.trim().toLowerCase();
+    const passcodeMatches = adminLogin.passcode.trim() === expectedPasscode.trim();
+
+    if (!emailMatches || !passcodeMatches) {
+      setAdminLoginMessage("Invalid campaign admin email or passcode.");
+      return;
+    }
+
+    const nextAuth = { ...authenticatedAdminSlugs, [activeCampaign.slug]: true };
+    setAuthenticatedAdminSlugs(nextAuth);
+    writeAuthenticatedAdminSlugs(nextAuth);
+    setAdminLogin(blankAdminLogin);
+    setAdminLoginMessage("");
+  }
+
+  function logoutCampaignAdmin() {
+    if (!activeCampaign) return;
+    const nextAuth = { ...authenticatedAdminSlugs, [activeCampaign.slug]: false };
+    setAuthenticatedAdminSlugs(nextAuth);
+    writeAuthenticatedAdminSlugs(nextAuth);
+  }
+
   if (isPublicCampaignRoute) {
     return activeCampaign ? (
       <div className="public-only-shell">
@@ -404,6 +482,24 @@ function App() {
     ) : (
       <PublicCampaignNotFound />
     );
+  }
+
+  if (isCampaignAdminRoute) {
+    if (!activeCampaign) {
+      return <CampaignAdminNotFound />;
+    }
+
+    if (!authenticatedAdminSlugs[activeCampaign.slug]) {
+      return (
+        <CampaignAdminLogin
+          campaign={activeCampaign}
+          adminLogin={adminLogin}
+          setAdminLogin={setAdminLogin}
+          message={adminLoginMessage}
+          onSubmit={submitCampaignAdminLogin}
+        />
+      );
+    }
   }
 
   return (
@@ -425,8 +521,12 @@ function App() {
           <NavButton icon={<FileScan />} label="Scan hard copies" tab="scans" activeTab={activeTab} onClick={setActiveTab} />
           <NavButton icon={<FileText />} label="Reports" tab="reports" activeTab={activeTab} onClick={setActiveTab} />
           <NavButton icon={<MessageCircle />} label="Engagement" tab="engagement" activeTab={activeTab} onClick={setActiveTab} />
-          <NavButton icon={<WalletCards />} label="SaaS admin" tab="saas" activeTab={activeTab} onClick={setActiveTab} />
-          <NavButton icon={<Sparkles />} label="Feature ideas" tab="ideas" activeTab={activeTab} onClick={setActiveTab} />
+          {!isCampaignAdminRoute && (
+            <>
+              <NavButton icon={<WalletCards />} label="SaaS admin" tab="saas" activeTab={activeTab} onClick={setActiveTab} />
+              <NavButton icon={<Sparkles />} label="Feature ideas" tab="ideas" activeTab={activeTab} onClick={setActiveTab} />
+            </>
+          )}
         </nav>
         <div className="sidebar-card">
           <span className="eyebrow">Current plan</span>
@@ -438,26 +538,36 @@ function App() {
       <main className="main">
         <header className="topbar">
           <div>
-            <span className="eyebrow">Selected campaign</span>
-            <select
-              value={activeCampaignId}
-              onChange={(event) => setActiveCampaignId(event.target.value)}
-              disabled={campaigns.length === 0}
-            >
-              {campaigns.length === 0 ? (
-                <option>No campaign yet</option>
-              ) : (
-                campaigns.map((campaign) => (
-                  <option key={campaign.id} value={campaign.id}>
-                    {campaign.title}
-                  </option>
-                ))
-              )}
-            </select>
+            <span className="eyebrow">{isCampaignAdminRoute ? "Campaign admin page" : "Selected campaign"}</span>
+            {isCampaignAdminRoute ? (
+              <strong>{activeCampaign?.title}</strong>
+            ) : (
+              <select
+                value={activeCampaignId}
+                onChange={(event) => setActiveCampaignId(event.target.value)}
+                disabled={campaigns.length === 0}
+              >
+                {campaigns.length === 0 ? (
+                  <option>No campaign yet</option>
+                ) : (
+                  campaigns.map((campaign) => (
+                    <option key={campaign.id} value={campaign.id}>
+                      {campaign.title}
+                    </option>
+                  ))
+                )}
+              </select>
+            )}
           </div>
-          <button className="secondary-button" type="button" onClick={createCampaign}>
-            <Plus size={18} /> New campaign
-          </button>
+          {isCampaignAdminRoute ? (
+            <button className="secondary-button" type="button" onClick={logoutCampaignAdmin}>
+              Logout campaign admin
+            </button>
+          ) : (
+            <button className="secondary-button" type="button" onClick={createCampaign}>
+              <Plus size={18} /> New campaign
+            </button>
+          )}
         </header>
 
         {activeTab === "dashboard" && (
@@ -589,6 +699,25 @@ function App() {
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, shareUrl: event.target.value })}
                   />
                 </Field>
+                  <Field label="Campaign admin URL">
+                    <input
+                      value={campaignDraft.adminUrl ?? `${getCampaignBaseUrl(organization)}/admin/${campaignDraft.slug}`}
+                      onChange={(event) => setCampaignDraft({ ...campaignDraft, adminUrl: event.target.value })}
+                    />
+                  </Field>
+                  <Field label="Campaign admin email">
+                    <input
+                      type="email"
+                      value={campaignDraft.adminEmail ?? ""}
+                      onChange={(event) => setCampaignDraft({ ...campaignDraft, adminEmail: event.target.value })}
+                    />
+                  </Field>
+                  <Field label="Campaign admin passcode">
+                    <input
+                      value={campaignDraft.adminPasscode ?? ""}
+                      onChange={(event) => setCampaignDraft({ ...campaignDraft, adminPasscode: event.target.value })}
+                    />
+                  </Field>
                   <Field label="QR / WhatsApp campaign label">
                   <input
                     value={campaignDraft.qrLabel}
@@ -602,6 +731,31 @@ function App() {
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, description: event.target.value })}
                   />
                 </Field>
+                  <Field label="Appeal / cause text shown on public signing page" wide>
+                    <textarea
+                      rows={5}
+                      value={campaignDraft.appealContent ?? ""}
+                      onChange={(event) => setCampaignDraft({ ...campaignDraft, appealContent: event.target.value })}
+                    />
+                  </Field>
+                  <Field label="Appeal should go to authority">
+                    <select
+                      value={campaignDraft.authorityTargetLevel ?? "district"}
+                      onChange={(event) =>
+                        setCampaignDraft({
+                          ...campaignDraft,
+                          authorityTargetLevel: event.target.value as AuthorityTargetLevel
+                        })
+                      }
+                    >
+                      <option value="district">District level - District Collector</option>
+                      <option value="state">State level - Chief Minister</option>
+                      <option value="country">Country level - Prime Minister of India</option>
+                    </select>
+                  </Field>
+                  <Field label="Selected appeal authority">
+                    <input value={getAppealAuthority(campaignDraft).name} readOnly />
+                  </Field>
                   <Field label="Consent text" wide>
                   <textarea
                     rows={3}
@@ -1323,6 +1477,10 @@ function PublicCampaignSection({
         <span className="status-pill">{campaign.status}</span>
         <h1>{campaign.title}</h1>
         <p>{campaign.description}</p>
+        <div className="appeal-card">
+          <span className="eyebrow">Appeal to {getAppealAuthority(campaign).name}</span>
+          <p>{campaign.appealContent || campaign.description}</p>
+        </div>
         <div className="public-progress">
           <div className="progress">
             <div style={{ width: `${metrics.progress}%` }} />
@@ -1373,12 +1531,9 @@ function PublicCampaignSection({
             value={publicForm.address}
             onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
           />
-          <textarea
-            placeholder="Optional comment"
-            rows={3}
-            value={publicForm.comment}
-            onChange={(event) => setPublicForm({ ...publicForm, comment: event.target.value })}
-          />
+          <label className="check-row">
+            <input required type="checkbox" /> I have read and support the campaign appeal/cause shown above.
+          </label>
           <label className="check-row">
             <input required type="checkbox" /> {campaign.consentText}
           </label>
@@ -1423,6 +1578,69 @@ function PublicCampaignNotFound() {
           Please check the campaign link or ask the campaign organizer to publish the campaign again. The public signing
           page shows only campaign content when a published campaign is available.
         </p>
+      </section>
+    </main>
+  );
+}
+
+function CampaignAdminLogin({
+  campaign,
+  adminLogin,
+  setAdminLogin,
+  message,
+  onSubmit
+}: {
+  campaign: Campaign;
+  adminLogin: typeof blankAdminLogin;
+  setAdminLogin: React.Dispatch<React.SetStateAction<typeof blankAdminLogin>>;
+  message: string;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <main className="public-only-shell">
+      <section className="campaign-admin-login">
+        <div className="brand">
+          <div className="brand-mark">
+            <Megaphone size={24} />
+          </div>
+          <div>
+            <strong>Voiceup Bharat</strong>
+            <span>Campaign admin access</span>
+          </div>
+        </div>
+        <span className="eyebrow">Protected campaign admin</span>
+        <h1>{campaign.title}</h1>
+        <p>Login to manage this campaign, review signers, scan hard copies, send updates, and view reports.</p>
+        <form className="form-stack" onSubmit={onSubmit}>
+          <input
+            type="email"
+            placeholder="Campaign admin email"
+            value={adminLogin.email}
+            onChange={(event) => setAdminLogin({ ...adminLogin, email: event.target.value })}
+          />
+          <input
+            type="password"
+            placeholder="Campaign admin passcode"
+            value={adminLogin.passcode}
+            onChange={(event) => setAdminLogin({ ...adminLogin, passcode: event.target.value })}
+          />
+          <button className="primary-button" type="submit">
+            Login to campaign admin
+          </button>
+          {message && <p className="info-message">{message}</p>}
+        </form>
+      </section>
+    </main>
+  );
+}
+
+function CampaignAdminNotFound() {
+  return (
+    <main className="public-only-shell">
+      <section className="empty-state public-not-found">
+        <span className="eyebrow">Campaign admin</span>
+        <h1>Campaign admin page not found.</h1>
+        <p>Please check the admin link or ask the campaign owner to share the correct campaign admin URL.</p>
       </section>
     </main>
   );
@@ -1828,6 +2046,81 @@ function getCampaignBaseUrl(organization: Organization) {
 function getPublicCampaignSlug() {
   if (typeof window === "undefined") return "";
   return window.location.pathname.match(/^\/c\/([^/]+)/)?.[1] ?? "";
+}
+
+function getCampaignAdminSlug() {
+  if (typeof window === "undefined") return "";
+  return window.location.pathname.match(/^\/admin\/([^/]+)/)?.[1] ?? "";
+}
+
+function createAdminPasscode() {
+  return `voiceup-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getCampaignAdminEmail(campaign: Campaign) {
+  return campaign.adminEmail || "admin@voiceup.in";
+}
+
+function getCampaignAdminPasscode(campaign: Campaign) {
+  return campaign.adminPasscode || "voiceup-admin";
+}
+
+function getAppealAuthority(campaign: Campaign): AuthorityRule {
+  const level = campaign.authorityTargetLevel ?? "district";
+
+  if (level === "country") {
+    return {
+      id: "authority-prime-minister-india",
+      name: "Prime Minister of India",
+      department: "Government of India",
+      category: "Any",
+      locationKeyword: "india",
+      postalPrefix: "",
+      email: "pmopg@gov.in",
+      submissionMethod: "Portal",
+      confidence: 100
+    };
+  }
+
+  if (level === "state") {
+    return {
+      id: `authority-chief-minister-${campaign.state || "state"}`,
+      name: campaign.state ? `Chief Minister of ${campaign.state}` : "Chief Minister of the selected state",
+      department: "State Government",
+      category: "Any",
+      locationKeyword: campaign.state,
+      postalPrefix: "",
+      email: "Configure official CMO contact",
+      submissionMethod: "Portal",
+      confidence: 100
+    };
+  }
+
+  return {
+    id: `authority-district-collector-${campaign.district || "district"}`,
+    name: campaign.district ? `District Collector, ${campaign.district}` : "District Collector of the selected district",
+    department: "District Administration",
+    category: "Any",
+    locationKeyword: campaign.district,
+    postalPrefix: campaign.postalCode.slice(0, 3),
+    email: "Configure official district collector contact",
+    submissionMethod: "Email",
+    confidence: 100
+  };
+}
+
+function readAuthenticatedAdminSlugs() {
+  if (typeof window === "undefined") return {};
+  try {
+    return JSON.parse(window.sessionStorage.getItem("voiceup-campaign-admin-auth") ?? "{}") as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
+
+function writeAuthenticatedAdminSlugs(values: Record<string, boolean>) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem("voiceup-campaign-admin-auth", JSON.stringify(values));
 }
 
 function renderCampaignMessage(

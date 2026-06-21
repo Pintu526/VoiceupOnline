@@ -15,6 +15,8 @@ export type BillingPlan = "Starter" | "Professional" | "Enterprise";
 
 export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled";
 
+export type AuthorityTargetLevel = "district" | "state" | "country";
+
 export type SignerRequiredField = keyof Pick<
   Signer,
   "name" | "email" | "phone" | "address" | "postalCode" | "state" | "district" | "block" | "panchayat"
@@ -26,6 +28,8 @@ export interface Campaign {
   slug: string;
   category: CampaignCategory;
   description: string;
+  appealContent: string;
+  authorityTargetLevel: AuthorityTargetLevel;
   state: string;
   district: string;
   block: string;
@@ -39,6 +43,9 @@ export interface Campaign {
   consentText: string;
   requiredFields: SignerRequiredField[];
   shareUrl: string;
+  adminUrl: string;
+  adminEmail: string;
+  adminPasscode: string;
   qrLabel: string;
   heroImage: string;
   heroImagePosition: string;

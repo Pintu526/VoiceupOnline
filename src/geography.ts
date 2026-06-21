@@ -17,6 +17,7 @@ interface LocationCatalogEntry {
 export interface PinCodeEntry extends LocationWithPin {}
 
 export type LocationOverrides = Record<string, Record<string, Record<string, string[]>>>;
+export type LocationOverrideLevel = "district" | "block" | "panchayat";
 
 export const indianStatesAndUnionTerritories = [
   "Andhra Pradesh",
@@ -382,6 +383,83 @@ export function addLocationOverride(overrides: LocationOverrides, values: Locati
   };
 }
 
+export function removeLocationOverride(
+  overrides: LocationOverrides,
+  values: LocationValues,
+  level: LocationOverrideLevel
+) {
+  const stateKey = findExistingKey(Object.keys(overrides), values.state);
+  if (!stateKey) return overrides;
+
+  const stateOverrides = overrides[stateKey];
+  const districtKey = findExistingKey(Object.keys(stateOverrides), values.district);
+  if (!districtKey) return overrides;
+
+  if (level === "district") {
+    const { [districtKey]: _removedDistrict, ...remainingDistricts } = stateOverrides;
+    return pruneOverrides({ ...overrides, [stateKey]: remainingDistricts });
+  }
+
+  const districtOverrides = stateOverrides[districtKey];
+  const blockKey = findExistingKey(Object.keys(districtOverrides), values.block);
+  if (!blockKey) return overrides;
+
+  if (level === "block") {
+    const { [blockKey]: _removedBlock, ...remainingBlocks } = districtOverrides;
+    return {
+      ...overrides,
+      [stateKey]: {
+        ...stateOverrides,
+        [districtKey]: remainingBlocks
+      }
+    };
+  }
+
+  const currentPanchayats = districtOverrides[blockKey] ?? [];
+  const nextPanchayats = currentPanchayats.filter((panchayat) => !equalsIgnoreCase(panchayat, values.panchayat));
+
+  return {
+    ...overrides,
+    [stateKey]: {
+      ...stateOverrides,
+      [districtKey]: {
+        ...districtOverrides,
+        [blockKey]: nextPanchayats
+      }
+    }
+  };
+}
+
+export function hasDistrictOverride(overrides: LocationOverrides, state: string, district: string) {
+  const stateKey = findExistingKey(Object.keys(overrides), state);
+  if (!stateKey) return false;
+  return Boolean(findExistingKey(Object.keys(overrides[stateKey]), district));
+}
+
+export function hasBlockOverride(overrides: LocationOverrides, state: string, district: string, block: string) {
+  const stateKey = findExistingKey(Object.keys(overrides), state);
+  if (!stateKey) return false;
+  const districtKey = findExistingKey(Object.keys(overrides[stateKey]), district);
+  if (!districtKey) return false;
+  return Boolean(findExistingKey(Object.keys(overrides[stateKey][districtKey]), block));
+}
+
+export function hasPanchayatOverride(
+  overrides: LocationOverrides,
+  state: string,
+  district: string,
+  block: string,
+  panchayat: string
+) {
+  const stateKey = findExistingKey(Object.keys(overrides), state);
+  if (!stateKey) return false;
+  const districtKey = findExistingKey(Object.keys(overrides[stateKey]), district);
+  if (!districtKey) return false;
+  const blockKey = findExistingKey(Object.keys(overrides[stateKey][districtKey]), block);
+  if (!blockKey) return false;
+  return overrides[stateKey][districtKey][blockKey]?.some((item) => equalsIgnoreCase(item, panchayat)) ?? false;
+}
+
 export function flattenLocationOverrides(overrides: LocationOverrides) {
   return Object.entries(overrides).flatMap(([state, districts]) =>
     Object.entries(districts).flatMap(([district, blocks]) => {
@@ -436,4 +514,33 @@ function uniqueOptions(values: string[]) {
 
 function findExistingKey(keys: string[], value: string) {
   return keys.find((key) => equalsIgnoreCase(key, value));
+}
+
+function pruneOverrides(overrides: LocationOverrides) {
+  return Object.entries(overrides).reduce<LocationOverrides>((stateAccumulator, [state, districts]) => {
+    const nextDistricts = Object.entries(districts).reduce<Record<string, Record<string, string[]>>>(
+      (districtAccumulator, [district, blocks]) => {
+        const nextBlocks = Object.entries(blocks).reduce<Record<string, string[]>>(
+          (blockAccumulator, [block, panchayats]) => {
+            if (panchayats.length > 0) {
+              blockAccumulator[block] = panchayats;
+            }
+            return blockAccumulator;
+          },
+          {}
+        );
+
+        if (Object.keys(nextBlocks).length > 0) {
+          districtAccumulator[district] = nextBlocks;
+        }
+        return districtAccumulator;
+      },
+      {}
+    );
+
+    if (Object.keys(nextDistricts).length > 0) {
+      stateAccumulator[state] = nextDistricts;
+    }
+    return stateAccumulator;
+  }, {});
 }

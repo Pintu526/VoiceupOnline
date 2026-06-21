@@ -501,6 +501,20 @@ td span {
   cursor: not-allowed;
 }
 
+.inline-delete-option {
+  align-items: center;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 12px;
+  color: #be123c;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 12px;
+}
+
 .wide {
   grid-column: 1 / -1;
 }

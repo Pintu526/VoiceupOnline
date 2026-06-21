@@ -52,18 +52,18 @@ import {
 } from "./lib";
 import {
   addLocationOverride,
+  clearLocationDeletion,
+  emptyLocationDeletions,
   findLocationByPin,
   findPinCode,
   getBlockOptions,
   getDistrictOptions,
   getPinOptions,
   getPanchayatOptions,
-  hasBlockOverride,
-  hasDistrictOverride,
-  hasPanchayatOverride,
   indianStatesAndUnionTerritories,
-  removeLocationOverride,
-  type LocationOverrideLevel,
+  removeLocationOption,
+  type LocationDeletionLevel,
+  type LocationDeletions,
   type LocationOverrides,
   type LocationWithPin
 } from "./geography";
@@ -105,6 +105,10 @@ function App() {
   const [locationOverrides, setLocationOverrides] = usePersistentState<LocationOverrides>(
     `${storagePrefix}-location-overrides`,
     {}
+  );
+  const [locationDeletions, setLocationDeletions] = usePersistentState<LocationDeletions>(
+    `${storagePrefix}-location-deletions`,
+    emptyLocationDeletions
   );
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [activeCampaignId, setActiveCampaignId] = useState(initialCampaigns[0]?.id ?? "");
@@ -337,11 +341,17 @@ function App() {
   }
 
   function addAdminLocationOption(values: LocationWithPin) {
+    const level = getLocationLevel(values);
     setLocationOverrides((currentOverrides) => addLocationOverride(currentOverrides, values));
+    setLocationDeletions((currentDeletions) => clearLocationDeletion(currentDeletions, values, level));
   }
 
-  function removeAdminLocationOption(values: LocationWithPin, level: LocationOverrideLevel) {
-    setLocationOverrides((currentOverrides) => removeLocationOverride(currentOverrides, values, level));
+  function removeAdminLocationOption(values: LocationWithPin, level: LocationDeletionLevel) {
+    setLocationOverrides((currentOverrides) => {
+      const result = removeLocationOption(currentOverrides, locationDeletions, values, level);
+      setLocationDeletions(result.deletions);
+      return result.overrides;
+    });
   }
 
   function selectSubscriptionPlan(planName: BillingPlan) {
@@ -387,6 +397,7 @@ function App() {
           publicMessage={publicMessage}
           lastSignedSigner={lastSignedSigner}
           locationOverrides={locationOverrides}
+          locationDeletions={locationDeletions}
           onSubmit={submitPublicSignature}
         />
       </div>
@@ -553,6 +564,7 @@ function App() {
                     values={campaignDraft}
                     onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values })}
                     locationOverrides={locationOverrides}
+                    locationDeletions={locationDeletions}
                     allowInlineAdd
                     onAddLocation={addAdminLocationOption}
                     onRemoveLocation={removeAdminLocationOption}
@@ -784,6 +796,7 @@ function App() {
               publicMessage={publicMessage}
               lastSignedSigner={lastSignedSigner}
               locationOverrides={locationOverrides}
+              locationDeletions={locationDeletions}
               onSubmit={submitPublicSignature}
             />
           ) : (
@@ -1282,6 +1295,7 @@ function PublicCampaignSection({
   publicMessage,
   lastSignedSigner,
   locationOverrides,
+  locationDeletions,
   onSubmit
 }: {
   campaign: Campaign;
@@ -1291,6 +1305,7 @@ function PublicCampaignSection({
   publicMessage: string;
   lastSignedSigner: Signer | null;
   locationOverrides: LocationOverrides;
+  locationDeletions: LocationDeletions;
   onSubmit: (event: FormEvent) => void;
 }) {
   return (
@@ -1351,6 +1366,7 @@ function PublicCampaignSection({
             values={publicForm}
             onChange={(values) => setPublicForm({ ...publicForm, ...values })}
             locationOverrides={locationOverrides}
+            locationDeletions={locationDeletions}
           />
           <input
             placeholder="Address"
@@ -1493,6 +1509,7 @@ function IndiaLocationFields({
   values,
   onChange,
   locationOverrides,
+  locationDeletions,
   allowInlineAdd = false,
   onAddLocation,
   onRemoveLocation
@@ -1501,33 +1518,29 @@ function IndiaLocationFields({
   values: LocationWithPin;
   onChange: (values: LocationWithPin) => void;
   locationOverrides: LocationOverrides;
+  locationDeletions: LocationDeletions;
   allowInlineAdd?: boolean;
   onAddLocation?: (values: LocationWithPin) => void;
-  onRemoveLocation?: (values: LocationWithPin, level: LocationOverrideLevel) => void;
+  onRemoveLocation?: (values: LocationWithPin, level: LocationDeletionLevel) => void;
 }) {
   const [newDistrict, setNewDistrict] = useState("");
   const [newBlock, setNewBlock] = useState("");
   const [newPanchayat, setNewPanchayat] = useState("");
-  const districtOptions = getDistrictOptions(values.state, locationOverrides);
-  const blockOptions = getBlockOptions(values.state, values.district, locationOverrides);
-  const panchayatOptions = getPanchayatOptions(values.state, values.district, values.block, locationOverrides);
-  const baseDistrictOptions = getDistrictOptions(values.state);
-  const baseBlockOptions = getBlockOptions(values.state, values.district);
-  const basePanchayatOptions = getPanchayatOptions(values.state, values.district, values.block);
-  const pinOptions = getPinOptions(values);
-  const canDeleteDistrict =
-    hasDistrictOverride(locationOverrides, values.state, values.district) &&
-    !optionExists(baseDistrictOptions, values.district);
-  const canDeleteBlock =
-    hasBlockOverride(locationOverrides, values.state, values.district, values.block) &&
-    !optionExists(baseBlockOptions, values.block);
-  const canDeletePanchayat = hasPanchayatOverride(
-    locationOverrides,
+  const districtOptions = getDistrictOptions(values.state, locationOverrides, locationDeletions);
+  const blockOptions = getBlockOptions(values.state, values.district, locationOverrides, locationDeletions);
+  const panchayatOptions = getPanchayatOptions(
     values.state,
     values.district,
     values.block,
-    values.panchayat
-  ) && !optionExists(basePanchayatOptions, values.panchayat);
+    locationOverrides,
+    locationDeletions
+  );
+  const pinOptions = getPinOptions(values);
+  const canDeleteDistrict = Boolean(allowInlineAdd && values.state && values.district);
+  const canDeleteBlock = Boolean(allowInlineAdd && values.state && values.district && values.block);
+  const canDeletePanchayat = Boolean(
+    allowInlineAdd && values.state && values.district && values.block && values.panchayat
+  );
 
   function updateLocation(nextValues: LocationWithPin) {
     const matchedPin = findPinCode(nextValues);
@@ -1535,25 +1548,25 @@ function IndiaLocationFields({
   }
 
   function selectState(state: string) {
-    const districts = getDistrictOptions(state, locationOverrides);
+    const districts = getDistrictOptions(state, locationOverrides, locationDeletions);
     const district = districts[0] ?? "";
-    const blocks = getBlockOptions(state, district, locationOverrides);
+    const blocks = getBlockOptions(state, district, locationOverrides, locationDeletions);
     const block = blocks[0] ?? "";
-    const panchayats = getPanchayatOptions(state, district, block, locationOverrides);
+    const panchayats = getPanchayatOptions(state, district, block, locationOverrides, locationDeletions);
     const panchayat = panchayats[0] ?? "";
     updateLocation({ state, district, block, panchayat, postalCode: "" });
   }
 
   function selectDistrict(district: string) {
-    const blocks = getBlockOptions(values.state, district, locationOverrides);
+    const blocks = getBlockOptions(values.state, district, locationOverrides, locationDeletions);
     const block = blocks[0] ?? "";
-    const panchayats = getPanchayatOptions(values.state, district, block, locationOverrides);
+    const panchayats = getPanchayatOptions(values.state, district, block, locationOverrides, locationDeletions);
     const panchayat = panchayats[0] ?? "";
     updateLocation({ ...values, district, block, panchayat, postalCode: "" });
   }
 
   function selectBlock(block: string) {
-    const panchayats = getPanchayatOptions(values.state, values.district, block, locationOverrides);
+    const panchayats = getPanchayatOptions(values.state, values.district, block, locationOverrides, locationDeletions);
     const panchayat = panchayats[0] ?? "";
     updateLocation({ ...values, block, panchayat, postalCode: "" });
   }
@@ -1647,7 +1660,7 @@ function IndiaLocationFields({
               duplicate={Boolean(newDistrict.trim() && optionExists(districtOptions, newDistrict))}
             />
             {canDeleteDistrict && (
-              <InlineDeleteOption label={`Delete admin-added district "${values.district}"`} onDelete={deleteDistrict} />
+              <InlineDeleteOption label={`Delete district "${values.district}"`} onDelete={deleteDistrict} />
             )}
           </>
         )}
@@ -1676,7 +1689,7 @@ function IndiaLocationFields({
               duplicate={Boolean(newBlock.trim() && optionExists(blockOptions, newBlock))}
             />
             {canDeleteBlock && (
-              <InlineDeleteOption label={`Delete admin-added block "${values.block}"`} onDelete={deleteBlock} />
+              <InlineDeleteOption label={`Delete block "${values.block}"`} onDelete={deleteBlock} />
             )}
           </>
         )}
@@ -1705,7 +1718,7 @@ function IndiaLocationFields({
               duplicate={Boolean(newPanchayat.trim() && optionExists(panchayatOptions, newPanchayat))}
             />
             {canDeletePanchayat && (
-              <InlineDeleteOption label={`Delete admin-added panchayat/ward "${values.panchayat}"`} onDelete={deletePanchayat} />
+              <InlineDeleteOption label={`Delete panchayat/ward "${values.panchayat}"`} onDelete={deletePanchayat} />
             )}
           </>
         )}
@@ -1775,6 +1788,12 @@ function InlineDeleteOption({ label, onDelete }: { label: string; onDelete: () =
 function optionExists(options: string[], value: string) {
   const normalizedValue = value.trim().toLowerCase();
   return options.some((option) => option.trim().toLowerCase() === normalizedValue);
+}
+
+function getLocationLevel(values: LocationWithPin): LocationDeletionLevel {
+  if (values.panchayat.trim()) return "panchayat";
+  if (values.block.trim()) return "block";
+  return "district";
 }
 
 function signerFieldLabel(field: string) {

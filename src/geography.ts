@@ -18,6 +18,19 @@ export interface PinCodeEntry extends LocationWithPin {}
 
 export type LocationOverrides = Record<string, Record<string, Record<string, string[]>>>;
 export type LocationOverrideLevel = "district" | "block" | "panchayat";
+export type LocationDeletionLevel = LocationOverrideLevel;
+
+export interface LocationDeletions {
+  districts: string[];
+  blocks: string[];
+  panchayats: string[];
+}
+
+export const emptyLocationDeletions: LocationDeletions = {
+  districts: [],
+  blocks: [],
+  panchayats: []
+};
 
 export const indianStatesAndUnionTerritories = [
   "Andhra Pradesh",
@@ -306,19 +319,34 @@ export const blankLocation: LocationValues = {
   panchayat: ""
 };
 
-export function getDistrictOptions(state: string, overrides: LocationOverrides = {}) {
+export function getDistrictOptions(
+  state: string,
+  overrides: LocationOverrides = {},
+  deletions: LocationDeletions = emptyLocationDeletions
+) {
   const entry = indiaLocationCatalog.find((item) => item.state === state);
   const catalogDistricts = entry ? Object.keys(entry.districts) : [];
   const fallbackDistricts = districtOptionsByState[state] ?? [];
   const customDistricts = Object.keys(overrides[state] ?? {});
-  return uniqueOptions([...catalogDistricts, ...fallbackDistricts, ...customDistricts]);
+  return uniqueOptions([...catalogDistricts, ...fallbackDistricts, ...customDistricts]).filter(
+    (district) => !isDistrictDeleted(deletions, state, district)
+  );
 }
 
-export function getBlockOptions(state: string, district: string, overrides: LocationOverrides = {}) {
+export function getBlockOptions(
+  state: string,
+  district: string,
+  overrides: LocationOverrides = {},
+  deletions: LocationDeletions = emptyLocationDeletions
+) {
   const entry = indiaLocationCatalog.find((item) => item.state === state);
   const blocks = entry?.districts[district];
   const customBlocks = Object.keys(overrides[state]?.[district] ?? {});
-  if (blocks) return uniqueOptions([...Object.keys(blocks), ...customBlocks]);
+  if (blocks) {
+    return uniqueOptions([...Object.keys(blocks), ...customBlocks]).filter(
+      (block) => !isBlockDeleted(deletions, state, district, block)
+    );
+  }
   if (!district) return [];
   return uniqueOptions([
     ...customBlocks,
@@ -326,14 +354,24 @@ export function getBlockOptions(state: string, district: string, overrides: Loca
     `${district} Rural Block`,
     `${district} Urban Ward`,
     `${district} Development Block`
-  ]);
+  ]).filter((block) => !isBlockDeleted(deletions, state, district, block));
 }
 
-export function getPanchayatOptions(state: string, district: string, block: string, overrides: LocationOverrides = {}) {
+export function getPanchayatOptions(
+  state: string,
+  district: string,
+  block: string,
+  overrides: LocationOverrides = {},
+  deletions: LocationDeletions = emptyLocationDeletions
+) {
   const entry = indiaLocationCatalog.find((item) => item.state === state);
   const panchayats = entry?.districts[district]?.[block];
   const customPanchayats = overrides[state]?.[district]?.[block] ?? [];
-  if (panchayats) return uniqueOptions([...panchayats, ...customPanchayats]);
+  if (panchayats) {
+    return uniqueOptions([...panchayats, ...customPanchayats]).filter(
+      (panchayat) => !isPanchayatDeleted(deletions, state, district, block, panchayat)
+    );
+  }
   if (!block) return [];
   return uniqueOptions([
     ...customPanchayats,
@@ -341,7 +379,7 @@ export function getPanchayatOptions(state: string, district: string, block: stri
     `${block} Ward 1`,
     `${block} Ward 2`,
     `${block} Ward 3`
-  ]);
+  ]).filter((panchayat) => !isPanchayatDeleted(deletions, state, district, block, panchayat));
 }
 
 export function addLocationOverride(overrides: LocationOverrides, values: LocationValues) {
@@ -430,6 +468,72 @@ export function removeLocationOverride(
   };
 }
 
+export function addLocationDeletion(deletions: LocationDeletions, values: LocationValues, level: LocationDeletionLevel) {
+  const nextDeletions = normalizeDeletions(deletions);
+  if (level === "district") {
+    return {
+      ...nextDeletions,
+      districts: addUniqueKey(nextDeletions.districts, districtKey(values.state, values.district))
+    };
+  }
+
+  if (level === "block") {
+    return {
+      ...nextDeletions,
+      blocks: addUniqueKey(nextDeletions.blocks, blockKey(values.state, values.district, values.block))
+    };
+  }
+
+  return {
+    ...nextDeletions,
+    panchayats: addUniqueKey(
+      nextDeletions.panchayats,
+      panchayatKey(values.state, values.district, values.block, values.panchayat)
+    )
+  };
+}
+
+export function clearLocationDeletion(
+  deletions: LocationDeletions,
+  values: LocationValues,
+  level: LocationDeletionLevel
+) {
+  const nextDeletions = normalizeDeletions(deletions);
+  if (level === "district") {
+    return {
+      ...nextDeletions,
+      districts: removeKey(nextDeletions.districts, districtKey(values.state, values.district))
+    };
+  }
+
+  if (level === "block") {
+    return {
+      ...nextDeletions,
+      blocks: removeKey(nextDeletions.blocks, blockKey(values.state, values.district, values.block))
+    };
+  }
+
+  return {
+    ...nextDeletions,
+    panchayats: removeKey(
+      nextDeletions.panchayats,
+      panchayatKey(values.state, values.district, values.block, values.panchayat)
+    )
+  };
+}
+
+export function removeLocationOption(
+  overrides: LocationOverrides,
+  deletions: LocationDeletions,
+  values: LocationValues,
+  level: LocationDeletionLevel
+) {
+  return {
+    overrides: removeLocationOverride(overrides, values, level),
+    deletions: addLocationDeletion(deletions, values, level)
+  };
+}
+
 export function hasDistrictOverride(overrides: LocationOverrides, state: string, district: string) {
   const stateKey = findExistingKey(Object.keys(overrides), state);
   if (!stateKey) return false;
@@ -514,6 +618,56 @@ function uniqueOptions(values: string[]) {
 
 function findExistingKey(keys: string[], value: string) {
   return keys.find((key) => equalsIgnoreCase(key, value));
+}
+
+function normalizeDeletions(deletions: LocationDeletions | undefined): LocationDeletions {
+  return {
+    districts: deletions?.districts ?? [],
+    blocks: deletions?.blocks ?? [],
+    panchayats: deletions?.panchayats ?? []
+  };
+}
+
+function isDistrictDeleted(deletions: LocationDeletions, state: string, district: string) {
+  return normalizeDeletions(deletions).districts.includes(districtKey(state, district));
+}
+
+function isBlockDeleted(deletions: LocationDeletions, state: string, district: string, block: string) {
+  return normalizeDeletions(deletions).blocks.includes(blockKey(state, district, block));
+}
+
+function isPanchayatDeleted(
+  deletions: LocationDeletions,
+  state: string,
+  district: string,
+  block: string,
+  panchayat: string
+) {
+  return normalizeDeletions(deletions).panchayats.includes(panchayatKey(state, district, block, panchayat));
+}
+
+function districtKey(state: string, district: string) {
+  return normalizeKey([state, district]);
+}
+
+function blockKey(state: string, district: string, block: string) {
+  return normalizeKey([state, district, block]);
+}
+
+function panchayatKey(state: string, district: string, block: string, panchayat: string) {
+  return normalizeKey([state, district, block, panchayat]);
+}
+
+function normalizeKey(values: string[]) {
+  return values.map((value) => value.trim().toLowerCase()).join("||");
+}
+
+function addUniqueKey(values: string[], key: string) {
+  return values.includes(key) ? values : [...values, key];
+}
+
+function removeKey(values: string[], key: string) {
+  return values.filter((value) => value !== key);
 }
 
 function pruneOverrides(overrides: LocationOverrides) {

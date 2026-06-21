@@ -39,6 +39,9 @@ export interface Campaign {
   consentText: string;
   requiredFields: SignerRequiredField[];
   shareUrl: string;
+  adminUrl: string;
+  adminEmail: string;
+  adminPasscode: string;
   qrLabel: string;
   heroImage: string;
   heroImagePosition: string;

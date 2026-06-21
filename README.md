@@ -16,6 +16,7 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Campaign banner upload with simple crop/zoom/focus controls and public campaign background display
 - Campaign video URL, social share text, and same-domain `/c/campaign-slug` publishing path
 - Public `/c/campaign-slug` links render only the public campaign signing page, without admin dashboard navigation
+- Protected per-campaign admin `/admin/campaign-slug` links require campaign admin email/passcode before showing management, scanning, engagement, and reports for that campaign
 - Local duplicate detection by phone, email, and name
 - Hard-copy scan upload with OCR through `tesseract.js`
 - Manual review queue for scanned signer details

@@ -21,6 +21,9 @@ import {
   Sparkles,
   Upload,
   Users,
+  MessageCircle,
+  Share2,
+  Image as ImageIcon,
   WalletCards
 } from "lucide-react";
 import Tesseract from "tesseract.js";
@@ -58,10 +61,10 @@ import {
 } from "./geography";
 import type { AuthorityRule, BillingPlan, Campaign, CampaignCategory, Organization, ScanReviewItem, Signer } from "./types";
 
-type Tab = "dashboard" | "campaigns" | "public" | "scans" | "reports" | "saas" | "ideas";
+type Tab = "dashboard" | "campaigns" | "public" | "scans" | "reports" | "engagement" | "saas" | "ideas";
 
 const categories: CampaignCategory[] = ["Civic", "Environment", "Education", "Health", "Transport", "Housing", "Other"];
-const storagePrefix = "voiceup-india-locations-v3";
+const storagePrefix = "voiceup-world-class-campaigns-v4";
 const emptyMetrics = {
   total: 0,
   verified: 0,
@@ -96,6 +99,9 @@ function App() {
   const [campaignDraft, setCampaignDraft] = useState<Campaign | null>(campaigns[0] ?? null);
   const [publicForm, setPublicForm] = useState(blankSigner);
   const [publicMessage, setPublicMessage] = useState("");
+  const [lastSignedSigner, setLastSignedSigner] = useState<Signer | null>(null);
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [copiedMessage, setCopiedMessage] = useState("");
   const [scanText, setScanText] = useState(blankScanTemplate);
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
@@ -133,6 +139,16 @@ function App() {
     setCampaignDraft(activeCampaign ?? null);
   }, [activeCampaign]);
 
+  useEffect(() => {
+    const slugFromPath = window.location.pathname.match(/^\/c\/([^/]+)/)?.[1];
+    if (!slugFromPath) return;
+    const campaignFromPath = campaigns.find((campaign) => campaign.slug === slugFromPath);
+    if (campaignFromPath) {
+      setActiveCampaignId(campaignFromPath.id);
+      setActiveTab("public");
+    }
+  }, [campaigns]);
+
   function saveCampaign(event: FormEvent) {
     event.preventDefault();
     if (!campaignDraft) return;
@@ -161,8 +177,17 @@ function App() {
       consentText:
         "I consent to this organization storing my details and using them only for this campaign submission in India.",
       requiredFields: ["name", "email", "phone", "state", "district", "block", "panchayat", "address", "postalCode"],
-      shareUrl: "https://voiceup.in/c/new-campaign",
-      qrLabel: "VOICEUP-INDIA-CAMPAIGN"
+      shareUrl: `${getCampaignBaseUrl(organization)}/c/new-campaign`,
+      qrLabel: "VOICEUP-INDIA-CAMPAIGN",
+      heroImage: "",
+      heroImagePosition: "center center",
+      heroImageZoom: 120,
+      campaignVideoUrl: "",
+      socialShareText: "Join this public campaign and add your voice.",
+      thankYouMessage:
+        "Thank you for signing {{campaign}}. Your voice has been recorded. Track campaign progress here: {{url}}",
+      participantUpdateMessage:
+        "{{campaign}} update: {{verified}} verified supporters have joined so far. Share this campaign: {{url}}"
     };
     setCampaigns((currentCampaigns) => [...currentCampaigns, campaign]);
     setActiveCampaignId(campaign.id);
@@ -175,7 +200,7 @@ function App() {
     const publishedCampaign = {
       ...campaignDraft,
       status: "Published" as const,
-      shareUrl: `https://${organization.customDomain || "voiceup.in"}/c/${campaignDraft.slug}`
+      shareUrl: `${getCampaignBaseUrl(organization)}/c/${campaignDraft.slug}`
     };
     setCampaignDraft(publishedCampaign);
     setCampaigns((currentCampaigns) =>
@@ -201,6 +226,7 @@ function App() {
     const signer = makePublicSigner(activeCampaign.id, publicForm, campaignSigners);
     setSigners((currentSigners) => [signer, ...currentSigners]);
     setPublicForm(blankSigner);
+    setLastSignedSigner(signer);
     setPublicMessage(
       signer.status === "duplicate"
         ? "Thanks. This looks like a duplicate, so it was sent to review."
@@ -306,6 +332,25 @@ function App() {
     }));
   }
 
+  function updateCampaignMedia(file: File) {
+    if (!campaignDraft) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCampaignDraft({ ...campaignDraft, heroImage: String(reader.result ?? "") });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function campaignReportMessage(campaign: Campaign) {
+    return renderCampaignMessage(campaign.participantUpdateMessage, campaign, metrics);
+  }
+
+  async function copyText(text: string) {
+    await navigator.clipboard.writeText(text);
+    setCopiedMessage("Copied message to clipboard.");
+    window.setTimeout(() => setCopiedMessage(""), 2500);
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -324,6 +369,7 @@ function App() {
           <NavButton icon={<Globe2 />} label="Public signing" tab="public" activeTab={activeTab} onClick={setActiveTab} />
           <NavButton icon={<FileScan />} label="Scan hard copies" tab="scans" activeTab={activeTab} onClick={setActiveTab} />
           <NavButton icon={<FileText />} label="Reports" tab="reports" activeTab={activeTab} onClick={setActiveTab} />
+          <NavButton icon={<MessageCircle />} label="Engagement" tab="engagement" activeTab={activeTab} onClick={setActiveTab} />
           <NavButton icon={<WalletCards />} label="SaaS admin" tab="saas" activeTab={activeTab} onClick={setActiveTab} />
           <NavButton icon={<Sparkles />} label="Feature ideas" tab="ideas" activeTab={activeTab} onClick={setActiveTab} />
         </nav>
@@ -503,6 +549,87 @@ function App() {
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, consentText: event.target.value })}
                   />
                 </Field>
+                  <div className="wide media-editor">
+                    <div>
+                      <span className="label">Campaign banner image</span>
+                      <label className="drop-zone compact-drop">
+                        <ImageIcon size={28} />
+                        <strong>Upload banner / background image</strong>
+                        <span>Use a campaign poster or field photo. Crop is controlled below.</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(event) => {
+                            const file = event.target.files?.[0];
+                            if (file) updateCampaignMedia(file);
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <div
+                      className="media-preview"
+                      style={{
+                        backgroundImage: campaignDraft.heroImage ? `url(${campaignDraft.heroImage})` : undefined,
+                        backgroundPosition: campaignDraft.heroImagePosition,
+                        backgroundSize: `${campaignDraft.heroImageZoom}%`
+                      }}
+                    >
+                      {!campaignDraft.heroImage && <span>Banner preview</span>}
+                    </div>
+                    <Field label="Image crop / zoom">
+                      <input
+                        type="range"
+                        min="100"
+                        max="220"
+                        value={campaignDraft.heroImageZoom}
+                        onChange={(event) =>
+                          setCampaignDraft({ ...campaignDraft, heroImageZoom: Number(event.target.value) })
+                        }
+                      />
+                    </Field>
+                    <Field label="Image focus">
+                      <select
+                        value={campaignDraft.heroImagePosition}
+                        onChange={(event) =>
+                          setCampaignDraft({ ...campaignDraft, heroImagePosition: event.target.value })
+                        }
+                      >
+                        <option value="center center">Center</option>
+                        <option value="center top">Top</option>
+                        <option value="center bottom">Bottom</option>
+                        <option value="left center">Left</option>
+                        <option value="right center">Right</option>
+                      </select>
+                    </Field>
+                    <Field label="Campaign video URL">
+                      <input
+                        placeholder="YouTube, Instagram, or hosted video link"
+                        value={campaignDraft.campaignVideoUrl}
+                        onChange={(event) => setCampaignDraft({ ...campaignDraft, campaignVideoUrl: event.target.value })}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Social share text" wide>
+                    <textarea
+                      rows={3}
+                      value={campaignDraft.socialShareText}
+                      onChange={(event) => setCampaignDraft({ ...campaignDraft, socialShareText: event.target.value })}
+                    />
+                  </Field>
+                  <Field label="Thank-you WhatsApp/SMS message" wide>
+                    <textarea
+                      rows={3}
+                      value={campaignDraft.thankYouMessage}
+                      onChange={(event) => setCampaignDraft({ ...campaignDraft, thankYouMessage: event.target.value })}
+                    />
+                  </Field>
+                  <Field label="Participant update message" wide>
+                    <textarea
+                      rows={3}
+                      value={campaignDraft.participantUpdateMessage}
+                      onChange={(event) => setCampaignDraft({ ...campaignDraft, participantUpdateMessage: event.target.value })}
+                    />
+                  </Field>
                   <div className="wide required-fields">
                   <span className="label">Required signer details</span>
                   {([
@@ -602,7 +729,16 @@ function App() {
         {activeTab === "public" && (
           activeCampaign ? (
             <section className="public-layout">
-              <div className="campaign-page">
+              <div
+                className={activeCampaign.heroImage ? "campaign-page campaign-page-with-media" : "campaign-page"}
+                style={{
+                  backgroundImage: activeCampaign.heroImage
+                    ? `linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.34)), url(${activeCampaign.heroImage})`
+                    : undefined,
+                  backgroundPosition: activeCampaign.heroImagePosition,
+                  backgroundSize: `${activeCampaign.heroImageZoom}%`
+                }}
+              >
                 <span className="status-pill">{activeCampaign.status}</span>
                 <h1>{activeCampaign.title}</h1>
                 <p>{activeCampaign.description}</p>
@@ -620,6 +756,11 @@ function App() {
                     <span>{activeCampaign.shareUrl}</span>
                   </div>
                 </div>
+                {activeCampaign.campaignVideoUrl && (
+                  <a className="video-link" href={activeCampaign.campaignVideoUrl} target="_blank" rel="noreferrer">
+                    Watch campaign video
+                  </a>
+                )}
               </div>
 
               <Panel title="Support this campaign" icon={<ClipboardList />}>
@@ -663,6 +804,27 @@ function App() {
                     <CheckCircle2 size={18} /> Sign campaign
                   </button>
                   {publicMessage && <p className="success-message">{publicMessage}</p>}
+                  {lastSignedSigner?.campaignId === activeCampaign.id && (
+                    <div className="participant-actions">
+                      <strong>Send thank-you message</strong>
+                      <div className="button-row">
+                        <a
+                          className="secondary-link-button"
+                          href={whatsAppLink(lastSignedSigner.phone, renderCampaignMessage(activeCampaign.thankYouMessage, activeCampaign, metrics))}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          WhatsApp
+                        </a>
+                        <a
+                          className="secondary-link-button"
+                          href={smsLink(lastSignedSigner.phone, renderCampaignMessage(activeCampaign.thankYouMessage, activeCampaign, metrics))}
+                        >
+                          SMS
+                        </a>
+                      </div>
+                    </div>
+                  )}
                 </form>
               </Panel>
             </section>
@@ -854,6 +1016,119 @@ function App() {
             <NoCampaignPanel
               title="Reports will appear after campaign setup"
               description="Create a campaign and collect signatures before downloading PDF or CSV reports."
+              onCreateCampaign={createCampaign}
+            />
+          )
+        )}
+
+        {activeTab === "engagement" && (
+          activeCampaign ? (
+            <section className="page-stack">
+              <Panel title="Social publishing and participant engagement" icon={<MessageCircle />}>
+                <div className="engagement-grid">
+                  <div className="engagement-card">
+                    <Share2 size={24} />
+                    <h3>Publish campaign to social networks</h3>
+                    <p>Share the same campaign URL. The campaign is published as a slug under your main domain.</p>
+                    <div className="button-row">
+                      <a
+                        className="secondary-link-button"
+                        href={whatsAppLink("", `${activeCampaign.socialShareText} ${activeCampaign.shareUrl}`)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        WhatsApp share
+                      </a>
+                      <a
+                        className="secondary-link-button"
+                        href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeCampaign.shareUrl)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Facebook
+                      </a>
+                      <a
+                        className="secondary-link-button"
+                        href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${activeCampaign.socialShareText} ${activeCampaign.shareUrl}`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        X / Twitter
+                      </a>
+                    </div>
+                  </div>
+                  <div className="engagement-card">
+                    <MessageCircle size={24} />
+                    <h3>Participant report message</h3>
+                    <p>Send a current progress update to keep supporters engaged after signup.</p>
+                    <textarea
+                      rows={5}
+                      value={broadcastMessage || campaignReportMessage(activeCampaign)}
+                      onChange={(event) => setBroadcastMessage(event.target.value)}
+                    />
+                    <div className="button-row">
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => void copyText(broadcastMessage || campaignReportMessage(activeCampaign))}
+                      >
+                        Copy update
+                      </button>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => setBroadcastMessage(campaignReportMessage(activeCampaign))}
+                      >
+                        Refresh report
+                      </button>
+                    </div>
+                    {copiedMessage && <p className="success-message">{copiedMessage}</p>}
+                  </div>
+                </div>
+              </Panel>
+
+              <Panel title="Send message to participants" icon={<Users />}>
+                {campaignSigners.length === 0 ? (
+                  <p>No participants yet. Once people sign, WhatsApp and SMS actions appear here.</p>
+                ) : (
+                  <div className="participant-message-list">
+                    {campaignSigners.map((signer) => {
+                      const message = broadcastMessage || campaignReportMessage(activeCampaign);
+                      return (
+                        <div className="participant-message-card" key={signer.id}>
+                          <div>
+                            <strong>{signer.name}</strong>
+                            <span>{signer.phone}</span>
+                            <small>{[signer.panchayat, signer.block, signer.district, signer.state].filter(Boolean).join(", ")}</small>
+                          </div>
+                          <div className="button-row">
+                            <a
+                              className="secondary-link-button"
+                              href={whatsAppLink(signer.phone, message)}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              WhatsApp
+                            </a>
+                            <a className="secondary-link-button" href={smsLink(signer.phone, message)}>
+                              SMS
+                            </a>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="info-message">
+                  Production bulk delivery should connect WhatsApp Business API and an Indian SMS provider such as
+                  MSG91, Gupshup, Twilio, or Airtel IQ.
+                </p>
+              </Panel>
+            </section>
+          ) : (
+            <NoCampaignPanel
+              title="Engagement tools need a campaign"
+              description="Create and publish a campaign before sending WhatsApp, SMS, or social updates."
               onCreateCampaign={createCampaign}
             />
           )
@@ -1136,6 +1411,30 @@ function IndiaLocationFields({
     onChange({ ...nextValues, postalCode: matchedPin ?? nextValues.postalCode });
   }
 
+  function selectState(state: string) {
+    const districts = getDistrictOptions(state);
+    const district = districts[0] ?? "";
+    const blocks = getBlockOptions(state, district);
+    const block = blocks[0] ?? "";
+    const panchayats = getPanchayatOptions(state, district, block);
+    const panchayat = panchayats[0] ?? "";
+    updateLocation({ state, district, block, panchayat, postalCode: "" });
+  }
+
+  function selectDistrict(district: string) {
+    const blocks = getBlockOptions(values.state, district);
+    const block = blocks[0] ?? "";
+    const panchayats = getPanchayatOptions(values.state, district, block);
+    const panchayat = panchayats[0] ?? "";
+    updateLocation({ ...values, district, block, panchayat, postalCode: "" });
+  }
+
+  function selectBlock(block: string) {
+    const panchayats = getPanchayatOptions(values.state, values.district, block);
+    const panchayat = panchayats[0] ?? "";
+    updateLocation({ ...values, block, panchayat, postalCode: "" });
+  }
+
   function updatePin(postalCode: string) {
     const normalizedPin = postalCode.replace(/\D/g, "").slice(0, 6);
     const matchedLocation = findLocationByPin(normalizedPin);
@@ -1147,15 +1446,7 @@ function IndiaLocationFields({
       <Field label="State / Union Territory">
         <select
           value={values.state}
-          onChange={(event) =>
-            updateLocation({
-              state: event.target.value,
-              district: "",
-              block: "",
-              panchayat: "",
-              postalCode: ""
-            })
-          }
+          onChange={(event) => selectState(event.target.value)}
         >
           <option value="">Select state</option>
           {indianStatesAndUnionTerritories.map((state) => (
@@ -1166,45 +1457,46 @@ function IndiaLocationFields({
         </select>
       </Field>
       <Field label="District">
-        <input
-          list={`${idPrefix}-districts`}
-          placeholder="Select or type district"
+        <select
           value={values.district}
-          onChange={(event) =>
-            updateLocation({ ...values, district: event.target.value, block: "", panchayat: "", postalCode: "" })
-          }
-        />
-        <datalist id={`${idPrefix}-districts`}>
+          onChange={(event) => selectDistrict(event.target.value)}
+          disabled={!values.state || districtOptions.length === 0}
+        >
+          <option value="">{districtOptions.length ? "Select district" : "Select a catalogued state first"}</option>
           {districtOptions.map((district) => (
-            <option key={district} value={district} />
+            <option key={district} value={district}>
+              {district}
+            </option>
           ))}
-        </datalist>
+        </select>
       </Field>
       <Field label="Block / Tehsil / Taluk">
-        <input
-          list={`${idPrefix}-blocks`}
-          placeholder="Select or type block"
+        <select
           value={values.block}
-          onChange={(event) => updateLocation({ ...values, block: event.target.value, panchayat: "", postalCode: "" })}
-        />
-        <datalist id={`${idPrefix}-blocks`}>
+          onChange={(event) => selectBlock(event.target.value)}
+          disabled={!values.district || blockOptions.length === 0}
+        >
+          <option value="">{blockOptions.length ? "Select block" : "Select district first"}</option>
           {blockOptions.map((block) => (
-            <option key={block} value={block} />
+            <option key={block} value={block}>
+              {block}
+            </option>
           ))}
-        </datalist>
+        </select>
       </Field>
       <Field label="Gram Panchayat / Ward">
-        <input
-          list={`${idPrefix}-panchayats`}
-          placeholder="Select or type panchayat/ward"
+        <select
           value={values.panchayat}
           onChange={(event) => updateLocation({ ...values, panchayat: event.target.value })}
-        />
-        <datalist id={`${idPrefix}-panchayats`}>
+          disabled={!values.block || panchayatOptions.length === 0}
+        >
+          <option value="">{panchayatOptions.length ? "Select panchayat / ward" : "Select block first"}</option>
           {panchayatOptions.map((panchayat) => (
-            <option key={panchayat} value={panchayat} />
+            <option key={panchayat} value={panchayat}>
+              {panchayat}
+            </option>
           ))}
-        </datalist>
+        </select>
       </Field>
       <Field label="PIN code">
         <input
@@ -1240,6 +1532,43 @@ function signerFieldLabel(field: string) {
   };
 
   return labels[field] ?? field;
+}
+
+function getCampaignBaseUrl(organization: Organization) {
+  if (organization.customDomain.trim()) {
+    return `https://${organization.customDomain.trim().replace(/^https?:\/\//, "")}`;
+  }
+
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  return "https://voiceup.in";
+}
+
+function renderCampaignMessage(
+  template: string,
+  campaign: Campaign,
+  metrics: ReturnType<typeof getCampaignMetrics>
+) {
+  return template
+    .split("{{campaign}}").join(campaign.title)
+    .split("{{url}}").join(campaign.shareUrl)
+    .split("{{verified}}").join(metrics.verified.toLocaleString())
+    .split("{{total}}").join(metrics.total.toLocaleString())
+    .split("{{goal}}").join(campaign.goal.toLocaleString())
+    .split("{{progress}}").join(`${metrics.progress}%`);
+}
+
+function whatsAppLink(phone: string, message: string) {
+  const normalizedPhone = phone.replace(/\D/g, "");
+  const baseUrl = normalizedPhone ? `https://wa.me/${normalizedPhone}` : "https://wa.me/";
+  return `${baseUrl}?text=${encodeURIComponent(message)}`;
+}
+
+function smsLink(phone: string, message: string) {
+  const normalizedPhone = phone.replace(/[^\d+]/g, "");
+  return `sms:${normalizedPhone}?&body=${encodeURIComponent(message)}`;
 }
 
 function BarList({ data, emptyLabel }: { data: Record<string, number>; emptyLabel: string }) {
@@ -1314,6 +1643,11 @@ function EmptyWorkspace({
 }) {
   return (
     <div className="empty-state">
+      <div className="marketing-banner">
+        <span>Voice Up</span>
+        <strong>Voice Up to make your campaign successful</strong>
+        <small>Launch, promote, collect support, report progress, and keep every participant engaged.</small>
+      </div>
       <span className="eyebrow">Clean workspace</span>
       <h1>Start with your Indian organization and first public campaign.</h1>
       <p>

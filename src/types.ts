@@ -40,6 +40,13 @@ export interface Campaign {
   requiredFields: SignerRequiredField[];
   shareUrl: string;
   qrLabel: string;
+  heroImage: string;
+  heroImagePosition: string;
+  heroImageZoom: number;
+  campaignVideoUrl: string;
+  socialShareText: string;
+  thankYouMessage: string;
+  participantUpdateMessage: string;
 }
 
 export interface Signer {

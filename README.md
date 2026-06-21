@@ -9,7 +9,10 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Campaign admin panel with title, goal, location, dates, required fields, consent text, and publish action
 - Public campaign page for online signers
 - India location hierarchy with state, district, block/tehsil/taluk, and gram panchayat/ward fields
+- True dependent dropdowns for district, block/tehsil/taluk, and gram panchayat/ward after state selection
 - PIN-code lookup that can auto-fill PIN from selected geography, or auto-select geography from a known PIN
+- Campaign banner upload with simple crop/zoom/focus controls and public campaign background display
+- Campaign video URL, social share text, and same-domain `/c/campaign-slug` publishing path
 - Local duplicate detection by phone, email, and name
 - Hard-copy scan upload with OCR through `tesseract.js`
 - Manual review queue for scanned signer details
@@ -17,6 +20,7 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Daily and weekly campaign status reports
 - State-wise, district-wise, block-wise, and panchayat/ward-wise campaign performance counts
 - PDF and CSV report downloads
+- WhatsApp/SMS thank-you actions after signup and admin engagement tools for participant progress updates
 - SaaS organization settings for INR subscription plan, billing details, limits, branding, owner email, and custom domain
 - Suggested next features and production-readiness checklist
 
@@ -69,3 +73,4 @@ This first version stores data in browser local storage so the workflow can be t
 - Server-side OCR for large PDF or handwritten scan batches
 - Privacy policy, consent records, audit logs, and legal review for signature validity
 - A complete India Post PIN code master table or API for production-grade location auto-fill coverage
+- WhatsApp Business API, SMS provider, and social publishing APIs for true automated bulk delivery

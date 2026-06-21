@@ -1,6 +1,6 @@
-# Voiceup Online
+# Voiceup Bharat
 
-Voiceup Online is a campaign management SaaS MVP for organizations that need to create campaigns, publish a signing page, collect supporter details, scan existing hard-copy signatures, route a campaign to the right authority, and download daily or weekly reports.
+Voiceup Bharat is an India-focused campaign management SaaS MVP for NGOs, RWAs, associations, unions, and campaign agencies that need to create public campaigns, publish a signing page, collect supporter details, scan existing hard-copy signatures, route a campaign to the right authority, and download daily or weekly reports.
 
 The app now starts as a clean workspace with no fake campaigns, no fake signers, and no preloaded authority records.
 
@@ -14,7 +14,7 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Authority routing rules by category, location keyword, and postal prefix
 - Daily and weekly campaign status reports
 - PDF and CSV report downloads
-- SaaS organization settings for subscription plan, billing details, limits, branding, owner email, and custom domain
+- SaaS organization settings for INR subscription plan, billing details, limits, branding, owner email, and custom domain
 - Suggested next features and production-readiness checklist
 
 ## Run locally

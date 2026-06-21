@@ -25,50 +25,56 @@ export const initialOrganization: Organization = {
 export const subscriptionPlans: SubscriptionPlan[] = [
   {
     name: "Starter",
-    price: "$29/month",
+    price: "₹999/month",
     monthlySignatureLimit: 1000,
     monthlyScanLimit: 100,
     campaignLimit: 1,
-    features: ["1 active campaign", "Online signing page", "CSV export", "Basic campaign dashboard"]
+    features: ["1 active campaign", "Online signing page", "CSV export", "Basic ward/district dashboard"]
   },
   {
     name: "Professional",
-    price: "$99/month",
+    price: "₹4,999/month",
     monthlySignatureLimit: 25000,
     monthlyScanLimit: 2000,
     campaignLimit: "Unlimited",
-    features: ["Unlimited campaigns", "OCR scan review", "PDF reports", "Authority routing", "Custom branding"],
+    features: [
+      "Unlimited campaigns",
+      "OCR scan review",
+      "PDF reports",
+      "Authority routing by PIN code",
+      "Custom branding"
+    ],
     recommended: true
   },
   {
     name: "Enterprise",
-    price: "Custom",
+    price: "Custom INR quote",
     monthlySignatureLimit: 100000,
     monthlyScanLimit: 10000,
     campaignLimit: "Unlimited",
-    features: ["White-label SaaS portal", "Custom domain", "Audit logs", "API access", "Priority support"]
+    features: ["White-label SaaS portal", "Custom domain", "Audit logs", "API access", "Priority support in India"]
   }
 ];
 
 export const suggestedFeatures: SuggestedFeature[] = [
   {
-    title: "Volunteer/canvasser mobile mode",
-    benefit: "Collect signatures offline during field visits and sync them when internet is available.",
+    title: "Field volunteer mobile mode",
+    benefit: "Collect signatures offline during mohalla, ward, college, or village visits and sync when internet is available.",
     tier: "Professional"
   },
   {
-    title: "Automated supporter updates",
-    benefit: "Send SMS, WhatsApp, or email updates when milestones are reached or submissions are made.",
+    title: "WhatsApp and SMS supporter updates",
+    benefit: "Send milestone updates to supporters through India-friendly WhatsApp, SMS, or email channels.",
     tier: "Professional"
   },
   {
-    title: "White-label portals",
-    benefit: "Let client organizations use their own logo, color theme, and domain.",
+    title: "White-label Indian campaign portals",
+    benefit: "Let NGOs, associations, unions, RWAs, and campaign agencies use their own logo, theme, and domain.",
     tier: "Enterprise"
   },
   {
     title: "Audit log and legal evidence pack",
-    benefit: "Export a defensible submission bundle with consent, timestamps, scans, and reviewer actions.",
+    benefit: "Export a submission bundle with consent, timestamps, scans, reviewer actions, and authority details.",
     tier: "Enterprise"
   }
 ];

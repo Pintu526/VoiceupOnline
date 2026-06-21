@@ -125,21 +125,21 @@ function App() {
   function createCampaign() {
     const campaign: Campaign = {
       id: createId("cmp"),
-      title: "New Campaign",
+      title: "New Public Campaign",
       slug: `new-campaign-${Date.now()}`,
       category: "Civic",
-      description: "Describe the issue, requested action, and why people should support it.",
-      location: "Your city or district",
+      description: "Describe the public issue, requested action, and why citizens should support it.",
+      location: "City / District / Ward",
       postalCode: "",
       startDate: new Date().toISOString().slice(0, 10),
       endDate: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
       goal: 1000,
       status: "Draft",
       consentText:
-        "I consent to this organization storing my details and using them only for this campaign submission.",
+        "I consent to this organization storing my details and using them only for this campaign submission in India.",
       requiredFields: ["name", "email", "phone", "address", "postalCode"],
-      shareUrl: "https://voiceup.example/c/new-campaign",
-      qrLabel: "VOICEUP-NEW-CAMPAIGN"
+      shareUrl: "https://voiceup.in/c/new-campaign",
+      qrLabel: "VOICEUP-INDIA-CAMPAIGN"
     };
     setCampaigns((currentCampaigns) => [...currentCampaigns, campaign]);
     setActiveCampaignId(campaign.id);
@@ -152,7 +152,7 @@ function App() {
     const publishedCampaign = {
       ...campaignDraft,
       status: "Published" as const,
-      shareUrl: `https://${organization.customDomain || "voiceup.example"}/c/${campaignDraft.slug}`
+      shareUrl: `https://${organization.customDomain || "voiceup.in"}/c/${campaignDraft.slug}`
     };
     setCampaignDraft(publishedCampaign);
     setCampaigns((currentCampaigns) =>
@@ -286,8 +286,8 @@ function App() {
             <Megaphone size={24} />
           </div>
           <div>
-            <strong>Voiceup Online</strong>
-            <span>Campaign SaaS</span>
+            <strong>Voiceup Bharat</strong>
+            <span>Indian Campaign SaaS</span>
           </div>
         </div>
         <nav className="nav">
@@ -364,7 +364,7 @@ function App() {
                     <div className="progress">
                       <div style={{ width: `${authorityMatch.score}%` }} />
                     </div>
-                    <small>{authorityMatch.score}% routing confidence by category, location, and postal code.</small>
+                    <small>{authorityMatch.score}% routing confidence by category, location, and PIN code.</small>
                   </div>
                 ) : (
                   <p>No matching authority rule has been configured.</p>
@@ -385,13 +385,13 @@ function App() {
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, title: event.target.value })}
                   />
                 </Field>
-                <Field label="Public slug">
+                  <Field label="Public slug">
                   <input
                     value={campaignDraft.slug}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, slug: event.target.value })}
                   />
                 </Field>
-                <Field label="Category">
+                  <Field label="Category">
                   <select
                     value={campaignDraft.category}
                     onChange={(event) =>
@@ -403,7 +403,7 @@ function App() {
                     ))}
                   </select>
                 </Field>
-                <Field label="Status">
+                  <Field label="Status">
                   <select
                     value={campaignDraft.status}
                     onChange={(event) =>
@@ -416,7 +416,7 @@ function App() {
                     <option>Closed</option>
                   </select>
                 </Field>
-                <Field label="Target signatures">
+                  <Field label="Target signatures">
                   <input
                     type="number"
                     min="1"
@@ -424,59 +424,59 @@ function App() {
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, goal: Number(event.target.value) })}
                   />
                 </Field>
-                <Field label="Location">
+                  <Field label="Location">
                   <input
                     value={campaignDraft.location}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, location: event.target.value })}
                   />
                 </Field>
-                <Field label="Postal code">
+                  <Field label="PIN code">
                   <input
                     value={campaignDraft.postalCode}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, postalCode: event.target.value })}
                   />
                 </Field>
-                <Field label="Start date">
+                  <Field label="Start date">
                   <input
                     type="date"
                     value={campaignDraft.startDate}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, startDate: event.target.value })}
                   />
                 </Field>
-                <Field label="End date">
+                  <Field label="End date">
                   <input
                     type="date"
                     value={campaignDraft.endDate}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, endDate: event.target.value })}
                   />
                 </Field>
-                <Field label="Public share URL">
+                  <Field label="Public share URL">
                   <input
                     value={campaignDraft.shareUrl}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, shareUrl: event.target.value })}
                   />
                 </Field>
-                <Field label="QR label">
+                  <Field label="QR / WhatsApp campaign label">
                   <input
                     value={campaignDraft.qrLabel}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, qrLabel: event.target.value })}
                   />
                 </Field>
-                <Field label="Campaign description" wide>
+                  <Field label="Campaign description" wide>
                   <textarea
                     rows={5}
                     value={campaignDraft.description}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, description: event.target.value })}
                   />
                 </Field>
-                <Field label="Consent text" wide>
+                  <Field label="Consent text" wide>
                   <textarea
                     rows={3}
                     value={campaignDraft.consentText}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, consentText: event.target.value })}
                   />
                 </Field>
-                <div className="wide required-fields">
+                  <div className="wide required-fields">
                   <span className="label">Required signer details</span>
                   {(["name", "email", "phone", "address", "postalCode"] as Campaign["requiredFields"]).map((field) => (
                     <label key={field} className="check-row">
@@ -490,11 +490,11 @@ function App() {
                           setCampaignDraft({ ...campaignDraft, requiredFields });
                         }}
                       />
-                      {field}
+                      {field === "postalCode" ? "PIN code" : field}
                     </label>
                   ))}
                 </div>
-                <div className="button-row wide">
+                  <div className="button-row wide">
                   <button className="primary-button" type="submit">
                     <Save size={18} /> Save campaign
                   </button>
@@ -505,8 +505,8 @@ function App() {
                 </form>
               ) : (
                 <NoCampaignPanel
-                  title="Create the first campaign"
-                  description="This workspace is clean and has no sample data. Start by creating a real campaign for your organization or customer."
+                  title="Create the first Indian campaign"
+                  description="This workspace is clean and has no sample data. Start by creating a real campaign for an NGO, RWA, association, union, or campaign agency."
                   onCreateCampaign={createCampaign}
                 />
               )}
@@ -609,7 +609,7 @@ function App() {
                     onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
                   />
                   <input
-                    placeholder="Postal code"
+                    placeholder="PIN code"
                     value={publicForm.postalCode}
                     onChange={(event) => setPublicForm({ ...publicForm, postalCode: event.target.value })}
                   />
@@ -887,7 +887,7 @@ function App() {
                 </Field>
                 <Field label="Custom domain">
                   <input
-                    placeholder="campaigns.customer.org"
+                    placeholder="campaigns.customer.in"
                     value={organization.customDomain}
                     onChange={(event) => setOrganization({ ...organization, customDomain: event.target.value })}
                   />
@@ -922,7 +922,7 @@ function App() {
                     `${plan.monthlyScanLimit.toLocaleString()} scans/month`,
                     ...plan.features
                   ]}
-                  highlighted={organization.plan === plan.name || plan.recommended}
+                  highlighted={organization.plan === plan.name}
                   actionLabel={organization.plan === plan.name ? "Selected" : `Select ${plan.name}`}
                   onSelect={() => selectSubscriptionPlan(plan.name)}
                 />
@@ -1130,10 +1130,10 @@ function EmptyWorkspace({
   return (
     <div className="empty-state">
       <span className="eyebrow">Clean workspace</span>
-      <h1>Start with your real organization and campaign.</h1>
+      <h1>Start with your Indian organization and first public campaign.</h1>
       <p>
-        No demo campaigns, fake signers, or sample authority records are loaded. Configure the customer organization,
-        choose a SaaS subscription, then create the first campaign.
+        No demo campaigns, fake signers, or sample authority records are loaded. Configure the NGO, RWA, association,
+        union, or campaign agency, choose an INR subscription, then create the first campaign.
       </p>
       <div className="onboarding-grid">
         <div>
@@ -1148,7 +1148,7 @@ function EmptyWorkspace({
         </div>
         <div>
           <strong>3. Create campaign</strong>
-          <span>Set goal, public page, authority rules, and required signer fields.</span>
+          <span>Set goal, public page, authority rules, PIN code routing, and required signer fields.</span>
         </div>
       </div>
       <div className="button-row">
@@ -1206,7 +1206,7 @@ const blankScanTemplate = `Name:
 Email:
 Phone:
 Address:
-Postal Code:
+PIN Code:
 Comment:`;
 
 export default App;

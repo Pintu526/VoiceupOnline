@@ -11,10 +11,11 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - India location hierarchy with state, district, block/tehsil/taluk, and gram panchayat/ward fields
 - True dependent dropdowns for district, block/tehsil/taluk, and gram panchayat/ward after state selection
 - District dropdown coverage for every Indian state/UT, with fallback block and panchayat/ward choices when full official local-body data is not yet connected
-- Campaign admin can add missing district, block/tehsil/taluk, and gram panchayat/ward values inline beside each dropdown with a `+` action; duplicates are blocked, admin-added values can be deleted, and new values appear in the public signing page
+- Campaign admin can add missing district, block/tehsil/taluk, and gram panchayat/ward values inline beside each dropdown with a `+` action; duplicates are blocked, any selected dropdown value can be hidden/deleted by the admin, and changes appear in the public signing page
 - PIN-code lookup that can auto-fill PIN from selected geography, or auto-select geography from a known PIN
 - Campaign banner upload with simple crop/zoom/focus controls and public campaign background display
 - Campaign video URL, social share text, and same-domain `/c/campaign-slug` publishing path
+- Public `/c/campaign-slug` links render only the public campaign signing page, without admin dashboard navigation
 - Local duplicate detection by phone, email, and name
 - Hard-copy scan upload with OCR through `tesseract.js`
 - Manual review queue for scanned signer details

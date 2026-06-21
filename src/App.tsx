@@ -52,18 +52,18 @@ import {
 } from "./lib";
 import {
   addLocationOverride,
+  clearLocationDeletion,
+  emptyLocationDeletions,
   findLocationByPin,
   findPinCode,
   getBlockOptions,
   getDistrictOptions,
   getPinOptions,
   getPanchayatOptions,
-  hasBlockOverride,
-  hasDistrictOverride,
-  hasPanchayatOverride,
   indianStatesAndUnionTerritories,
-  removeLocationOverride,
-  type LocationOverrideLevel,
+  removeLocationOption,
+  type LocationDeletionLevel,
+  type LocationDeletions,
   type LocationOverrides,
   type LocationWithPin
 } from "./geography";
@@ -106,6 +106,10 @@ function App() {
     `${storagePrefix}-location-overrides`,
     {}
   );
+  const [locationDeletions, setLocationDeletions] = usePersistentState<LocationDeletions>(
+    `${storagePrefix}-location-deletions`,
+    emptyLocationDeletions
+  );
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const [activeCampaignId, setActiveCampaignId] = useState(initialCampaigns[0]?.id ?? "");
   const [campaignDraft, setCampaignDraft] = useState<Campaign | null>(campaigns[0] ?? null);
@@ -117,10 +121,15 @@ function App() {
   const [scanText, setScanText] = useState(blankScanTemplate);
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
+  const publicCampaignSlug = getPublicCampaignSlug();
+  const isPublicCampaignRoute = Boolean(publicCampaignSlug);
 
   const activeCampaign = useMemo(
-    () => campaigns.find((campaign) => campaign.id === activeCampaignId) ?? campaigns[0],
-    [activeCampaignId, campaigns]
+    () =>
+      publicCampaignSlug
+        ? campaigns.find((campaign) => campaign.slug === publicCampaignSlug)
+        : campaigns.find((campaign) => campaign.id === activeCampaignId) ?? campaigns[0],
+    [activeCampaignId, campaigns, publicCampaignSlug]
   );
   const campaignSigners = useMemo(
     () => (activeCampaign ? getCampaignSigners(activeCampaign.id, signers) : []),
@@ -332,11 +341,17 @@ function App() {
   }
 
   function addAdminLocationOption(values: LocationWithPin) {
+    const level = getLocationLevel(values);
     setLocationOverrides((currentOverrides) => addLocationOverride(currentOverrides, values));
+    setLocationDeletions((currentDeletions) => clearLocationDeletion(currentDeletions, values, level));
   }
 
-  function removeAdminLocationOption(values: LocationWithPin, level: LocationOverrideLevel) {
-    setLocationOverrides((currentOverrides) => removeLocationOverride(currentOverrides, values, level));
+  function removeAdminLocationOption(values: LocationWithPin, level: LocationDeletionLevel) {
+    setLocationOverrides((currentOverrides) => {
+      const result = removeLocationOption(currentOverrides, locationDeletions, values, level);
+      setLocationDeletions(result.deletions);
+      return result.overrides;
+    });
   }
 
   function selectSubscriptionPlan(planName: BillingPlan) {
@@ -369,6 +384,26 @@ function App() {
     await navigator.clipboard.writeText(text);
     setCopiedMessage("Copied message to clipboard.");
     window.setTimeout(() => setCopiedMessage(""), 2500);
+  }
+
+  if (isPublicCampaignRoute) {
+    return activeCampaign ? (
+      <div className="public-only-shell">
+        <PublicCampaignSection
+          campaign={activeCampaign}
+          metrics={metrics}
+          publicForm={publicForm}
+          setPublicForm={setPublicForm}
+          publicMessage={publicMessage}
+          lastSignedSigner={lastSignedSigner}
+          locationOverrides={locationOverrides}
+          locationDeletions={locationDeletions}
+          onSubmit={submitPublicSignature}
+        />
+      </div>
+    ) : (
+      <PublicCampaignNotFound />
+    );
   }
 
   return (
@@ -529,6 +564,7 @@ function App() {
                     values={campaignDraft}
                     onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values })}
                     locationOverrides={locationOverrides}
+                    locationDeletions={locationDeletions}
                     allowInlineAdd
                     onAddLocation={addAdminLocationOption}
                     onRemoveLocation={removeAdminLocationOption}
@@ -752,107 +788,17 @@ function App() {
 
         {activeTab === "public" && (
           activeCampaign ? (
-            <section className="public-layout">
-              <div
-                className={activeCampaign.heroImage ? "campaign-page campaign-page-with-media" : "campaign-page"}
-                style={{
-                  backgroundImage: activeCampaign.heroImage
-                    ? `linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.34)), url(${activeCampaign.heroImage})`
-                    : undefined,
-                  backgroundPosition: activeCampaign.heroImagePosition,
-                  backgroundSize: `${activeCampaign.heroImageZoom}%`
-                }}
-              >
-                <span className="status-pill">{activeCampaign.status}</span>
-                <h1>{activeCampaign.title}</h1>
-                <p>{activeCampaign.description}</p>
-                <div className="public-progress">
-                  <div className="progress">
-                    <div style={{ width: `${metrics.progress}%` }} />
-                  </div>
-                  <strong>{metrics.verified.toLocaleString()}</strong> of {activeCampaign.goal.toLocaleString()} verified
-                  signatures
-                </div>
-                <div className="qr-box">
-                  <QrCode size={40} />
-                  <div>
-                    <strong>{activeCampaign.qrLabel}</strong>
-                    <span>{activeCampaign.shareUrl}</span>
-                  </div>
-                </div>
-                {activeCampaign.campaignVideoUrl && (
-                  <a className="video-link" href={activeCampaign.campaignVideoUrl} target="_blank" rel="noreferrer">
-                    Watch campaign video
-                  </a>
-                )}
-              </div>
-
-              <Panel title="Support this campaign" icon={<ClipboardList />}>
-                <form className="form-stack" onSubmit={submitPublicSignature}>
-                  <input
-                    placeholder="Full name"
-                    value={publicForm.name}
-                    onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
-                  />
-                  <input
-                    placeholder="Email"
-                    type="email"
-                    value={publicForm.email}
-                    onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
-                  />
-                  <input
-                    placeholder="Phone"
-                    value={publicForm.phone}
-                    onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
-                  />
-                  <IndiaLocationFields
-                    idPrefix="public-signer-location"
-                    values={publicForm}
-                    onChange={(values) => setPublicForm({ ...publicForm, ...values })}
-                    locationOverrides={locationOverrides}
-                  />
-                  <input
-                    placeholder="Address"
-                    value={publicForm.address}
-                    onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
-                  />
-                  <textarea
-                    placeholder="Optional comment"
-                    rows={3}
-                    value={publicForm.comment}
-                    onChange={(event) => setPublicForm({ ...publicForm, comment: event.target.value })}
-                  />
-                  <label className="check-row">
-                    <input required type="checkbox" /> {activeCampaign.consentText}
-                  </label>
-                  <button className="primary-button" type="submit">
-                    <CheckCircle2 size={18} /> Sign campaign
-                  </button>
-                  {publicMessage && <p className="success-message">{publicMessage}</p>}
-                  {lastSignedSigner?.campaignId === activeCampaign.id && (
-                    <div className="participant-actions">
-                      <strong>Send thank-you message</strong>
-                      <div className="button-row">
-                        <a
-                          className="secondary-link-button"
-                          href={whatsAppLink(lastSignedSigner.phone, renderCampaignMessage(activeCampaign.thankYouMessage, activeCampaign, metrics))}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          WhatsApp
-                        </a>
-                        <a
-                          className="secondary-link-button"
-                          href={smsLink(lastSignedSigner.phone, renderCampaignMessage(activeCampaign.thankYouMessage, activeCampaign, metrics))}
-                        >
-                          SMS
-                        </a>
-                      </div>
-                    </div>
-                  )}
-                </form>
-              </Panel>
-            </section>
+            <PublicCampaignSection
+              campaign={activeCampaign}
+              metrics={metrics}
+              publicForm={publicForm}
+              setPublicForm={setPublicForm}
+              publicMessage={publicMessage}
+              lastSignedSigner={lastSignedSigner}
+              locationOverrides={locationOverrides}
+              locationDeletions={locationDeletions}
+              onSubmit={submitPublicSignature}
+            />
           ) : (
             <NoCampaignPanel
               title="No public campaign yet"
@@ -1341,6 +1287,147 @@ function NavButton({
   );
 }
 
+function PublicCampaignSection({
+  campaign,
+  metrics,
+  publicForm,
+  setPublicForm,
+  publicMessage,
+  lastSignedSigner,
+  locationOverrides,
+  locationDeletions,
+  onSubmit
+}: {
+  campaign: Campaign;
+  metrics: ReturnType<typeof getCampaignMetrics>;
+  publicForm: typeof blankSigner;
+  setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;
+  publicMessage: string;
+  lastSignedSigner: Signer | null;
+  locationOverrides: LocationOverrides;
+  locationDeletions: LocationDeletions;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <section className="public-layout">
+      <div
+        className={campaign.heroImage ? "campaign-page campaign-page-with-media" : "campaign-page"}
+        style={{
+          backgroundImage: campaign.heroImage
+            ? `linear-gradient(135deg, rgba(15, 23, 42, 0.74), rgba(15, 23, 42, 0.34)), url(${campaign.heroImage})`
+            : undefined,
+          backgroundPosition: campaign.heroImagePosition,
+          backgroundSize: `${campaign.heroImageZoom}%`
+        }}
+      >
+        <span className="status-pill">{campaign.status}</span>
+        <h1>{campaign.title}</h1>
+        <p>{campaign.description}</p>
+        <div className="public-progress">
+          <div className="progress">
+            <div style={{ width: `${metrics.progress}%` }} />
+          </div>
+          <strong>{metrics.verified.toLocaleString()}</strong> of {campaign.goal.toLocaleString()} verified signatures
+        </div>
+        <div className="qr-box">
+          <QrCode size={40} />
+          <div>
+            <strong>{campaign.qrLabel}</strong>
+            <span>{campaign.shareUrl}</span>
+          </div>
+        </div>
+        {campaign.campaignVideoUrl && (
+          <a className="video-link" href={campaign.campaignVideoUrl} target="_blank" rel="noreferrer">
+            Watch campaign video
+          </a>
+        )}
+      </div>
+
+      <Panel title="Support this campaign" icon={<ClipboardList />}>
+        <form className="form-stack" onSubmit={onSubmit}>
+          <input
+            placeholder="Full name"
+            value={publicForm.name}
+            onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
+          />
+          <input
+            placeholder="Email"
+            type="email"
+            value={publicForm.email}
+            onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
+          />
+          <input
+            placeholder="Phone"
+            value={publicForm.phone}
+            onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
+          />
+          <IndiaLocationFields
+            idPrefix="public-signer-location"
+            values={publicForm}
+            onChange={(values) => setPublicForm({ ...publicForm, ...values })}
+            locationOverrides={locationOverrides}
+            locationDeletions={locationDeletions}
+          />
+          <input
+            placeholder="Address"
+            value={publicForm.address}
+            onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
+          />
+          <textarea
+            placeholder="Optional comment"
+            rows={3}
+            value={publicForm.comment}
+            onChange={(event) => setPublicForm({ ...publicForm, comment: event.target.value })}
+          />
+          <label className="check-row">
+            <input required type="checkbox" /> {campaign.consentText}
+          </label>
+          <button className="primary-button" type="submit">
+            <CheckCircle2 size={18} /> Sign campaign
+          </button>
+          {publicMessage && <p className="success-message">{publicMessage}</p>}
+          {lastSignedSigner?.campaignId === campaign.id && (
+            <div className="participant-actions">
+              <strong>Send thank-you message</strong>
+              <div className="button-row">
+                <a
+                  className="secondary-link-button"
+                  href={whatsAppLink(lastSignedSigner.phone, renderCampaignMessage(campaign.thankYouMessage, campaign, metrics))}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  WhatsApp
+                </a>
+                <a
+                  className="secondary-link-button"
+                  href={smsLink(lastSignedSigner.phone, renderCampaignMessage(campaign.thankYouMessage, campaign, metrics))}
+                >
+                  SMS
+                </a>
+              </div>
+            </div>
+          )}
+        </form>
+      </Panel>
+    </section>
+  );
+}
+
+function PublicCampaignNotFound() {
+  return (
+    <main className="public-only-shell">
+      <section className="empty-state public-not-found">
+        <span className="eyebrow">Campaign link</span>
+        <h1>This campaign is not available.</h1>
+        <p>
+          Please check the campaign link or ask the campaign organizer to publish the campaign again. The public signing
+          page shows only campaign content when a published campaign is available.
+        </p>
+      </section>
+    </main>
+  );
+}
+
 function Hero({
   campaign,
   metrics,
@@ -1422,6 +1509,7 @@ function IndiaLocationFields({
   values,
   onChange,
   locationOverrides,
+  locationDeletions,
   allowInlineAdd = false,
   onAddLocation,
   onRemoveLocation
@@ -1430,33 +1518,29 @@ function IndiaLocationFields({
   values: LocationWithPin;
   onChange: (values: LocationWithPin) => void;
   locationOverrides: LocationOverrides;
+  locationDeletions: LocationDeletions;
   allowInlineAdd?: boolean;
   onAddLocation?: (values: LocationWithPin) => void;
-  onRemoveLocation?: (values: LocationWithPin, level: LocationOverrideLevel) => void;
+  onRemoveLocation?: (values: LocationWithPin, level: LocationDeletionLevel) => void;
 }) {
   const [newDistrict, setNewDistrict] = useState("");
   const [newBlock, setNewBlock] = useState("");
   const [newPanchayat, setNewPanchayat] = useState("");
-  const districtOptions = getDistrictOptions(values.state, locationOverrides);
-  const blockOptions = getBlockOptions(values.state, values.district, locationOverrides);
-  const panchayatOptions = getPanchayatOptions(values.state, values.district, values.block, locationOverrides);
-  const baseDistrictOptions = getDistrictOptions(values.state);
-  const baseBlockOptions = getBlockOptions(values.state, values.district);
-  const basePanchayatOptions = getPanchayatOptions(values.state, values.district, values.block);
-  const pinOptions = getPinOptions(values);
-  const canDeleteDistrict =
-    hasDistrictOverride(locationOverrides, values.state, values.district) &&
-    !optionExists(baseDistrictOptions, values.district);
-  const canDeleteBlock =
-    hasBlockOverride(locationOverrides, values.state, values.district, values.block) &&
-    !optionExists(baseBlockOptions, values.block);
-  const canDeletePanchayat = hasPanchayatOverride(
-    locationOverrides,
+  const districtOptions = getDistrictOptions(values.state, locationOverrides, locationDeletions);
+  const blockOptions = getBlockOptions(values.state, values.district, locationOverrides, locationDeletions);
+  const panchayatOptions = getPanchayatOptions(
     values.state,
     values.district,
     values.block,
-    values.panchayat
-  ) && !optionExists(basePanchayatOptions, values.panchayat);
+    locationOverrides,
+    locationDeletions
+  );
+  const pinOptions = getPinOptions(values);
+  const canDeleteDistrict = Boolean(allowInlineAdd && values.state && values.district);
+  const canDeleteBlock = Boolean(allowInlineAdd && values.state && values.district && values.block);
+  const canDeletePanchayat = Boolean(
+    allowInlineAdd && values.state && values.district && values.block && values.panchayat
+  );
 
   function updateLocation(nextValues: LocationWithPin) {
     const matchedPin = findPinCode(nextValues);
@@ -1464,25 +1548,25 @@ function IndiaLocationFields({
   }
 
   function selectState(state: string) {
-    const districts = getDistrictOptions(state, locationOverrides);
+    const districts = getDistrictOptions(state, locationOverrides, locationDeletions);
     const district = districts[0] ?? "";
-    const blocks = getBlockOptions(state, district, locationOverrides);
+    const blocks = getBlockOptions(state, district, locationOverrides, locationDeletions);
     const block = blocks[0] ?? "";
-    const panchayats = getPanchayatOptions(state, district, block, locationOverrides);
+    const panchayats = getPanchayatOptions(state, district, block, locationOverrides, locationDeletions);
     const panchayat = panchayats[0] ?? "";
     updateLocation({ state, district, block, panchayat, postalCode: "" });
   }
 
   function selectDistrict(district: string) {
-    const blocks = getBlockOptions(values.state, district, locationOverrides);
+    const blocks = getBlockOptions(values.state, district, locationOverrides, locationDeletions);
     const block = blocks[0] ?? "";
-    const panchayats = getPanchayatOptions(values.state, district, block, locationOverrides);
+    const panchayats = getPanchayatOptions(values.state, district, block, locationOverrides, locationDeletions);
     const panchayat = panchayats[0] ?? "";
     updateLocation({ ...values, district, block, panchayat, postalCode: "" });
   }
 
   function selectBlock(block: string) {
-    const panchayats = getPanchayatOptions(values.state, values.district, block, locationOverrides);
+    const panchayats = getPanchayatOptions(values.state, values.district, block, locationOverrides, locationDeletions);
     const panchayat = panchayats[0] ?? "";
     updateLocation({ ...values, block, panchayat, postalCode: "" });
   }
@@ -1576,7 +1660,7 @@ function IndiaLocationFields({
               duplicate={Boolean(newDistrict.trim() && optionExists(districtOptions, newDistrict))}
             />
             {canDeleteDistrict && (
-              <InlineDeleteOption label={`Delete admin-added district "${values.district}"`} onDelete={deleteDistrict} />
+              <InlineDeleteOption label={`Delete district "${values.district}"`} onDelete={deleteDistrict} />
             )}
           </>
         )}
@@ -1605,7 +1689,7 @@ function IndiaLocationFields({
               duplicate={Boolean(newBlock.trim() && optionExists(blockOptions, newBlock))}
             />
             {canDeleteBlock && (
-              <InlineDeleteOption label={`Delete admin-added block "${values.block}"`} onDelete={deleteBlock} />
+              <InlineDeleteOption label={`Delete block "${values.block}"`} onDelete={deleteBlock} />
             )}
           </>
         )}
@@ -1634,7 +1718,7 @@ function IndiaLocationFields({
               duplicate={Boolean(newPanchayat.trim() && optionExists(panchayatOptions, newPanchayat))}
             />
             {canDeletePanchayat && (
-              <InlineDeleteOption label={`Delete admin-added panchayat/ward "${values.panchayat}"`} onDelete={deletePanchayat} />
+              <InlineDeleteOption label={`Delete panchayat/ward "${values.panchayat}"`} onDelete={deletePanchayat} />
             )}
           </>
         )}
@@ -1706,6 +1790,12 @@ function optionExists(options: string[], value: string) {
   return options.some((option) => option.trim().toLowerCase() === normalizedValue);
 }
 
+function getLocationLevel(values: LocationWithPin): LocationDeletionLevel {
+  if (values.panchayat.trim()) return "panchayat";
+  if (values.block.trim()) return "block";
+  return "district";
+}
+
 function signerFieldLabel(field: string) {
   const labels: Record<string, string> = {
     name: "Name",
@@ -1733,6 +1823,11 @@ function getCampaignBaseUrl(organization: Organization) {
   }
 
   return "https://voiceup.in";
+}
+
+function getPublicCampaignSlug() {
+  if (typeof window === "undefined") return "";
+  return window.location.pathname.match(/^\/c\/([^/]+)/)?.[1] ?? "";
 }
 
 function renderCampaignMessage(

@@ -40,17 +40,25 @@ import {
   exportPdf,
   getCampaignMetrics,
   getCampaignSigners,
+  groupSignersByLocation,
   groupSignersByDay,
   groupSignersByWeek,
   makePublicSigner,
   matchAuthority
 } from "./lib";
+import {
+  getBlockOptions,
+  getDistrictOptions,
+  getPanchayatOptions,
+  indianStatesAndUnionTerritories,
+  type LocationValues
+} from "./geography";
 import type { AuthorityRule, BillingPlan, Campaign, CampaignCategory, Organization, ScanReviewItem, Signer } from "./types";
 
 type Tab = "dashboard" | "campaigns" | "public" | "scans" | "reports" | "saas" | "ideas";
 
 const categories: CampaignCategory[] = ["Civic", "Environment", "Education", "Health", "Transport", "Housing", "Other"];
-const storagePrefix = "voiceup-clean-v2";
+const storagePrefix = "voiceup-india-locations-v3";
 const emptyMetrics = {
   total: 0,
   verified: 0,
@@ -65,6 +73,10 @@ const blankSigner = {
   name: "",
   email: "",
   phone: "",
+  state: "",
+  district: "",
+  block: "",
+  panchayat: "",
   address: "",
   postalCode: "",
   comment: ""
@@ -103,6 +115,10 @@ function App() {
   );
   const dailyTotals = useMemo(() => groupSignersByDay(campaignSigners), [campaignSigners]);
   const weeklyTotals = useMemo(() => groupSignersByWeek(campaignSigners), [campaignSigners]);
+  const stateTotals = useMemo(() => groupSignersByLocation(campaignSigners, "state"), [campaignSigners]);
+  const districtTotals = useMemo(() => groupSignersByLocation(campaignSigners, "district"), [campaignSigners]);
+  const blockTotals = useMemo(() => groupSignersByLocation(campaignSigners, "block"), [campaignSigners]);
+  const panchayatTotals = useMemo(() => groupSignersByLocation(campaignSigners, "panchayat"), [campaignSigners]);
 
   useEffect(() => {
     if (!campaigns.some((campaign) => campaign.id === activeCampaignId)) {
@@ -129,6 +145,10 @@ function App() {
       slug: `new-campaign-${Date.now()}`,
       category: "Civic",
       description: "Describe the public issue, requested action, and why citizens should support it.",
+      state: "",
+      district: "",
+      block: "",
+      panchayat: "",
       location: "City / District / Ward",
       postalCode: "",
       startDate: new Date().toISOString().slice(0, 10),
@@ -137,7 +157,7 @@ function App() {
       status: "Draft",
       consentText:
         "I consent to this organization storing my details and using them only for this campaign submission in India.",
-      requiredFields: ["name", "email", "phone", "address", "postalCode"],
+      requiredFields: ["name", "email", "phone", "state", "district", "block", "panchayat", "address", "postalCode"],
       shareUrl: "https://voiceup.in/c/new-campaign",
       qrLabel: "VOICEUP-INDIA-CAMPAIGN"
     };
@@ -168,6 +188,11 @@ function App() {
     }
     if (!publicForm.name || !publicForm.phone) {
       setPublicMessage("Name and phone are required to sign this campaign.");
+      return;
+    }
+    const missingRequiredField = activeCampaign.requiredFields.find((field) => !publicForm[field]?.trim());
+    if (missingRequiredField) {
+      setPublicMessage(`${signerFieldLabel(missingRequiredField)} is required to sign this campaign.`);
       return;
     }
     const signer = makePublicSigner(activeCampaign.id, publicForm, campaignSigners);
@@ -430,6 +455,11 @@ function App() {
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, location: event.target.value })}
                   />
                 </Field>
+                  <IndiaLocationFields
+                    idPrefix="campaign-location"
+                    values={campaignDraft}
+                    onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values })}
+                  />
                   <Field label="PIN code">
                   <input
                     value={campaignDraft.postalCode}
@@ -478,7 +508,17 @@ function App() {
                 </Field>
                   <div className="wide required-fields">
                   <span className="label">Required signer details</span>
-                  {(["name", "email", "phone", "address", "postalCode"] as Campaign["requiredFields"]).map((field) => (
+                  {([
+                    "name",
+                    "email",
+                    "phone",
+                    "state",
+                    "district",
+                    "block",
+                    "panchayat",
+                    "address",
+                    "postalCode"
+                  ] as Campaign["requiredFields"]).map((field) => (
                     <label key={field} className="check-row">
                       <input
                         type="checkbox"
@@ -490,7 +530,7 @@ function App() {
                           setCampaignDraft({ ...campaignDraft, requiredFields });
                         }}
                       />
-                      {field === "postalCode" ? "PIN code" : field}
+                      {signerFieldLabel(field)}
                     </label>
                   ))}
                 </div>
@@ -603,6 +643,11 @@ function App() {
                     value={publicForm.phone}
                     onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
                   />
+                  <IndiaLocationFields
+                    idPrefix="public-signer-location"
+                    values={publicForm}
+                    onChange={(values) => setPublicForm({ ...publicForm, ...values })}
+                  />
                   <input
                     placeholder="Address"
                     value={publicForm.address}
@@ -682,8 +727,19 @@ function App() {
                           <span className="status-pill">{item.status}</span>
                         </div>
                         <div className="form-grid compact">
-                          {(["name", "email", "phone", "address", "postalCode", "comment"] as const).map((field) => (
-                            <Field key={field} label={field}>
+                          {([
+                            "name",
+                            "email",
+                            "phone",
+                            "state",
+                            "district",
+                            "block",
+                            "panchayat",
+                            "address",
+                            "postalCode",
+                            "comment"
+                          ] as const).map((field) => (
+                          <Field key={field} label={signerFieldLabel(field)}>
                               <input
                                 value={item.parsedSigner[field]}
                                 onChange={(event) => updateScanParsedSigner(item.id, field, event.target.value)}
@@ -742,6 +798,10 @@ function App() {
                 <div className="report-grid">
                   <ReportBlock title="Daily status" data={dailyTotals} />
                   <ReportBlock title="Weekly status" data={weeklyTotals} />
+                  <ReportBlock title="State-wise count" data={stateTotals} />
+                  <ReportBlock title="District-wise count" data={districtTotals} />
+                  <ReportBlock title="Block-wise count" data={blockTotals} />
+                  <ReportBlock title="Panchayat / ward count" data={panchayatTotals} />
                 </div>
               </Panel>
               <Panel title="Signer register" icon={<Users />}>
@@ -754,6 +814,10 @@ function App() {
                         <tr>
                           <th>Name</th>
                           <th>Phone</th>
+                          <th>State</th>
+                          <th>District</th>
+                          <th>Block</th>
+                          <th>Panchayat / Ward</th>
                           <th>Source</th>
                           <th>Status</th>
                           <th>Signed at</th>
@@ -768,6 +832,10 @@ function App() {
                               <span>{signer.email}</span>
                             </td>
                             <td>{signer.phone}</td>
+                            <td>{signer.state || "Not captured"}</td>
+                            <td>{signer.district || "Not captured"}</td>
+                            <td>{signer.block || "Not captured"}</td>
+                            <td>{signer.panchayat || "Not captured"}</td>
                             <td>{signer.source}</td>
                             <td>
                               <select
@@ -1057,6 +1125,98 @@ function Field({ label, wide, children }: { label: string; wide?: boolean; child
   );
 }
 
+function IndiaLocationFields({
+  idPrefix,
+  values,
+  onChange
+}: {
+  idPrefix: string;
+  values: LocationValues;
+  onChange: (values: LocationValues) => void;
+}) {
+  const districtOptions = getDistrictOptions(values.state);
+  const blockOptions = getBlockOptions(values.state, values.district);
+  const panchayatOptions = getPanchayatOptions(values.state, values.district, values.block);
+
+  return (
+    <>
+      <Field label="State / Union Territory">
+        <select
+          value={values.state}
+          onChange={(event) =>
+            onChange({ state: event.target.value, district: "", block: "", panchayat: "" })
+          }
+        >
+          <option value="">Select state</option>
+          {indianStatesAndUnionTerritories.map((state) => (
+            <option key={state} value={state}>
+              {state}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="District">
+        <input
+          list={`${idPrefix}-districts`}
+          placeholder="Select or type district"
+          value={values.district}
+          onChange={(event) =>
+            onChange({ ...values, district: event.target.value, block: "", panchayat: "" })
+          }
+        />
+        <datalist id={`${idPrefix}-districts`}>
+          {districtOptions.map((district) => (
+            <option key={district} value={district} />
+          ))}
+        </datalist>
+      </Field>
+      <Field label="Block / Tehsil / Taluk">
+        <input
+          list={`${idPrefix}-blocks`}
+          placeholder="Select or type block"
+          value={values.block}
+          onChange={(event) => onChange({ ...values, block: event.target.value, panchayat: "" })}
+        />
+        <datalist id={`${idPrefix}-blocks`}>
+          {blockOptions.map((block) => (
+            <option key={block} value={block} />
+          ))}
+        </datalist>
+      </Field>
+      <Field label="Gram Panchayat / Ward">
+        <input
+          list={`${idPrefix}-panchayats`}
+          placeholder="Select or type panchayat/ward"
+          value={values.panchayat}
+          onChange={(event) => onChange({ ...values, panchayat: event.target.value })}
+        />
+        <datalist id={`${idPrefix}-panchayats`}>
+          {panchayatOptions.map((panchayat) => (
+            <option key={panchayat} value={panchayat} />
+          ))}
+        </datalist>
+      </Field>
+    </>
+  );
+}
+
+function signerFieldLabel(field: string) {
+  const labels: Record<string, string> = {
+    name: "Name",
+    email: "Email",
+    phone: "Phone",
+    state: "State",
+    district: "District",
+    block: "Block / Tehsil / Taluk",
+    panchayat: "Gram Panchayat / Ward",
+    address: "Street address / house details",
+    postalCode: "PIN code",
+    comment: "Comment"
+  };
+
+  return labels[field] ?? field;
+}
+
 function BarList({ data, emptyLabel }: { data: Record<string, number>; emptyLabel: string }) {
   const max = Math.max(...Object.values(data), 1);
   const entries = Object.entries(data).sort(([first], [second]) => first.localeCompare(second));
@@ -1205,6 +1365,10 @@ function usePersistentState<T>(key: string, initialValue: T) {
 const blankScanTemplate = `Name:
 Email:
 Phone:
+State:
+District:
+Block:
+Gram Panchayat:
 Address:
 PIN Code:
 Comment:`;

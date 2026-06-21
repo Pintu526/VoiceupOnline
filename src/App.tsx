@@ -47,11 +47,14 @@ import {
   matchAuthority
 } from "./lib";
 import {
+  findLocationByPin,
+  findPinCode,
   getBlockOptions,
   getDistrictOptions,
+  getPinOptions,
   getPanchayatOptions,
   indianStatesAndUnionTerritories,
-  type LocationValues
+  type LocationWithPin
 } from "./geography";
 import type { AuthorityRule, BillingPlan, Campaign, CampaignCategory, Organization, ScanReviewItem, Signer } from "./types";
 
@@ -460,12 +463,6 @@ function App() {
                     values={campaignDraft}
                     onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values })}
                   />
-                  <Field label="PIN code">
-                  <input
-                    value={campaignDraft.postalCode}
-                    onChange={(event) => setCampaignDraft({ ...campaignDraft, postalCode: event.target.value })}
-                  />
-                </Field>
                   <Field label="Start date">
                   <input
                     type="date"
@@ -652,11 +649,6 @@ function App() {
                     placeholder="Address"
                     value={publicForm.address}
                     onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
-                  />
-                  <input
-                    placeholder="PIN code"
-                    value={publicForm.postalCode}
-                    onChange={(event) => setPublicForm({ ...publicForm, postalCode: event.target.value })}
                   />
                   <textarea
                     placeholder="Optional comment"
@@ -1131,12 +1123,24 @@ function IndiaLocationFields({
   onChange
 }: {
   idPrefix: string;
-  values: LocationValues;
-  onChange: (values: LocationValues) => void;
+  values: LocationWithPin;
+  onChange: (values: LocationWithPin) => void;
 }) {
   const districtOptions = getDistrictOptions(values.state);
   const blockOptions = getBlockOptions(values.state, values.district);
   const panchayatOptions = getPanchayatOptions(values.state, values.district, values.block);
+  const pinOptions = getPinOptions(values);
+
+  function updateLocation(nextValues: LocationWithPin) {
+    const matchedPin = findPinCode(nextValues);
+    onChange({ ...nextValues, postalCode: matchedPin ?? nextValues.postalCode });
+  }
+
+  function updatePin(postalCode: string) {
+    const normalizedPin = postalCode.replace(/\D/g, "").slice(0, 6);
+    const matchedLocation = findLocationByPin(normalizedPin);
+    onChange(matchedLocation ? { ...matchedLocation } : { ...values, postalCode: normalizedPin });
+  }
 
   return (
     <>
@@ -1144,7 +1148,13 @@ function IndiaLocationFields({
         <select
           value={values.state}
           onChange={(event) =>
-            onChange({ state: event.target.value, district: "", block: "", panchayat: "" })
+            updateLocation({
+              state: event.target.value,
+              district: "",
+              block: "",
+              panchayat: "",
+              postalCode: ""
+            })
           }
         >
           <option value="">Select state</option>
@@ -1161,7 +1171,7 @@ function IndiaLocationFields({
           placeholder="Select or type district"
           value={values.district}
           onChange={(event) =>
-            onChange({ ...values, district: event.target.value, block: "", panchayat: "" })
+            updateLocation({ ...values, district: event.target.value, block: "", panchayat: "", postalCode: "" })
           }
         />
         <datalist id={`${idPrefix}-districts`}>
@@ -1175,7 +1185,7 @@ function IndiaLocationFields({
           list={`${idPrefix}-blocks`}
           placeholder="Select or type block"
           value={values.block}
-          onChange={(event) => onChange({ ...values, block: event.target.value, panchayat: "" })}
+          onChange={(event) => updateLocation({ ...values, block: event.target.value, panchayat: "", postalCode: "" })}
         />
         <datalist id={`${idPrefix}-blocks`}>
           {blockOptions.map((block) => (
@@ -1188,11 +1198,26 @@ function IndiaLocationFields({
           list={`${idPrefix}-panchayats`}
           placeholder="Select or type panchayat/ward"
           value={values.panchayat}
-          onChange={(event) => onChange({ ...values, panchayat: event.target.value })}
+          onChange={(event) => updateLocation({ ...values, panchayat: event.target.value })}
         />
         <datalist id={`${idPrefix}-panchayats`}>
           {panchayatOptions.map((panchayat) => (
             <option key={panchayat} value={panchayat} />
+          ))}
+        </datalist>
+      </Field>
+      <Field label="PIN code">
+        <input
+          inputMode="numeric"
+          list={`${idPrefix}-pins`}
+          maxLength={6}
+          placeholder="Auto-filled or enter 6-digit PIN"
+          value={values.postalCode}
+          onChange={(event) => updatePin(event.target.value)}
+        />
+        <datalist id={`${idPrefix}-pins`}>
+          {pinOptions.map((pinCode) => (
+            <option key={pinCode} value={pinCode} />
           ))}
         </datalist>
       </Field>

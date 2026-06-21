@@ -9,6 +9,7 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Campaign admin panel with title, goal, location, dates, required fields, consent text, and publish action
 - Public campaign page for online signers
 - India location hierarchy with state, district, block/tehsil/taluk, and gram panchayat/ward fields
+- PIN-code lookup that can auto-fill PIN from selected geography, or auto-select geography from a known PIN
 - Local duplicate detection by phone, email, and name
 - Hard-copy scan upload with OCR through `tesseract.js`
 - Manual review queue for scanned signer details
@@ -67,3 +68,4 @@ This first version stores data in browser local storage so the workflow can be t
 - Payment/subscription integration
 - Server-side OCR for large PDF or handwritten scan batches
 - Privacy policy, consent records, audit logs, and legal review for signature validity
+- A complete India Post PIN code master table or API for production-grade location auto-fill coverage

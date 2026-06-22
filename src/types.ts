@@ -17,6 +17,20 @@ export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled";
 
 export type AuthorityTargetLevel = "district" | "state" | "country";
 
+export type UserRole = "platform_owner" | "organization_admin" | "campaign_admin" | "reviewer" | "viewer";
+
+export type AuditAction =
+  | "campaign.created"
+  | "campaign.saved"
+  | "campaign.published"
+  | "campaign.signed"
+  | "location.added"
+  | "location.deleted"
+  | "scan.approved"
+  | "signer.status_updated"
+  | "integration.updated"
+  | "auth.login";
+
 export type SignerRequiredField = keyof Pick<
   Signer,
   "name" | "email" | "phone" | "address" | "postalCode" | "state" | "district" | "block" | "panchayat"
@@ -102,6 +116,31 @@ export interface Organization {
   billingEmail: string;
   seats: number;
   paymentReference: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  action: AuditAction;
+  actor: string;
+  campaignId?: string;
+  description: string;
+  createdAt: string;
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export interface IntegrationSettings {
+  razorpayKeyId: string;
+  razorpayPlanReference: string;
+  whatsappProvider: "Not configured" | "Gupshup" | "MSG91" | "Interakt" | "AiSensy" | "Twilio" | "Airtel IQ";
+  whatsappSenderId: string;
+  smsProvider: "Not configured" | "MSG91" | "Gupshup" | "Twilio" | "Airtel IQ";
+  smsSenderId: string;
+  emailProvider: "Not configured" | "Resend" | "SendGrid" | "Amazon SES";
+  emailSender: string;
+  storageProvider: "Supabase Storage" | "AWS S3" | "Not configured";
+  storageBucket: string;
+  analyticsProvider: "Not configured" | "Vercel Analytics" | "PostHog" | "Plausible";
+  analyticsKey: string;
 }
 
 export interface SubscriptionPlan {

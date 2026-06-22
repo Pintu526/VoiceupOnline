@@ -21,6 +21,11 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Protected per-campaign admin `/admin/campaign-slug` links require campaign admin email/passcode before showing management, scanning, engagement, and reports for that campaign
 - Public homepage at `/` with product description, feature overview, and call-to-action
 - Protected SaaS workspace at `/app` with admin email/passcode gate
+- Supabase Auth-compatible SaaS login foundation, with MVP passcode fallback
+- Audit log and admin activity dashboard for important admin actions
+- Production integration settings for Razorpay, WhatsApp, SMS, email, storage, and analytics providers
+- Legal pages for privacy, terms, refund/cancellation, and data deletion
+- Client-side SEO/social metadata updates for public campaign pages
 - Local duplicate detection by phone, email, and name
 - Hard-copy scan upload with OCR through `tesseract.js`
 - Manual review queue for scanned signer details
@@ -90,6 +95,8 @@ VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 VITE_VOICEUP_WORKSPACE_ID=default
 VITE_VOICEUP_APP_ADMIN_EMAIL=admin@voiceup.live
 VITE_VOICEUP_APP_ADMIN_PASSCODE=change-this-passcode
+VITE_RAZORPAY_KEY_ID=rzp_live_xxxxx
+VITE_PUBLIC_ANALYTICS_KEY=optional-public-analytics-key
 ```
 
 Then redeploy.
@@ -107,6 +114,7 @@ After this:
 - `/app` protected SaaS admin workspace
 - `/c/campaign-slug` public campaign signing page
 - `/admin/campaign-slug` protected individual campaign admin page
+- `/privacy`, `/terms`, `/refund`, `/data-deletion` legal pages
 
 ## Important production notes
 

@@ -134,6 +134,20 @@ button {
   text-align: center;
 }
 
+.marketing-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin: 0 auto 24px;
+  max-width: 1180px;
+}
+
+.marketing-footer a,
+.helper-text {
+  color: var(--text-soft);
+}
+
 .primary-link-button {
   align-items: center;
   background: var(--primary);
@@ -816,6 +830,27 @@ td span {
 .participant-message-list {
   display: grid;
   gap: 12px;
+}
+
+.activity-list {
+  display: grid;
+  gap: 12px;
+}
+
+.activity-card {
+  align-items: center;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 14px;
+}
+
+.activity-card span,
+.activity-card small {
+  color: var(--text-soft);
 }
 
 .participant-message-card {

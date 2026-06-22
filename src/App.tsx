@@ -31,12 +31,22 @@ import Tesseract from "tesseract.js";
 import {
   initialAuthorities,
   initialCampaigns,
+  initialIntegrationSettings,
   initialOrganization,
   initialSigners,
   subscriptionPlans,
   suggestedFeatures
 } from "./data";
-import { isBackendConfigured, loadRemoteState, saveRemoteState, type VoiceupRemoteState } from "./backend";
+import {
+  getCurrentAuthUser,
+  isBackendConfigured,
+  isSupabaseAuthAvailable,
+  loadRemoteState,
+  saveRemoteState,
+  signInWithSupabase,
+  signOutSupabase,
+  type VoiceupRemoteState
+} from "./backend";
 import {
   createId,
   createScanReviewItem,
@@ -70,15 +80,17 @@ import {
 import type {
   AuthorityRule,
   AuthorityTargetLevel,
+  AuditLogEntry,
   BillingPlan,
   Campaign,
   CampaignCategory,
   Organization,
   ScanReviewItem,
-  Signer
+  Signer,
+  IntegrationSettings
 } from "./types";
 
-type Tab = "dashboard" | "campaigns" | "public" | "scans" | "reports" | "engagement" | "saas" | "ideas";
+type Tab = "dashboard" | "campaigns" | "public" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas";
 
 const categories: CampaignCategory[] = ["Civic", "Environment", "Education", "Health", "Transport", "Housing", "Other"];
 const storagePrefix = "voiceup-world-class-campaigns-v4";
@@ -121,6 +133,11 @@ function App() {
   const [authorities, setAuthorities] = usePersistentState<AuthorityRule[]>(`${storagePrefix}-authorities`, initialAuthorities);
   const [organization, setOrganization] = usePersistentState<Organization>(`${storagePrefix}-organization`, initialOrganization);
   const [scanItems, setScanItems] = usePersistentState<ScanReviewItem[]>(`${storagePrefix}-scan-items`, []);
+  const [auditLogs, setAuditLogs] = usePersistentState<AuditLogEntry[]>(`${storagePrefix}-audit-logs`, []);
+  const [integrations, setIntegrations] = usePersistentState<IntegrationSettings>(
+    `${storagePrefix}-integrations`,
+    initialIntegrationSettings
+  );
   const [locationOverrides, setLocationOverrides] = usePersistentState<LocationOverrides>(
     `${storagePrefix}-location-overrides`,
     {}
@@ -150,6 +167,7 @@ function App() {
   const publicCampaignSlug = getPublicCampaignSlug();
   const adminCampaignSlug = getCampaignAdminSlug();
   const isAppRoute = getIsAppRoute();
+  const legalPage = getLegalPage();
   const isPublicCampaignRoute = Boolean(publicCampaignSlug);
   const isCampaignAdminRoute = Boolean(adminCampaignSlug);
   const [adminLogin, setAdminLogin] = useState(blankAdminLogin);
@@ -193,10 +211,28 @@ function App() {
   const panchayatTotals = useMemo(() => groupSignersByLocation(campaignSigners, "panchayat"), [campaignSigners]);
 
   useEffect(() => {
+    updateSeoMetadata(activeCampaign, legalPage, isPublicCampaignRoute);
+  }, [activeCampaign, isPublicCampaignRoute, legalPage]);
+
+  useEffect(() => {
     if (!campaigns.some((campaign) => campaign.id === activeCampaignId)) {
       setActiveCampaignId(campaigns[0]?.id ?? "");
     }
   }, [activeCampaignId, campaigns]);
+
+  useEffect(() => {
+    if (!isSupabaseAuthAvailable || !isAppRoute) return;
+
+    async function hydrateAuth() {
+      const user = await getCurrentAuthUser();
+      if (user) {
+        setIsAppAuthenticated(true);
+        writeAppAuth(true);
+      }
+    }
+
+    void hydrateAuth();
+  }, [isAppRoute]);
 
   useEffect(() => {
     if (!isBackendConfigured) return;
@@ -218,7 +254,9 @@ function App() {
               organization,
               scanItems,
               locationOverrides,
-              locationDeletions
+              locationDeletions,
+              auditLogs,
+              integrations
             });
 
             await saveRemoteState(localState);
@@ -234,6 +272,8 @@ function App() {
           setScanItems(remoteState.scanItems ?? []);
           setLocationOverrides(remoteState.locationOverrides ?? {});
           setLocationDeletions(remoteState.locationDeletions ?? emptyLocationDeletions);
+          setAuditLogs(remoteState.auditLogs ?? []);
+          setIntegrations(remoteState.integrations ?? initialIntegrationSettings);
           setBackendMessage(`Shared campaign database connected (${remoteCampaigns.length} campaign(s)).`);
         } else {
           if (campaigns.length > 0) {
@@ -244,7 +284,9 @@ function App() {
               organization,
               scanItems,
               locationOverrides,
-              locationDeletions
+              locationDeletions,
+              auditLogs,
+              integrations
             });
 
             await saveRemoteState(localState);
@@ -271,7 +313,9 @@ function App() {
     };
   }, [
     setAuthorities,
+    setAuditLogs,
     setCampaigns,
+    setIntegrations,
     setLocationDeletions,
     setLocationOverrides,
     setOrganization,
@@ -290,7 +334,9 @@ function App() {
         organization,
         scanItems,
         locationOverrides,
-        locationDeletions
+        locationDeletions,
+        auditLogs,
+        integrations
       });
 
       void saveRemoteState(state)
@@ -303,7 +349,9 @@ function App() {
     return () => window.clearTimeout(timeoutId);
   }, [
     authorities,
+    auditLogs,
     campaigns,
+    integrations,
     locationDeletions,
     locationOverrides,
     organization,
@@ -341,6 +389,7 @@ function App() {
     setCampaigns((currentCampaigns) =>
       currentCampaigns.map((campaign) => (campaign.id === campaignDraft.id ? campaignDraft : campaign))
     );
+    addAuditLog("campaign.saved", `Saved campaign "${campaignDraft.title}"`, campaignDraft.id);
   }
 
   function createCampaign() {
@@ -382,6 +431,7 @@ function App() {
         "{{campaign}} update: {{verified}} verified supporters have joined so far. Share this campaign: {{url}}"
     };
     setCampaigns((currentCampaigns) => [...currentCampaigns, campaign]);
+    addAuditLog("campaign.created", `Created campaign "${campaign.title}"`, campaign.id);
     setActiveCampaignId(campaign.id);
     setCampaignDraft(campaign);
     setActiveTab("campaigns");
@@ -399,6 +449,7 @@ function App() {
     setCampaigns((currentCampaigns) =>
       currentCampaigns.map((campaign) => (campaign.id === publishedCampaign.id ? publishedCampaign : campaign))
     );
+    addAuditLog("campaign.published", `Published campaign "${publishedCampaign.title}"`, publishedCampaign.id);
   }
 
   function submitPublicSignature(event: FormEvent) {
@@ -427,6 +478,7 @@ function App() {
       campaignSigners
     );
     setSigners((currentSigners) => [signer, ...currentSigners]);
+    addAuditLog("campaign.signed", `${signer.name} signed "${activeCampaign.title}"`, activeCampaign.id);
     setPublicForm(blankSigner);
     setLastSignedSigner(signer);
     setPublicMessage(
@@ -491,6 +543,7 @@ function App() {
       reviewerNote: duplicate ? `Possible duplicate of ${duplicate.name}` : "Imported from scanned hard copy."
     };
     setSigners((currentSigners) => [signer, ...currentSigners]);
+    addAuditLog("scan.approved", `Approved scanned signer "${signer.name}"`, activeCampaign.id);
     setScanItems((currentItems) =>
       currentItems.map((item) => (item.id === scan.id ? { ...item, status: "Approved" } : item))
     );
@@ -500,6 +553,7 @@ function App() {
     setSigners((currentSigners) =>
       currentSigners.map((signer) => (signer.id === signerId ? { ...signer, status } : signer))
     );
+    addAuditLog("signer.status_updated", `Updated signer status to ${status}`, activeCampaign?.id);
   }
 
   function addAuthorityRule() {
@@ -525,6 +579,7 @@ function App() {
     const level = getLocationLevel(values);
     setLocationOverrides((currentOverrides) => addLocationOverride(currentOverrides, values));
     setLocationDeletions((currentDeletions) => clearLocationDeletion(currentDeletions, values, level));
+    addAuditLog("location.added", `Added ${level} dropdown value`, activeCampaign?.id);
   }
 
   function removeAdminLocationOption(values: LocationWithPin, level: LocationDeletionLevel) {
@@ -533,6 +588,7 @@ function App() {
       setLocationDeletions(result.deletions);
       return result.overrides;
     });
+    addAuditLog("location.deleted", `Deleted ${level} dropdown value`, activeCampaign?.id);
   }
 
   function selectSubscriptionPlan(planName: BillingPlan) {
@@ -559,6 +615,20 @@ function App() {
 
   function campaignReportMessage(campaign: Campaign) {
     return renderCampaignMessage(campaign.participantUpdateMessage, campaign, metrics);
+  }
+
+  function addAuditLog(action: AuditLogEntry["action"], description: string, campaignId?: string) {
+    setAuditLogs((currentLogs) => [
+      {
+        id: createId("audit"),
+        action,
+        actor: getCurrentActorEmail(),
+        campaignId,
+        description,
+        createdAt: new Date().toISOString()
+      },
+      ...currentLogs
+    ].slice(0, 500));
   }
 
   async function copyText(text: string) {
@@ -595,8 +665,25 @@ function App() {
     writeAuthenticatedAdminSlugs(nextAuth);
   }
 
-  function submitAppLogin(event: FormEvent) {
+  async function submitAppLogin(event: FormEvent) {
     event.preventDefault();
+    if (isSupabaseAuthAvailable) {
+      try {
+        const user = await signInWithSupabase(appLogin.email, appLogin.passcode);
+        setIsAppAuthenticated(true);
+        writeAppAuth(true);
+        setAppLogin(blankAppLogin);
+        setAppLoginMessage("");
+        addAuditLog("auth.login", `SaaS admin logged in with Supabase Auth: ${user.email ?? appLogin.email}`);
+        return;
+      } catch (error) {
+        setAppLoginMessage(
+          `Supabase Auth login failed: ${error instanceof Error ? error.message : "Unable to login"}`
+        );
+        return;
+      }
+    }
+
     const expectedEmail = getAppAdminEmail();
     const expectedPasscode = getAppAdminPasscode();
     const emailMatches = appLogin.email.trim().toLowerCase() === expectedEmail.trim().toLowerCase();
@@ -611,9 +698,13 @@ function App() {
     writeAppAuth(true);
     setAppLogin(blankAppLogin);
     setAppLoginMessage("");
+    addAuditLog("auth.login", `SaaS admin logged in with MVP passcode: ${appLogin.email}`);
   }
 
-  function logoutAppAdmin() {
+  async function logoutAppAdmin() {
+    if (isSupabaseAuthAvailable) {
+      await signOutSupabase();
+    }
     setIsAppAuthenticated(false);
     writeAppAuth(false);
   }
@@ -664,6 +755,10 @@ function App() {
     }
   }
 
+  if (legalPage) {
+    return <LegalPage page={legalPage} />;
+  }
+
   if (!isAppRoute) {
     return <MarketingHome />;
   }
@@ -691,6 +786,7 @@ function App() {
           <NavButton icon={<FileScan />} label="Scan hard copies" tab="scans" activeTab={activeTab} onClick={setActiveTab} />
           <NavButton icon={<FileText />} label="Reports" tab="reports" activeTab={activeTab} onClick={setActiveTab} />
           <NavButton icon={<MessageCircle />} label="Engagement" tab="engagement" activeTab={activeTab} onClick={setActiveTab} />
+          <NavButton icon={<ShieldCheck />} label="Activity" tab="activity" activeTab={activeTab} onClick={setActiveTab} />
           {!isCampaignAdminRoute && (
             <>
               <NavButton icon={<WalletCards />} label="SaaS admin" tab="saas" activeTab={activeTab} onClick={setActiveTab} />
@@ -1437,6 +1533,30 @@ function App() {
           )
         )}
 
+        {activeTab === "activity" && (
+          <section className="page-stack">
+            <Panel title="Admin activity and audit log" icon={<ShieldCheck />}>
+              {auditLogs.length === 0 ? (
+                <p>No admin activity has been recorded yet.</p>
+              ) : (
+                <div className="activity-list">
+                  {auditLogs.map((entry) => (
+                    <div className="activity-card" key={entry.id}>
+                      <div>
+                        <strong>{entry.description}</strong>
+                        <span>{entry.action}</span>
+                      </div>
+                      <small>
+                        {entry.actor} - {new Date(entry.createdAt).toLocaleString()}
+                      </small>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Panel>
+          </section>
+        )}
+
         {activeTab === "saas" && (
           <section className="page-stack">
             <Panel title="Customer organization subscription" icon={<Building2 />}>
@@ -1546,6 +1666,131 @@ function App() {
                   Enable custom branding for this organization
                 </label>
               </form>
+            </Panel>
+
+            <Panel title="Production integrations" icon={<Settings />}>
+              <form className="form-grid">
+                <Field label="Razorpay key ID">
+                  <input
+                    placeholder="rzp_live_xxxxx"
+                    value={integrations.razorpayKeyId}
+                    onChange={(event) => setIntegrations({ ...integrations, razorpayKeyId: event.target.value })}
+                    onBlur={() => addAuditLog("integration.updated", "Updated Razorpay key reference")}
+                  />
+                </Field>
+                <Field label="Razorpay plan/reference">
+                  <input
+                    value={integrations.razorpayPlanReference}
+                    onChange={(event) => setIntegrations({ ...integrations, razorpayPlanReference: event.target.value })}
+                  />
+                </Field>
+                <Field label="WhatsApp provider">
+                  <select
+                    value={integrations.whatsappProvider}
+                    onChange={(event) =>
+                      setIntegrations({
+                        ...integrations,
+                        whatsappProvider: event.target.value as IntegrationSettings["whatsappProvider"]
+                      })
+                    }
+                  >
+                    {["Not configured", "Gupshup", "MSG91", "Interakt", "AiSensy", "Twilio", "Airtel IQ"].map((provider) => (
+                      <option key={provider}>{provider}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="WhatsApp sender ID">
+                  <input
+                    value={integrations.whatsappSenderId}
+                    onChange={(event) => setIntegrations({ ...integrations, whatsappSenderId: event.target.value })}
+                  />
+                </Field>
+                <Field label="SMS provider">
+                  <select
+                    value={integrations.smsProvider}
+                    onChange={(event) =>
+                      setIntegrations({ ...integrations, smsProvider: event.target.value as IntegrationSettings["smsProvider"] })
+                    }
+                  >
+                    {["Not configured", "MSG91", "Gupshup", "Twilio", "Airtel IQ"].map((provider) => (
+                      <option key={provider}>{provider}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="SMS sender ID">
+                  <input
+                    value={integrations.smsSenderId}
+                    onChange={(event) => setIntegrations({ ...integrations, smsSenderId: event.target.value })}
+                  />
+                </Field>
+                <Field label="Email provider">
+                  <select
+                    value={integrations.emailProvider}
+                    onChange={(event) =>
+                      setIntegrations({
+                        ...integrations,
+                        emailProvider: event.target.value as IntegrationSettings["emailProvider"]
+                      })
+                    }
+                  >
+                    {["Not configured", "Resend", "SendGrid", "Amazon SES"].map((provider) => (
+                      <option key={provider}>{provider}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Sender email">
+                  <input
+                    value={integrations.emailSender}
+                    onChange={(event) => setIntegrations({ ...integrations, emailSender: event.target.value })}
+                  />
+                </Field>
+                <Field label="Storage provider">
+                  <select
+                    value={integrations.storageProvider}
+                    onChange={(event) =>
+                      setIntegrations({
+                        ...integrations,
+                        storageProvider: event.target.value as IntegrationSettings["storageProvider"]
+                      })
+                    }
+                  >
+                    {["Supabase Storage", "AWS S3", "Not configured"].map((provider) => (
+                      <option key={provider}>{provider}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Storage bucket">
+                  <input
+                    value={integrations.storageBucket}
+                    onChange={(event) => setIntegrations({ ...integrations, storageBucket: event.target.value })}
+                  />
+                </Field>
+                <Field label="Analytics provider">
+                  <select
+                    value={integrations.analyticsProvider}
+                    onChange={(event) =>
+                      setIntegrations({
+                        ...integrations,
+                        analyticsProvider: event.target.value as IntegrationSettings["analyticsProvider"]
+                      })
+                    }
+                  >
+                    {["Not configured", "Vercel Analytics", "PostHog", "Plausible"].map((provider) => (
+                      <option key={provider}>{provider}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Analytics key">
+                  <input
+                    value={integrations.analyticsKey}
+                    onChange={(event) => setIntegrations({ ...integrations, analyticsKey: event.target.value })}
+                  />
+                </Field>
+              </form>
+              <p className="info-message">
+                Store provider secrets in Vercel server-side environment variables. These fields are operational
+                references for admins, not a place for private API secrets.
+              </p>
             </Panel>
 
             <div className="plan-grid">
@@ -1687,6 +1932,12 @@ function MarketingHome() {
           Login to SaaS admin
         </a>
       </section>
+      <footer className="marketing-footer">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/refund">Refund policy</a>
+        <a href="/data-deletion">Data deletion</a>
+      </footer>
     </main>
   );
 }
@@ -1749,6 +2000,69 @@ function SaasAppLogin({
             VITE_VOICEUP_APP_ADMIN_PASSCODE. For real production, replace this with Supabase Auth.
           </p>
         </form>
+      </section>
+    </main>
+  );
+}
+
+function LegalPage({ page }: { page: "privacy" | "terms" | "refund" | "data-deletion" }) {
+  const content = {
+    privacy: {
+      title: "Privacy Policy",
+      body: [
+        "Voiceup Bharat helps campaign organizations collect supporter information for public campaigns.",
+        "Campaign organizers are responsible for collecting valid consent and using supporter data only for the stated campaign purpose.",
+        "Production deployments should configure secure authentication, tenant isolation, audit logs, and data deletion workflows before collecting sensitive data."
+      ]
+    },
+    terms: {
+      title: "Terms of Service",
+      body: [
+        "Organizations must use Voiceup Bharat only for lawful campaigns and public-interest engagement.",
+        "Campaign owners are responsible for the accuracy of campaign content, authority targeting, consent language, and legal compliance.",
+        "The current MVP requires production hardening before high-volume or legally sensitive campaigns."
+      ]
+    },
+    refund: {
+      title: "Refund and Cancellation Policy",
+      body: [
+        "Subscription billing should be connected through Razorpay or another approved provider before paid launch.",
+        "Refund windows, cancellation terms, and invoice handling must be configured by the SaaS operator.",
+        "Enterprise plans may use custom contracts and custom support terms."
+      ]
+    },
+    "data-deletion": {
+      title: "Data Deletion Request",
+      body: [
+        "Supporters may request export or deletion of their personal data through the campaign organizer.",
+        "Production deployments should include authenticated data export, delete, and retention controls.",
+        "Campaign organizations should maintain an audit trail for consent, submissions, and deletion requests."
+      ]
+    }
+  }[page];
+
+  return (
+    <main className="marketing-home">
+      <header className="marketing-nav">
+        <div className="brand">
+          <div className="brand-mark">
+            <Megaphone size={24} />
+          </div>
+          <div>
+            <strong>Voiceup Bharat</strong>
+            <span>{content.title}</span>
+          </div>
+        </div>
+        <a className="secondary-link-button" href="/">
+          Back home
+        </a>
+      </header>
+      <section className="empty-state public-not-found">
+        <span className="eyebrow">Legal</span>
+        <h1>{content.title}</h1>
+        {content.body.map((paragraph) => (
+          <p key={paragraph}>{paragraph}</p>
+        ))}
       </section>
     </main>
   );
@@ -2383,6 +2697,51 @@ function getIsAppRoute() {
   return window.location.pathname === "/app" || window.location.pathname.startsWith("/app/");
 }
 
+function getLegalPage() {
+  if (typeof window === "undefined") return null;
+  const path = window.location.pathname.replace(/^\//, "");
+  if (path === "privacy" || path === "terms" || path === "refund" || path === "data-deletion") return path;
+  return null;
+}
+
+function updateSeoMetadata(campaign: Campaign | undefined, legalPage: ReturnType<typeof getLegalPage>, isPublicCampaignRoute: boolean) {
+  if (typeof document === "undefined") return;
+
+  const title = isPublicCampaignRoute && campaign ? `${campaign.title} | Voiceup Bharat` : "Voiceup Bharat";
+  const description =
+    isPublicCampaignRoute && campaign
+      ? campaign.description || campaign.appealContent
+      : legalPage
+        ? `${legalPage} | Voiceup Bharat`
+        : "Voiceup Bharat helps Indian organizations create public campaigns, collect support, and engage participants.";
+
+  document.title = title;
+  setMetaTag("description", description);
+  setMetaProperty("og:title", title);
+  setMetaProperty("og:description", description);
+  setMetaProperty("og:type", isPublicCampaignRoute ? "article" : "website");
+}
+
+function setMetaTag(name: string, content: string) {
+  let element = document.querySelector(`meta[name="${name}"]`);
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute("name", name);
+    document.head.appendChild(element);
+  }
+  element.setAttribute("content", content);
+}
+
+function setMetaProperty(property: string, content: string) {
+  let element = document.querySelector(`meta[property="${property}"]`);
+  if (!element) {
+    element = document.createElement("meta");
+    element.setAttribute("property", property);
+    document.head.appendChild(element);
+  }
+  element.setAttribute("content", content);
+}
+
 function createAdminPasscode() {
   return `voiceup-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -2393,6 +2752,13 @@ function getAppAdminEmail() {
 
 function getAppAdminPasscode() {
   return (import.meta.env.VITE_VOICEUP_APP_ADMIN_PASSCODE as string | undefined) || "voiceup-admin";
+}
+
+function getCurrentActorEmail() {
+  if (typeof window !== "undefined" && window.sessionStorage.getItem("voiceup-saas-admin-auth") === "true") {
+    return getAppAdminEmail();
+  }
+  return "system";
 }
 
 function getCampaignAdminEmail(campaign: Campaign) {
@@ -2411,7 +2777,9 @@ function createRemoteState(state: VoiceupRemoteState): VoiceupRemoteState {
     organization: state.organization,
     scanItems: state.scanItems,
     locationOverrides: state.locationOverrides,
-    locationDeletions: state.locationDeletions
+    locationDeletions: state.locationDeletions,
+    auditLogs: state.auditLogs ?? [],
+    integrations: state.integrations ?? initialIntegrationSettings
   };
 }
 

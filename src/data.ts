@@ -1,4 +1,4 @@
-import type { AuthorityRule, Campaign, Organization, Signer, SubscriptionPlan, SuggestedFeature } from "./types";
+import type { AuthorityRule, Campaign, IntegrationSettings, Organization, Signer, SubscriptionPlan, SuggestedFeature } from "./types";
 
 export const initialCampaigns: Campaign[] = [];
 
@@ -20,6 +20,21 @@ export const initialOrganization: Organization = {
   billingEmail: "",
   seats: 2,
   paymentReference: ""
+};
+
+export const initialIntegrationSettings: IntegrationSettings = {
+  razorpayKeyId: "",
+  razorpayPlanReference: "",
+  whatsappProvider: "Not configured",
+  whatsappSenderId: "",
+  smsProvider: "Not configured",
+  smsSenderId: "",
+  emailProvider: "Not configured",
+  emailSender: "",
+  storageProvider: "Supabase Storage",
+  storageBucket: "voiceup-campaign-media",
+  analyticsProvider: "Vercel Analytics",
+  analyticsKey: ""
 };
 
 export const subscriptionPlans: SubscriptionPlan[] = [

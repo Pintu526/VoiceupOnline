@@ -19,6 +19,8 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Campaign video URL, social share text, and same-domain `/c/campaign-slug` publishing path
 - Public `/c/campaign-slug` links render only the public campaign signing page, without admin dashboard navigation
 - Protected per-campaign admin `/admin/campaign-slug` links require campaign admin email/passcode before showing management, scanning, engagement, and reports for that campaign
+- Public homepage at `/` with product description, feature overview, and call-to-action
+- Protected SaaS workspace at `/app` with admin email/passcode gate
 - Local duplicate detection by phone, email, and name
 - Hard-copy scan upload with OCR through `tesseract.js`
 - Manual review queue for scanned signer details
@@ -86,6 +88,8 @@ In Vercel Project Settings -> Environment Variables, add:
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 VITE_VOICEUP_WORKSPACE_ID=default
+VITE_VOICEUP_APP_ADMIN_EMAIL=admin@voiceup.live
+VITE_VOICEUP_APP_ADMIN_PASSCODE=change-this-passcode
 ```
 
 Then redeploy.
@@ -97,11 +101,19 @@ After this:
 - `/admin/campaign-slug` can load the same campaign from another device
 - Public signatures are collected in the shared Supabase workspace
 
+## Live route structure
+
+- `/` public product homepage
+- `/app` protected SaaS admin workspace
+- `/c/campaign-slug` public campaign signing page
+- `/admin/campaign-slug` protected individual campaign admin page
+
 ## Important production notes
 
 This MVP can use Supabase shared storage for live public links. Before selling it as a real SaaS product, add:
 
 - Secure authentication
+- Replace MVP passcode gates with Supabase Auth/Clerk/Auth0 before real customer scale
 - Tenant-isolated normalized backend database tables
 - Role-based access control
 - Payment/subscription integration

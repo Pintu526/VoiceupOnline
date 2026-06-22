@@ -200,6 +200,24 @@ function App() {
         if (isCancelled) return;
 
         if (remoteState) {
+          const remoteCampaigns = remoteState.campaigns ?? [];
+          if (remoteCampaigns.length === 0 && campaigns.length > 0) {
+            const localState = createRemoteState({
+              campaigns,
+              signers,
+              authorities,
+              organization,
+              scanItems,
+              locationOverrides,
+              locationDeletions
+            });
+
+            await saveRemoteState(localState);
+            if (isCancelled) return;
+            setBackendMessage(`Uploaded ${campaigns.length} local campaign(s) to shared database.`);
+            return;
+          }
+
           setCampaigns(remoteState.campaigns ?? []);
           setSigners(remoteState.signers ?? []);
           setAuthorities(remoteState.authorities ?? initialAuthorities);
@@ -207,9 +225,25 @@ function App() {
           setScanItems(remoteState.scanItems ?? []);
           setLocationOverrides(remoteState.locationOverrides ?? {});
           setLocationDeletions(remoteState.locationDeletions ?? emptyLocationDeletions);
-          setBackendMessage("Shared campaign database connected.");
+          setBackendMessage(`Shared campaign database connected (${remoteCampaigns.length} campaign(s)).`);
         } else {
-          setBackendMessage("Shared campaign database ready. Create or save a campaign to publish it.");
+          if (campaigns.length > 0) {
+            const localState = createRemoteState({
+              campaigns,
+              signers,
+              authorities,
+              organization,
+              scanItems,
+              locationOverrides,
+              locationDeletions
+            });
+
+            await saveRemoteState(localState);
+            if (isCancelled) return;
+            setBackendMessage(`Created shared database workspace with ${campaigns.length} campaign(s).`);
+          } else {
+            setBackendMessage("Shared campaign database ready. Create or save a campaign to publish it.");
+          }
         }
       } catch (error) {
         setBackendMessage(`Shared database error: ${error instanceof Error ? error.message : "Unable to connect"}`);

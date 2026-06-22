@@ -68,12 +68,41 @@ Recommended settings:
 - Build command: `npm run build`
 - Output directory: `dist`
 
+## Make public links work across devices
+
+The app supports Supabase-backed shared storage. Without Supabase environment variables, it falls back to browser local storage for preview only.
+
+### 1. Create Supabase database
+
+1. Create a Supabase project.
+2. Open the Supabase SQL editor.
+3. Run the SQL in `supabase-schema.sql`.
+
+### 2. Add Vercel environment variables
+
+In Vercel Project Settings -> Environment Variables, add:
+
+```text
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_VOICEUP_WORKSPACE_ID=default
+```
+
+Then redeploy.
+
+After this:
+
+- Campaigns created on laptop are saved online
+- `/c/campaign-slug` works from WhatsApp/mobile/other browsers
+- `/admin/campaign-slug` can load the same campaign from another device
+- Public signatures are collected in the shared Supabase workspace
+
 ## Important production notes
 
-This first version stores data in browser local storage so the workflow can be tested without a server. Before selling it as a real SaaS product, add:
+This MVP can use Supabase shared storage for live public links. Before selling it as a real SaaS product, add:
 
 - Secure authentication
-- Tenant-isolated backend database
+- Tenant-isolated normalized backend database tables
 - Role-based access control
 - Payment/subscription integration
 - Server-side OCR for large PDF or handwritten scan batches

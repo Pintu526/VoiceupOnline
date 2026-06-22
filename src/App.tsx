@@ -36,6 +36,7 @@ import {
   subscriptionPlans,
   suggestedFeatures
 } from "./data";
+import { isBackendConfigured, loadRemoteState, saveRemoteState, type VoiceupRemoteState } from "./backend";
 import {
   createId,
   createScanReviewItem,
@@ -134,6 +135,13 @@ function App() {
   const [scanText, setScanText] = useState(blankScanTemplate);
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
+  const [backendLoading, setBackendLoading] = useState(isBackendConfigured);
+  const [backendMessage, setBackendMessage] = useState(
+    isBackendConfigured
+      ? "Connecting to shared campaign database..."
+      : "Local preview mode: configure Supabase for public links across devices."
+  );
+  const [remoteStateLoaded, setRemoteStateLoaded] = useState(!isBackendConfigured);
   const publicCampaignSlug = getPublicCampaignSlug();
   const adminCampaignSlug = getCampaignAdminSlug();
   const isPublicCampaignRoute = Boolean(publicCampaignSlug);
@@ -180,6 +188,86 @@ function App() {
       setActiveCampaignId(campaigns[0]?.id ?? "");
     }
   }, [activeCampaignId, campaigns]);
+
+  useEffect(() => {
+    if (!isBackendConfigured) return;
+
+    let isCancelled = false;
+
+    async function loadSharedState() {
+      try {
+        const remoteState = await loadRemoteState();
+        if (isCancelled) return;
+
+        if (remoteState) {
+          setCampaigns(remoteState.campaigns ?? []);
+          setSigners(remoteState.signers ?? []);
+          setAuthorities(remoteState.authorities ?? initialAuthorities);
+          setOrganization(remoteState.organization ?? initialOrganization);
+          setScanItems(remoteState.scanItems ?? []);
+          setLocationOverrides(remoteState.locationOverrides ?? {});
+          setLocationDeletions(remoteState.locationDeletions ?? emptyLocationDeletions);
+          setBackendMessage("Shared campaign database connected.");
+        } else {
+          setBackendMessage("Shared campaign database ready. Create or save a campaign to publish it.");
+        }
+      } catch (error) {
+        setBackendMessage(`Shared database error: ${error instanceof Error ? error.message : "Unable to connect"}`);
+      } finally {
+        if (!isCancelled) {
+          setRemoteStateLoaded(true);
+          setBackendLoading(false);
+        }
+      }
+    }
+
+    void loadSharedState();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    setAuthorities,
+    setCampaigns,
+    setLocationDeletions,
+    setLocationOverrides,
+    setOrganization,
+    setScanItems,
+    setSigners
+  ]);
+
+  useEffect(() => {
+    if (!isBackendConfigured || !remoteStateLoaded) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const state = createRemoteState({
+        campaigns,
+        signers,
+        authorities,
+        organization,
+        scanItems,
+        locationOverrides,
+        locationDeletions
+      });
+
+      void saveRemoteState(state)
+        .then(() => setBackendMessage("Saved to shared campaign database."))
+        .catch((error) =>
+          setBackendMessage(`Shared database save error: ${error instanceof Error ? error.message : "Unable to save"}`)
+        );
+    }, 700);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    authorities,
+    campaigns,
+    locationDeletions,
+    locationOverrides,
+    organization,
+    remoteStateLoaded,
+    scanItems,
+    signers
+  ]);
 
   useEffect(() => {
     setCampaignDraft(activeCampaign ?? null);
@@ -465,6 +553,10 @@ function App() {
   }
 
   if (isPublicCampaignRoute) {
+    if (backendLoading) {
+      return <PublicLoading message={backendMessage} />;
+    }
+
     return activeCampaign ? (
       <div className="public-only-shell">
         <PublicCampaignSection
@@ -485,6 +577,10 @@ function App() {
   }
 
   if (isCampaignAdminRoute) {
+    if (backendLoading) {
+      return <PublicLoading message={backendMessage} />;
+    }
+
     if (!activeCampaign) {
       return <CampaignAdminNotFound />;
     }
@@ -532,6 +628,7 @@ function App() {
           <span className="eyebrow">Current plan</span>
           <strong>{organization.plan}</strong>
           <small>{organization.monthlySignatureLimit.toLocaleString()} signatures/month</small>
+          <small>{backendMessage}</small>
         </div>
       </aside>
 
@@ -1583,6 +1680,18 @@ function PublicCampaignNotFound() {
   );
 }
 
+function PublicLoading({ message }: { message: string }) {
+  return (
+    <main className="public-only-shell">
+      <section className="empty-state public-not-found">
+        <span className="eyebrow">Loading campaign</span>
+        <h1>Loading campaign details...</h1>
+        <p>{message}</p>
+      </section>
+    </main>
+  );
+}
+
 function CampaignAdminLogin({
   campaign,
   adminLogin,
@@ -2063,6 +2172,18 @@ function getCampaignAdminEmail(campaign: Campaign) {
 
 function getCampaignAdminPasscode(campaign: Campaign) {
   return campaign.adminPasscode || "voiceup-admin";
+}
+
+function createRemoteState(state: VoiceupRemoteState): VoiceupRemoteState {
+  return {
+    campaigns: state.campaigns,
+    signers: state.signers,
+    authorities: state.authorities,
+    organization: state.organization,
+    scanItems: state.scanItems,
+    locationOverrides: state.locationOverrides,
+    locationDeletions: state.locationDeletions
+  };
 }
 
 function getAppealAuthority(campaign: Campaign): AuthorityRule {

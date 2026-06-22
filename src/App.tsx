@@ -110,6 +110,11 @@ const blankAdminLogin = {
   passcode: ""
 };
 
+const blankAppLogin = {
+  email: "",
+  passcode: ""
+};
+
 function App() {
   const [campaigns, setCampaigns] = usePersistentState<Campaign[]>(`${storagePrefix}-campaigns`, initialCampaigns);
   const [signers, setSigners] = usePersistentState<Signer[]>(`${storagePrefix}-signers`, initialSigners);
@@ -144,10 +149,14 @@ function App() {
   const [remoteStateLoaded, setRemoteStateLoaded] = useState(!isBackendConfigured);
   const publicCampaignSlug = getPublicCampaignSlug();
   const adminCampaignSlug = getCampaignAdminSlug();
+  const isAppRoute = getIsAppRoute();
   const isPublicCampaignRoute = Boolean(publicCampaignSlug);
   const isCampaignAdminRoute = Boolean(adminCampaignSlug);
   const [adminLogin, setAdminLogin] = useState(blankAdminLogin);
   const [adminLoginMessage, setAdminLoginMessage] = useState("");
+  const [appLogin, setAppLogin] = useState(blankAppLogin);
+  const [appLoginMessage, setAppLoginMessage] = useState("");
+  const [isAppAuthenticated, setIsAppAuthenticated] = useState(() => readAppAuth());
   const [authenticatedAdminSlugs, setAuthenticatedAdminSlugs] = useState<Record<string, boolean>>(() =>
     readAuthenticatedAdminSlugs()
   );
@@ -586,6 +595,29 @@ function App() {
     writeAuthenticatedAdminSlugs(nextAuth);
   }
 
+  function submitAppLogin(event: FormEvent) {
+    event.preventDefault();
+    const expectedEmail = getAppAdminEmail();
+    const expectedPasscode = getAppAdminPasscode();
+    const emailMatches = appLogin.email.trim().toLowerCase() === expectedEmail.trim().toLowerCase();
+    const passcodeMatches = appLogin.passcode.trim() === expectedPasscode.trim();
+
+    if (!emailMatches || !passcodeMatches) {
+      setAppLoginMessage("Invalid SaaS admin email or passcode.");
+      return;
+    }
+
+    setIsAppAuthenticated(true);
+    writeAppAuth(true);
+    setAppLogin(blankAppLogin);
+    setAppLoginMessage("");
+  }
+
+  function logoutAppAdmin() {
+    setIsAppAuthenticated(false);
+    writeAppAuth(false);
+  }
+
   if (isPublicCampaignRoute) {
     if (backendLoading) {
       return <PublicLoading message={backendMessage} />;
@@ -630,6 +662,14 @@ function App() {
         />
       );
     }
+  }
+
+  if (!isAppRoute) {
+    return <MarketingHome />;
+  }
+
+  if (!isAppAuthenticated) {
+    return <SaasAppLogin appLogin={appLogin} setAppLogin={setAppLogin} message={appLoginMessage} onSubmit={submitAppLogin} />;
   }
 
   return (
@@ -695,9 +735,16 @@ function App() {
               Logout campaign admin
             </button>
           ) : (
-            <button className="secondary-button" type="button" onClick={createCampaign}>
-              <Plus size={18} /> New campaign
-            </button>
+            <div className="button-row">
+              <button className="secondary-button" type="button" onClick={createCampaign}>
+                <Plus size={18} /> New campaign
+              </button>
+              {isAppRoute && (
+                <button className="secondary-button" type="button" onClick={logoutAppAdmin}>
+                  Logout
+                </button>
+              )}
+            </div>
           )}
         </header>
 
@@ -1572,6 +1619,141 @@ function NavButton({
   );
 }
 
+function MarketingHome() {
+  return (
+    <main className="marketing-home">
+      <header className="marketing-nav">
+        <div className="brand">
+          <div className="brand-mark">
+            <Megaphone size={24} />
+          </div>
+          <div>
+            <strong>Voiceup Bharat</strong>
+            <span>Campaigns that move people</span>
+          </div>
+        </div>
+        <div className="button-row">
+          <a className="secondary-link-button" href="/app">
+            SaaS admin login
+          </a>
+        </div>
+      </header>
+
+      <section className="marketing-hero">
+        <div>
+          <span className="eyebrow">Voice Up to make your campaign successful</span>
+          <h1>Launch public appeals, collect verified support, and keep every participant engaged.</h1>
+          <p>
+            Voiceup Bharat helps NGOs, RWAs, associations, unions, and campaign agencies publish public campaigns,
+            collect signups, scan hard-copy support, route appeals to the right authority, and report campaign progress.
+          </p>
+          <div className="button-row">
+            <a className="primary-link-button" href="/app">
+              Start campaign workspace
+            </a>
+            <a className="secondary-link-button" href="#features">
+              View features
+            </a>
+          </div>
+        </div>
+        <div className="marketing-hero-card">
+          <span className="status-pill">India-ready SaaS</span>
+          <h2>Public link stays public. Admin stays protected.</h2>
+          <ul>
+            <li>Public campaign pages at /c/campaign-slug</li>
+            <li>Protected campaign admin at /admin/campaign-slug</li>
+            <li>Global SaaS workspace at /app</li>
+            <li>Supabase shared storage for WhatsApp/mobile links</li>
+          </ul>
+        </div>
+      </section>
+
+      <section className="marketing-section" id="features">
+        <span className="eyebrow">Platform modules</span>
+        <div className="marketing-grid">
+          <MarketingFeature title="Campaign publishing" text="Create branded appeal pages with images, video, authority target, and public signup forms." />
+          <MarketingFeature title="India location hierarchy" text="State, district, block, panchayat/ward, and PIN-code based reporting for local campaigns." />
+          <MarketingFeature title="Participant engagement" text="Thank-you flows, WhatsApp/SMS links, social sharing, and participant progress updates." />
+          <MarketingFeature title="Reports and exports" text="Daily, weekly, state, district, block, and panchayat counts with PDF/CSV exports." />
+          <MarketingFeature title="Hard-copy scanning" text="OCR-assisted import for scanned forms and review queue for paper signups." />
+          <MarketingFeature title="SaaS subscriptions" text="Plans, limits, custom branding, custom domain, and organization-level setup." />
+        </div>
+      </section>
+
+      <section className="marketing-section marketing-cta">
+        <h2>Ready to run a campaign on Voiceup Bharat?</h2>
+        <p>Login to the protected SaaS workspace to create campaigns and publish public links.</p>
+        <a className="primary-link-button" href="/app">
+          Login to SaaS admin
+        </a>
+      </section>
+    </main>
+  );
+}
+
+function MarketingFeature({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="marketing-feature">
+      <Sparkles size={22} />
+      <h3>{title}</h3>
+      <p>{text}</p>
+    </div>
+  );
+}
+
+function SaasAppLogin({
+  appLogin,
+  setAppLogin,
+  message,
+  onSubmit
+}: {
+  appLogin: typeof blankAppLogin;
+  setAppLogin: React.Dispatch<React.SetStateAction<typeof blankAppLogin>>;
+  message: string;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <main className="public-only-shell">
+      <section className="campaign-admin-login">
+        <div className="brand">
+          <div className="brand-mark">
+            <Megaphone size={24} />
+          </div>
+          <div>
+            <strong>Voiceup Bharat</strong>
+            <span>SaaS admin access</span>
+          </div>
+        </div>
+        <span className="eyebrow">Protected SaaS workspace</span>
+        <h1>Login to manage campaign organizations.</h1>
+        <p>Use this protected workspace to create campaigns, configure subscriptions, manage public links, and view reports.</p>
+        <form className="form-stack" onSubmit={onSubmit}>
+          <input
+            type="email"
+            placeholder="SaaS admin email"
+            value={appLogin.email}
+            onChange={(event) => setAppLogin({ ...appLogin, email: event.target.value })}
+          />
+          <input
+            type="password"
+            placeholder="SaaS admin passcode"
+            value={appLogin.passcode}
+            onChange={(event) => setAppLogin({ ...appLogin, passcode: event.target.value })}
+          />
+          <button className="primary-button" type="submit">
+            Login to SaaS admin
+          </button>
+          {message && <p className="info-message">{message}</p>}
+          <p className="helper-text">
+            Configure production credentials with Vercel environment variables VITE_VOICEUP_APP_ADMIN_EMAIL and
+            VITE_VOICEUP_APP_ADMIN_PASSCODE. For real production, replace this with Supabase Auth.
+          </p>
+        </form>
+      </section>
+    </main>
+  );
+}
+
 function PublicCampaignSection({
   campaign,
   metrics,
@@ -2196,8 +2378,21 @@ function getCampaignAdminSlug() {
   return window.location.pathname.match(/^\/admin\/([^/]+)/)?.[1] ?? "";
 }
 
+function getIsAppRoute() {
+  if (typeof window === "undefined") return false;
+  return window.location.pathname === "/app" || window.location.pathname.startsWith("/app/");
+}
+
 function createAdminPasscode() {
   return `voiceup-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getAppAdminEmail() {
+  return (import.meta.env.VITE_VOICEUP_APP_ADMIN_EMAIL as string | undefined) || "admin@voiceup.live";
+}
+
+function getAppAdminPasscode() {
+  return (import.meta.env.VITE_VOICEUP_APP_ADMIN_PASSCODE as string | undefined) || "voiceup-admin";
 }
 
 function getCampaignAdminEmail(campaign: Campaign) {
@@ -2276,6 +2471,20 @@ function readAuthenticatedAdminSlugs() {
 function writeAuthenticatedAdminSlugs(values: Record<string, boolean>) {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem("voiceup-campaign-admin-auth", JSON.stringify(values));
+}
+
+function readAppAuth() {
+  if (typeof window === "undefined") return false;
+  return window.sessionStorage.getItem("voiceup-saas-admin-auth") === "true";
+}
+
+function writeAppAuth(value: boolean) {
+  if (typeof window === "undefined") return;
+  if (value) {
+    window.sessionStorage.setItem("voiceup-saas-admin-auth", "true");
+  } else {
+    window.sessionStorage.removeItem("voiceup-saas-admin-auth");
+  }
 }
 
 function renderCampaignMessage(

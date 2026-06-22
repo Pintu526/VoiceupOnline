@@ -40,6 +40,114 @@ button {
   cursor: pointer;
 }
 
+.marketing-home {
+  min-height: 100vh;
+  padding: 26px;
+}
+
+.marketing-nav {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 auto 28px;
+  max-width: 1180px;
+}
+
+.marketing-hero,
+.marketing-section {
+  margin: 0 auto;
+  max-width: 1180px;
+}
+
+.marketing-hero {
+  align-items: center;
+  display: grid;
+  gap: 28px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  padding: 54px 0;
+}
+
+.marketing-hero h1 {
+  font-size: clamp(2.4rem, 5vw, 5rem);
+  line-height: 0.98;
+  margin: 10px 0 18px;
+}
+
+.marketing-hero p,
+.marketing-section p,
+.marketing-feature p,
+.marketing-hero-card li {
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+
+.marketing-hero-card,
+.marketing-feature,
+.marketing-cta {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+
+.marketing-hero-card {
+  display: grid;
+  gap: 16px;
+  padding: 28px;
+}
+
+.marketing-hero-card ul {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.marketing-section {
+  padding: 28px 0;
+}
+
+.marketing-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.marketing-feature {
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+}
+
+.marketing-feature h3,
+.marketing-cta h2 {
+  margin: 0;
+}
+
+.marketing-cta {
+  align-items: center;
+  display: grid;
+  justify-items: center;
+  margin-bottom: 34px;
+  padding: 34px;
+  text-align: center;
+}
+
+.primary-link-button {
+  align-items: center;
+  background: var(--primary);
+  border-radius: 13px;
+  color: #ffffff;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: center;
+  min-height: 42px;
+  padding: 10px 15px;
+  text-decoration: none;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 290px minmax(0, 1fr);
@@ -862,6 +970,7 @@ td span {
   }
 
   .hero,
+  .marketing-hero,
   .two-column,
   .public-layout,
   .scan-grid,
@@ -886,6 +995,7 @@ td span {
 
   .metric-grid,
   .plan-grid,
+  .marketing-grid,
   .idea-grid,
   .report-grid,
   .form-grid,

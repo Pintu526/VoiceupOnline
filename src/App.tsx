@@ -667,6 +667,8 @@ function App() {
 
   async function submitAppLogin(event: FormEvent) {
     event.preventDefault();
+    let supabaseAuthError = "";
+
     if (isSupabaseAuthAvailable) {
       try {
         const user = await signInWithSupabase(appLogin.email, appLogin.passcode);
@@ -677,10 +679,7 @@ function App() {
         addAuditLog("auth.login", `SaaS admin logged in with Supabase Auth: ${user.email ?? appLogin.email}`);
         return;
       } catch (error) {
-        setAppLoginMessage(
-          `Supabase Auth login failed: ${error instanceof Error ? error.message : "Unable to login"}`
-        );
-        return;
+        supabaseAuthError = error instanceof Error ? error.message : "Unable to login";
       }
     }
 
@@ -690,7 +689,11 @@ function App() {
     const passcodeMatches = appLogin.passcode.trim() === expectedPasscode.trim();
 
     if (!emailMatches || !passcodeMatches) {
-      setAppLoginMessage("Invalid SaaS admin email or passcode.");
+      setAppLoginMessage(
+        supabaseAuthError
+          ? `Supabase Auth login failed: ${supabaseAuthError}. Vercel admin passcode also did not match.`
+          : "Invalid SaaS admin email or passcode."
+      );
       return;
     }
 

@@ -125,6 +125,8 @@ export function parseSignerFromText(text: string) {
     whatsappNumber: valueFor(["whatsapp", "whatsapp number"]),
     telegramHandle: valueFor(["telegram", "telegram handle"]),
     otpVerified: false,
+    selectedAuthorityId: "",
+    selectedAuthorityName: "",
     state: valueFor(["state"]),
     district: valueFor(["district"]),
     block: valueFor(["block", "taluk", "tehsil"]),
@@ -161,6 +163,7 @@ export function exportCsv(campaign: Campaign, signers: Signer[]) {
       "WhatsApp",
       "Telegram",
       "OTP Verified",
+      "Selected Authority",
       "State",
       "District",
       "Block",
@@ -180,6 +183,7 @@ export function exportCsv(campaign: Campaign, signers: Signer[]) {
       signer.whatsappNumber,
       signer.telegramHandle,
       signer.otpVerified ? "Yes" : "No",
+      signer.selectedAuthorityName,
       signer.state,
       signer.district,
       signer.block,
@@ -261,13 +265,14 @@ export function exportSignerAppealPdf(campaign: Campaign, signer: Signer, author
   doc.text(`WhatsApp: ${signer.whatsappNumber || signer.phone || "Not provided"}`, 14, 60);
   doc.text(`Telegram: ${signer.telegramHandle || "Not provided"}`, 14, 68);
   doc.text(`OTP verified: ${signer.otpVerified ? "Yes" : "No"}`, 14, 76);
-  doc.text(`Location: ${[signer.panchayat, signer.block, signer.district, signer.state].filter(Boolean).join(", ")}`, 14, 84);
-  doc.text(`PIN: ${signer.postalCode}`, 14, 92);
+  doc.text(`Selected authority: ${signer.selectedAuthorityName || authorityName}`, 14, 84);
+  doc.text(`Location: ${[signer.panchayat, signer.block, signer.district, signer.state].filter(Boolean).join(", ")}`, 14, 92);
+  doc.text(`PIN: ${signer.postalCode}`, 14, 100);
 
-  doc.text("To", 14, 108);
-  doc.text(authorityName, 14, 116);
-  if (authorityPosition) doc.text(authorityPosition, 14, 124);
-  doc.text(authorityAddress, 14, authorityPosition ? 132 : 124);
+  doc.text("To", 14, 116);
+  doc.text(authorityName, 14, 124);
+  if (authorityPosition) doc.text(authorityPosition, 14, 132);
+  doc.text(authorityAddress, 14, authorityPosition ? 140 : 132);
 
   doc.text("Appeal / Cause", 14, 148);
   const appealLines = doc.splitTextToSize(campaign.appealContent || campaign.description, 180);
@@ -287,6 +292,8 @@ export function makePublicSigner(
     | "whatsappNumber"
     | "telegramHandle"
     | "otpVerified"
+    | "selectedAuthorityId"
+    | "selectedAuthorityName"
     | "state"
     | "district"
     | "block"

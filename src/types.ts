@@ -16,6 +16,7 @@ export type BillingPlan = "Starter" | "Professional" | "Enterprise";
 export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled";
 
 export type AuthorityTargetLevel = "district" | "state" | "country";
+export type AuthoritySelectionMode = "admin_enforced" | "public_choice";
 
 export type UserRole = "platform_owner" | "organization_admin" | "campaign_admin" | "reviewer" | "viewer";
 
@@ -44,7 +45,15 @@ export interface Campaign {
   description: string;
   appealContent: string;
   authorityTargetLevel: AuthorityTargetLevel;
+  authoritySelectionMode: AuthoritySelectionMode;
   selectedAuthorityId: string;
+  donationEnabled: boolean;
+  donationCaption: string;
+  donationUpiId: string;
+  donationQrImage: string;
+  donationPaymentDetails: string;
+  donationAllowOneTime: boolean;
+  donationAllowRecurring: boolean;
   state: string;
   district: string;
   block: string;
@@ -80,6 +89,8 @@ export interface Signer {
   whatsappNumber: string;
   telegramHandle: string;
   otpVerified: boolean;
+  selectedAuthorityId: string;
+  selectedAuthorityName: string;
   state: string;
   district: string;
   block: string;

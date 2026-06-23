@@ -80,6 +80,7 @@ import {
 } from "./geography";
 import type {
   AuthorityRule,
+  AuthoritySelectionMode,
   AuthorityTargetLevel,
   AuditLogEntry,
   BillingPlan,
@@ -112,6 +113,8 @@ const blankSigner = {
   whatsappNumber: "",
   telegramHandle: "",
   otpVerified: false,
+  selectedAuthorityId: "",
+  selectedAuthorityName: "",
   state: "",
   district: "",
   block: "",
@@ -409,7 +412,15 @@ function App() {
       appealContent:
         "I support this appeal and request the selected authority to take appropriate action for the public cause described in this campaign.",
       authorityTargetLevel: "district",
+      authoritySelectionMode: "admin_enforced",
       selectedAuthorityId: "",
+      donationEnabled: false,
+      donationCaption: "Support this campaign with a voluntary contribution.",
+      donationUpiId: "",
+      donationQrImage: "",
+      donationPaymentDetails: "",
+      donationAllowOneTime: true,
+      donationAllowRecurring: false,
       state: "",
       district: "",
       block: "",
@@ -479,11 +490,14 @@ function App() {
       setPublicMessage(`${signerFieldLabel(missingRequiredField)} is required to sign this campaign.`);
       return;
     }
+    const signerAuthority = getSignerSelectedAuthority(activeCampaign, publicForm.selectedAuthorityId, authorities);
     const signer = makePublicSigner(
       activeCampaign.id,
       {
         ...publicForm,
-        comment: `Accepted published appeal to ${(authorityMatch?.authority ?? getAppealAuthority(activeCampaign)).name}: ${
+        selectedAuthorityId: signerAuthority.id,
+        selectedAuthorityName: signerAuthority.name,
+        comment: `Accepted published appeal to ${signerAuthority.name}: ${
           activeCampaign.appealContent || activeCampaign.description
         }`
       },
@@ -710,6 +724,15 @@ function App() {
     reader.readAsDataURL(file);
   }
 
+  function updateCampaignDonationQr(file: File) {
+    if (!campaignDraft) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCampaignDraft({ ...campaignDraft, donationQrImage: String(reader.result ?? "") });
+    };
+    reader.readAsDataURL(file);
+  }
+
   function campaignReportMessage(campaign: Campaign) {
     return renderCampaignMessage(campaign.participantUpdateMessage, campaign, metrics);
   }
@@ -820,6 +843,7 @@ function App() {
           campaign={activeCampaign}
           metrics={metrics}
           authority={authorityMatch?.authority}
+          authorities={authorities}
           publicForm={publicForm}
           setPublicForm={setPublicForm}
           publicMessage={publicMessage}
@@ -1133,6 +1157,20 @@ function App() {
                       <option value="country">Country level - Prime Minister of India</option>
                     </select>
                   </Field>
+                  <Field label="Authority selection mode">
+                    <select
+                      value={campaignDraft.authoritySelectionMode ?? "admin_enforced"}
+                      onChange={(event) =>
+                        setCampaignDraft({
+                          ...campaignDraft,
+                          authoritySelectionMode: event.target.value as AuthoritySelectionMode
+                        })
+                      }
+                    >
+                      <option value="admin_enforced">Admin enforces selected authority</option>
+                      <option value="public_choice">Public can choose from uploaded authorities</option>
+                    </select>
+                  </Field>
                   <Field label="Choose uploaded authority">
                     <select
                       value={campaignDraft.selectedAuthorityId ?? ""}
@@ -1151,6 +1189,67 @@ function App() {
                   <Field label="Selected appeal authority">
                     <input value={formatAuthorityDisplay(getAppealAuthority(campaignDraft, authorities))} readOnly />
                   </Field>
+                  <div className="wide donation-editor">
+                    <label className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={campaignDraft.donationEnabled ?? false}
+                        onChange={(event) => setCampaignDraft({ ...campaignDraft, donationEnabled: event.target.checked })}
+                      />
+                      Enable donation/support contribution option on public campaign page
+                    </label>
+                    <Field label="Donation caption">
+                      <input
+                        value={campaignDraft.donationCaption ?? ""}
+                        onChange={(event) => setCampaignDraft({ ...campaignDraft, donationCaption: event.target.value })}
+                      />
+                    </Field>
+                    <Field label="UPI ID">
+                      <input
+                        placeholder="name@upi"
+                        value={campaignDraft.donationUpiId ?? ""}
+                        onChange={(event) => setCampaignDraft({ ...campaignDraft, donationUpiId: event.target.value })}
+                      />
+                    </Field>
+                    <Field label="Payment details">
+                      <textarea
+                        rows={3}
+                        placeholder="Bank account, Razorpay link, instructions, etc."
+                        value={campaignDraft.donationPaymentDetails ?? ""}
+                        onChange={(event) => setCampaignDraft({ ...campaignDraft, donationPaymentDetails: event.target.value })}
+                      />
+                    </Field>
+                    <label className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={campaignDraft.donationAllowOneTime ?? true}
+                        onChange={(event) => setCampaignDraft({ ...campaignDraft, donationAllowOneTime: event.target.checked })}
+                      />
+                      Allow one-time donation
+                    </label>
+                    <label className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={campaignDraft.donationAllowRecurring ?? false}
+                        onChange={(event) => setCampaignDraft({ ...campaignDraft, donationAllowRecurring: event.target.checked })}
+                      />
+                      Allow recurring donation pledge
+                    </label>
+                    <label className="secondary-button">
+                      Upload UPI QR image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) updateCampaignDonationQr(file);
+                        }}
+                      />
+                    </label>
+                    {campaignDraft.donationQrImage && (
+                      <img className="donation-qr-preview" alt="Donation QR preview" src={campaignDraft.donationQrImage} />
+                    )}
+                  </div>
                   <div className="wide upload-tools">
                     <label className="secondary-button">
                       Upload location CSV
@@ -1369,6 +1468,7 @@ function App() {
               campaign={activeCampaign}
               metrics={metrics}
               authority={authorityMatch?.authority}
+              authorities={authorities}
               publicForm={publicForm}
               setPublicForm={setPublicForm}
               publicMessage={publicMessage}
@@ -2244,6 +2344,7 @@ function PublicCampaignSection({
   campaign,
   metrics,
   authority,
+  authorities,
   publicForm,
   setPublicForm,
   publicMessage,
@@ -2260,6 +2361,7 @@ function PublicCampaignSection({
   campaign: Campaign;
   metrics: ReturnType<typeof getCampaignMetrics>;
   authority?: AuthorityRule;
+  authorities: AuthorityRule[];
   publicForm: typeof blankSigner;
   setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;
   publicMessage: string;
@@ -2273,6 +2375,7 @@ function PublicCampaignSection({
   locationDeletions: LocationDeletions;
   onSubmit: (event: FormEvent) => void;
 }) {
+  const publicAuthorityOptions = getPublicAuthorityOptions(campaign, authorities);
   return (
     <section className="public-layout">
       <div
@@ -2298,6 +2401,7 @@ function PublicCampaignSection({
           </div>
           <strong>{metrics.verified.toLocaleString()}</strong> of {campaign.goal.toLocaleString()} verified signatures
         </div>
+        {campaign.donationEnabled && <DonationCard campaign={campaign} compact />}
         <div className="qr-box">
           <QrCode size={40} />
           <div>
@@ -2330,6 +2434,27 @@ function PublicCampaignSection({
             value={publicForm.phone}
             onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
           />
+          {campaign.authoritySelectionMode === "public_choice" && (
+            <Field label="Choose authority for your appeal">
+              <select
+                value={publicForm.selectedAuthorityId || publicAuthorityOptions[0]?.id || ""}
+                onChange={(event) => {
+                  const selected = publicAuthorityOptions.find((item) => item.id === event.target.value);
+                  setPublicForm({
+                    ...publicForm,
+                    selectedAuthorityId: event.target.value,
+                    selectedAuthorityName: selected?.name ?? ""
+                  });
+                }}
+              >
+                {publicAuthorityOptions.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {formatAuthorityDisplay(option)}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <div className="otp-box">
             <div className="button-row">
               <button className="secondary-button" type="button" onClick={onSendOtp}>
@@ -2375,6 +2500,7 @@ function PublicCampaignSection({
           <label className="check-row">
             <input required type="checkbox" /> {campaign.consentText}
           </label>
+          {campaign.donationEnabled && <DonationCard campaign={campaign} />}
           <button className="primary-button" type="submit">
             <CheckCircle2 size={18} /> Sign campaign
           </button>
@@ -2437,6 +2563,30 @@ function PublicLoading({ message }: { message: string }) {
         <p>{message}</p>
       </section>
     </main>
+  );
+}
+
+function DonationCard({ campaign, compact = false }: { campaign: Campaign; compact?: boolean }) {
+  const upiLink = campaign.donationUpiId
+    ? `upi://pay?pa=${encodeURIComponent(campaign.donationUpiId)}&pn=${encodeURIComponent(campaign.title)}&cu=INR`
+    : "";
+
+  return (
+    <div className={compact ? "donation-card compact-donation" : "donation-card"}>
+      <span className="eyebrow">Support the campaign</span>
+      <strong>{campaign.donationCaption || "Voluntary contribution"}</strong>
+      <div className="button-row">
+        {campaign.donationAllowOneTime && <span className="status-pill">One-time</span>}
+        {campaign.donationAllowRecurring && <span className="status-pill">Recurring pledge</span>}
+      </div>
+      {campaign.donationQrImage && <img className="donation-qr" alt="Donation UPI QR" src={campaign.donationQrImage} />}
+      {campaign.donationUpiId && (
+        <a className="secondary-link-button" href={upiLink}>
+          Pay via UPI: {campaign.donationUpiId}
+        </a>
+      )}
+      {campaign.donationPaymentDetails && <p>{campaign.donationPaymentDetails}</p>}
+    </div>
   );
 }
 
@@ -3067,6 +3217,20 @@ function getAppealAuthority(campaign: Campaign, authorities: AuthorityRule[] = [
     submissionMethod: "Email",
     confidence: 100
   };
+}
+
+function getSignerSelectedAuthority(campaign: Campaign, selectedAuthorityId: string, authorities: AuthorityRule[]) {
+  if (campaign.authoritySelectionMode === "public_choice" && selectedAuthorityId) {
+    return authorities.find((authority) => authority.id === selectedAuthorityId) ?? getAppealAuthority(campaign, authorities);
+  }
+  return getAppealAuthority(campaign, authorities);
+}
+
+function getPublicAuthorityOptions(campaign: Campaign, authorities: AuthorityRule[]) {
+  const uploadedOptions = getAuthorityOptionsForCampaign(campaign, authorities);
+  const fallback = getAppealAuthority({ ...campaign, selectedAuthorityId: "" }, []);
+  if (uploadedOptions.some((authority) => authority.id === fallback.id)) return uploadedOptions;
+  return [...uploadedOptions, fallback];
 }
 
 function getAuthorityOptionsForCampaign(campaign: Campaign, authorities: AuthorityRule[]) {

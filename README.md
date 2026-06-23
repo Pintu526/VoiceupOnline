@@ -12,6 +12,8 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Authority targeting for district, state, or country level appeals: District Collector, Chief Minister, or Prime Minister of India
 - CSV upload for location masters using `state,district,block,panchayat,pin`
 - CSV upload for authority masters using `level,state,district,position,name,address,email,phone`
+- Campaign admin can enforce one selected authority or allow signers to choose from uploaded authority options
+- Optional donation/support contribution section with caption, UPI ID, UPI QR image, payment instructions, and one-time/recurring labels
 - Optional WhatsApp and Telegram contact fields for signers
 - OTP verification workflow for signer phone numbers, ready for SMS/WhatsApp provider integration
 - Individual signed appeal PDF download with signer details and selected authority details

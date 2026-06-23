@@ -800,6 +800,37 @@ td span {
   display: none;
 }
 
+.donation-editor,
+.donation-card {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.donation-editor input[type="file"] {
+  display: none;
+}
+
+.donation-qr-preview,
+.donation-qr {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  max-width: 180px;
+  padding: 8px;
+}
+
+.compact-donation {
+  margin-top: 18px;
+}
+
+.compact-donation p {
+  margin: 0;
+}
+
 .otp-box {
   background: var(--panel-soft);
   border: 1px solid var(--border);

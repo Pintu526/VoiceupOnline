@@ -785,6 +785,30 @@ td span {
   padding: 16px;
 }
 
+.upload-tools {
+  align-items: center;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px;
+}
+
+.upload-tools input[type="file"] {
+  display: none;
+}
+
+.otp-box {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
 .compact-drop {
   min-height: 160px;
 }

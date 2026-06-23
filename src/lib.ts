@@ -122,6 +122,9 @@ export function parseSignerFromText(text: string) {
     name: valueFor(["name", "full name", "signer"]),
     email: valueFor(["email", "e-mail"]),
     phone: valueFor(["phone", "mobile", "contact"]),
+    whatsappNumber: valueFor(["whatsapp", "whatsapp number"]),
+    telegramHandle: valueFor(["telegram", "telegram handle"]),
+    otpVerified: false,
     state: valueFor(["state"]),
     district: valueFor(["district"]),
     block: valueFor(["block", "taluk", "tehsil"]),
@@ -155,6 +158,9 @@ export function exportCsv(campaign: Campaign, signers: Signer[]) {
       "Name",
       "Email",
       "Phone",
+      "WhatsApp",
+      "Telegram",
+      "OTP Verified",
       "State",
       "District",
       "Block",
@@ -171,6 +177,9 @@ export function exportCsv(campaign: Campaign, signers: Signer[]) {
       signer.name,
       signer.email,
       signer.phone,
+      signer.whatsappNumber,
+      signer.telegramHandle,
+      signer.otpVerified ? "Yes" : "No",
       signer.state,
       signer.district,
       signer.block,
@@ -237,11 +246,54 @@ export function exportPdf(campaign: Campaign, signers: Signer[], authority: Auth
   doc.save(`${campaign.slug}-campaign-report.pdf`);
 }
 
+export function exportSignerAppealPdf(campaign: Campaign, signer: Signer, authority: AuthorityRule | undefined) {
+  const doc = new jsPDF();
+  const authorityName = authority?.name ?? "Selected authority";
+  const authorityPosition = authority?.position || authority?.department || "";
+  const authorityAddress = authority?.address || "Address not configured";
+
+  doc.setFontSize(18);
+  doc.text("Individual Campaign Appeal", 14, 20);
+  doc.setFontSize(12);
+  doc.text(`Campaign: ${campaign.title}`, 14, 34);
+  doc.text(`Signer: ${signer.name}`, 14, 44);
+  doc.text(`Phone: ${signer.phone}`, 14, 52);
+  doc.text(`WhatsApp: ${signer.whatsappNumber || signer.phone || "Not provided"}`, 14, 60);
+  doc.text(`Telegram: ${signer.telegramHandle || "Not provided"}`, 14, 68);
+  doc.text(`OTP verified: ${signer.otpVerified ? "Yes" : "No"}`, 14, 76);
+  doc.text(`Location: ${[signer.panchayat, signer.block, signer.district, signer.state].filter(Boolean).join(", ")}`, 14, 84);
+  doc.text(`PIN: ${signer.postalCode}`, 14, 92);
+
+  doc.text("To", 14, 108);
+  doc.text(authorityName, 14, 116);
+  if (authorityPosition) doc.text(authorityPosition, 14, 124);
+  doc.text(authorityAddress, 14, authorityPosition ? 132 : 124);
+
+  doc.text("Appeal / Cause", 14, 148);
+  const appealLines = doc.splitTextToSize(campaign.appealContent || campaign.description, 180);
+  doc.text(appealLines, 14, 158);
+
+  doc.text(`Signed at: ${new Date(signer.signedAt).toLocaleString()}`, 14, 260);
+  doc.save(`${campaign.slug}-${signer.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-appeal.pdf`);
+}
+
 export function makePublicSigner(
   campaignId: string,
   values: Pick<
     Signer,
-    "name" | "email" | "phone" | "state" | "district" | "block" | "panchayat" | "address" | "postalCode" | "comment"
+    | "name"
+    | "email"
+    | "phone"
+    | "whatsappNumber"
+    | "telegramHandle"
+    | "otpVerified"
+    | "state"
+    | "district"
+    | "block"
+    | "panchayat"
+    | "address"
+    | "postalCode"
+    | "comment"
   >,
   signers: Signer[]
 ): Signer {

@@ -10,6 +10,11 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Public campaign page for online signers
 - Admin-published appeal/cause text that public signers accept instead of entering optional public comments
 - Authority targeting for district, state, or country level appeals: District Collector, Chief Minister, or Prime Minister of India
+- CSV upload for location masters using `state,district,block,panchayat,pin`
+- CSV upload for authority masters using `level,state,district,position,name,address,email,phone`
+- Optional WhatsApp and Telegram contact fields for signers
+- OTP verification workflow for signer phone numbers, ready for SMS/WhatsApp provider integration
+- Individual signed appeal PDF download with signer details and selected authority details
 - India location hierarchy with state, district, block/tehsil/taluk, and gram panchayat/ward fields
 - True dependent dropdowns for district, block/tehsil/taluk, and gram panchayat/ward after state selection
 - District dropdown coverage for every Indian state/UT, with fallback block and panchayat/ward choices when full official local-body data is not yet connected

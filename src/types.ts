@@ -44,6 +44,7 @@ export interface Campaign {
   description: string;
   appealContent: string;
   authorityTargetLevel: AuthorityTargetLevel;
+  selectedAuthorityId: string;
   state: string;
   district: string;
   block: string;
@@ -76,6 +77,9 @@ export interface Signer {
   name: string;
   email: string;
   phone: string;
+  whatsappNumber: string;
+  telegramHandle: string;
+  otpVerified: boolean;
   state: string;
   district: string;
   block: string;
@@ -94,6 +98,12 @@ export interface AuthorityRule {
   id: string;
   name: string;
   department: string;
+  position: string;
+  level: AuthorityTargetLevel | "any";
+  state: string;
+  district: string;
+  address: string;
+  phone: string;
   category: CampaignCategory | "Any";
   locationKeyword: string;
   postalPrefix: string;

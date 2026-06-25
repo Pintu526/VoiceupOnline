@@ -566,6 +566,12 @@ td span {
   background: var(--primary-dark);
 }
 
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .secondary-button {
   background: #eef3ff;
   color: var(--primary-dark);
@@ -609,6 +615,32 @@ td span {
 .field {
   display: grid;
   gap: 7px;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-soft);
+  display: grid;
+  height: 40px;
+  place-items: center;
+  position: absolute;
+  right: 4px;
+  top: 1px;
+  width: 40px;
+}
+
+.password-toggle:hover {
+  color: var(--primary);
 }
 
 .inline-add-option {
@@ -790,14 +822,36 @@ td span {
   background: var(--panel-soft);
   border: 1px solid var(--border);
   border-radius: 18px;
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 14px;
 }
 
 .upload-tools input[type="file"] {
   display: none;
+}
+
+.csv-upload-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.csv-upload-card small {
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.error-message {
+  background: #fff1f2;
+  border-radius: 14px;
+  color: #be123c;
+  margin: 0;
+  padding: 12px;
 }
 
 .donation-editor,
@@ -1092,6 +1146,7 @@ td span {
   .form-grid.compact,
   .authority-editor,
   .onboarding-grid,
+  .upload-tools,
   .participant-message-card,
   .nav {
     grid-template-columns: 1fr;

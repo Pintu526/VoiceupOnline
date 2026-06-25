@@ -25,6 +25,8 @@ import {
   Share2,
   Image as ImageIcon,
   Trash2,
+  Eye,
+  EyeOff,
   WalletCards
 } from "lucide-react";
 import Tesseract from "tesseract.js";
@@ -164,6 +166,9 @@ function App() {
   const [lastSignedSigner, setLastSignedSigner] = useState<Signer | null>(null);
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [copiedMessage, setCopiedMessage] = useState("");
+  const [locationCsvFile, setLocationCsvFile] = useState<File | null>(null);
+  const [authorityCsvFile, setAuthorityCsvFile] = useState<File | null>(null);
+  const [csvUploadMessage, setCsvUploadMessage] = useState("");
   const [scanText, setScanText] = useState(blankScanTemplate);
   const [isScanning, setIsScanning] = useState(false);
   const [scanMessage, setScanMessage] = useState("");
@@ -634,31 +639,54 @@ function App() {
   }
 
   async function uploadLocationCsv(file: File) {
-    const rows = parseCsv(await file.text());
-    let addedCount = 0;
-    setLocationOverrides((currentOverrides) => {
-      let nextOverrides = currentOverrides;
-      rows.forEach((row) => {
-        const values: LocationWithPin = {
-          state: row.state ?? "",
-          district: row.district ?? "",
-          block: row.block ?? row.tehsil ?? row.taluk ?? "",
-          panchayat: row.panchayat ?? row.ward ?? row.village ?? "",
-          postalCode: row.pin ?? row.postalCode ?? ""
-        };
-        if (values.state && values.district) {
-          nextOverrides = addLocationOverride(nextOverrides, values);
-          addedCount += 1;
-        }
+    try {
+      const rows = parseCsv(await file.text());
+      if (rows.length === 0) {
+        setCsvUploadMessage("Location CSV failed: no rows found.");
+        return;
+      }
+
+      let addedCount = 0;
+      setLocationOverrides((currentOverrides) => {
+        let nextOverrides = currentOverrides;
+        rows.forEach((row) => {
+          const values: LocationWithPin = {
+            state: row.state ?? "",
+            district: row.district ?? "",
+            block: row.block ?? row.tehsil ?? row.taluk ?? "",
+            panchayat: row.panchayat ?? row.ward ?? row.village ?? "",
+            postalCode: row.pin ?? row.postalCode ?? ""
+          };
+          if (values.state && values.district) {
+            nextOverrides = addLocationOverride(nextOverrides, values);
+            addedCount += 1;
+          }
+        });
+        return nextOverrides;
       });
-      return nextOverrides;
-    });
-    addAuditLog("location.added", `Uploaded ${addedCount} location rows from CSV`, activeCampaign?.id);
+
+      if (addedCount === 0) {
+        setCsvUploadMessage("Location CSV failed: include at least state and district columns.");
+        return;
+      }
+
+      setLocationCsvFile(null);
+      setCsvUploadMessage(`Location CSV uploaded successfully. Added/updated ${addedCount} row(s).`);
+      addAuditLog("location.added", `Uploaded ${addedCount} location rows from CSV`, activeCampaign?.id);
+    } catch (error) {
+      setCsvUploadMessage(`Location CSV failed: ${error instanceof Error ? error.message : "Unable to parse file"}`);
+    }
   }
 
   async function uploadAuthorityCsv(file: File) {
-    const rows = parseCsv(await file.text());
-    const uploadedAuthorities = rows.reduce<AuthorityRule[]>((accumulator, row) => {
+    try {
+      const rows = parseCsv(await file.text());
+      if (rows.length === 0) {
+        setCsvUploadMessage("Authority CSV failed: no rows found.");
+        return;
+      }
+
+      const uploadedAuthorities = rows.reduce<AuthorityRule[]>((accumulator, row) => {
         const level = normalizeAuthorityLevel(row.level ?? row.authorityLevel ?? row.target ?? "");
         const name = row.name ?? row.authorityName ?? "";
         if (!name) return accumulator;
@@ -682,8 +710,18 @@ function App() {
         return accumulator;
       }, []);
 
-    setAuthorities((currentAuthorities) => [...uploadedAuthorities, ...currentAuthorities]);
-    addAuditLog("integration.updated", `Uploaded ${uploadedAuthorities.length} authority rows from CSV`, activeCampaign?.id);
+      if (uploadedAuthorities.length === 0) {
+        setCsvUploadMessage("Authority CSV failed: include at least a name or authority_name column.");
+        return;
+      }
+
+      setAuthorities((currentAuthorities) => [...uploadedAuthorities, ...currentAuthorities]);
+      setAuthorityCsvFile(null);
+      setCsvUploadMessage(`Authority CSV uploaded successfully. Added ${uploadedAuthorities.length} authority row(s).`);
+      addAuditLog("integration.updated", `Uploaded ${uploadedAuthorities.length} authority rows from CSV`, activeCampaign?.id);
+    } catch (error) {
+      setCsvUploadMessage(`Authority CSV failed: ${error instanceof Error ? error.message : "Unable to parse file"}`);
+    }
   }
 
   function addAdminLocationOption(values: LocationWithPin) {
@@ -1117,7 +1155,8 @@ function App() {
                     />
                   </Field>
                   <Field label="Campaign admin passcode">
-                    <input
+                    <PasswordField
+                      placeholder="Campaign admin passcode"
                       value={campaignDraft.adminPasscode ?? ""}
                       onChange={(event) => setCampaignDraft({ ...campaignDraft, adminPasscode: event.target.value })}
                     />
@@ -1251,32 +1290,67 @@ function App() {
                     )}
                   </div>
                   <div className="wide upload-tools">
-                    <label className="secondary-button">
-                      Upload location CSV
-                      <input
-                        type="file"
-                        accept=".csv,text/csv"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          if (file) void uploadLocationCsv(file);
+                    <div className="csv-upload-card">
+                      <span className="label">Location master CSV</span>
+                      <label className="secondary-button">
+                        Choose location CSV
+                        <input
+                          type="file"
+                          accept=".csv,text/csv"
+                          onChange={(event) => {
+                            setLocationCsvFile(event.target.files?.[0] ?? null);
+                            setCsvUploadMessage("");
+                            event.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                      <small>{locationCsvFile ? locationCsvFile.name : "No file selected"}</small>
+                      <button
+                        className="primary-button"
+                        type="button"
+                        disabled={!locationCsvFile}
+                        onClick={() => {
+                          if (locationCsvFile) void uploadLocationCsv(locationCsvFile);
                         }}
-                      />
-                    </label>
-                    <label className="secondary-button">
-                      Upload authority CSV
-                      <input
-                        type="file"
-                        accept=".csv,text/csv"
-                        onChange={(event) => {
-                          const file = event.target.files?.[0];
-                          if (file) void uploadAuthorityCsv(file);
+                      >
+                        Upload location CSV
+                      </button>
+                    </div>
+                    <div className="csv-upload-card">
+                      <span className="label">Authority master CSV</span>
+                      <label className="secondary-button">
+                        Choose authority CSV
+                        <input
+                          type="file"
+                          accept=".csv,text/csv"
+                          onChange={(event) => {
+                            setAuthorityCsvFile(event.target.files?.[0] ?? null);
+                            setCsvUploadMessage("");
+                            event.currentTarget.value = "";
+                          }}
+                        />
+                      </label>
+                      <small>{authorityCsvFile ? authorityCsvFile.name : "No file selected"}</small>
+                      <button
+                        className="primary-button"
+                        type="button"
+                        disabled={!authorityCsvFile}
+                        onClick={() => {
+                          if (authorityCsvFile) void uploadAuthorityCsv(authorityCsvFile);
                         }}
-                      />
-                    </label>
+                      >
+                        Upload authority CSV
+                      </button>
+                    </div>
                     <span className="helper-text">
                       Location CSV: state,district,block,panchayat,pin. Authority CSV:
                       level,state,district,position,name,address,email,phone.
                     </span>
+                    {csvUploadMessage && (
+                      <p className={csvUploadMessage.toLowerCase().includes("failed") ? "error-message wide" : "success-message wide"}>
+                        {csvUploadMessage}
+                      </p>
+                    )}
                   </div>
                   <Field label="Consent text" wide>
                   <textarea
@@ -2257,8 +2331,7 @@ function SaasAppLogin({
             value={appLogin.email}
             onChange={(event) => setAppLogin({ ...appLogin, email: event.target.value })}
           />
-          <input
-            type="password"
+          <PasswordField
             placeholder="SaaS admin passcode"
             value={appLogin.passcode}
             onChange={(event) => setAppLogin({ ...appLogin, passcode: event.target.value })}
@@ -2625,8 +2698,7 @@ function CampaignAdminLogin({
             value={adminLogin.email}
             onChange={(event) => setAdminLogin({ ...adminLogin, email: event.target.value })}
           />
-          <input
-            type="password"
+          <PasswordField
             placeholder="Campaign admin passcode"
             value={adminLogin.passcode}
             onChange={(event) => setAdminLogin({ ...adminLogin, passcode: event.target.value })}
@@ -2726,6 +2798,33 @@ function Field({ label, wide, children }: { label: string; wide?: boolean; child
       <span className="label">{label}</span>
       {children}
     </label>
+  );
+}
+
+function PasswordField({
+  value,
+  onChange,
+  placeholder
+}: {
+  value: string;
+  onChange: React.ChangeEventHandler<HTMLInputElement>;
+  placeholder?: string;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div className="password-field">
+      <input type={isVisible ? "text" : "password"} placeholder={placeholder} value={value} onChange={onChange} />
+      <button
+        className="password-toggle"
+        type="button"
+        onClick={() => setIsVisible((current) => !current)}
+        aria-label={isVisible ? "Hide passcode" : "Show passcode"}
+        title={isVisible ? "Hide passcode" : "Show passcode"}
+      >
+        {isVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
   );
 }
 

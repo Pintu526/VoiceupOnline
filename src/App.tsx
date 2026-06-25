@@ -666,7 +666,9 @@ function App() {
       });
 
       if (addedCount === 0) {
-        setCsvUploadMessage("Location CSV failed: include at least state and district columns.");
+        setCsvUploadMessage(
+          `Location CSV failed: include at least state and district columns. Detected columns: ${getCsvColumns(rows).join(", ") || "none"}.`
+        );
         return;
       }
 
@@ -711,7 +713,9 @@ function App() {
       }, []);
 
       if (uploadedAuthorities.length === 0) {
-        setCsvUploadMessage("Authority CSV failed: include at least a name or authority_name column.");
+        setCsvUploadMessage(
+          `Authority CSV failed: include at least a name or authority_name column. Detected columns: ${getCsvColumns(rows).join(", ") || "none"}.`
+        );
         return;
       }
 
@@ -3379,6 +3383,7 @@ function parseCsv(content: string) {
   return dataLines.map((line) => {
     const values = splitCsvLine(line);
     return headers.reduce<Record<string, string>>((row, header, index) => {
+      if (!header) return row;
       row[header] = values[index]?.trim() ?? "";
       return row;
     }, {});
@@ -3408,7 +3413,16 @@ function splitCsvLine(line: string) {
 }
 
 function normalizeCsvHeader(header: string) {
-  return header.trim().replace(/[^a-zA-Z0-9]+(.)/g, (_, char: string) => char.toUpperCase()).replace(/[^a-zA-Z0-9]/g, "");
+  const trimmedHeader = header.replace(/^\uFEFF/, "").trim();
+  const normalized = trimmedHeader
+    .replace(/^\uFEFF/, "")
+    .replace(/[^a-zA-Z0-9]+(.)/g, (_, char: string) => char.toUpperCase())
+    .replace(/[^a-zA-Z0-9]/g, "");
+  return normalized ? normalized[0].toLowerCase() + normalized.slice(1) : normalized;
+}
+
+function getCsvColumns(rows: Array<Record<string, string>>) {
+  return rows[0] ? Object.keys(rows[0]) : [];
 }
 
 function readAuthenticatedAdminSlugs() {

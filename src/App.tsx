@@ -651,11 +651,11 @@ function App() {
         let nextOverrides = currentOverrides;
         rows.forEach((row) => {
           const values: LocationWithPin = {
-            state: row.state ?? "",
-            district: row.district ?? "",
-            block: row.block ?? row.tehsil ?? row.taluk ?? "",
-            panchayat: row.panchayat ?? row.ward ?? row.village ?? "",
-            postalCode: row.pin ?? row.postalCode ?? ""
+            state: getCsvValue(row, "state"),
+            district: getCsvValue(row, "district"),
+            block: getCsvValue(row, "block", "tehsil", "taluk"),
+            panchayat: getCsvValue(row, "panchayat", "gramPanchayat", "ward", "village"),
+            postalCode: getCsvValue(row, "pin", "pinCode", "postalCode", "postcode")
           };
           if (values.state && values.district) {
             nextOverrides = addLocationOverride(nextOverrides, values);
@@ -667,7 +667,9 @@ function App() {
 
       if (addedCount === 0) {
         setCsvUploadMessage(
-          `Location CSV failed: include at least state and district columns. Detected columns: ${getCsvColumns(rows).join(", ") || "none"}.`
+          `Location CSV failed: include at least state and district values. Detected columns: ${
+            getCsvColumns(rows).join(", ") || "none"
+          }. First row: ${JSON.stringify(rows[0] ?? {})}.`
         );
         return;
       }
@@ -689,23 +691,23 @@ function App() {
       }
 
       const uploadedAuthorities = rows.reduce<AuthorityRule[]>((accumulator, row) => {
-        const level = normalizeAuthorityLevel(row.level ?? row.authorityLevel ?? row.target ?? "");
-        const name = row.name ?? row.authorityName ?? "";
+        const level = normalizeAuthorityLevel(getCsvValue(row, "level", "authorityLevel", "target"));
+        const name = getCsvValue(row, "name", "authorityName");
         if (!name) return accumulator;
         accumulator.push({
           id: createId("auth"),
           name,
-          department: row.department ?? row.office ?? getAuthorityDepartmentLabel(level),
-          position: row.position ?? getAuthorityPositionLabel(level),
+          department: getCsvValue(row, "department", "office") || getAuthorityDepartmentLabel(level),
+          position: getCsvValue(row, "position") || getAuthorityPositionLabel(level),
           level,
-          state: row.state ?? "",
-          district: row.district ?? "",
-          address: row.address ?? "",
-          phone: row.phone ?? "",
+          state: getCsvValue(row, "state"),
+          district: getCsvValue(row, "district"),
+          address: getCsvValue(row, "address"),
+          phone: getCsvValue(row, "phone", "mobile"),
           category: "Any" as const,
-          locationKeyword: [row.district, row.state].filter(Boolean).join(" "),
-          postalPrefix: row.pinPrefix ?? row.postalPrefix ?? "",
-          email: row.email ?? "",
+          locationKeyword: [getCsvValue(row, "district"), getCsvValue(row, "state")].filter(Boolean).join(" "),
+          postalPrefix: getCsvValue(row, "pinPrefix", "postalPrefix"),
+          email: getCsvValue(row, "email"),
           submissionMethod: "Email" as const,
           confidence: 100
         });
@@ -714,7 +716,9 @@ function App() {
 
       if (uploadedAuthorities.length === 0) {
         setCsvUploadMessage(
-          `Authority CSV failed: include at least a name or authority_name column. Detected columns: ${getCsvColumns(rows).join(", ") || "none"}.`
+          `Authority CSV failed: include at least a name or authority_name value. Detected columns: ${
+            getCsvColumns(rows).join(", ") || "none"
+          }. First row: ${JSON.stringify(rows[0] ?? {})}.`
         );
         return;
       }
@@ -3423,6 +3427,20 @@ function normalizeCsvHeader(header: string) {
 
 function getCsvColumns(rows: Array<Record<string, string>>) {
   return rows[0] ? Object.keys(rows[0]) : [];
+}
+
+function getCsvValue(row: Record<string, string>, ...keys: string[]) {
+  for (const key of keys) {
+    const exactValue = row[key];
+    if (exactValue !== undefined && exactValue.trim()) return exactValue.trim();
+
+    const normalizedKey = normalizeCsvHeader(key);
+    const matchingKey = Object.keys(row).find((rowKey) => normalizeCsvHeader(rowKey) === normalizedKey);
+    const matchingValue = matchingKey ? row[matchingKey] : undefined;
+    if (matchingValue !== undefined && matchingValue.trim()) return matchingValue.trim();
+  }
+
+  return "";
 }
 
 function readAuthenticatedAdminSlugs() {

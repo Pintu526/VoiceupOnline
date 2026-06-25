@@ -3383,6 +3383,7 @@ function parseCsv(content: string) {
   return dataLines.map((line) => {
     const values = splitCsvLine(line);
     return headers.reduce<Record<string, string>>((row, header, index) => {
+      if (!header) return row;
       row[header] = values[index]?.trim() ?? "";
       return row;
     }, {});
@@ -3412,9 +3413,9 @@ function splitCsvLine(line: string) {
 }
 
 function normalizeCsvHeader(header: string) {
-  const normalized = header
+  const trimmedHeader = header.replace(/^\uFEFF/, "").trim();
+  const normalized = trimmedHeader
     .replace(/^\uFEFF/, "")
-    .trim()
     .replace(/[^a-zA-Z0-9]+(.)/g, (_, char: string) => char.toUpperCase())
     .replace(/[^a-zA-Z0-9]/g, "");
   return normalized ? normalized[0].toLowerCase() + normalized.slice(1) : normalized;

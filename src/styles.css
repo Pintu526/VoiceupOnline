@@ -617,6 +617,32 @@ td span {
   gap: 7px;
 }
 
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-soft);
+  display: grid;
+  height: 40px;
+  place-items: center;
+  position: absolute;
+  right: 4px;
+  top: 1px;
+  width: 40px;
+}
+
+.password-toggle:hover {
+  color: var(--primary);
+}
+
 .inline-add-option {
   display: grid;
   gap: 8px;

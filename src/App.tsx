@@ -25,6 +25,8 @@ import {
   Share2,
   Image as ImageIcon,
   Trash2,
+  Eye,
+  EyeOff,
   WalletCards
 } from "lucide-react";
 import Tesseract from "tesseract.js";
@@ -1153,7 +1155,8 @@ function App() {
                     />
                   </Field>
                   <Field label="Campaign admin passcode">
-                    <input
+                    <PasswordField
+                      placeholder="Campaign admin passcode"
                       value={campaignDraft.adminPasscode ?? ""}
                       onChange={(event) => setCampaignDraft({ ...campaignDraft, adminPasscode: event.target.value })}
                     />
@@ -2328,8 +2331,7 @@ function SaasAppLogin({
             value={appLogin.email}
             onChange={(event) => setAppLogin({ ...appLogin, email: event.target.value })}
           />
-          <input
-            type="password"
+          <PasswordField
             placeholder="SaaS admin passcode"
             value={appLogin.passcode}
             onChange={(event) => setAppLogin({ ...appLogin, passcode: event.target.value })}
@@ -2696,8 +2698,7 @@ function CampaignAdminLogin({
             value={adminLogin.email}
             onChange={(event) => setAdminLogin({ ...adminLogin, email: event.target.value })}
           />
-          <input
-            type="password"
+          <PasswordField
             placeholder="Campaign admin passcode"
             value={adminLogin.passcode}
             onChange={(event) => setAdminLogin({ ...adminLogin, passcode: event.target.value })}
@@ -2797,6 +2798,33 @@ function Field({ label, wide, children }: { label: string; wide?: boolean; child
       <span className="label">{label}</span>
       {children}
     </label>
+  );
+}
+
+function PasswordField({
+  value,
+  onChange,
+  placeholder
+}: {
+  value: string;
+  onChange: React.ChangeEventHandler<HTMLInputElement>;
+  placeholder?: string;
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  return (
+    <div className="password-field">
+      <input type={isVisible ? "text" : "password"} placeholder={placeholder} value={value} onChange={onChange} />
+      <button
+        className="password-toggle"
+        type="button"
+        onClick={() => setIsVisible((current) => !current)}
+        aria-label={isVisible ? "Hide passcode" : "Show passcode"}
+        title={isVisible ? "Hide passcode" : "Show passcode"}
+      >
+        {isVisible ? <EyeOff size={18} /> : <Eye size={18} />}
+      </button>
+    </div>
   );
 }
 

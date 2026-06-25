@@ -889,11 +889,11 @@ function App() {
     return <LegalPage page={legalPage} />;
   }
 
-  if (!isAppRoute) {
+  if (!isAppRoute && !isCampaignAdminRoute) {
     return <MarketingHome />;
   }
 
-  if (!isAppAuthenticated) {
+  if (isAppRoute && !isAppAuthenticated) {
     return <SaasAppLogin appLogin={appLogin} setAppLogin={setAppLogin} message={appLoginMessage} onSubmit={submitAppLogin} />;
   }
 

@@ -646,23 +646,20 @@ function App() {
         return;
       }
 
+      let nextOverrides = locationOverrides;
       let addedCount = 0;
-      setLocationOverrides((currentOverrides) => {
-        let nextOverrides = currentOverrides;
-        rows.forEach((row) => {
-          const values: LocationWithPin = {
-            state: getCsvValue(row, "state"),
-            district: getCsvValue(row, "district"),
-            block: getCsvValue(row, "block", "tehsil", "taluk"),
-            panchayat: getCsvValue(row, "panchayat", "gramPanchayat", "ward", "village"),
-            postalCode: getCsvValue(row, "pin", "pinCode", "postalCode", "postcode")
-          };
-          if (values.state && values.district) {
-            nextOverrides = addLocationOverride(nextOverrides, values);
-            addedCount += 1;
-          }
-        });
-        return nextOverrides;
+      rows.forEach((row) => {
+        const values: LocationWithPin = {
+          state: getCsvValue(row, "state"),
+          district: getCsvValue(row, "district"),
+          block: getCsvValue(row, "block", "tehsil", "taluk"),
+          panchayat: getCsvValue(row, "panchayat", "gramPanchayat", "ward", "village"),
+          postalCode: getCsvValue(row, "pin", "pinCode", "postalCode", "postcode")
+        };
+        if (values.state && values.district) {
+          nextOverrides = addLocationOverride(nextOverrides, values);
+          addedCount += 1;
+        }
       });
 
       if (addedCount === 0) {
@@ -674,6 +671,7 @@ function App() {
         return;
       }
 
+      setLocationOverrides(nextOverrides);
       setLocationCsvFile(null);
       setCsvUploadMessage(`Location CSV uploaded successfully. Added/updated ${addedCount} row(s).`);
       addAuditLog("location.added", `Uploaded ${addedCount} location rows from CSV`, activeCampaign?.id);

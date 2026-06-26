@@ -70,6 +70,8 @@ export interface Campaign {
   requiredFieldsLockedBySaas: boolean;
   authorityLockedBySaas: boolean;
   publishingLockedBySaas: boolean;
+  goalLockedBySaas: boolean;
+  datesLockedBySaas: boolean;
   maxSignersAllowed: number;
   maxScansAllowed: number;
   shareUrl: string;

@@ -48,6 +48,7 @@ export interface Campaign {
   authoritySelectionMode: AuthoritySelectionMode;
   selectedAuthorityId: string;
   donationEnabled: boolean;
+  donationLockedBySaas: boolean;
   donationCaption: string;
   donationUpiId: string;
   donationQrImage: string;
@@ -66,6 +67,11 @@ export interface Campaign {
   status: "Draft" | "Published" | "Paused" | "Closed";
   consentText: string;
   requiredFields: SignerRequiredField[];
+  requiredFieldsLockedBySaas: boolean;
+  authorityLockedBySaas: boolean;
+  publishingLockedBySaas: boolean;
+  maxSignersAllowed: number;
+  maxScansAllowed: number;
   shareUrl: string;
   adminUrl: string;
   adminEmail: string;

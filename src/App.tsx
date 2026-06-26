@@ -429,6 +429,7 @@ function App() {
       authoritySelectionMode: "admin_enforced",
       selectedAuthorityId: "",
       donationEnabled: false,
+      donationLockedBySaas: false,
       donationCaption: "Support this campaign with a voluntary contribution.",
       donationUpiId: "",
       donationQrImage: "",
@@ -448,6 +449,11 @@ function App() {
       consentText:
         "I consent to this organization storing my details and using them only for this campaign submission in India.",
       requiredFields: ["name", "email", "phone", "state", "district", "block", "panchayat", "address", "postalCode"],
+      requiredFieldsLockedBySaas: false,
+      authorityLockedBySaas: false,
+      publishingLockedBySaas: false,
+      maxSignersAllowed: 0,
+      maxScansAllowed: 0,
       shareUrl: `${getCampaignBaseUrl(organization)}/c/new-campaign`,
       adminUrl: `${getCampaignBaseUrl(organization)}/admin/new-campaign`,
       adminEmail: organization.ownerEmail || organization.billingEmail || "",
@@ -472,6 +478,10 @@ function App() {
 
   function publishCampaign() {
     if (!campaignDraft) return;
+    if (campaignDraft.publishingLockedBySaas && isCampaignAdminRoute) {
+      setBackendMessage("Publishing is locked by SaaS admin for this campaign.");
+      return;
+    }
     const publishBlockReason = getPublishCampaignBlockReason(campaignDraft, organization, campaigns);
     if (publishBlockReason) {
       setBackendMessage(publishBlockReason);
@@ -505,6 +515,13 @@ function App() {
     const signingBlockReason = getSigningBlockReason(activeCampaign, organization, signers);
     if (signingBlockReason) {
       setPublicMessage(signingBlockReason);
+      return;
+    }
+    if (
+      activeCampaign.maxSignersAllowed > 0 &&
+      getCampaignSigners(activeCampaign.id, signers).length >= activeCampaign.maxSignersAllowed
+    ) {
+      setPublicMessage("This campaign has reached its signer limit.");
       return;
     }
     if (!publicForm.name || !publicForm.phone) {
@@ -573,6 +590,13 @@ function App() {
   async function uploadScan(file: File) {
     if (!activeCampaign) {
       setScanMessage("Create a campaign before uploading scanned signatures.");
+      return;
+    }
+    if (
+      activeCampaign.maxScansAllowed > 0 &&
+      scanItems.filter((item) => item.campaignId === activeCampaign.id).length >= activeCampaign.maxScansAllowed
+    ) {
+      setScanMessage("This campaign has reached its scan upload limit.");
       return;
     }
     setIsScanning(true);
@@ -1142,6 +1166,11 @@ function App() {
             <Panel title="Campaign configuration" icon={<Settings />}>
               {campaignDraft ? (
                 <form className="form-grid" onSubmit={saveCampaign}>
+                {isCampaignAdminRoute && hasSaasLocks(campaignDraft) && (
+                  <p className="info-message wide">
+                    Some campaign settings are controlled by SaaS admin and cannot be edited from this campaign admin page.
+                  </p>
+                )}
                 <Field label="Campaign name">
                   <input
                     value={campaignDraft.title}
@@ -1266,6 +1295,7 @@ function App() {
                   <Field label="Appeal should go to authority">
                     <select
                       value={campaignDraft.authorityTargetLevel ?? "district"}
+                      disabled={isCampaignAdminRoute && campaignDraft.authorityLockedBySaas}
                       onChange={(event) =>
                         setCampaignDraft({
                           ...campaignDraft,
@@ -1281,6 +1311,7 @@ function App() {
                   <Field label="Authority selection mode">
                     <select
                       value={campaignDraft.authoritySelectionMode ?? "admin_enforced"}
+                      disabled={isCampaignAdminRoute && campaignDraft.authorityLockedBySaas}
                       onChange={(event) =>
                         setCampaignDraft({
                           ...campaignDraft,
@@ -1295,6 +1326,7 @@ function App() {
                   <Field label="Choose uploaded authority">
                     <select
                       value={campaignDraft.selectedAuthorityId ?? ""}
+                      disabled={isCampaignAdminRoute && campaignDraft.authorityLockedBySaas}
                       onChange={(event) => setCampaignDraft({ ...campaignDraft, selectedAuthorityId: event.target.value })}
                     >
                       <option value="">Use default authority for selected level</option>
@@ -1315,6 +1347,7 @@ function App() {
                       <input
                         type="checkbox"
                         checked={campaignDraft.donationEnabled ?? false}
+                        disabled={isCampaignAdminRoute && campaignDraft.donationLockedBySaas}
                         onChange={(event) => setCampaignDraft({ ...campaignDraft, donationEnabled: event.target.checked })}
                       />
                       Enable donation/support contribution option on public campaign page
@@ -1322,6 +1355,7 @@ function App() {
                     <Field label="Donation caption">
                       <input
                         value={campaignDraft.donationCaption ?? ""}
+                        disabled={isCampaignAdminRoute && campaignDraft.donationLockedBySaas}
                         onChange={(event) => setCampaignDraft({ ...campaignDraft, donationCaption: event.target.value })}
                       />
                     </Field>
@@ -1329,6 +1363,7 @@ function App() {
                       <input
                         placeholder="name@upi"
                         value={campaignDraft.donationUpiId ?? ""}
+                        disabled={isCampaignAdminRoute && campaignDraft.donationLockedBySaas}
                         onChange={(event) => setCampaignDraft({ ...campaignDraft, donationUpiId: event.target.value })}
                       />
                     </Field>
@@ -1337,6 +1372,7 @@ function App() {
                         rows={3}
                         placeholder="Bank account, Razorpay link, instructions, etc."
                         value={campaignDraft.donationPaymentDetails ?? ""}
+                        disabled={isCampaignAdminRoute && campaignDraft.donationLockedBySaas}
                         onChange={(event) => setCampaignDraft({ ...campaignDraft, donationPaymentDetails: event.target.value })}
                       />
                     </Field>
@@ -1344,6 +1380,7 @@ function App() {
                       <input
                         type="checkbox"
                         checked={campaignDraft.donationAllowOneTime ?? true}
+                        disabled={isCampaignAdminRoute && campaignDraft.donationLockedBySaas}
                         onChange={(event) => setCampaignDraft({ ...campaignDraft, donationAllowOneTime: event.target.checked })}
                       />
                       Allow one-time donation
@@ -1352,6 +1389,7 @@ function App() {
                       <input
                         type="checkbox"
                         checked={campaignDraft.donationAllowRecurring ?? false}
+                        disabled={isCampaignAdminRoute && campaignDraft.donationLockedBySaas}
                         onChange={(event) => setCampaignDraft({ ...campaignDraft, donationAllowRecurring: event.target.checked })}
                       />
                       Allow recurring donation pledge
@@ -1441,6 +1479,74 @@ function App() {
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, consentText: event.target.value })}
                   />
                 </Field>
+                  {!isCampaignAdminRoute && (
+                    <div className="wide saas-control-panel">
+                      <span className="eyebrow">SaaS admin campaign controls</span>
+                      <label className="check-row">
+                        <input
+                          type="checkbox"
+                          checked={campaignDraft.publishingLockedBySaas ?? false}
+                          onChange={(event) =>
+                            setCampaignDraft({ ...campaignDraft, publishingLockedBySaas: event.target.checked })
+                          }
+                        />
+                        Lock publishing for campaign admin
+                      </label>
+                      <label className="check-row">
+                        <input
+                          type="checkbox"
+                          checked={campaignDraft.authorityLockedBySaas ?? false}
+                          onChange={(event) =>
+                            setCampaignDraft({ ...campaignDraft, authorityLockedBySaas: event.target.checked })
+                          }
+                        />
+                        Lock authority settings for campaign admin
+                      </label>
+                      <label className="check-row">
+                        <input
+                          type="checkbox"
+                          checked={campaignDraft.donationLockedBySaas ?? false}
+                          onChange={(event) =>
+                            setCampaignDraft({ ...campaignDraft, donationLockedBySaas: event.target.checked })
+                          }
+                        />
+                        Lock donation settings for campaign admin
+                      </label>
+                      <label className="check-row">
+                        <input
+                          type="checkbox"
+                          checked={campaignDraft.requiredFieldsLockedBySaas ?? false}
+                          onChange={(event) =>
+                            setCampaignDraft({ ...campaignDraft, requiredFieldsLockedBySaas: event.target.checked })
+                          }
+                        />
+                        Lock required signer fields for campaign admin
+                      </label>
+                      <Field label="Campaign signer limit">
+                        <input
+                          type="number"
+                          min="0"
+                          value={campaignDraft.maxSignersAllowed ?? 0}
+                          onChange={(event) =>
+                            setCampaignDraft({ ...campaignDraft, maxSignersAllowed: Number(event.target.value) })
+                          }
+                        />
+                      </Field>
+                      <Field label="Campaign scan limit">
+                        <input
+                          type="number"
+                          min="0"
+                          value={campaignDraft.maxScansAllowed ?? 0}
+                          onChange={(event) =>
+                            setCampaignDraft({ ...campaignDraft, maxScansAllowed: Number(event.target.value) })
+                          }
+                        />
+                      </Field>
+                      <p className="helper-text">
+                        Set 0 for no campaign-specific limit. These controls are editable only from the SaaS admin workspace.
+                      </p>
+                    </div>
+                  )}
                   <div className="wide media-editor">
                     <div>
                       <span className="label">Campaign banner image</span>
@@ -1539,6 +1645,7 @@ function App() {
                       <input
                         type="checkbox"
                         checked={campaignDraft.requiredFields.includes(field)}
+                        disabled={isCampaignAdminRoute && campaignDraft.requiredFieldsLockedBySaas}
                         onChange={(event) => {
                           const requiredFields = event.target.checked
                             ? [...campaignDraft.requiredFields, field]
@@ -3373,6 +3480,17 @@ function getCurrentActorEmail() {
 
 function getSubscriptionPlan(planName: BillingPlan) {
   return subscriptionPlans.find((plan) => plan.name === planName) ?? subscriptionPlans[0];
+}
+
+function hasSaasLocks(campaign: Campaign) {
+  return Boolean(
+    campaign.publishingLockedBySaas ||
+      campaign.authorityLockedBySaas ||
+      campaign.donationLockedBySaas ||
+      campaign.requiredFieldsLockedBySaas ||
+      campaign.maxSignersAllowed > 0 ||
+      campaign.maxScansAllowed > 0
+  );
 }
 
 function getActiveCampaignCount(campaigns: Campaign[]) {

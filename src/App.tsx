@@ -1,4 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import * as Dialog from "@radix-ui/react-dialog";
+import * as Toast from "@radix-ui/react-toast";
 import {
   BarChart3,
   Building2,
@@ -27,6 +30,10 @@ import {
   Trash2,
   Eye,
   EyeOff,
+  Moon,
+  Search,
+  Sun,
+  Command,
   WalletCards
 } from "lucide-react";
 import Tesseract from "tesseract.js";
@@ -41,7 +48,6 @@ import {
   suggestedFeatures
 } from "./data";
 import {
-  getCurrentAuthUser,
   isBackendConfigured,
   isSupabaseAuthAvailable,
   isSupabaseStorageAvailable,
@@ -164,6 +170,10 @@ function App() {
     emptyLocationDeletions
   );
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [theme, setTheme] = usePersistentState<"light" | "dark">(`${storagePrefix}-theme`, "light");
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [toast, setToast] = useState({ open: false, title: "", description: "" });
   const [activeCampaignId, setActiveCampaignId] = useState(initialCampaigns[0]?.id ?? "");
   const [campaignDraft, setCampaignDraft] = useState<Campaign | null>(campaigns[0] ?? null);
   const [publicForm, setPublicForm] = useState(blankSigner);
@@ -198,6 +208,9 @@ function App() {
   const [appLogin, setAppLogin] = useState(blankAppLogin);
   const [appLoginMessage, setAppLoginMessage] = useState("");
   const [isAppAuthenticated, setIsAppAuthenticated] = useState(() => readAppAuth());
+  const [saasSection, setSaasSection] = useState<"organization" | "usage" | "packages" | "integrations" | "plans">(
+    "organization"
+  );
   const [authenticatedAdminSlugs, setAuthenticatedAdminSlugs] = useState<Record<string, boolean>>(() =>
     readAuthenticatedAdminSlugs()
   );
@@ -232,6 +245,57 @@ function App() {
   const districtTotals = useMemo(() => groupSignersByLocation(campaignSigners, "district"), [campaignSigners]);
   const blockTotals = useMemo(() => groupSignersByLocation(campaignSigners, "block"), [campaignSigners]);
   const panchayatTotals = useMemo(() => groupSignersByLocation(campaignSigners, "panchayat"), [campaignSigners]);
+  const commandItems = useMemo(
+    () => {
+      const campaignAdminItems = [
+        { label: "Dashboard", detail: "Open campaign overview", action: () => setActiveTab("dashboard") },
+        { label: "Campaign admin", detail: "Edit campaign settings", action: () => setActiveTab("campaigns") },
+        { label: "Public signing", detail: "Preview signup page", action: () => setActiveTab("public") },
+        { label: "Reports", detail: "Open analytics and exports", action: () => setActiveTab("reports") },
+        { label: "Engagement", detail: "Message participants", action: () => setActiveTab("engagement") },
+        { label: "Activity", detail: "Review admin activity", action: () => setActiveTab("activity") }
+      ];
+      if (isCampaignAdminRoute) return campaignAdminItems;
+      return [
+      { label: "Dashboard", detail: "Open campaign overview", action: () => setActiveTab("dashboard") },
+      { label: "Campaign admin", detail: "Edit campaign settings", action: () => setActiveTab("campaigns") },
+      { label: "Public signing", detail: "Preview signup page", action: () => setActiveTab("public") },
+      { label: "Reports", detail: "Open analytics and exports", action: () => setActiveTab("reports") },
+      { label: "Engagement", detail: "Message participants", action: () => setActiveTab("engagement") },
+      { label: "Activity", detail: "Review admin activity", action: () => setActiveTab("activity") },
+      { label: "SaaS admin", detail: "Subscription and integrations", action: () => setActiveTab("saas") },
+      { label: "Create campaign", detail: "Start a new campaign", action: createCampaign },
+      ...campaigns.map((campaign) => ({
+        label: campaign.title,
+        detail: `Open ${campaign.status} campaign`,
+        action: () => {
+          setActiveCampaignId(campaign.id);
+          setActiveTab("dashboard");
+        }
+      }))
+    ];
+    },
+    [campaigns, isCampaignAdminRoute, organization]
+  );
+  const filteredCommandItems = commandItems.filter((item) =>
+    `${item.label} ${item.detail}`.toLowerCase().includes(globalSearch.toLowerCase())
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
+
+  useEffect(() => {
+    function handleShortcut(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setCommandOpen((current) => !current);
+      }
+    }
+
+    window.addEventListener("keydown", handleShortcut);
+    return () => window.removeEventListener("keydown", handleShortcut);
+  }, []);
 
   useEffect(() => {
     updateSeoMetadata(activeCampaign, legalPage, isPublicCampaignRoute);
@@ -242,20 +306,6 @@ function App() {
       setActiveCampaignId(campaigns[0]?.id ?? "");
     }
   }, [activeCampaignId, campaigns]);
-
-  useEffect(() => {
-    if (!isSupabaseAuthAvailable || !isAppRoute) return;
-
-    async function hydrateAuth() {
-      const user = await getCurrentAuthUser();
-      if (user) {
-        setIsAppAuthenticated(true);
-        writeAppAuth(true);
-      }
-    }
-
-    void hydrateAuth();
-  }, [isAppRoute]);
 
   useEffect(() => {
     if (!isBackendConfigured) return;
@@ -935,7 +985,13 @@ function App() {
   async function copyText(text: string) {
     await navigator.clipboard.writeText(text);
     setCopiedMessage("Copied message to clipboard.");
+    showToast("Copied", "Message copied to clipboard.");
     window.setTimeout(() => setCopiedMessage(""), 2500);
+  }
+
+  function showToast(title: string, description: string) {
+    setToast({ open: false, title, description });
+    window.setTimeout(() => setToast({ open: true, title, description }), 20);
   }
 
   function submitCampaignAdminLogin(event: FormEvent) {
@@ -1071,7 +1127,7 @@ function App() {
   }
 
   if (!isAppRoute && !isCampaignAdminRoute) {
-    return <MarketingHome />;
+    return <MarketingHome theme={theme} setTheme={setTheme} />;
   }
 
   if (isAppRoute && !isAppAuthenticated) {
@@ -1079,7 +1135,15 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <Toast.Provider swipeDirection="right">
+      <CommandPalette
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        query={globalSearch}
+        setQuery={setGlobalSearch}
+        items={filteredCommandItems}
+      />
+      <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">
@@ -1113,7 +1177,12 @@ function App() {
         </div>
       </aside>
 
-      <main className="main">
+      <motion.main
+        className="main"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+      >
         <header className="topbar">
           <div>
             <span className="eyebrow">{isCampaignAdminRoute ? "Campaign admin page" : "Selected campaign"}</span>
@@ -1145,6 +1214,24 @@ function App() {
             <div className="button-row">
               <button className="secondary-button" type="button" onClick={createCampaign}>
                 <Plus size={18} /> New campaign
+              </button>
+              <button
+                className="secondary-button icon-button"
+                type="button"
+                onClick={() => setCommandOpen(true)}
+                title="Open command palette (Ctrl/⌘ K)"
+                aria-label="Open command palette"
+              >
+                <Command size={18} />
+              </button>
+              <button
+                className="secondary-button icon-button"
+                type="button"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                title="Toggle theme"
+                aria-label="Toggle color theme"
+              >
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               {isAppRoute && (
                 <button className="secondary-button" type="button" onClick={logoutAppAdmin}>
@@ -2173,6 +2260,19 @@ function App() {
 
         {activeTab === "saas" && (
           <section className="page-stack">
+            <SectionTabs
+              tabs={[
+                { id: "organization", label: "Organization" },
+                { id: "usage", label: "Usage & subscription" },
+                { id: "packages", label: "Recharge packages" },
+                { id: "integrations", label: "Integrations" },
+                { id: "plans", label: "Plans" }
+              ]}
+              activeTab={saasSection}
+              onChange={(tab) => setSaasSection(tab as typeof saasSection)}
+            />
+
+            {saasSection === "organization" && (
             <Panel title="Customer organization subscription" icon={<Building2 />}>
               <form className="form-grid">
                 <Field label="Organization name">
@@ -2289,7 +2389,9 @@ function App() {
                 </label>
               </form>
             </Panel>
+            )}
 
+            {saasSection === "usage" && (
             <Panel title="Subscription controls and usage" icon={<WalletCards />}>
               <div className="usage-grid">
                 <UsageCard
@@ -2362,7 +2464,9 @@ function App() {
                 <p className="error-message">{getSubscriptionBlockReason(organization)}</p>
               )}
             </Panel>
+            )}
 
+            {saasSection === "packages" && (
             <Panel title="Recharge packages and pricing controls" icon={<WalletCards />}>
               <div className="package-grid">
                 {commercialPackages.map((pkg) => (
@@ -2418,7 +2522,9 @@ function App() {
                 credits. Later this can connect to Razorpay webhooks automatically.
               </p>
             </Panel>
+            )}
 
+            {saasSection === "integrations" && (
             <Panel title="Production integrations" icon={<Settings />}>
               <form className="form-grid">
                 <Field label="Razorpay key ID">
@@ -2543,7 +2649,9 @@ function App() {
                 references for admins, not a place for private API secrets.
               </p>
             </Panel>
+            )}
 
+            {saasSection === "plans" && (
             <div className="plan-grid">
               {subscriptionPlans.map((plan) => (
                 <PlanCard
@@ -2562,6 +2670,7 @@ function App() {
                 />
               ))}
             </div>
+            )}
           </section>
         )}
 
@@ -2589,8 +2698,10 @@ function App() {
             </Panel>
           </section>
         )}
-      </main>
+      </motion.main>
     </div>
+    <AppToast toast={toast} setToast={setToast} />
+    </Toast.Provider>
   );
 }
 
@@ -2615,7 +2726,106 @@ function NavButton({
   );
 }
 
-function MarketingHome() {
+function SectionTabs({
+  tabs,
+  activeTab,
+  onChange
+}: {
+  tabs: Array<{ id: string; label: string }>;
+  activeTab: string;
+  onChange: (tab: string) => void;
+}) {
+  return (
+    <div className="section-tabs">
+      {tabs.map((tab) => (
+        <button className={activeTab === tab.id ? "active" : ""} key={tab.id} type="button" onClick={() => onChange(tab.id)}>
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CommandPalette({
+  open,
+  onOpenChange,
+  query,
+  setQuery,
+  items
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  query: string;
+  setQuery: (query: string) => void;
+  items: Array<{ label: string; detail: string; action: () => void }>;
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="command-overlay" />
+        <Dialog.Content className="command-dialog" aria-label="Command palette">
+          <div className="command-search">
+            <Search size={18} />
+            <input
+              autoFocus
+              aria-label="Search commands"
+              placeholder="Search campaigns, pages, actions..."
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+            <kbd>Esc</kbd>
+          </div>
+          <div className="command-list">
+            {items.length === 0 ? (
+              <div className="command-empty">No results found.</div>
+            ) : (
+              items.slice(0, 9).map((item) => (
+                <button
+                  key={`${item.label}-${item.detail}`}
+                  type="button"
+                  onClick={() => {
+                    item.action();
+                    setQuery("");
+                    onOpenChange(false);
+                  }}
+                >
+                  <span>{item.label}</span>
+                  <small>{item.detail}</small>
+                </button>
+              ))
+            )}
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function AppToast({
+  toast,
+  setToast
+}: {
+  toast: { open: boolean; title: string; description: string };
+  setToast: React.Dispatch<React.SetStateAction<{ open: boolean; title: string; description: string }>>;
+}) {
+  return (
+    <>
+      <Toast.Root className="toast-root" open={toast.open} onOpenChange={(open) => setToast((current) => ({ ...current, open }))}>
+        <Toast.Title>{toast.title}</Toast.Title>
+        <Toast.Description>{toast.description}</Toast.Description>
+      </Toast.Root>
+      <Toast.Viewport className="toast-viewport" />
+    </>
+  );
+}
+
+function MarketingHome({
+  theme,
+  setTheme
+}: {
+  theme: "light" | "dark";
+  setTheme: React.Dispatch<React.SetStateAction<"light" | "dark">>;
+}) {
   return (
     <main className="marketing-home">
       <header className="marketing-nav">
@@ -2629,13 +2839,27 @@ function MarketingHome() {
           </div>
         </div>
         <div className="button-row">
+          <button
+            className="secondary-button icon-button"
+            type="button"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            aria-label="Toggle color theme"
+            title="Toggle color theme"
+          >
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
           <a className="secondary-link-button" href="/app">
             SaaS admin login
           </a>
         </div>
       </header>
 
-      <section className="marketing-hero">
+      <motion.section
+        className="marketing-hero"
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
+      >
         <div>
           <span className="eyebrow">Voice Up to make your campaign successful</span>
           <h1>Launch public appeals, collect verified support, and keep every participant engaged.</h1>
@@ -2662,7 +2886,7 @@ function MarketingHome() {
             <li>Supabase shared storage for WhatsApp/mobile links</li>
           </ul>
         </div>
-      </section>
+      </motion.section>
 
       <section className="marketing-section" id="features">
         <span className="eyebrow">Platform modules</span>
@@ -2741,6 +2965,10 @@ function SaasAppLogin({
             value={appLogin.passcode}
             onChange={(event) => setAppLogin({ ...appLogin, passcode: event.target.value })}
           />
+          <div className="login-role-note">
+            <strong>Login role: SaaS / Platform Admin</strong>
+            <span>Use this only for platform owner tasks such as subscriptions, packages, global campaign controls, and integrations.</span>
+          </div>
           <button className="primary-button" type="submit">
             Login to SaaS admin
           </button>
@@ -3566,12 +3794,12 @@ function getCampaignBaseUrl(organization: Organization) {
 
 function getPublicCampaignSlug() {
   if (typeof window === "undefined") return "";
-  return window.location.pathname.match(/^\/c\/([^/]+)/)?.[1] ?? "";
+  return window.location.pathname.match(/^\/c\/([^/]+)\/?$/)?.[1] ?? "";
 }
 
 function getCampaignAdminSlug() {
   if (typeof window === "undefined") return "";
-  return window.location.pathname.match(/^\/admin\/([^/]+)/)?.[1] ?? "";
+  return window.location.pathname.match(/^\/admin\/([^/]+)\/?$/)?.[1] ?? "";
 }
 
 function getIsAppRoute() {

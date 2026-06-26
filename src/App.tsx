@@ -41,7 +41,6 @@ import {
   suggestedFeatures
 } from "./data";
 import {
-  getCurrentAuthUser,
   isBackendConfigured,
   isSupabaseAuthAvailable,
   isSupabaseStorageAvailable,
@@ -198,6 +197,9 @@ function App() {
   const [appLogin, setAppLogin] = useState(blankAppLogin);
   const [appLoginMessage, setAppLoginMessage] = useState("");
   const [isAppAuthenticated, setIsAppAuthenticated] = useState(() => readAppAuth());
+  const [saasSection, setSaasSection] = useState<"organization" | "usage" | "packages" | "integrations" | "plans">(
+    "organization"
+  );
   const [authenticatedAdminSlugs, setAuthenticatedAdminSlugs] = useState<Record<string, boolean>>(() =>
     readAuthenticatedAdminSlugs()
   );
@@ -242,20 +244,6 @@ function App() {
       setActiveCampaignId(campaigns[0]?.id ?? "");
     }
   }, [activeCampaignId, campaigns]);
-
-  useEffect(() => {
-    if (!isSupabaseAuthAvailable || !isAppRoute) return;
-
-    async function hydrateAuth() {
-      const user = await getCurrentAuthUser();
-      if (user) {
-        setIsAppAuthenticated(true);
-        writeAppAuth(true);
-      }
-    }
-
-    void hydrateAuth();
-  }, [isAppRoute]);
 
   useEffect(() => {
     if (!isBackendConfigured) return;
@@ -2173,6 +2161,19 @@ function App() {
 
         {activeTab === "saas" && (
           <section className="page-stack">
+            <SectionTabs
+              tabs={[
+                { id: "organization", label: "Organization" },
+                { id: "usage", label: "Usage & subscription" },
+                { id: "packages", label: "Recharge packages" },
+                { id: "integrations", label: "Integrations" },
+                { id: "plans", label: "Plans" }
+              ]}
+              activeTab={saasSection}
+              onChange={(tab) => setSaasSection(tab as typeof saasSection)}
+            />
+
+            {saasSection === "organization" && (
             <Panel title="Customer organization subscription" icon={<Building2 />}>
               <form className="form-grid">
                 <Field label="Organization name">
@@ -2289,7 +2290,9 @@ function App() {
                 </label>
               </form>
             </Panel>
+            )}
 
+            {saasSection === "usage" && (
             <Panel title="Subscription controls and usage" icon={<WalletCards />}>
               <div className="usage-grid">
                 <UsageCard
@@ -2362,7 +2365,9 @@ function App() {
                 <p className="error-message">{getSubscriptionBlockReason(organization)}</p>
               )}
             </Panel>
+            )}
 
+            {saasSection === "packages" && (
             <Panel title="Recharge packages and pricing controls" icon={<WalletCards />}>
               <div className="package-grid">
                 {commercialPackages.map((pkg) => (
@@ -2418,7 +2423,9 @@ function App() {
                 credits. Later this can connect to Razorpay webhooks automatically.
               </p>
             </Panel>
+            )}
 
+            {saasSection === "integrations" && (
             <Panel title="Production integrations" icon={<Settings />}>
               <form className="form-grid">
                 <Field label="Razorpay key ID">
@@ -2543,7 +2550,9 @@ function App() {
                 references for admins, not a place for private API secrets.
               </p>
             </Panel>
+            )}
 
+            {saasSection === "plans" && (
             <div className="plan-grid">
               {subscriptionPlans.map((plan) => (
                 <PlanCard
@@ -2562,6 +2571,7 @@ function App() {
                 />
               ))}
             </div>
+            )}
           </section>
         )}
 
@@ -2612,6 +2622,26 @@ function NavButton({
       {icon}
       {label}
     </button>
+  );
+}
+
+function SectionTabs({
+  tabs,
+  activeTab,
+  onChange
+}: {
+  tabs: Array<{ id: string; label: string }>;
+  activeTab: string;
+  onChange: (tab: string) => void;
+}) {
+  return (
+    <div className="section-tabs">
+      {tabs.map((tab) => (
+        <button className={activeTab === tab.id ? "active" : ""} key={tab.id} type="button" onClick={() => onChange(tab.id)}>
+          {tab.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -2741,6 +2771,10 @@ function SaasAppLogin({
             value={appLogin.passcode}
             onChange={(event) => setAppLogin({ ...appLogin, passcode: event.target.value })}
           />
+          <div className="login-role-note">
+            <strong>Login role: SaaS / Platform Admin</strong>
+            <span>Use this only for platform owner tasks such as subscriptions, packages, global campaign controls, and integrations.</span>
+          </div>
           <button className="primary-button" type="submit">
             Login to SaaS admin
           </button>

@@ -45,6 +45,7 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Manual subscription controls for 1-day trial, manual activation, past-due, and cancellation
 - Plan enforcement for active campaign limits and monthly signer limits
 - SaaS admin campaign controls for locking publishing, authority settings, donation settings, required fields, signer limits, and scan limits for individual campaign admins
+- SaaS admin can lock target signatures and campaign dates; campaign admins see these values read-only
 - Suggested next features and production-readiness checklist
 
 ## Run locally

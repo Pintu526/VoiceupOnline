@@ -16,7 +16,8 @@ export function getCampaignMetrics(campaign: Campaign, signers: Signer[]) {
   const duplicates = campaignSigners.filter((signer) => signer.status === "duplicate").length;
   const online = campaignSigners.filter((signer) => signer.source === "online").length;
   const scanned = campaignSigners.filter((signer) => signer.source === "scan").length;
-  const progress = Math.min(Math.round((verified / campaign.goal) * 100), 100);
+  const target = campaign.maxSignersAllowed > 0 ? campaign.maxSignersAllowed : campaign.goal;
+  const progress = Math.min(Math.round((verified / target) * 100), 100);
 
   return {
     total: campaignSigners.length,

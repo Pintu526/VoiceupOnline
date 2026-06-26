@@ -1050,6 +1050,15 @@ td span {
   color: var(--primary-dark);
 }
 
+.campaign-admin-control-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.campaign-admin-control-summary span {
+  color: var(--primary-dark);
+}
+
 .review-card {
   background: var(--panel-soft);
   border: 1px solid var(--border);

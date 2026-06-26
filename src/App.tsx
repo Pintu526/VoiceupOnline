@@ -452,6 +452,8 @@ function App() {
       requiredFieldsLockedBySaas: false,
       authorityLockedBySaas: false,
       publishingLockedBySaas: false,
+      goalLockedBySaas: false,
+      datesLockedBySaas: false,
       maxSignersAllowed: 0,
       maxScansAllowed: 0,
       shareUrl: `${getCampaignBaseUrl(organization)}/c/new-campaign`,
@@ -1167,9 +1169,20 @@ function App() {
               {campaignDraft ? (
                 <form className="form-grid" onSubmit={saveCampaign}>
                 {isCampaignAdminRoute && hasSaasLocks(campaignDraft) && (
-                  <p className="info-message wide">
-                    Some campaign settings are controlled by SaaS admin and cannot be edited from this campaign admin page.
-                  </p>
+                  <div className="info-message wide campaign-admin-control-summary">
+                    <strong>SaaS admin controls are active for this campaign.</strong>
+                    <span>Target signatures: {getCampaignGoalValue(campaignDraft).toLocaleString()}</span>
+                    <span>
+                      Signer limit:{" "}
+                      {campaignDraft.maxSignersAllowed > 0 ? campaignDraft.maxSignersAllowed.toLocaleString() : "No campaign-specific limit"}
+                    </span>
+                    <span>
+                      Scan document limit:{" "}
+                      {campaignDraft.maxScansAllowed > 0 ? campaignDraft.maxScansAllowed.toLocaleString() : "No campaign-specific limit"}
+                    </span>
+                    <span>Start date: {campaignDraft.startDate || "Not set"}</span>
+                    <span>End date: {campaignDraft.endDate || "Not set"}</span>
+                  </div>
                 )}
                 <Field label="Campaign name">
                   <input
@@ -1212,9 +1225,13 @@ function App() {
                   <input
                     type="number"
                     min="1"
-                    value={campaignDraft.goal}
+                    value={getCampaignGoalValue(campaignDraft)}
+                    disabled={isCampaignAdminRoute && (campaignDraft.goalLockedBySaas || campaignDraft.maxSignersAllowed > 0)}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, goal: Number(event.target.value) })}
                   />
+                  {isCampaignAdminRoute && campaignDraft.maxSignersAllowed > 0 && (
+                    <small>SaaS admin limit: {campaignDraft.maxSignersAllowed.toLocaleString()} signers</small>
+                  )}
                 </Field>
                   <Field label="Location">
                   <input
@@ -1236,6 +1253,7 @@ function App() {
                   <input
                     type="date"
                     value={campaignDraft.startDate}
+                    disabled={isCampaignAdminRoute && campaignDraft.datesLockedBySaas}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, startDate: event.target.value })}
                   />
                 </Field>
@@ -1243,6 +1261,7 @@ function App() {
                   <input
                     type="date"
                     value={campaignDraft.endDate}
+                    disabled={isCampaignAdminRoute && campaignDraft.datesLockedBySaas}
                     onChange={(event) => setCampaignDraft({ ...campaignDraft, endDate: event.target.value })}
                   />
                 </Field>
@@ -1495,6 +1514,26 @@ function App() {
                       <label className="check-row">
                         <input
                           type="checkbox"
+                          checked={campaignDraft.goalLockedBySaas ?? false}
+                          onChange={(event) =>
+                            setCampaignDraft({ ...campaignDraft, goalLockedBySaas: event.target.checked })
+                          }
+                        />
+                        Lock target signatures for campaign admin
+                      </label>
+                      <label className="check-row">
+                        <input
+                          type="checkbox"
+                          checked={campaignDraft.datesLockedBySaas ?? false}
+                          onChange={(event) =>
+                            setCampaignDraft({ ...campaignDraft, datesLockedBySaas: event.target.checked })
+                          }
+                        />
+                        Lock campaign start/end dates for campaign admin
+                      </label>
+                      <label className="check-row">
+                        <input
+                          type="checkbox"
                           checked={campaignDraft.authorityLockedBySaas ?? false}
                           onChange={(event) =>
                             setCampaignDraft({ ...campaignDraft, authorityLockedBySaas: event.target.checked })
@@ -1528,7 +1567,11 @@ function App() {
                           min="0"
                           value={campaignDraft.maxSignersAllowed ?? 0}
                           onChange={(event) =>
-                            setCampaignDraft({ ...campaignDraft, maxSignersAllowed: Number(event.target.value) })
+                            setCampaignDraft({
+                              ...campaignDraft,
+                              maxSignersAllowed: Number(event.target.value),
+                              goal: Number(event.target.value) > 0 ? Number(event.target.value) : campaignDraft.goal
+                            })
                           }
                         />
                       </Field>
@@ -1543,7 +1586,8 @@ function App() {
                         />
                       </Field>
                       <p className="helper-text">
-                        Set 0 for no campaign-specific limit. These controls are editable only from the SaaS admin workspace.
+                        Set 0 for no campaign-specific limit. If signer limit is set, it also becomes the read-only target
+                        signature count for campaign admins. These controls are editable only from the SaaS admin workspace.
                       </p>
                     </div>
                   )}
@@ -2703,7 +2747,7 @@ function PublicCampaignSection({
           <div className="progress">
             <div style={{ width: `${metrics.progress}%` }} />
           </div>
-          <strong>{metrics.verified.toLocaleString()}</strong> of {campaign.goal.toLocaleString()} verified signatures
+          <strong>{metrics.verified.toLocaleString()}</strong> of {getCampaignGoalValue(campaign).toLocaleString()} verified signatures
         </div>
         {campaign.donationEnabled && <DonationCard campaign={campaign} compact />}
         <div className="qr-box">
@@ -3485,12 +3529,18 @@ function getSubscriptionPlan(planName: BillingPlan) {
 function hasSaasLocks(campaign: Campaign) {
   return Boolean(
     campaign.publishingLockedBySaas ||
+      campaign.goalLockedBySaas ||
+      campaign.datesLockedBySaas ||
       campaign.authorityLockedBySaas ||
       campaign.donationLockedBySaas ||
       campaign.requiredFieldsLockedBySaas ||
       campaign.maxSignersAllowed > 0 ||
       campaign.maxScansAllowed > 0
   );
+}
+
+function getCampaignGoalValue(campaign: Campaign) {
+  return campaign.maxSignersAllowed > 0 ? campaign.maxSignersAllowed : campaign.goal;
 }
 
 function getActiveCampaignCount(campaigns: Campaign[]) {

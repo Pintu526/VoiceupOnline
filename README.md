@@ -86,6 +86,12 @@ Recommended settings:
 
 The app supports Supabase-backed shared storage. Without Supabase environment variables, it falls back to browser local storage for preview only.
 
+For a step-by-step non-technical production checklist, see:
+
+```text
+PRODUCTION_GO_LIVE_RUNBOOK.md
+```
+
 ### 1. Create Supabase database
 
 1. Create a Supabase project.

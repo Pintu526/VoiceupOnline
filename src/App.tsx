@@ -43,10 +43,12 @@ import {
   getCurrentAuthUser,
   isBackendConfigured,
   isSupabaseAuthAvailable,
+  isSupabaseStorageAvailable,
   loadRemoteState,
   saveRemoteState,
   signInWithSupabase,
   signOutSupabase,
+  uploadFileToStorage,
   type VoiceupRemoteState
 } from "./backend";
 import {
@@ -575,15 +577,16 @@ function App() {
     }
     setIsScanning(true);
     setScanMessage(`Reading ${file.name} with OCR. Handwriting may need manual correction.`);
+    const scanFileUrl = await uploadCampaignAsset(file, "scan", false);
     try {
       const result = await Tesseract.recognize(file, "eng");
       const extractedText = result.data.text.trim() || scanText;
-      const item = createScanReviewItem(activeCampaign.id, file.name, extractedText);
+      const item = { ...createScanReviewItem(activeCampaign.id, file.name, extractedText), fileUrl: scanFileUrl };
       setScanItems((currentItems) => [item, ...currentItems]);
       setScanText(extractedText);
       setScanMessage("OCR completed. Review the extracted signer details before approval.");
     } catch (error) {
-      const item = createScanReviewItem(activeCampaign.id, file.name, scanText);
+      const item = { ...createScanReviewItem(activeCampaign.id, file.name, scanText), fileUrl: scanFileUrl };
       setScanItems((currentItems) => [item, ...currentItems]);
       setScanMessage("OCR could not read the file, so a manual review item was created from the text box.");
     } finally {
@@ -620,6 +623,7 @@ function App() {
       status: duplicate ? "duplicate" : "pending",
       signedAt: new Date().toISOString(),
       scanFileName: scan.fileName,
+      scanFileUrl: scan.fileUrl,
       reviewerNote: duplicate ? `Possible duplicate of ${duplicate.name}` : "Imported from scanned hard copy."
     };
     setSigners((currentSigners) => [signer, ...currentSigners]);
@@ -814,22 +818,39 @@ function App() {
     addAuditLog("integration.updated", "Cancelled subscription");
   }
 
-  function updateCampaignMedia(file: File) {
+  async function updateCampaignMedia(file: File) {
     if (!campaignDraft) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCampaignDraft({ ...campaignDraft, heroImage: String(reader.result ?? "") });
-    };
-    reader.readAsDataURL(file);
+    const imageUrl = await uploadCampaignAsset(file, "banner", true);
+    setCampaignDraft({ ...campaignDraft, heroImage: imageUrl });
   }
 
-  function updateCampaignDonationQr(file: File) {
+  async function updateCampaignDonationQr(file: File) {
     if (!campaignDraft) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCampaignDraft({ ...campaignDraft, donationQrImage: String(reader.result ?? "") });
-    };
-    reader.readAsDataURL(file);
+    const imageUrl = await uploadCampaignAsset(file, "donation-qr", true);
+    setCampaignDraft({ ...campaignDraft, donationQrImage: imageUrl });
+  }
+
+  async function uploadCampaignAsset(file: File, assetType: string, isPublic: boolean) {
+    const fallbackDataUrl = await fileToDataUrl(file);
+    if (!isSupabaseStorageAvailable || integrations.storageProvider !== "Supabase Storage") {
+      return fallbackDataUrl;
+    }
+
+    const bucket = isPublic ? integrations.storageBucket || "campaign-public" : "campaign-private";
+    const campaignSlug = (campaignDraft ?? activeCampaign)?.slug ?? "workspace";
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+    const path = `${campaignSlug}/${assetType}/${Date.now()}-${safeFileName}`;
+
+    try {
+      const uploaded = await uploadFileToStorage(bucket, path, file);
+      setBackendMessage(`Uploaded ${assetType} to Supabase Storage.`);
+      return uploaded.publicUrl;
+    } catch (error) {
+      setBackendMessage(
+        `Storage upload failed; using local fallback. ${error instanceof Error ? error.message : "Unable to upload file"}`
+      );
+      return fallbackDataUrl;
+    }
   }
 
   function campaignReportMessage(campaign: Campaign) {
@@ -1342,7 +1363,7 @@ function App() {
                         accept="image/*"
                         onChange={(event) => {
                           const file = event.target.files?.[0];
-                          if (file) updateCampaignDonationQr(file);
+                          if (file) void updateCampaignDonationQr(file);
                         }}
                       />
                     </label>
@@ -1432,7 +1453,7 @@ function App() {
                           accept="image/*"
                           onChange={(event) => {
                             const file = event.target.files?.[0];
-                            if (file) updateCampaignMedia(file);
+                            if (file) void updateCampaignMedia(file);
                           }}
                         />
                       </label>
@@ -3320,6 +3341,15 @@ function setMetaProperty(property: string, content: string) {
     document.head.appendChild(element);
   }
   element.setAttribute("content", content);
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("Unable to read file"));
+    reader.readAsDataURL(file);
+  });
 }
 
 function createAdminPasscode() {

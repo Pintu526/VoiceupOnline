@@ -42,6 +42,8 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - PDF and CSV report downloads
 - WhatsApp/SMS thank-you actions after signup and admin engagement tools for participant progress updates
 - SaaS organization settings for INR subscription plan, billing details, limits, branding, owner email, and custom domain
+- Manual subscription controls for 1-day trial, manual activation, past-due, and cancellation
+- Plan enforcement for active campaign limits and monthly signer limits
 - Suggested next features and production-readiness checklist
 
 ## Run locally
@@ -85,6 +87,12 @@ Recommended settings:
 ## Make public links work across devices
 
 The app supports Supabase-backed shared storage. Without Supabase environment variables, it falls back to browser local storage for preview only.
+
+For a step-by-step non-technical production checklist, see:
+
+```text
+PRODUCTION_GO_LIVE_RUNBOOK.md
+```
 
 ### 1. Create Supabase database
 

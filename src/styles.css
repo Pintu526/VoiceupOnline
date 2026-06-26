@@ -469,6 +469,30 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.usage-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.usage-card {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.usage-card strong {
+  font-size: 1.5rem;
+}
+
+.usage-card small {
+  color: var(--text-soft);
+}
+
 .plan-grid,
 .idea-grid,
 .report-grid {
@@ -1106,6 +1130,7 @@ td span {
 
   .nav,
   .metric-grid,
+  .usage-grid,
   .plan-grid,
   .idea-grid,
   .report-grid,
@@ -1138,6 +1163,7 @@ td span {
   }
 
   .metric-grid,
+  .usage-grid,
   .plan-grid,
   .marketing-grid,
   .idea-grid,

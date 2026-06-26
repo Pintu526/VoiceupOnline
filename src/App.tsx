@@ -408,6 +408,13 @@ function App() {
   }
 
   function createCampaign() {
+    const createBlockReason = getCreateCampaignBlockReason(organization, campaigns);
+    if (createBlockReason) {
+      setBackendMessage(createBlockReason);
+      setActiveTab("saas");
+      return;
+    }
+
     const campaign: Campaign = {
       id: createId("cmp"),
       title: "New Public Campaign",
@@ -463,6 +470,17 @@ function App() {
 
   function publishCampaign() {
     if (!campaignDraft) return;
+    const publishBlockReason = getPublishCampaignBlockReason(campaignDraft, organization, campaigns);
+    if (publishBlockReason) {
+      setBackendMessage(publishBlockReason);
+      setActiveTab("saas");
+      return;
+    }
+
+    if (organization.subscriptionStatus === "Trial" && !organization.trialEndsAt) {
+      setOrganization({ ...organization, trialEndsAt: getTomorrowDate() });
+    }
+
     const publishedCampaign = {
       ...campaignDraft,
       status: "Published" as const,
@@ -480,6 +498,11 @@ function App() {
     event.preventDefault();
     if (!activeCampaign) {
       setPublicMessage("Create and publish a campaign before collecting signatures.");
+      return;
+    }
+    const signingBlockReason = getSigningBlockReason(activeCampaign, organization, signers);
+    if (signingBlockReason) {
+      setPublicMessage(signingBlockReason);
       return;
     }
     if (!publicForm.name || !publicForm.phone) {
@@ -757,6 +780,38 @@ function App() {
       subscriptionStatus: currentOrganization.subscriptionStatus === "Cancelled" ? "Trial" : currentOrganization.subscriptionStatus,
       customBranding: plan.name !== "Starter" ? currentOrganization.customBranding : false
     }));
+  }
+
+  function startOneDayTrial() {
+    const nextOrganization = {
+      ...organization,
+      subscriptionStatus: "Trial" as const,
+      trialEndsAt: getTomorrowDate()
+    };
+    setOrganization(nextOrganization);
+    addAuditLog("integration.updated", "Started one-day free publishing trial");
+  }
+
+  function activateSubscriptionManually() {
+    const plan = getSubscriptionPlan(organization.plan);
+    const nextOrganization = {
+      ...organization,
+      subscriptionStatus: "Active" as const,
+      monthlySignatureLimit: plan.monthlySignatureLimit,
+      monthlyScanLimit: plan.monthlyScanLimit
+    };
+    setOrganization(nextOrganization);
+    addAuditLog("integration.updated", `Manually activated ${organization.plan} subscription`);
+  }
+
+  function markSubscriptionPastDue() {
+    setOrganization({ ...organization, subscriptionStatus: "Past due" });
+    addAuditLog("integration.updated", "Marked subscription as past due");
+  }
+
+  function cancelSubscription() {
+    setOrganization({ ...organization, subscriptionStatus: "Cancelled" });
+    addAuditLog("integration.updated", "Cancelled subscription");
   }
 
   function updateCampaignMedia(file: File) {
@@ -2020,6 +2075,48 @@ function App() {
               </form>
             </Panel>
 
+            <Panel title="Subscription controls and usage" icon={<WalletCards />}>
+              <div className="usage-grid">
+                <UsageCard
+                  label="Subscription status"
+                  value={organization.subscriptionStatus}
+                  detail={getSubscriptionStatusDetail(organization)}
+                />
+                <UsageCard
+                  label="Active campaigns"
+                  value={`${getActiveCampaignCount(campaigns)} / ${formatPlanLimit(getSubscriptionPlan(organization.plan).campaignLimit)}`}
+                  detail="Published or paused campaigns counted against plan limit"
+                />
+                <UsageCard
+                  label="Monthly signers"
+                  value={`${getMonthlySignerCount(signers).toLocaleString()} / ${organization.monthlySignatureLimit.toLocaleString()}`}
+                  detail="Current calendar month"
+                />
+                <UsageCard
+                  label="Monthly scans"
+                  value={`${getMonthlyScanCount(scanItems).toLocaleString()} / ${organization.monthlyScanLimit.toLocaleString()}`}
+                  detail="Current calendar month"
+                />
+              </div>
+              <div className="button-row">
+                <button className="secondary-button" type="button" onClick={startOneDayTrial}>
+                  Start 1-day trial
+                </button>
+                <button className="primary-button" type="button" onClick={activateSubscriptionManually}>
+                  Manually activate subscription
+                </button>
+                <button className="secondary-button" type="button" onClick={markSubscriptionPastDue}>
+                  Mark past due
+                </button>
+                <button className="secondary-button" type="button" onClick={cancelSubscription}>
+                  Cancel
+                </button>
+              </div>
+              {getSubscriptionBlockReason(organization) && (
+                <p className="error-message">{getSubscriptionBlockReason(organization)}</p>
+              )}
+            </Panel>
+
             <Panel title="Production integrations" icon={<Settings />}>
               <form className="form-grid">
                 <Field label="Razorpay key ID">
@@ -2784,6 +2881,16 @@ function MetricCard({
   );
 }
 
+function UsageCard({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <div className="usage-card">
+      <span className="eyebrow">{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
 function Panel({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="panel">
@@ -3232,6 +3339,91 @@ function getCurrentActorEmail() {
     return getAppAdminEmail();
   }
   return "system";
+}
+
+function getSubscriptionPlan(planName: BillingPlan) {
+  return subscriptionPlans.find((plan) => plan.name === planName) ?? subscriptionPlans[0];
+}
+
+function getActiveCampaignCount(campaigns: Campaign[]) {
+  return campaigns.filter((campaign) => campaign.status === "Published" || campaign.status === "Paused").length;
+}
+
+function getMonthlySignerCount(signers: Signer[]) {
+  const monthKey = new Date().toISOString().slice(0, 7);
+  return signers.filter((signer) => signer.signedAt.slice(0, 7) === monthKey).length;
+}
+
+function getMonthlyScanCount(scanItems: ScanReviewItem[]) {
+  const monthKey = new Date().toISOString().slice(0, 7);
+  return scanItems.filter((item) => item.createdAt.slice(0, 7) === monthKey).length;
+}
+
+function getSubscriptionBlockReason(organization: Organization) {
+  if (organization.subscriptionStatus === "Active") return "";
+  if (organization.subscriptionStatus === "Trial") {
+    if (!organization.trialEndsAt) return "";
+    return new Date(organization.trialEndsAt).getTime() >= startOfToday().getTime()
+      ? ""
+      : "Your 1-day trial has ended. Activate a subscription to keep campaigns published.";
+  }
+  if (organization.subscriptionStatus === "Past due") return "Subscription is past due. Activate payment to continue.";
+  if (organization.subscriptionStatus === "Cancelled") return "Subscription is cancelled. Activate subscription to continue.";
+  return "Subscription is not active.";
+}
+
+function getCreateCampaignBlockReason(organization: Organization, campaigns: Campaign[]) {
+  const subscriptionReason = getSubscriptionBlockReason(organization);
+  if (subscriptionReason) return subscriptionReason;
+  const plan = getSubscriptionPlan(organization.plan);
+  if (plan.campaignLimit !== "Unlimited" && campaigns.length >= plan.campaignLimit) {
+    return `Your ${organization.plan} plan allows ${plan.campaignLimit} campaign(s). Upgrade or close an old campaign.`;
+  }
+  return "";
+}
+
+function getPublishCampaignBlockReason(campaign: Campaign, organization: Organization, campaigns: Campaign[]) {
+  const subscriptionReason = getSubscriptionBlockReason(organization);
+  if (subscriptionReason) return subscriptionReason;
+  const plan = getSubscriptionPlan(organization.plan);
+  const activeOtherCampaigns = campaigns.filter(
+    (item) => item.id !== campaign.id && (item.status === "Published" || item.status === "Paused")
+  ).length;
+  if (plan.campaignLimit !== "Unlimited" && activeOtherCampaigns >= plan.campaignLimit && campaign.status !== "Published") {
+    return `Your ${organization.plan} plan allows ${plan.campaignLimit} active campaign(s). Upgrade to publish more.`;
+  }
+  return "";
+}
+
+function getSigningBlockReason(campaign: Campaign, organization: Organization, signers: Signer[]) {
+  if (campaign.status !== "Published") return "This campaign is not currently open for signing.";
+  const subscriptionReason = getSubscriptionBlockReason(organization);
+  if (subscriptionReason) return subscriptionReason;
+  if (getMonthlySignerCount(signers) >= organization.monthlySignatureLimit) {
+    return "This campaign owner has reached the monthly signer limit for the current plan.";
+  }
+  return "";
+}
+
+function getSubscriptionStatusDetail(organization: Organization) {
+  if (organization.subscriptionStatus === "Trial") {
+    return organization.trialEndsAt ? `Trial ends on ${organization.trialEndsAt}` : "Trial active; publish starts 1-day window";
+  }
+  return organization.subscriptionStatus === "Active" ? "Subscription active" : "Publishing/signing may be blocked";
+}
+
+function formatPlanLimit(limit: number | "Unlimited") {
+  return limit === "Unlimited" ? "Unlimited" : String(limit);
+}
+
+function getTomorrowDate() {
+  return new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+}
+
+function startOfToday() {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date;
 }
 
 function getCampaignAdminEmail(campaign: Campaign) {

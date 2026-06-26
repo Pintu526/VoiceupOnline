@@ -123,6 +123,20 @@ After this:
 - `/admin/campaign-slug` can load the same campaign from another device
 - Public signatures are collected in the shared Supabase workspace
 
+### 3. Configure Supabase Storage
+
+Run the latest `supabase-schema.sql` to create these buckets:
+
+```text
+campaign-public
+voiceup-campaign-media
+campaign-private
+scan-documents
+appeal-pdfs
+```
+
+Campaign banners and donation QR images upload to the public bucket configured in SaaS admin. Scanned files use a private bucket path and fall back to local data if Storage is not configured yet.
+
 ## Live route structure
 
 - `/` public product homepage

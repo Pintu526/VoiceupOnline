@@ -141,3 +141,25 @@ create policy "Public can insert signers"
   on public.signers
   for insert
   with check (true);
+
+insert into storage.buckets (id, name, public)
+values
+  ('campaign-public', 'campaign-public', true),
+  ('voiceup-campaign-media', 'voiceup-campaign-media', true),
+  ('campaign-private', 'campaign-private', false),
+  ('scan-documents', 'scan-documents', false),
+  ('appeal-pdfs', 'appeal-pdfs', false)
+on conflict (id) do nothing;
+
+drop policy if exists "Public can read campaign public storage" on storage.objects;
+create policy "Public can read campaign public storage"
+  on storage.objects
+  for select
+  using (bucket_id in ('campaign-public', 'voiceup-campaign-media'));
+
+drop policy if exists "Authenticated can manage campaign storage" on storage.objects;
+create policy "Authenticated can manage campaign storage"
+  on storage.objects
+  for all
+  using (auth.role() = 'authenticated' or bucket_id in ('campaign-public', 'voiceup-campaign-media'))
+  with check (auth.role() = 'authenticated' or bucket_id in ('campaign-public', 'voiceup-campaign-media'));

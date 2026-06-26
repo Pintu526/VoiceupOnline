@@ -103,6 +103,7 @@ export interface Signer {
   signedAt: string;
   reviewerNote?: string;
   scanFileName?: string;
+  scanFileUrl?: string;
 }
 
 export interface AuthorityRule {
@@ -178,6 +179,7 @@ export interface ScanReviewItem {
   id: string;
   campaignId: string;
   fileName: string;
+  fileUrl?: string;
   extractedText: string;
   parsedSigner: Omit<Signer, "id" | "campaignId" | "source" | "status" | "signedAt">;
   status: "Needs review" | "Approved" | "Rejected";

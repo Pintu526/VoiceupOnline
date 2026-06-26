@@ -23,6 +23,7 @@ export const isBackendConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 const supabase = isBackendConfigured ? createClient(supabaseUrl!, supabaseAnonKey!) : null;
 
 export const isSupabaseAuthAvailable = Boolean(supabase);
+export const isSupabaseStorageAvailable = Boolean(supabase);
 
 export async function getCurrentAuthUser() {
   if (!supabase) return null;
@@ -79,4 +80,27 @@ export async function saveRemoteState(state: VoiceupRemoteState) {
   if (error) {
     throw new Error(error.message);
   }
+}
+
+export async function uploadFileToStorage(bucket: string, path: string, file: File) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { error } = await supabase.storage.from(bucket).upload(path, file, {
+    cacheControl: "3600",
+    contentType: file.type || "application/octet-stream",
+    upsert: true
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+
+  return {
+    path,
+    publicUrl: data.publicUrl
+  };
 }

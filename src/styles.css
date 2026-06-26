@@ -460,7 +460,8 @@ textarea {
 .metric-grid,
 .plan-grid,
 .idea-grid,
-.report-grid {
+.report-grid,
+.package-grid {
   display: grid;
   gap: 18px;
 }
@@ -495,7 +496,8 @@ textarea {
 
 .plan-grid,
 .idea-grid,
-.report-grid {
+.report-grid,
+.package-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -1114,6 +1116,26 @@ td span {
   padding: 22px;
 }
 
+.package-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+}
+
+.package-card p,
+.package-credit-row {
+  color: var(--text-soft);
+}
+
+.package-credit-row {
+  display: grid;
+  gap: 4px;
+}
+
 .plan-card.highlighted {
   border-color: rgba(49, 92, 246, 0.45);
   outline: 3px solid rgba(49, 92, 246, 0.12);
@@ -1151,6 +1173,7 @@ td span {
   .metric-grid,
   .usage-grid,
   .plan-grid,
+  .package-grid,
   .idea-grid,
   .report-grid,
   .onboarding-grid {
@@ -1184,6 +1207,7 @@ td span {
   .metric-grid,
   .usage-grid,
   .plan-grid,
+  .package-grid,
   .marketing-grid,
   .idea-grid,
   .report-grid,

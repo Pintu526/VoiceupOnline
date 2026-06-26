@@ -140,6 +140,10 @@ export interface Organization {
   trialEndsAt: string;
   monthlySignatureLimit: number;
   monthlyScanLimit: number;
+  monthlyMessageLimit: number;
+  bonusSignatureCredits: number;
+  bonusScanCredits: number;
+  bonusMessageCredits: number;
   customBranding: boolean;
   customDomain: string;
   ownerEmail: string;
@@ -181,6 +185,20 @@ export interface SubscriptionPlan {
   campaignLimit: number | "Unlimited";
   features: string[];
   recommended?: boolean;
+}
+
+export type CommercialPackageType = "signatures" | "scans" | "messages" | "bundle";
+
+export interface CommercialPackage {
+  id: string;
+  name: string;
+  type: CommercialPackageType;
+  priceInr: number;
+  signatureCredits: number;
+  scanCredits: number;
+  messageCredits: number;
+  description: string;
+  active: boolean;
 }
 
 export interface ScanReviewItem {

@@ -1,4 +1,13 @@
-import type { AuthorityRule, Campaign, IntegrationSettings, Organization, Signer, SubscriptionPlan, SuggestedFeature } from "./types";
+import type {
+  AuthorityRule,
+  Campaign,
+  CommercialPackage,
+  IntegrationSettings,
+  Organization,
+  Signer,
+  SubscriptionPlan,
+  SuggestedFeature
+} from "./types";
 
 export const initialCampaigns: Campaign[] = [];
 
@@ -14,6 +23,10 @@ export const initialOrganization: Organization = {
   trialEndsAt: "",
   monthlySignatureLimit: 1000,
   monthlyScanLimit: 100,
+  monthlyMessageLimit: 500,
+  bonusSignatureCredits: 0,
+  bonusScanCredits: 0,
+  bonusMessageCredits: 0,
   customBranding: false,
   customDomain: "",
   ownerEmail: "",
@@ -21,6 +34,53 @@ export const initialOrganization: Organization = {
   seats: 2,
   paymentReference: ""
 };
+
+export const initialCommercialPackages: CommercialPackage[] = [
+  {
+    id: "pkg-signatures-1000",
+    name: "1,000 extra signatures",
+    type: "signatures",
+    priceInr: 499,
+    signatureCredits: 1000,
+    scanCredits: 0,
+    messageCredits: 0,
+    description: "Recharge pack for campaigns nearing signer limit.",
+    active: true
+  },
+  {
+    id: "pkg-scans-250",
+    name: "250 extra scans",
+    type: "scans",
+    priceInr: 399,
+    signatureCredits: 0,
+    scanCredits: 250,
+    messageCredits: 0,
+    description: "Extra hard-copy scan processing allowance.",
+    active: true
+  },
+  {
+    id: "pkg-messages-1000",
+    name: "1,000 message credits",
+    type: "messages",
+    priceInr: 799,
+    signatureCredits: 0,
+    scanCredits: 0,
+    messageCredits: 1000,
+    description: "Credits for WhatsApp/SMS/email provider usage tracking.",
+    active: true
+  },
+  {
+    id: "pkg-growth-bundle",
+    name: "Campaign growth bundle",
+    type: "bundle",
+    priceInr: 1499,
+    signatureCredits: 3000,
+    scanCredits: 500,
+    messageCredits: 2000,
+    description: "Combined recharge for growing campaigns.",
+    active: true
+  }
+];
 
 export const initialIntegrationSettings: IntegrationSettings = {
   razorpayKeyId: "",

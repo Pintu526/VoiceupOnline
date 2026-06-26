@@ -33,6 +33,7 @@ import Tesseract from "tesseract.js";
 import {
   initialAuthorities,
   initialCampaigns,
+  initialCommercialPackages,
   initialIntegrationSettings,
   initialOrganization,
   initialSigners,
@@ -90,6 +91,7 @@ import type {
   BillingPlan,
   Campaign,
   CampaignCategory,
+  CommercialPackage,
   Organization,
   ScanReviewItem,
   Signer,
@@ -148,6 +150,10 @@ function App() {
   const [integrations, setIntegrations] = usePersistentState<IntegrationSettings>(
     `${storagePrefix}-integrations`,
     initialIntegrationSettings
+  );
+  const [commercialPackages, setCommercialPackages] = usePersistentState<CommercialPackage[]>(
+    `${storagePrefix}-commercial-packages`,
+    initialCommercialPackages
   );
   const [locationOverrides, setLocationOverrides] = usePersistentState<LocationOverrides>(
     `${storagePrefix}-location-overrides`,
@@ -273,7 +279,8 @@ function App() {
               locationOverrides,
               locationDeletions,
               auditLogs,
-              integrations
+              integrations,
+              commercialPackages
             });
 
             await saveRemoteState(localState);
@@ -291,6 +298,7 @@ function App() {
           setLocationDeletions(remoteState.locationDeletions ?? emptyLocationDeletions);
           setAuditLogs(remoteState.auditLogs ?? []);
           setIntegrations(remoteState.integrations ?? initialIntegrationSettings);
+          setCommercialPackages(remoteState.commercialPackages ?? initialCommercialPackages);
           setBackendMessage(`Shared campaign database connected (${remoteCampaigns.length} campaign(s)).`);
         } else {
           if (campaigns.length > 0) {
@@ -303,7 +311,8 @@ function App() {
               locationOverrides,
               locationDeletions,
               auditLogs,
-              integrations
+              integrations,
+              commercialPackages
             });
 
             await saveRemoteState(localState);
@@ -332,6 +341,7 @@ function App() {
     setAuthorities,
     setAuditLogs,
     setCampaigns,
+    setCommercialPackages,
     setIntegrations,
     setLocationDeletions,
     setLocationOverrides,
@@ -353,7 +363,8 @@ function App() {
         locationOverrides,
         locationDeletions,
         auditLogs,
-        integrations
+        integrations,
+        commercialPackages
       });
 
       void saveRemoteState(state)
@@ -368,6 +379,7 @@ function App() {
     authorities,
     auditLogs,
     campaigns,
+    commercialPackages,
     integrations,
     locationDeletions,
     locationOverrides,
@@ -519,6 +531,10 @@ function App() {
       setPublicMessage(signingBlockReason);
       return;
     }
+    if (getMonthlySignerCount(signers) >= getEffectiveSignatureLimit(organization)) {
+      setPublicMessage("This campaign owner has reached the available signature credits. Please ask them to upgrade or recharge.");
+      return;
+    }
     if (
       activeCampaign.maxSignersAllowed > 0 &&
       getCampaignSigners(activeCampaign.id, signers).length >= activeCampaign.maxSignersAllowed
@@ -599,6 +615,10 @@ function App() {
       scanItems.filter((item) => item.campaignId === activeCampaign.id).length >= activeCampaign.maxScansAllowed
     ) {
       setScanMessage("This campaign has reached its scan upload limit.");
+      return;
+    }
+    if (getMonthlyScanCount(scanItems) >= getEffectiveScanLimit(organization)) {
+      setScanMessage("This organization has reached available scan credits. Upgrade or recharge from SaaS admin.");
       return;
     }
     setIsScanning(true);
@@ -807,6 +827,7 @@ function App() {
       plan: plan.name,
       monthlySignatureLimit: plan.monthlySignatureLimit,
       monthlyScanLimit: plan.monthlyScanLimit,
+      monthlyMessageLimit: getDefaultMessageLimit(plan.name),
       subscriptionStatus: currentOrganization.subscriptionStatus === "Cancelled" ? "Trial" : currentOrganization.subscriptionStatus,
       customBranding: plan.name !== "Starter" ? currentOrganization.customBranding : false
     }));
@@ -828,7 +849,8 @@ function App() {
       ...organization,
       subscriptionStatus: "Active" as const,
       monthlySignatureLimit: plan.monthlySignatureLimit,
-      monthlyScanLimit: plan.monthlyScanLimit
+      monthlyScanLimit: plan.monthlyScanLimit,
+      monthlyMessageLimit: getDefaultMessageLimit(plan.name)
     };
     setOrganization(nextOrganization);
     addAuditLog("integration.updated", `Manually activated ${organization.plan} subscription`);
@@ -842,6 +864,19 @@ function App() {
   function cancelSubscription() {
     setOrganization({ ...organization, subscriptionStatus: "Cancelled" });
     addAuditLog("integration.updated", "Cancelled subscription");
+  }
+
+  function applyCommercialPackage(pkg: CommercialPackage) {
+    setOrganization({
+      ...organization,
+      bonusSignatureCredits: (organization.bonusSignatureCredits ?? 0) + pkg.signatureCredits,
+      bonusScanCredits: (organization.bonusScanCredits ?? 0) + pkg.scanCredits,
+      bonusMessageCredits: (organization.bonusMessageCredits ?? 0) + pkg.messageCredits
+    });
+    addAuditLog(
+      "integration.updated",
+      `Granted package "${pkg.name}" (₹${pkg.priceInr}) with ${pkg.signatureCredits} signatures, ${pkg.scanCredits} scans, ${pkg.messageCredits} messages`
+    );
   }
 
   async function updateCampaignMedia(file: File) {
@@ -2222,6 +2257,14 @@ function App() {
                     onChange={(event) => setOrganization({ ...organization, monthlyScanLimit: Number(event.target.value) })}
                   />
                 </Field>
+                <Field label="Monthly message limit">
+                  <input
+                    type="number"
+                    min="0"
+                    value={organization.monthlyMessageLimit ?? 0}
+                    onChange={(event) => setOrganization({ ...organization, monthlyMessageLimit: Number(event.target.value) })}
+                  />
+                </Field>
                 <Field label="Custom domain">
                   <input
                     placeholder="campaigns.customer.in"
@@ -2261,14 +2304,45 @@ function App() {
                 />
                 <UsageCard
                   label="Monthly signers"
-                  value={`${getMonthlySignerCount(signers).toLocaleString()} / ${organization.monthlySignatureLimit.toLocaleString()}`}
-                  detail="Current calendar month"
+                  value={`${getMonthlySignerCount(signers).toLocaleString()} / ${getEffectiveSignatureLimit(organization).toLocaleString()}`}
+                  detail={`Base ${organization.monthlySignatureLimit.toLocaleString()} + extra ${(organization.bonusSignatureCredits ?? 0).toLocaleString()}`}
                 />
                 <UsageCard
                   label="Monthly scans"
-                  value={`${getMonthlyScanCount(scanItems).toLocaleString()} / ${organization.monthlyScanLimit.toLocaleString()}`}
-                  detail="Current calendar month"
+                  value={`${getMonthlyScanCount(scanItems).toLocaleString()} / ${getEffectiveScanLimit(organization).toLocaleString()}`}
+                  detail={`Base ${organization.monthlyScanLimit.toLocaleString()} + extra ${(organization.bonusScanCredits ?? 0).toLocaleString()}`}
                 />
+                <UsageCard
+                  label="Message credits"
+                  value={`${0} / ${getEffectiveMessageLimit(organization).toLocaleString()}`}
+                  detail={`Base ${(organization.monthlyMessageLimit ?? 0).toLocaleString()} + extra ${(organization.bonusMessageCredits ?? 0).toLocaleString()}`}
+                />
+              </div>
+              <div className="form-grid">
+                <Field label="Extra signature credits">
+                  <input
+                    type="number"
+                    min="0"
+                    value={organization.bonusSignatureCredits ?? 0}
+                    onChange={(event) => setOrganization({ ...organization, bonusSignatureCredits: Number(event.target.value) })}
+                  />
+                </Field>
+                <Field label="Extra scan credits">
+                  <input
+                    type="number"
+                    min="0"
+                    value={organization.bonusScanCredits ?? 0}
+                    onChange={(event) => setOrganization({ ...organization, bonusScanCredits: Number(event.target.value) })}
+                  />
+                </Field>
+                <Field label="Extra message credits">
+                  <input
+                    type="number"
+                    min="0"
+                    value={organization.bonusMessageCredits ?? 0}
+                    onChange={(event) => setOrganization({ ...organization, bonusMessageCredits: Number(event.target.value) })}
+                  />
+                </Field>
               </div>
               <div className="button-row">
                 <button className="secondary-button" type="button" onClick={startOneDayTrial}>
@@ -2287,6 +2361,62 @@ function App() {
               {getSubscriptionBlockReason(organization) && (
                 <p className="error-message">{getSubscriptionBlockReason(organization)}</p>
               )}
+            </Panel>
+
+            <Panel title="Recharge packages and pricing controls" icon={<WalletCards />}>
+              <div className="package-grid">
+                {commercialPackages.map((pkg) => (
+                  <div className="package-card" key={pkg.id}>
+                    <label className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={pkg.active}
+                        onChange={(event) =>
+                          setCommercialPackages((current) =>
+                            current.map((item) => (item.id === pkg.id ? { ...item, active: event.target.checked } : item))
+                          )
+                        }
+                      />
+                      Active
+                    </label>
+                    <Field label="Package name">
+                      <input
+                        value={pkg.name}
+                        onChange={(event) =>
+                          setCommercialPackages((current) =>
+                            current.map((item) => (item.id === pkg.id ? { ...item, name: event.target.value } : item))
+                          )
+                        }
+                      />
+                    </Field>
+                    <Field label="Price INR">
+                      <input
+                        type="number"
+                        min="0"
+                        value={pkg.priceInr}
+                        onChange={(event) =>
+                          setCommercialPackages((current) =>
+                            current.map((item) => (item.id === pkg.id ? { ...item, priceInr: Number(event.target.value) } : item))
+                          )
+                        }
+                      />
+                    </Field>
+                    <div className="package-credit-row">
+                      <span>Signatures: {pkg.signatureCredits.toLocaleString()}</span>
+                      <span>Scans: {pkg.scanCredits.toLocaleString()}</span>
+                      <span>Messages: {pkg.messageCredits.toLocaleString()}</span>
+                    </div>
+                    <p>{pkg.description}</p>
+                    <button className="secondary-button" type="button" onClick={() => applyCommercialPackage(pkg)}>
+                      Grant package credits
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="info-message">
+                Use these for manual UPI/bank payment operations now. After payment is received, click Grant package
+                credits. Later this can connect to Razorpay webhooks automatically.
+              </p>
             </Panel>
 
             <Panel title="Production integrations" icon={<Settings />}>
@@ -3526,6 +3656,24 @@ function getSubscriptionPlan(planName: BillingPlan) {
   return subscriptionPlans.find((plan) => plan.name === planName) ?? subscriptionPlans[0];
 }
 
+function getDefaultMessageLimit(planName: BillingPlan) {
+  if (planName === "Enterprise") return 50000;
+  if (planName === "Professional") return 10000;
+  return 500;
+}
+
+function getEffectiveSignatureLimit(organization: Organization) {
+  return organization.monthlySignatureLimit + (organization.bonusSignatureCredits ?? 0);
+}
+
+function getEffectiveScanLimit(organization: Organization) {
+  return organization.monthlyScanLimit + (organization.bonusScanCredits ?? 0);
+}
+
+function getEffectiveMessageLimit(organization: Organization) {
+  return (organization.monthlyMessageLimit ?? 0) + (organization.bonusMessageCredits ?? 0);
+}
+
 function hasSaasLocks(campaign: Campaign) {
   return Boolean(
     campaign.publishingLockedBySaas ||
@@ -3597,7 +3745,7 @@ function getSigningBlockReason(campaign: Campaign, organization: Organization, s
   if (campaign.status !== "Published") return "This campaign is not currently open for signing.";
   const subscriptionReason = getSubscriptionBlockReason(organization);
   if (subscriptionReason) return subscriptionReason;
-  if (getMonthlySignerCount(signers) >= organization.monthlySignatureLimit) {
+  if (getMonthlySignerCount(signers) >= getEffectiveSignatureLimit(organization)) {
     return "This campaign owner has reached the monthly signer limit for the current plan.";
   }
   return "";
@@ -3642,7 +3790,8 @@ function createRemoteState(state: VoiceupRemoteState): VoiceupRemoteState {
     locationOverrides: state.locationOverrides,
     locationDeletions: state.locationDeletions,
     auditLogs: state.auditLogs ?? [],
-    integrations: state.integrations ?? initialIntegrationSettings
+    integrations: state.integrations ?? initialIntegrationSettings,
+    commercialPackages: state.commercialPackages ?? initialCommercialPackages
   };
 }
 

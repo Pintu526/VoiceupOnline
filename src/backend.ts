@@ -1,5 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
-import type { AuditLogEntry, AuthorityRule, Campaign, IntegrationSettings, Organization, ScanReviewItem, Signer } from "./types";
+import type {
+  AuditLogEntry,
+  AuthorityRule,
+  Campaign,
+  CommercialPackage,
+  IntegrationSettings,
+  Organization,
+  ScanReviewItem,
+  Signer
+} from "./types";
 import type { LocationDeletions, LocationOverrides } from "./geography";
 
 export interface VoiceupRemoteState {
@@ -12,6 +21,7 @@ export interface VoiceupRemoteState {
   locationDeletions: LocationDeletions;
   auditLogs?: AuditLogEntry[];
   integrations?: IntegrationSettings;
+  commercialPackages?: CommercialPackage[];
 }
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;

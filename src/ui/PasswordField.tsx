@@ -4,17 +4,23 @@ import { Eye, EyeOff } from "lucide-react";
 interface PasswordFieldProps {
   value: string;
   onChange: React.ChangeEventHandler<HTMLInputElement>;
+  id?: string;
+  name?: string;
   placeholder?: string;
+  autoComplete?: string;
 }
 
-export function PasswordField({ value, onChange, placeholder }: PasswordFieldProps) {
+export function PasswordField({ value, onChange, id, name, placeholder, autoComplete }: PasswordFieldProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
     <div className="password-field">
       <input
+        id={id}
+        name={name}
         type={isVisible ? "text" : "password"}
         placeholder={placeholder}
+        autoComplete={autoComplete}
         value={value}
         onChange={onChange}
       />

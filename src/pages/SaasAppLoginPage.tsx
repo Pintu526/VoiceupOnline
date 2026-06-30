@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { Megaphone } from "lucide-react";
+import { Building2, CheckCircle2, LockKeyhole, Megaphone, ShieldCheck } from "lucide-react";
 import { PasswordField } from "../ui/PasswordField";
 import { blankAppLogin } from "../constants";
 import { areAppAdminCredentialsConfigured } from "../utils/auth";
@@ -20,35 +20,82 @@ export function SaasAppLoginPage({
   const adminCredentialsConfigured = areAppAdminCredentialsConfigured();
 
   return (
-    <main className="public-only-shell">
-      <section className="campaign-admin-login">
-        <div className="brand">
-          <div className="brand-mark">
-            <Megaphone size={24} />
+    <main className="login-shell">
+      <section className="login-layout" aria-labelledby="saas-login-title">
+        <div className="login-hero-panel">
+          <div className="brand login-brand">
+            <div className="brand-mark">
+              <Megaphone size={24} />
+            </div>
+            <div>
+              <strong>Voiceup Bharat</strong>
+              <span>Enterprise campaign operations</span>
+            </div>
           </div>
-          <div>
-            <strong>Voiceup Bharat</strong>
-            <span>SaaS admin access</span>
+
+          <div className="login-copy">
+            <span className="eyebrow">Protected SaaS workspace</span>
+            <h1 id="saas-login-title">Manage organizations with enterprise-grade control.</h1>
+            <p>
+              Access subscription controls, integrations, campaign operations, and production
+              workspace settings from a focused admin console.
+            </p>
+          </div>
+
+          <div className="login-value-grid" aria-label="Workspace capabilities">
+            <div>
+              <Building2 size={18} />
+              <span>Organizations</span>
+              <strong>Tenant-ready</strong>
+            </div>
+            <div>
+              <ShieldCheck size={18} />
+              <span>Access</span>
+              <strong>Protected</strong>
+            </div>
+            <div>
+              <CheckCircle2 size={18} />
+              <span>Operations</span>
+              <strong>Demo-ready</strong>
+            </div>
           </div>
         </div>
-        <span className="eyebrow">Protected SaaS workspace</span>
-        <h1>Login to manage campaign organizations.</h1>
-        <p>
-          Use this protected workspace to create campaigns, configure subscriptions, manage public
-          links, and view reports.
-        </p>
-        <form className="form-stack" onSubmit={onSubmit}>
-          <input
-            type="email"
-            placeholder="SaaS admin email"
-            value={appLogin.email}
-            onChange={(event) => setAppLogin({ ...appLogin, email: event.target.value })}
-          />
-          <PasswordField
-            placeholder="SaaS admin passcode"
-            value={appLogin.passcode}
-            onChange={(event) => setAppLogin({ ...appLogin, passcode: event.target.value })}
-          />
+
+        <div className="login-form-panel">
+          <div className="login-form-header">
+            <span className="login-lock-icon" aria-hidden="true">
+              <LockKeyhole size={20} />
+            </span>
+            <div>
+              <span className="eyebrow">SaaS admin access</span>
+              <h2>Sign in to workspace</h2>
+            </div>
+          </div>
+
+          <form className="form-stack login-form" onSubmit={onSubmit}>
+            <label className="field" htmlFor="saas-admin-email">
+              <span className="label">Email address</span>
+              <input
+                id="saas-admin-email"
+                name="email"
+                type="email"
+                placeholder="SaaS admin email"
+                autoComplete="email"
+                value={appLogin.email}
+                onChange={(event) => setAppLogin({ ...appLogin, email: event.target.value })}
+              />
+            </label>
+            <label className="field" htmlFor="saas-admin-passcode">
+              <span className="label">Passcode</span>
+              <PasswordField
+                id="saas-admin-passcode"
+                name="password"
+                placeholder="SaaS admin passcode"
+                autoComplete="current-password"
+                value={appLogin.passcode}
+                onChange={(event) => setAppLogin({ ...appLogin, passcode: event.target.value })}
+              />
+            </label>
           <div className="login-role-note">
             <strong>Login role: SaaS / Platform Admin</strong>
             <span>
@@ -71,7 +118,8 @@ export function SaasAppLoginPage({
             VITE_VOICEUP_APP_ADMIN_EMAIL and VITE_VOICEUP_APP_ADMIN_PASSCODE. For real production,
             replace this with Supabase Auth.
           </p>
-        </form>
+          </form>
+        </div>
       </section>
     </main>
   );

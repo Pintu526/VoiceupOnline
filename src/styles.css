@@ -231,19 +231,6 @@ button {
   color: var(--text-soft);
 }
 
-.login-role-note {
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  display: grid;
-  gap: 4px;
-  padding: 12px;
-}
-
-.login-role-note span {
-  color: var(--text-soft);
-}
-
 .primary-link-button {
   align-items: center;
   background: var(--primary);
@@ -1713,11 +1700,178 @@ td span {
   width: 100%;
 }
 
+.login-shell {
+  align-items: center;
+  display: grid;
+  min-height: 100vh;
+  padding: clamp(18px, 4vw, 44px);
+}
+
+.login-layout,
 .campaign-admin-login {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+}
+
+.login-layout {
+  display: grid;
+  gap: 0;
+  grid-template-columns: minmax(0, 1.08fr) minmax(380px, 0.92fr);
+  margin: 0 auto;
+  max-width: 1120px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.login-hero-panel {
+  background:
+    linear-gradient(135deg, rgba(18, 58, 140, 0.96), rgba(7, 31, 78, 0.94)),
+    var(--primary-dark);
+  color: #ffffff;
+  display: grid;
+  gap: clamp(28px, 5vw, 58px);
+  min-height: 560px;
+  padding: clamp(28px, 4vw, 48px);
+  position: relative;
+}
+
+.login-hero-panel::after {
+  background: linear-gradient(90deg, var(--saffron), #ffffff, var(--india-green));
+  bottom: 0;
+  content: "";
+  height: 4px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.login-brand .brand-mark {
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+}
+
+.login-brand span,
+.login-hero-panel .eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.login-copy {
+  align-self: center;
+  display: grid;
+  gap: 14px;
+  max-width: 620px;
+}
+
+.login-copy h1 {
+  font-size: clamp(2.15rem, 4vw, 4.25rem);
+  line-height: 1.02;
+  margin: 0;
+}
+
+.login-copy p {
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 1.02rem;
+  line-height: 1.65;
+  margin: 0;
+  max-width: 560px;
+}
+
+.login-value-grid {
+  align-self: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.login-value-grid div {
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 7px;
+  min-height: 112px;
+  padding: 14px;
+}
+
+.login-value-grid svg {
+  color: #ffffff;
+}
+
+.login-value-grid span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.82rem;
+}
+
+.login-value-grid strong {
+  font-size: 1.02rem;
+}
+
+.login-form-panel {
+  align-content: center;
+  background: var(--panel-solid);
+  display: grid;
+  gap: 24px;
+  padding: clamp(28px, 4vw, 48px);
+}
+
+.login-form-header {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.login-form-header h2 {
+  font-size: clamp(1.55rem, 2.2vw, 2rem);
+  line-height: 1.1;
+  margin: 3px 0 0;
+}
+
+.login-lock-icon {
+  align-items: center;
+  background: color-mix(in srgb, var(--primary) 10%, var(--panel-solid));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--primary);
+  display: grid;
+  height: 46px;
+  place-items: center;
+  width: 46px;
+}
+
+.login-form {
+  gap: 14px;
+}
+
+.login-form .primary-button {
+  margin-top: 2px;
+  min-height: 44px;
+  width: 100%;
+}
+
+.login-role-note {
+  align-items: flex-start;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  gap: 10px;
+  padding: 13px;
+}
+
+.login-role-note svg {
+  color: var(--primary);
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.login-role-note span {
+  color: var(--text-soft);
+  display: block;
+  margin-top: 2px;
+}
+
+.campaign-admin-login {
   display: grid;
   gap: 18px;
   margin: 8vh auto;
@@ -1788,6 +1942,7 @@ td span {
 
   .hero,
   .marketing-hero,
+  .login-layout,
   .two-column,
   .public-layout,
   .scan-grid,
@@ -1805,6 +1960,11 @@ td span {
 
   .main,
   .sidebar {
+    padding: 14px;
+  }
+
+  .login-shell {
+    align-items: start;
     padding: 14px;
   }
 
@@ -1852,6 +2012,28 @@ td span {
   .campaign-admin-login {
     margin: 4vh auto;
     padding: 20px;
+  }
+
+  .login-hero-panel,
+  .login-form-panel {
+    padding: 22px;
+  }
+
+  .login-hero-panel {
+    gap: 24px;
+    min-height: auto;
+  }
+
+  .login-copy h1 {
+    font-size: clamp(1.85rem, 12vw, 2.45rem);
+  }
+
+  .login-value-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .login-value-grid div {
+    min-height: 0;
   }
 
   .activity-card,

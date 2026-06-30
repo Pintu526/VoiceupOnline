@@ -1,0 +1,296 @@
+import { useState } from "react";
+import {
+  findLocationByPin,
+  findPinCode,
+  getBlockOptions,
+  getDistrictOptions,
+  getPanchayatOptions,
+  getPinOptions,
+  indianStatesAndUnionTerritories,
+  type LocationDeletionLevel,
+  type LocationDeletions,
+  type LocationOverrides,
+  type LocationWithPin
+} from "../geography";
+import { Field } from "../ui/Field";
+import { InlineAddOption } from "./InlineAddOption";
+import { InlineDeleteOption } from "./InlineDeleteOption";
+
+interface IndiaLocationFieldsProps {
+  idPrefix: string;
+  values: LocationWithPin;
+  onChange: (values: LocationWithPin) => void;
+  locationOverrides: LocationOverrides;
+  locationDeletions: LocationDeletions;
+  allowInlineAdd?: boolean;
+  onAddLocation?: (values: LocationWithPin) => void;
+  onRemoveLocation?: (values: LocationWithPin, level: LocationDeletionLevel) => void;
+}
+
+function optionExists(options: string[], value: string): boolean {
+  const normalizedValue = value.trim().toLowerCase();
+  return options.some((option) => option.trim().toLowerCase() === normalizedValue);
+}
+
+export function IndiaLocationFields({
+  idPrefix,
+  values,
+  onChange,
+  locationOverrides,
+  locationDeletions,
+  allowInlineAdd = false,
+  onAddLocation,
+  onRemoveLocation
+}: IndiaLocationFieldsProps) {
+  const [newDistrict, setNewDistrict] = useState("");
+  const [newBlock, setNewBlock] = useState("");
+  const [newPanchayat, setNewPanchayat] = useState("");
+
+  const districtOptions = getDistrictOptions(values.state, locationOverrides, locationDeletions);
+  const blockOptions = getBlockOptions(values.state, values.district, locationOverrides, locationDeletions);
+  const panchayatOptions = getPanchayatOptions(
+    values.state,
+    values.district,
+    values.block,
+    locationOverrides,
+    locationDeletions
+  );
+  const pinOptions = getPinOptions(values);
+
+  const canDeleteDistrict = Boolean(allowInlineAdd && values.state && values.district);
+  const canDeleteBlock = Boolean(allowInlineAdd && values.state && values.district && values.block);
+  const canDeletePanchayat = Boolean(
+    allowInlineAdd && values.state && values.district && values.block && values.panchayat
+  );
+
+  function updateLocation(nextValues: LocationWithPin) {
+    const matchedPin = findPinCode(nextValues);
+    onChange({ ...nextValues, postalCode: matchedPin ?? nextValues.postalCode });
+  }
+
+  function selectState(state: string) {
+    const districts = getDistrictOptions(state, locationOverrides, locationDeletions);
+    const district = districts[0] ?? "";
+    const blocks = getBlockOptions(state, district, locationOverrides, locationDeletions);
+    const block = blocks[0] ?? "";
+    const panchayats = getPanchayatOptions(state, district, block, locationOverrides, locationDeletions);
+    const panchayat = panchayats[0] ?? "";
+    updateLocation({ state, district, block, panchayat, postalCode: "" });
+  }
+
+  function selectDistrict(district: string) {
+    const blocks = getBlockOptions(values.state, district, locationOverrides, locationDeletions);
+    const block = blocks[0] ?? "";
+    const panchayats = getPanchayatOptions(values.state, district, block, locationOverrides, locationDeletions);
+    const panchayat = panchayats[0] ?? "";
+    updateLocation({ ...values, district, block, panchayat, postalCode: "" });
+  }
+
+  function selectBlock(block: string) {
+    const panchayats = getPanchayatOptions(values.state, values.district, block, locationOverrides, locationDeletions);
+    const panchayat = panchayats[0] ?? "";
+    updateLocation({ ...values, block, panchayat, postalCode: "" });
+  }
+
+  function updatePin(postalCode: string) {
+    const normalizedPin = postalCode.replace(/\D/g, "").slice(0, 6);
+    const matchedLocation = findLocationByPin(normalizedPin);
+    onChange(matchedLocation ? { ...matchedLocation } : { ...values, postalCode: normalizedPin });
+  }
+
+  function addDistrict() {
+    const district = newDistrict.trim();
+    if (!values.state || !district || optionExists(districtOptions, district)) return;
+    const nextValues = { ...values, district, block: "", panchayat: "", postalCode: "" };
+    onAddLocation?.(nextValues);
+    updateLocation(nextValues);
+    setNewDistrict("");
+  }
+
+  function addBlock() {
+    const block = newBlock.trim();
+    if (!values.state || !values.district || !block || optionExists(blockOptions, block)) return;
+    const nextValues = { ...values, block, panchayat: "", postalCode: "" };
+    onAddLocation?.(nextValues);
+    updateLocation(nextValues);
+    setNewBlock("");
+  }
+
+  function addPanchayat() {
+    const panchayat = newPanchayat.trim();
+    if (
+      !values.state ||
+      !values.district ||
+      !values.block ||
+      !panchayat ||
+      optionExists(panchayatOptions, panchayat)
+    ) {
+      return;
+    }
+    const nextValues = { ...values, panchayat };
+    onAddLocation?.(nextValues);
+    updateLocation(nextValues);
+    setNewPanchayat("");
+  }
+
+  function deleteDistrict() {
+    onRemoveLocation?.(values, "district");
+    updateLocation({ ...values, district: "", block: "", panchayat: "", postalCode: "" });
+  }
+
+  function deleteBlock() {
+    onRemoveLocation?.(values, "block");
+    updateLocation({ ...values, block: "", panchayat: "", postalCode: "" });
+  }
+
+  function deletePanchayat() {
+    onRemoveLocation?.(values, "panchayat");
+    updateLocation({ ...values, panchayat: "", postalCode: "" });
+  }
+
+  return (
+    <>
+      <Field label="State / Union Territory">
+        <select value={values.state} onChange={(event) => selectState(event.target.value)}>
+          <option value="">Select state</option>
+          {indianStatesAndUnionTerritories.map((state) => (
+            <option key={state} value={state}>
+              {state}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="District">
+        <select
+          value={values.district}
+          onChange={(event) => selectDistrict(event.target.value)}
+          disabled={!values.state || districtOptions.length === 0}
+        >
+          <option value="">
+            {districtOptions.length ? "Select district" : "Select state first"}
+          </option>
+          {districtOptions.map((district) => (
+            <option key={district} value={district}>
+              {district}
+            </option>
+          ))}
+        </select>
+        {allowInlineAdd && (
+          <>
+            <InlineAddOption
+              placeholder="Add missing district"
+              value={newDistrict}
+              onChange={setNewDistrict}
+              onAdd={addDistrict}
+              disabled={
+                !values.state || !newDistrict.trim() || optionExists(districtOptions, newDistrict)
+              }
+              duplicate={Boolean(newDistrict.trim() && optionExists(districtOptions, newDistrict))}
+            />
+            {canDeleteDistrict && (
+              <InlineDeleteOption
+                label={`Delete district "${values.district}"`}
+                onDelete={deleteDistrict}
+              />
+            )}
+          </>
+        )}
+      </Field>
+
+      <Field label="Block / Tehsil / Taluk">
+        <select
+          value={values.block}
+          onChange={(event) => selectBlock(event.target.value)}
+          disabled={!values.district || blockOptions.length === 0}
+        >
+          <option value="">
+            {blockOptions.length ? "Select block / ward group" : "Select district first"}
+          </option>
+          {blockOptions.map((block) => (
+            <option key={block} value={block}>
+              {block}
+            </option>
+          ))}
+        </select>
+        {allowInlineAdd && (
+          <>
+            <InlineAddOption
+              placeholder="Add missing block"
+              value={newBlock}
+              onChange={setNewBlock}
+              onAdd={addBlock}
+              disabled={
+                !values.district || !newBlock.trim() || optionExists(blockOptions, newBlock)
+              }
+              duplicate={Boolean(newBlock.trim() && optionExists(blockOptions, newBlock))}
+            />
+            {canDeleteBlock && (
+              <InlineDeleteOption
+                label={`Delete block "${values.block}"`}
+                onDelete={deleteBlock}
+              />
+            )}
+          </>
+        )}
+      </Field>
+
+      <Field label="Gram Panchayat / Ward">
+        <select
+          value={values.panchayat}
+          onChange={(event) => updateLocation({ ...values, panchayat: event.target.value })}
+          disabled={!values.block || panchayatOptions.length === 0}
+        >
+          <option value="">
+            {panchayatOptions.length ? "Select panchayat / ward" : "Select block first"}
+          </option>
+          {panchayatOptions.map((panchayat) => (
+            <option key={panchayat} value={panchayat}>
+              {panchayat}
+            </option>
+          ))}
+        </select>
+        {allowInlineAdd && (
+          <>
+            <InlineAddOption
+              placeholder="Add missing panchayat/ward"
+              value={newPanchayat}
+              onChange={setNewPanchayat}
+              onAdd={addPanchayat}
+              disabled={
+                !values.block ||
+                !newPanchayat.trim() ||
+                optionExists(panchayatOptions, newPanchayat)
+              }
+              duplicate={Boolean(
+                newPanchayat.trim() && optionExists(panchayatOptions, newPanchayat)
+              )}
+            />
+            {canDeletePanchayat && (
+              <InlineDeleteOption
+                label={`Delete panchayat/ward "${values.panchayat}"`}
+                onDelete={deletePanchayat}
+              />
+            )}
+          </>
+        )}
+      </Field>
+
+      <Field label="PIN code">
+        <input
+          inputMode="numeric"
+          list={`${idPrefix}-pins`}
+          maxLength={6}
+          placeholder="Auto-filled or enter 6-digit PIN"
+          value={values.postalCode}
+          onChange={(event) => updatePin(event.target.value)}
+        />
+        <datalist id={`${idPrefix}-pins`}>
+          {pinOptions.map((pinCode) => (
+            <option key={pinCode} value={pinCode} />
+          ))}
+        </datalist>
+      </Field>
+    </>
+  );
+}

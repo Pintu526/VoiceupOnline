@@ -1,5 +1,5 @@
-import { CheckCircle2, FileScan, Plus, SearchCheck, Upload } from "lucide-react";
-import type { Campaign, ScanReviewItem } from "../../types";
+import { CheckCircle2, ClipboardList, FileScan, Plus, SearchCheck, Upload, UsersRound } from "lucide-react";
+import type { Campaign, ScanReviewItem, Signer } from "../../types";
 import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
@@ -8,6 +8,7 @@ import { signerFieldLabel } from "../../utils/campaign";
 interface ScansTabProps {
   activeCampaign: Campaign | undefined;
   scanItems: ScanReviewItem[];
+  campaignSigners: Signer[];
   setScanItems: React.Dispatch<React.SetStateAction<ScanReviewItem[]>>;
   scanText: string;
   setScanText: React.Dispatch<React.SetStateAction<string>>;
@@ -27,6 +28,7 @@ interface ScansTabProps {
 export function ScansTab({
   activeCampaign,
   scanItems,
+  campaignSigners,
   setScanItems,
   scanText,
   setScanText,
@@ -49,10 +51,16 @@ export function ScansTab({
   }
 
   const campaignScanItems = scanItems.filter((item) => item.campaignId === activeCampaign.id);
+  const reviewQueueItems = campaignScanItems.filter((item) => item.status === "Needs review");
+  const importedSupporters = campaignSigners.filter((signer) => signer.source === "scan");
+  const duplicateOrRejectedSigners = campaignSigners.filter(
+    (signer) => signer.status === "duplicate" || signer.status === "rejected"
+  );
+  const rejectedScanItems = campaignScanItems.filter((item) => item.status === "Rejected");
 
   return (
     <section className="page-stack">
-      <Panel title="Scan hard-copy signatures" icon={<Upload />}>
+      <Panel title="Upload paper sheet" icon={<Upload />}>
         <div className="scan-grid">
           <label className="drop-zone">
             <FileScan size={34} />
@@ -74,19 +82,34 @@ export function ScansTab({
               value={scanText}
               onChange={(e) => setScanText(e.target.value)}
             />
-            <button className="secondary-button" type="button" onClick={onCreateManualScanItem}>
-              <Plus size={18} /> Create review item
-            </button>
           </div>
         </div>
         {isScanning && <p className="info-message">OCR processing is running...</p>}
         {scanMessage && <p className="success-message">{scanMessage}</p>}
       </Panel>
 
-      <Panel title="Scan review queue" icon={<SearchCheck />}>
+      <Panel title="Manual entry" icon={<Plus />}>
+        <div className="form-stack">
+          <p className="helper-text">
+            Paste typed supporter details or corrected OCR text, then create a review item before approval.
+          </p>
+          <textarea
+            rows={6}
+            value={scanText}
+            onChange={(e) => setScanText(e.target.value)}
+          />
+          <div className="button-row">
+            <button className="secondary-button" type="button" onClick={onCreateManualScanItem}>
+              <Plus size={18} /> Create review item
+            </button>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel title="OCR/review queue" icon={<SearchCheck />}>
         <div className="review-list">
-          {campaignScanItems.length === 0 && <p>No scans are waiting for review.</p>}
-          {campaignScanItems.map((item) => (
+          {reviewQueueItems.length === 0 && <p>No field collection items are waiting for review.</p>}
+          {reviewQueueItems.map((item) => (
             <div className="review-card" key={item.id}>
               <div>
                 <strong>{item.fileName}</strong>
@@ -141,6 +164,47 @@ export function ScansTab({
                   Reject
                 </button>
               </div>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Imported supporters" icon={<UsersRound />}>
+        <div className="activity-list">
+          {importedSupporters.length === 0 && <p>No imported supporters yet.</p>}
+          {importedSupporters.slice(0, 12).map((signer) => (
+            <div className="activity-card" key={signer.id}>
+              <div>
+                <strong>{signer.name || "Unnamed supporter"}</strong>
+                <span>{[signer.phone, signer.district, signer.state].filter(Boolean).join(" · ")}</span>
+              </div>
+              <span className="status-pill" data-status={signer.status}>{signer.status}</span>
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Duplicates/rejected" icon={<ClipboardList />}>
+        <div className="activity-list">
+          {duplicateOrRejectedSigners.length === 0 && rejectedScanItems.length === 0 && (
+            <p>No duplicate or rejected field entries.</p>
+          )}
+          {duplicateOrRejectedSigners.slice(0, 8).map((signer) => (
+            <div className="activity-card" key={signer.id}>
+              <div>
+                <strong>{signer.name || "Unnamed supporter"}</strong>
+                <span>{signer.reviewerNote || "Needs follow-up before counting as verified."}</span>
+              </div>
+              <span className="status-pill" data-status={signer.status}>{signer.status}</span>
+            </div>
+          ))}
+          {rejectedScanItems.slice(0, 8).map((item) => (
+            <div className="activity-card" key={item.id}>
+              <div>
+                <strong>{item.fileName}</strong>
+                <span>Rejected review item</span>
+              </div>
+              <span className="status-pill" data-status="rejected">Rejected</span>
             </div>
           ))}
         </div>

@@ -114,6 +114,9 @@ export function getAuthorityOptionsForCampaign(
   const level = campaign.authorityTargetLevel ?? "district";
   return authorities.filter((authority) => {
     if (authority.level !== "any" && authority.level !== level) return false;
+    if (authority.category !== "Any" && authority.category !== campaign.category) return false;
+    if (authority.panchayat && authority.panchayat !== campaign.panchayat) return false;
+    if (authority.block && authority.block !== campaign.block) return false;
     if (
       level === "district" &&
       authority.district &&
@@ -127,7 +130,18 @@ export function getAuthorityOptionsForCampaign(
     )
       return false;
     return true;
-  });
+  }).sort((first, second) => getAuthorityLocalityScore(second, campaign) - getAuthorityLocalityScore(first, campaign));
+}
+
+function getAuthorityLocalityScore(authority: AuthorityRule, campaign: Campaign): number {
+  let score = 0;
+  if (authority.panchayat && authority.panchayat === campaign.panchayat) score += 500;
+  if (authority.block && authority.block === campaign.block) score += 400;
+  if (authority.district && authority.district === campaign.district) score += 300;
+  if (authority.state && authority.state === campaign.state) score += 200;
+  if (authority.category === campaign.category) score += 100;
+  if (authority.category === "Any") score += 10;
+  return score + authority.confidence;
 }
 
 export function formatAuthorityDisplay(authority: AuthorityRule): string {

@@ -4,8 +4,18 @@ import {
   initialIntegrationSettings
 } from "../data";
 import type { VoiceupRemoteState } from "../backend";
-import type { Campaign, Organization } from "../types";
+import type { Campaign, LocationGovernanceLevel, Organization } from "../types";
 import { getCampaignMetrics } from "../lib";
+
+const locationLevelOrder: LocationGovernanceLevel[] = [
+  "none",
+  "state",
+  "district",
+  "block",
+  "panchayat"
+];
+
+type LocationFields = Pick<Campaign, "state" | "district" | "block" | "panchayat">;
 
 export function getCampaignBaseUrl(organization: Organization): string {
   if (organization.customDomain.trim()) {
@@ -32,6 +42,102 @@ export function hasSaasLocks(campaign: Campaign): boolean {
       campaign.maxSignersAllowed > 0 ||
       campaign.maxScansAllowed > 0
   );
+}
+
+export function getLocationGovernance(organization: Organization) {
+  return {
+    state: organization.locationGovernance?.state ?? "",
+    district: organization.locationGovernance?.district ?? "",
+    block: organization.locationGovernance?.block ?? "",
+    panchayat: organization.locationGovernance?.panchayat ?? "",
+    lockLevel: organization.locationGovernance?.lockLevel ?? "none" as LocationGovernanceLevel
+  };
+}
+
+export function getSignerLocationRestrictionLevel(campaign: Campaign): LocationGovernanceLevel {
+  return campaign.signerLocationRestrictionLevel ?? "none";
+}
+
+export function getEffectiveSignerLocationRestrictionLevel(
+  campaign: Campaign,
+  organization?: Organization
+): LocationGovernanceLevel {
+  const campaignLevel = getSignerLocationRestrictionLevel(campaign);
+  const governanceLevel = organization ? getLocationGovernance(organization).lockLevel : "none";
+  return locationLevelOrder.indexOf(governanceLevel) > locationLevelOrder.indexOf(campaignLevel)
+    ? governanceLevel
+    : campaignLevel;
+}
+
+export function isLocationLevelAtLeast(
+  level: LocationGovernanceLevel,
+  minimum: LocationGovernanceLevel
+): boolean {
+  return locationLevelOrder.indexOf(level) >= locationLevelOrder.indexOf(minimum);
+}
+
+export function getLockedLocationValues(
+  values: Partial<LocationFields>,
+  level: LocationGovernanceLevel
+): Partial<LocationFields> {
+  if (level === "none") return {};
+  return {
+    ...(isLocationLevelAtLeast(level, "state") ? { state: values.state ?? "" } : {}),
+    ...(isLocationLevelAtLeast(level, "district") ? { district: values.district ?? "" } : {}),
+    ...(isLocationLevelAtLeast(level, "block") ? { block: values.block ?? "" } : {}),
+    ...(isLocationLevelAtLeast(level, "panchayat") ? { panchayat: values.panchayat ?? "" } : {})
+  };
+}
+
+export function applyLocationGovernanceToCampaign(
+  campaign: Campaign,
+  organization: Organization
+): Campaign {
+  const governance = getLocationGovernance(organization);
+  const lockedValues = getLockedLocationValues(governance, governance.lockLevel);
+  return { ...campaign, ...lockedValues };
+}
+
+export function applySignerLocationRestriction<T extends Partial<LocationFields>>(
+  campaign: Campaign,
+  signerValues: T,
+  organization?: Organization
+): T {
+  const restrictionLevel = getEffectiveSignerLocationRestrictionLevel(campaign, organization);
+  const lockedValues = getLockedLocationValues(campaign, restrictionLevel);
+  return { ...signerValues, ...lockedValues };
+}
+
+export function isWithinLocationRestriction(
+  campaign: Campaign,
+  values: Partial<LocationFields>,
+  organization?: Organization
+): boolean {
+  const restrictionLevel = getEffectiveSignerLocationRestrictionLevel(campaign, organization);
+  if (restrictionLevel === "none") return true;
+  const restrictedValues = getLockedLocationValues(campaign, restrictionLevel);
+  return Object.entries(restrictedValues).every(
+    ([key, value]) =>
+      !value ||
+      ((values[key as keyof LocationFields] ?? "").trim().toLowerCase() === value.trim().toLowerCase())
+  );
+}
+
+export function getLocationRestrictionMessage(campaign: Campaign, organization?: Organization): string {
+  const restrictionLevel = getEffectiveSignerLocationRestrictionLevel(campaign, organization);
+  const values = getLockedLocationValues(campaign, restrictionLevel);
+  const location = [values.panchayat, values.block, values.district, values.state]
+    .filter(Boolean)
+    .join(", ");
+  return location ? `This campaign is restricted to ${location}.` : "";
+}
+
+export function getLocationLevelLabel(level: LocationGovernanceLevel): string {
+  if (level === "state") return "State";
+  if (level === "district") return "District";
+  if (level === "block") return "Block";
+  if (level === "panchayat") return "Panchayat/Ward";
+  return "None";
 }
 
 export function getTomorrowDate(): string {

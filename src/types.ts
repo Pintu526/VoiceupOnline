@@ -17,6 +17,7 @@ export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled";
 
 export type AuthorityTargetLevel = "district" | "state" | "country";
 export type AuthoritySelectionMode = "admin_enforced" | "public_choice";
+export type LocationGovernanceLevel = "none" | "state" | "district" | "block" | "panchayat";
 
 export type UserRole = "platform_owner" | "organization_admin" | "campaign_admin" | "reviewer" | "viewer";
 
@@ -86,6 +87,7 @@ export interface Campaign {
   socialShareText: string;
   thankYouMessage: string;
   participantUpdateMessage: string;
+  signerLocationRestrictionLevel?: LocationGovernanceLevel;
 }
 
 export interface Signer {
@@ -122,6 +124,8 @@ export interface AuthorityRule {
   level: AuthorityTargetLevel | "any";
   state: string;
   district: string;
+  block?: string;
+  panchayat?: string;
   address: string;
   phone: string;
   category: CampaignCategory | "Any";
@@ -150,6 +154,13 @@ export interface Organization {
   billingEmail: string;
   seats: number;
   paymentReference: string;
+  locationGovernance?: {
+    state?: string;
+    district?: string;
+    block?: string;
+    panchayat?: string;
+    lockLevel?: LocationGovernanceLevel;
+  };
 }
 
 export interface AuditLogEntry {

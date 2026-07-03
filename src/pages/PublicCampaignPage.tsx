@@ -1,6 +1,14 @@
 import type { FormEvent } from "react";
-import { CheckCircle2, ClipboardList, QrCode } from "lucide-react";
-import type { AuthorityRule, Campaign, Signer } from "../types";
+import {
+  CheckCircle2,
+  ClipboardList,
+  Copy,
+  LockKeyhole,
+  QrCode,
+  Share2,
+  ShieldCheck,
+} from "lucide-react";
+import type { AuthorityRule, Campaign, Organization, Signer, SignerRequiredField } from "../types";
 import type { LocationDeletions, LocationOverrides } from "../geography";
 import type { getCampaignMetrics } from "../lib";
 import { exportSignerAppealPdf } from "../lib";
@@ -14,11 +22,19 @@ import {
   getPublicAuthorityOptions,
   formatAuthorityDisplay
 } from "../utils/authority";
-import { getCampaignGoalValue, renderCampaignMessage } from "../utils/campaign";
-import { whatsAppLink, smsLink } from "../utils/links";
+import {
+  applySignerLocationRestriction,
+  getCampaignGoalValue,
+  getEffectiveSignerLocationRestrictionLevel,
+  getLocationRestrictionMessage,
+  getLockedLocationValues,
+  renderCampaignMessage
+} from "../utils/campaign";
+import { whatsAppLink } from "../utils/links";
 
 interface PublicCampaignPageProps {
   campaign: Campaign;
+  organization?: Organization;
   metrics: ReturnType<typeof getCampaignMetrics>;
   authority?: AuthorityRule;
   authorities: AuthorityRule[];
@@ -38,6 +54,7 @@ interface PublicCampaignPageProps {
 
 export function PublicCampaignPage({
   campaign,
+  organization,
   metrics,
   authority,
   authorities,
@@ -56,6 +73,22 @@ export function PublicCampaignPage({
 }: PublicCampaignPageProps) {
   const publicAuthorityOptions = getPublicAuthorityOptions(campaign, authorities);
   const resolvedAuthority = authority ?? getAppealAuthority(campaign);
+  const signerRestrictionLevel = getEffectiveSignerLocationRestrictionLevel(campaign, organization);
+  const restrictedPublicForm = applySignerLocationRestriction(campaign, publicForm, organization);
+  const restrictionMessage = getLocationRestrictionMessage(campaign, organization);
+  const lockedLocation = getLockedLocationValues(campaign, signerRestrictionLevel);
+  const lockedLocationParts = [
+    lockedLocation.state,
+    lockedLocation.district,
+    lockedLocation.block,
+    lockedLocation.panchayat
+  ].filter(Boolean);
+  const districtParticipation = campaign.district || restrictedPublicForm.district || "Not captured yet";
+  const requiredFields = campaign.requiredFields ?? [];
+  const signerFieldLabel = (label: string, field: SignerRequiredField) =>
+    requiredFields.includes(field) ? `${label} *` : label;
+  const shareText = encodeURIComponent(campaign.socialShareText || campaign.title);
+  const shareUrl = encodeURIComponent(campaign.shareUrl);
 
   return (
     <section className="public-layout">
@@ -71,19 +104,44 @@ export function PublicCampaignPage({
           backgroundSize: `${campaign.heroImageZoom}%`
         }}
       >
-        <span className="status-pill" data-status={campaign.status}>{campaign.status}</span>
-        <h1>{campaign.title}</h1>
-        <p>{campaign.description}</p>
-        <div className="appeal-card">
-          <span className="eyebrow">Appeal to {resolvedAuthority.name}</span>
-          <p>{campaign.appealContent || campaign.description}</p>
+        <div className="public-hero-content">
+          <span className="status-pill" data-status={campaign.status}>{campaign.status}</span>
+          <h1>{campaign.title}</h1>
+          <p className="public-summary">{campaign.description}</p>
+        </div>
+        <div className="public-hero-grid">
+          <div className="appeal-card">
+            <span className="eyebrow">Why your signature matters</span>
+            <p>{campaign.appealContent || campaign.description}</p>
+          </div>
+          <div className="appeal-card authority-receiver">
+            <span className="eyebrow">Authority receiving petition</span>
+            <strong>{resolvedAuthority.name}</strong>
+            <p>{formatAuthorityDisplay(resolvedAuthority)}</p>
+          </div>
         </div>
         <div className="public-progress">
           <div className="progress">
             <div style={{ width: `${metrics.progress}%` }} />
           </div>
-          <strong>{metrics.verified.toLocaleString()}</strong> of{" "}
-          {getCampaignGoalValue(campaign).toLocaleString()} verified signatures
+          <div>
+            <strong>{metrics.verified.toLocaleString()}</strong>
+            <span>of {getCampaignGoalValue(campaign).toLocaleString()} verified signatures</span>
+          </div>
+        </div>
+        <div className="supporter-counter">
+          <div>
+            <span>Total supporters</span>
+            <strong>{metrics.total.toLocaleString()}</strong>
+          </div>
+          <div>
+            <span>Verified supporters</span>
+            <strong>{metrics.verified.toLocaleString()}</strong>
+          </div>
+          <div>
+            <span>District participation</span>
+            <strong>{districtParticipation}</strong>
+          </div>
         </div>
         {campaign.donationEnabled && <DonationCard campaign={campaign} compact />}
         <div className="qr-box">
@@ -100,27 +158,34 @@ export function PublicCampaignPage({
         )}
       </div>
 
-      <Panel title="Support this campaign" icon={<ClipboardList />}>
-        <form className="form-stack" onSubmit={onSubmit}>
-          <input
-            aria-label="Full name"
-            placeholder="Full name"
-            value={publicForm.name}
-            onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
-          />
-          <input
-            aria-label="Email"
-            placeholder="Email"
-            type="email"
-            value={publicForm.email}
-            onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
-          />
-          <input
-            aria-label="Phone"
-            placeholder="Phone"
-            value={publicForm.phone}
-            onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
-          />
+      <Panel title="Add your signature" icon={<ClipboardList />}>
+        <form id="public-sign-form" className="form-stack public-sign-form" onSubmit={onSubmit}>
+          <p className="required-note">Fields marked * are required.</p>
+          <Field label={signerFieldLabel("Full name", "name")}>
+            <input
+              aria-label="Full name"
+              placeholder="Full name"
+              value={publicForm.name}
+              onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
+            />
+          </Field>
+          <Field label={signerFieldLabel("Email", "email")}>
+            <input
+              aria-label="Email"
+              placeholder="Email"
+              type="email"
+              value={publicForm.email}
+              onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
+            />
+          </Field>
+          <Field label={signerFieldLabel("Phone", "phone")}>
+            <input
+              aria-label="Phone"
+              placeholder="Phone"
+              value={publicForm.phone}
+              onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
+            />
+          </Field>
           {campaign.authoritySelectionMode === "public_choice" && (
             <Field label="Choose authority for your appeal">
               <select
@@ -162,35 +227,68 @@ export function PublicCampaignPage({
             {publicForm.otpVerified && <span className="status-pill">Phone verified</span>}
             {otpMessage && <p className="info-message">{otpMessage}</p>}
           </div>
-          <input
-            aria-label="WhatsApp number"
-            placeholder="WhatsApp number (optional, if different)"
-            value={publicForm.whatsappNumber}
-            onChange={(event) =>
-              setPublicForm({ ...publicForm, whatsappNumber: event.target.value })
-            }
-          />
-          <input
-            aria-label="Telegram handle or number"
-            placeholder="Telegram handle or number (optional)"
-            value={publicForm.telegramHandle}
-            onChange={(event) =>
-              setPublicForm({ ...publicForm, telegramHandle: event.target.value })
-            }
-          />
+          <Field label="WhatsApp number">
+            <input
+              aria-label="WhatsApp number"
+              placeholder="If different from phone"
+              value={publicForm.whatsappNumber}
+              onChange={(event) =>
+                setPublicForm({ ...publicForm, whatsappNumber: event.target.value })
+              }
+            />
+          </Field>
+          <Field label="Telegram handle or number">
+            <input
+              aria-label="Telegram handle or number"
+              placeholder="@handle or number"
+              value={publicForm.telegramHandle}
+              onChange={(event) =>
+                setPublicForm({ ...publicForm, telegramHandle: event.target.value })
+              }
+            />
+          </Field>
+          {restrictionMessage && (
+            <div className="public-location-limit" aria-live="polite">
+              <span aria-hidden="true">📍</span>
+              <div>
+                <strong>This campaign is limited to</strong>
+                {lockedLocationParts.length > 0 ? (
+                  <ul>
+                    {lockedLocationParts.map((location) => (
+                      <li key={location}>{location}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p>{restrictionMessage}</p>
+                )}
+              </div>
+            </div>
+          )}
           <IndiaLocationFields
             idPrefix="public-signer-location"
-            values={publicForm}
-            onChange={(values) => setPublicForm({ ...publicForm, ...values })}
+            values={restrictedPublicForm}
+            onChange={(values) =>
+              setPublicForm(applySignerLocationRestriction(campaign, { ...publicForm, ...values }, organization))
+            }
             locationOverrides={locationOverrides}
             locationDeletions={locationDeletions}
+            allowedLocation={lockedLocation}
+            hiddenLockedLevel={signerRestrictionLevel}
+            requiredFields={requiredFields}
           />
-          <input
-            aria-label="Address"
-            placeholder="Address"
-            value={publicForm.address}
-            onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
-          />
+          <Field label={signerFieldLabel("Address", "address")}>
+            <input
+              aria-label="Address"
+              placeholder="House, street, locality"
+              value={publicForm.address}
+              onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
+            />
+          </Field>
+          <div className="trust-section" aria-label="Trust and privacy">
+            <span><ShieldCheck size={18} /> Privacy respected</span>
+            <span><LockKeyhole size={18} /> Signature stored securely</span>
+            <span><CheckCircle2 size={18} /> Petition routed to selected authority</span>
+          </div>
           <label className="check-row">
             <input required type="checkbox" /> I have read and support the campaign appeal/cause
             shown above.
@@ -202,10 +300,14 @@ export function PublicCampaignPage({
           <button className="primary-button" type="submit">
             <CheckCircle2 size={18} /> Sign campaign
           </button>
+          <a className="mobile-sticky-sign" href="#public-sign-form">
+            <CheckCircle2 size={18} /> Sign campaign
+          </a>
           {publicMessage && <p className="success-message">{publicMessage}</p>}
           {lastSignedSigner?.campaignId === campaign.id && (
             <div className="participant-actions">
-              <strong>Send thank-you message</strong>
+              <strong>Share this campaign</strong>
+              <span className="status-pill">Provider Ready</span>
               <button
                 className="secondary-button"
                 type="button"
@@ -215,13 +317,10 @@ export function PublicCampaignPage({
               >
                 Download signed appeal PDF
               </button>
-              <div className="button-row">
+              <div className="public-share-grid">
                 <a
                   className="secondary-link-button"
-                  href={whatsAppLink(
-                    lastSignedSigner.phone,
-                    renderCampaignMessage(campaign.thankYouMessage, campaign, metrics)
-                  )}
+                  href={whatsAppLink("", renderCampaignMessage(campaign.thankYouMessage, campaign, metrics))}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -229,13 +328,26 @@ export function PublicCampaignPage({
                 </a>
                 <a
                   className="secondary-link-button"
-                  href={smsLink(
-                    lastSignedSigner.phone,
-                    renderCampaignMessage(campaign.thankYouMessage, campaign, metrics)
-                  )}
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`}
+                  target="_blank"
+                  rel="noreferrer"
                 >
-                  SMS
+                  <Share2 size={16} /> Facebook
                 </a>
+                <a
+                  className="secondary-link-button"
+                  href={`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Share2 size={16} /> Twitter/X
+                </a>
+                <button className="secondary-button" type="button">
+                  <Copy size={16} /> Copy Link
+                </button>
+                <span className="secondary-link-button provider-ready-share">
+                  <QrCode size={16} /> QR Code
+                </span>
               </div>
             </div>
           )}

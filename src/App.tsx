@@ -110,9 +110,12 @@ import {
   getSubscriptionPlan
 } from "./utils/subscription";
 import {
+  applyLocationGovernanceToCampaign,
+  applySignerLocationRestriction,
   createRemoteState,
   getCampaignBaseUrl,
   getCampaignGoalValue,
+  isWithinLocationRestriction,
   getTomorrowDate,
   startOfToday,
   renderCampaignMessage,
@@ -441,10 +444,12 @@ function App() {
   function saveCampaign(event: FormEvent) {
     event.preventDefault();
     if (!campaignDraft) return;
+    const governedCampaignDraft = applyLocationGovernanceToCampaign(campaignDraft, organization);
     setCampaigns((current) =>
-      current.map((c) => (c.id === campaignDraft.id ? campaignDraft : c))
+      current.map((c) => (c.id === governedCampaignDraft.id ? governedCampaignDraft : c))
     );
-    addAuditLog("campaign.saved", `Saved campaign "${campaignDraft.title}"`, campaignDraft.id);
+    setCampaignDraft(governedCampaignDraft);
+    addAuditLog("campaign.saved", `Saved campaign "${governedCampaignDraft.title}"`, governedCampaignDraft.id);
   }
 
   function createCampaign() {
@@ -454,7 +459,7 @@ function App() {
       setActiveTab("saas");
       return;
     }
-    const campaign: Campaign = {
+    const campaign: Campaign = applyLocationGovernanceToCampaign({
       id: createId("cmp"),
       title: "New Public Campaign",
       slug: `new-campaign-${Date.now()}`,
@@ -485,7 +490,7 @@ function App() {
       status: "Draft",
       consentText:
         "I consent to this organization storing my details and using them only for this campaign submission in India.",
-      requiredFields: ["name", "email", "phone", "state", "district", "block", "panchayat", "address", "postalCode"],
+      requiredFields: ["name", "phone"],
       requiredFieldsLockedBySaas: false,
       authorityLockedBySaas: false,
       publishingLockedBySaas: false,
@@ -506,8 +511,9 @@ function App() {
       thankYouMessage:
         "Thank you for signing {{campaign}}. Your voice has been recorded. Track campaign progress here: {{url}}",
       participantUpdateMessage:
-        "{{campaign}} update: {{verified}} verified supporters have joined so far. Share this campaign: {{url}}"
-    };
+        "{{campaign}} update: {{verified}} verified supporters have joined so far. Share this campaign: {{url}}",
+      signerLocationRestrictionLevel: "none"
+    }, organization);
     setCampaigns((current) => [...current, campaign]);
     addAuditLog("campaign.created", `Created campaign "${campaign.title}"`, campaign.id);
     setActiveCampaignId(campaign.id);
@@ -530,12 +536,12 @@ function App() {
     if (organization.subscriptionStatus === "Trial" && !organization.trialEndsAt) {
       setOrganization({ ...organization, trialEndsAt: getTomorrowDate() });
     }
-    const publishedCampaign = {
+    const publishedCampaign = applyLocationGovernanceToCampaign({
       ...campaignDraft,
       status: "Published" as const,
       shareUrl: `${getCampaignBaseUrl(organization)}/c/${campaignDraft.slug}`,
       adminUrl: `${getCampaignBaseUrl(organization)}/admin/${campaignDraft.slug}`
-    };
+    }, organization);
     setCampaignDraft(publishedCampaign);
     setCampaigns((current) =>
       current.map((c) => (c.id === publishedCampaign.id ? publishedCampaign : c))
@@ -562,16 +568,18 @@ function App() {
       setPublicMessage("This campaign has reached its signer limit.");
       return;
     }
-    if (!publicForm.name || !publicForm.phone) {
-      setPublicMessage("Name and phone are required to sign this campaign.");
-      return;
-    }
     if (!publicForm.otpVerified) {
       setPublicMessage("Please verify your phone number with OTP before signing.");
       return;
     }
-    const missingRequiredField = activeCampaign.requiredFields.find(
-      (field) => !publicForm[field]?.trim()
+    const restrictedPublicForm = applySignerLocationRestriction(activeCampaign, publicForm, organization);
+    if (!isWithinLocationRestriction(activeCampaign, restrictedPublicForm, organization)) {
+      setPublicMessage("Your selected location is outside this campaign's restricted signing area.");
+      return;
+    }
+    const requiredFields = activeCampaign.requiredFields ?? [];
+    const missingRequiredField = requiredFields.find(
+      (field) => !restrictedPublicForm[field]?.trim()
     );
     if (missingRequiredField) {
       setPublicMessage(`${signerFieldLabel(missingRequiredField)} is required to sign this campaign.`);
@@ -579,13 +587,13 @@ function App() {
     }
     const signerAuthority = getSignerSelectedAuthority(
       activeCampaign,
-      publicForm.selectedAuthorityId,
+      restrictedPublicForm.selectedAuthorityId,
       authorities
     );
     const signer = makePublicSigner(
       activeCampaign.id,
       {
-        ...publicForm,
+        ...restrictedPublicForm,
         selectedAuthorityId: signerAuthority.id,
         selectedAuthorityName: signerAuthority.name,
         comment: `Accepted published appeal to ${signerAuthority.name}: ${activeCampaign.appealContent || activeCampaign.description}`
@@ -773,6 +781,8 @@ function App() {
           level,
           state: getCsvValue(row, "state"),
           district: getCsvValue(row, "district"),
+          block: getCsvValue(row, "block", "tehsil", "taluk"),
+          panchayat: getCsvValue(row, "panchayat", "gramPanchayat", "ward", "village"),
           address: getCsvValue(row, "address"),
           phone: getCsvValue(row, "phone", "mobile"),
           category: "Any" as const,
@@ -1019,6 +1029,7 @@ function App() {
       <div className="public-only-shell">
         <PublicCampaignPage
           campaign={activeCampaign}
+          organization={organization}
           metrics={metrics}
           authority={authorityMatch?.authority}
           authorities={authorities}

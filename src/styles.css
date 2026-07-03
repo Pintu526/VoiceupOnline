@@ -1051,6 +1051,181 @@ td span {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.campaign-wizard {
+  display: grid;
+  gap: 14px;
+}
+
+.campaign-wizard-progress {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 8px;
+}
+
+.campaign-wizard-progress button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-soft);
+  display: flex;
+  gap: 9px;
+  min-height: 48px;
+  min-width: 0;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.campaign-wizard-progress button:hover,
+.campaign-wizard-progress button.active {
+  background: var(--panel-solid);
+  border-color: var(--border-strong);
+  color: var(--primary-dark);
+  box-shadow: var(--shadow-subtle);
+}
+
+.campaign-wizard-progress span {
+  align-items: center;
+  background: color-mix(in srgb, var(--primary) 10%, var(--panel-solid));
+  border-radius: 999px;
+  color: var(--primary);
+  display: grid;
+  flex: 0 0 auto;
+  font-size: 0.78rem;
+  font-weight: 900;
+  height: 28px;
+  place-items: center;
+  width: 28px;
+}
+
+.campaign-wizard-progress button.active span {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.campaign-wizard-progress strong {
+  font-size: 0.86rem;
+  line-height: 1.2;
+  min-width: 0;
+}
+
+.campaign-wizard-header {
+  background:
+    linear-gradient(135deg, rgba(255, 153, 51, 0.12), rgba(255, 255, 255, 0.78), rgba(19, 136, 8, 0.1)),
+    var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.campaign-wizard-header h3,
+.campaign-wizard-header p {
+  margin: 0;
+}
+
+.campaign-wizard-header h3 {
+  font-size: 1.12rem;
+}
+
+.campaign-wizard-header p {
+  color: var(--text-soft);
+}
+
+.campaign-wizard-step {
+  animation: fade-in 160ms ease;
+}
+
+.campaign-wizard-actions {
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  justify-content: flex-end;
+  padding: 12px;
+}
+
+.campaign-wizard-actions .secondary-button:first-child {
+  margin-right: auto;
+}
+
+.campaign-review-panel,
+.campaign-review-summary {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.campaign-review-panel > div:first-child strong {
+  display: block;
+  font-size: 1.2rem;
+  margin-top: 5px;
+}
+
+.campaign-readiness-list,
+.campaign-review-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.campaign-readiness-list {
+  display: grid;
+  gap: 10px;
+}
+
+.campaign-readiness-list div {
+  align-items: flex-start;
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--warning);
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+}
+
+.campaign-readiness-list div.ready {
+  color: var(--success);
+}
+
+.campaign-readiness-list svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.campaign-readiness-list strong,
+.campaign-readiness-list small,
+.campaign-review-summary strong,
+.campaign-review-summary small {
+  display: block;
+}
+
+.campaign-readiness-list small,
+.campaign-review-summary small {
+  color: var(--text-soft);
+  overflow-wrap: anywhere;
+}
+
+.campaign-review-summary > div {
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px;
+}
+
 .field {
   display: grid;
   gap: 6px;
@@ -1133,6 +1308,20 @@ td span {
   padding: 8px 12px;
 }
 
+.lock-badge {
+  align-items: center;
+  background: #eef3ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  color: var(--primary-dark);
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 6px 9px;
+  width: fit-content;
+}
+
 .wide {
   grid-column: 1 / -1;
 }
@@ -1142,6 +1331,10 @@ td span {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.required-fields .helper-text {
+  flex-basis: 100%;
 }
 
 .check-row {
@@ -1189,41 +1382,124 @@ td span {
 
 .campaign-page {
   background:
-    linear-gradient(135deg, rgba(255, 153, 51, 0.14), rgba(255, 255, 255, 0.74), rgba(19, 136, 8, 0.12)),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(245, 248, 255, 0.9)),
     #ffffff;
-  padding: 30px;
+  border-radius: 28px;
+  display: grid;
+  gap: 24px;
+  min-height: 680px;
+  padding: clamp(28px, 5vw, 58px);
+}
+
+.public-only-shell {
+  background:
+    linear-gradient(180deg, #f8fbff 0%, #ffffff 42%, #f4f7f2 100%);
+}
+
+.public-only-shell .public-layout {
+  align-items: start;
+  gap: clamp(20px, 4vw, 34px);
+  grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.82fr);
+}
+
+.public-layout > .panel {
+  border-radius: 24px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.12);
+  position: sticky;
+  top: 24px;
+}
+
+.public-layout > .panel header {
+  padding-bottom: 8px;
+}
+
+.public-layout > .panel h2 {
+  font-size: 1.45rem;
+}
+
+.public-hero-content {
+  max-width: 760px;
+}
+
+.public-summary {
+  font-size: clamp(1.05rem, 1.6vw, 1.28rem);
+  max-width: 720px;
+}
+
+.public-hero-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 0.65fr);
 }
 
 .public-progress,
 .qr-box {
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 20px;
   display: grid;
   gap: 10px;
-  margin-top: 16px;
-  padding: 16px;
+  padding: 18px;
 }
 
 .public-progress strong {
-  font-size: 1.8rem;
-  letter-spacing: -0.02em;
+  display: block;
+  font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1;
+}
+
+.public-progress span {
+  color: var(--text-soft);
+  display: block;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.supporter-counter {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.supporter-counter div {
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.supporter-counter span {
+  color: var(--text-soft);
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.supporter-counter strong {
+  display: block;
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  line-height: 1.16;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
 }
 
 .appeal-card {
   background: rgba(255, 255, 255, 0.84);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 20px;
   display: grid;
   gap: 8px;
-  margin-top: 18px;
-  padding: 16px;
+  padding: 18px;
 }
 
 .appeal-card p {
   color: #334155;
   margin: 0;
+}
+
+.authority-receiver strong {
+  font-size: 1.1rem;
 }
 
 .campaign-page-with-media {
@@ -1238,7 +1514,8 @@ td span {
 
 .campaign-page-with-media .public-progress,
 .campaign-page-with-media .qr-box,
-.campaign-page-with-media .appeal-card {
+.campaign-page-with-media .appeal-card,
+.campaign-page-with-media .supporter-counter div {
   background: rgba(15, 23, 42, 0.68);
   border-color: rgba(255, 255, 255, 0.28);
 }
@@ -1248,8 +1525,109 @@ td span {
 }
 
 .campaign-page-with-media .qr-box span,
-.campaign-page-with-media .appeal-card p {
+.campaign-page-with-media .appeal-card p,
+.campaign-page-with-media .public-progress span,
+.campaign-page-with-media .supporter-counter span {
   color: rgba(255, 255, 255, 0.82);
+}
+
+.campaign-page-with-media .supporter-counter strong {
+  color: #ffffff;
+}
+
+.public-sign-form {
+  gap: 14px;
+}
+
+.required-note {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: #475467;
+  font-weight: 700;
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.public-sign-form .field .label {
+  color: #1f2937;
+  font-size: 0.82rem;
+  text-transform: none;
+}
+
+.public-sign-form input,
+.public-sign-form select,
+.public-sign-form textarea {
+  border-radius: 14px;
+  min-height: 48px;
+}
+
+.public-location-limit {
+  align-items: flex-start;
+  background: linear-gradient(135deg, #fff7ed, #f0fdf4);
+  border: 1px solid rgba(180, 83, 9, 0.18);
+  border-radius: 18px;
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+}
+
+.public-location-limit > span {
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.public-location-limit strong,
+.public-location-limit li {
+  color: #1f2937;
+}
+
+.public-location-limit ul {
+  display: grid;
+  gap: 3px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.trust-section {
+  display: grid;
+  gap: 9px;
+}
+
+.trust-section span {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  color: #334155;
+  display: flex;
+  font-weight: 750;
+  gap: 9px;
+  padding: 11px 12px;
+}
+
+.trust-section svg {
+  color: var(--success);
+}
+
+.mobile-sticky-sign {
+  display: none;
+}
+
+.public-share-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.public-share-grid .secondary-button,
+.public-share-grid .secondary-link-button {
+  min-height: 42px;
+}
+
+.provider-ready-share {
+  border: 1px dashed rgba(18, 58, 140, 0.28);
 }
 
 .video-link,
@@ -1327,7 +1705,8 @@ td span {
 
 .donation-editor,
 .donation-card,
-.saas-control-panel {
+.saas-control-panel,
+.signer-restriction-panel {
   background: var(--panel-soft);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -1392,6 +1771,27 @@ td span {
   min-height: 220px;
   padding: 18px;
   place-items: center;
+  position: relative;
+}
+
+.media-preview-overlay {
+  align-self: end;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-self: stretch;
+  justify-content: space-between;
+  padding: 9px 10px;
+}
+
+.media-preview-overlay span {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.82rem;
+  font-weight: 750;
 }
 
 .participant-actions,
@@ -1515,7 +1915,15 @@ td span {
   gap: 6px;
 }
 
-.campaign-admin-control-summary span {
+.geography-governance-summary,
+.geography-lock-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.campaign-admin-control-summary span,
+.geography-governance-summary span,
+.geography-lock-summary span {
   color: var(--primary-dark);
 }
 
@@ -1947,15 +2355,27 @@ td span {
   .public-layout,
   .scan-grid,
   .media-editor,
-  .engagement-grid {
+  .engagement-grid,
+  .campaign-wizard-progress,
+  .campaign-readiness-list,
+  .campaign-review-summary {
     grid-template-columns: 1fr;
+  }
+
+  .public-only-shell .public-layout,
+  .public-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-layout > .panel {
+    position: static;
   }
 }
 
 @media (max-width: 720px) {
   .marketing-home,
   .public-only-shell {
-    padding: 16px;
+    padding: 14px 14px 82px;
   }
 
   .main,
@@ -1970,7 +2390,8 @@ td span {
 
   .topbar,
   .required-fields,
-  .button-row {
+  .button-row,
+  .campaign-wizard-actions {
     align-items: stretch;
     flex-direction: column;
   }
@@ -1984,6 +2405,22 @@ td span {
     position: static;
   }
 
+  .campaign-wizard-progress {
+    padding: 6px;
+  }
+
+  .campaign-wizard-progress button {
+    min-height: 44px;
+  }
+
+  .campaign-wizard-actions {
+    position: static;
+  }
+
+  .campaign-wizard-actions .secondary-button:first-child {
+    margin-right: 0;
+  }
+
   .brand-mark,
   .metric-icon {
     height: 40px;
@@ -1995,6 +2432,49 @@ td span {
   .campaign-page,
   .empty-state {
     padding: 18px;
+  }
+
+  .campaign-page {
+    border-radius: 22px;
+    min-height: auto;
+  }
+
+  .supporter-counter,
+  .public-share-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-progress strong {
+    font-size: 2.1rem;
+  }
+
+  .public-layout > .panel {
+    border-radius: 22px;
+  }
+
+  .trust-section span,
+  .public-location-limit {
+    align-items: flex-start;
+  }
+
+  .mobile-sticky-sign {
+    align-items: center;
+    background: linear-gradient(135deg, var(--primary), #071f4e);
+    border-radius: 999px;
+    bottom: 14px;
+    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.26);
+    color: #ffffff;
+    display: inline-flex;
+    font-weight: 850;
+    gap: 8px;
+    justify-content: center;
+    left: 16px;
+    min-height: 52px;
+    padding: 0 18px;
+    position: fixed;
+    right: 16px;
+    text-decoration: none;
+    z-index: 30;
   }
 
   .hero::after {

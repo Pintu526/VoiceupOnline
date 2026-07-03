@@ -1,11 +1,14 @@
-import { Building2, Settings, WalletCards } from "lucide-react";
+import { Building2, MapPin, Settings, WalletCards } from "lucide-react";
 import type {
   BillingPlan,
   CommercialPackage,
   IntegrationSettings,
+  LocationGovernanceLevel,
   Organization
 } from "../../types";
 import type { Campaign, ScanReviewItem, Signer } from "../../types";
+import { emptyLocationDeletions, type LocationWithPin } from "../../geography";
+import { IndiaLocationFields } from "../../components/IndiaLocationFields";
 import { subscriptionPlans } from "../../data";
 import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
@@ -24,6 +27,7 @@ import {
   getSubscriptionPlan,
   getSubscriptionStatusDetail
 } from "../../utils/subscription";
+import { getLocationGovernance, getLocationLevelLabel } from "../../utils/campaign";
 
 type SaasSection = "organization" | "usage" | "packages" | "integrations" | "plans";
 
@@ -76,6 +80,28 @@ export function SaasTab({
   onApplyCommercialPackage,
   onAuditIntegrationUpdate
 }: SaasTabProps) {
+  const locationGovernance = getLocationGovernance(organization);
+  const governanceValues: LocationWithPin = {
+    state: locationGovernance.state,
+    district: locationGovernance.district,
+    block: locationGovernance.block,
+    panchayat: locationGovernance.panchayat,
+    postalCode: ""
+  };
+
+  function updateLocationGovernance(values: LocationWithPin) {
+    setOrganization({
+      ...organization,
+      locationGovernance: {
+        ...locationGovernance,
+        state: values.state,
+        district: values.district,
+        block: values.block,
+        panchayat: values.panchayat
+      }
+    });
+  }
+
   return (
     <section className="page-stack">
       <SectionTabs
@@ -227,6 +253,47 @@ export function SaasTab({
               Enable custom branding for this organization
             </label>
           </form>
+        </Panel>
+      )}
+
+      {saasSection === "organization" && (
+        <Panel title="Geography governance" icon={<MapPin />}>
+          <div className="form-grid">
+            <IndiaLocationFields
+              idPrefix="saas-location-governance"
+              values={governanceValues}
+              onChange={updateLocationGovernance}
+              locationOverrides={{}}
+              locationDeletions={emptyLocationDeletions}
+            />
+            <Field label="Lock level">
+              <select
+                value={locationGovernance.lockLevel}
+                onChange={(event) =>
+                  setOrganization({
+                    ...organization,
+                    locationGovernance: {
+                      ...locationGovernance,
+                      lockLevel: event.target.value as LocationGovernanceLevel
+                    }
+                  })
+                }
+              >
+                <option value="none">None</option>
+                <option value="state">State</option>
+                <option value="district">District</option>
+                <option value="block">Block</option>
+                <option value="panchayat">Panchayat/Ward</option>
+              </select>
+            </Field>
+            <div className="info-message wide geography-governance-summary">
+              <strong>Campaign geography lock: {getLocationLevelLabel(locationGovernance.lockLevel)}</strong>
+              <span>
+                Campaign admins can only configure campaigns inside the selected geography when
+                a lock level is active.
+              </span>
+            </div>
+          </div>
         </Panel>
       )}
 

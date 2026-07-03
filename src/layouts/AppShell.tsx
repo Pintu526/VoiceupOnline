@@ -306,7 +306,7 @@ export function AppShell({
             />
             <NavButton
               icon={<FileScan />}
-              label="Scan hard copies"
+              label="Field Collection"
               tab="scans"
               activeTab={activeTab}
               onClick={setActiveTab}
@@ -483,6 +483,7 @@ export function AppShell({
             (activeCampaign ? (
               <PublicCampaignPage
                 campaign={activeCampaign}
+                organization={organization}
                 metrics={metrics}
                 authority={authorityMatch?.authority}
                 authorities={authorities}
@@ -520,6 +521,7 @@ export function AppShell({
             <ScansTab
               activeCampaign={activeCampaign}
               scanItems={scanItems}
+              campaignSigners={campaignSigners}
               setScanItems={setScanItems}
               scanText={scanText}
               setScanText={setScanText}

@@ -1,4 +1,4 @@
-import { Plus, WalletCards } from "lucide-react";
+import { CheckCircle2, Plus, Sparkles, WalletCards } from "lucide-react";
 import type { Organization } from "../types";
 
 interface EmptyWorkspaceProps {
@@ -22,27 +22,29 @@ export function EmptyWorkspace({
         </small>
       </div>
       <span className="eyebrow">Clean workspace</span>
-      <h1>Start with your Indian organization and first public campaign.</h1>
+      <h1>Your workspace is ready for its first campaign.</h1>
       <p>
-        No demo campaigns, fake signers, or sample authority records are loaded. Configure the NGO,
-        RWA, association, union, or campaign agency, choose an INR subscription, then create the
-        first campaign.
+        Use Quick Start above to configure the organization, choose the right campaign shape, route
+        authorities, and publish only when you are ready. Nothing is auto-published.
       </p>
       <div className="onboarding-grid">
         <div>
+          <CheckCircle2 size={18} />
           <strong>1. Configure organization</strong>
-          <span>{organization.name || "Organization details are not set yet."}</span>
+          <span>{organization.name || "Add organization details and location governance."}</span>
         </div>
         <div>
+          <Sparkles size={18} />
           <strong>2. Select subscription</strong>
           <span>
             {organization.plan} plan, {organization.subscriptionStatus.toLowerCase()} status
           </span>
         </div>
         <div>
+          <Plus size={18} />
           <strong>3. Create campaign</strong>
           <span>
-            Set goal, public page, authority rules, PIN code routing, and required signer fields.
+            Start from AI, a template, or a blank campaign draft. Save only after review.
           </span>
         </div>
       </div>

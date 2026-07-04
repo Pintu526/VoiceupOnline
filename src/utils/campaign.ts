@@ -27,6 +27,22 @@ export function getCampaignBaseUrl(organization: Organization): string {
   return "https://voiceup.in";
 }
 
+export function getCampaignPublicUrl(
+  organization: Organization | undefined,
+  campaign: Pick<Campaign, "slug">
+): string {
+  const baseUrl = organization ? getCampaignBaseUrl(organization) : (typeof window !== "undefined" ? window.location.origin : "https://voiceup.in");
+  return `${baseUrl}/c/${campaign.slug}`;
+}
+
+export function getCampaignAdminUrl(
+  organization: Organization | undefined,
+  campaign: Pick<Campaign, "slug">
+): string {
+  const baseUrl = organization ? getCampaignBaseUrl(organization) : (typeof window !== "undefined" ? window.location.origin : "https://voiceup.in");
+  return `${baseUrl}/admin/${campaign.slug}`;
+}
+
 export function getCampaignGoalValue(campaign: Campaign): number {
   return campaign.maxSignersAllowed > 0 ? campaign.maxSignersAllowed : campaign.goal;
 }

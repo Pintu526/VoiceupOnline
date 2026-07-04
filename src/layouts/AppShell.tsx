@@ -38,6 +38,8 @@ import type { ScanReviewItem as SRI } from "../types";
 import type { FormEvent } from "react";
 import { blankSigner } from "../constants";
 import type { AiCampaignCopilotResult } from "../ai/types";
+import { createId } from "../lib";
+import { getCampaignAdminUrl, getCampaignPublicUrl } from "../utils/campaign";
 
 const MovementCrmTab = lazy(() =>
   import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
@@ -50,6 +52,11 @@ function addDays(dateValue: string, days: number) {
   const baseDate = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();
   baseDate.setDate(baseDate.getDate() + days);
   return baseDate.toISOString().slice(0, 10);
+}
+
+function slugifyCampaignTitle(value: string) {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return slug || `ai-campaign-${Date.now()}`;
 }
 
 interface ToastState {
@@ -78,6 +85,8 @@ interface AppShellProps {
   activeCampaign: Campaign | undefined;
   campaignDraft: Campaign | null;
   setCampaignDraft: React.Dispatch<React.SetStateAction<Campaign | null>>;
+  campaignFormMode: "create" | "edit";
+  setCampaignFormMode: React.Dispatch<React.SetStateAction<"create" | "edit">>;
   isCampaignAdminRoute: boolean;
   isAppRoute: boolean;
 
@@ -200,6 +209,8 @@ export function AppShell({
   activeCampaign,
   campaignDraft,
   setCampaignDraft,
+  campaignFormMode,
+  setCampaignFormMode,
   isCampaignAdminRoute,
   isAppRoute,
   signers,
@@ -314,8 +325,13 @@ export function AppShell({
       !isRejected("Press Release") ? `Press release:\n${aiResult.draft.pressRelease}` : ""
     ].filter(Boolean).join("\n\n");
 
+    const newCampaignId = createId("cmp");
+    const newSlug = `${slugifyCampaignTitle(aiResult.draft.title)}-${Date.now()}`;
     const nextDraft: Campaign = {
       ...campaignDraft,
+      id: newCampaignId,
+      slug: newSlug,
+      status: "Draft",
       title: isRejected("Campaign Title") ? campaignDraft.title : aiResult.draft.title,
       description: isRejected("Summary") ? campaignDraft.description : aiResult.draft.summary,
       appealContent: appealSections || campaignDraft.appealContent,
@@ -332,10 +348,13 @@ export function AppShell({
       participantUpdateMessage: isRejected("Social Posts")
         ? campaignDraft.participantUpdateMessage
         : aiResult.draft.linkedInPost,
-      qrLabel: isRejected("Press Release") ? campaignDraft.qrLabel : aiResult.draft.qrPosterHeadline
+      qrLabel: isRejected("Press Release") ? campaignDraft.qrLabel : aiResult.draft.qrPosterHeadline,
+      shareUrl: getCampaignPublicUrl(organization, { slug: newSlug }),
+      adminUrl: getCampaignAdminUrl(organization, { slug: newSlug })
     };
 
     setCampaignDraft(nextDraft);
+    setCampaignFormMode("create");
     setAiDraftAppliedFocusKey((current) => current + 1);
     setActiveTab("campaigns");
     setAiCopilotOpen(false);
@@ -466,7 +485,10 @@ export function AppShell({
               ) : (
                 <select
                   value={activeCampaignId}
-                  onChange={(e) => setActiveCampaignId(e.target.value)}
+                  onChange={(e) => {
+                    setCampaignFormMode("edit");
+                    setActiveCampaignId(e.target.value);
+                  }}
                   disabled={campaigns.length === 0}
                 >
                   {campaigns.length === 0 ? (
@@ -539,6 +561,7 @@ export function AppShell({
           {activeTab === "dashboard" && (
             <DashboardTab
               activeCampaign={activeCampaign}
+              campaigns={campaigns}
               metrics={metrics}
               authorityMatch={authorityMatch}
               dailyTotals={dailyTotals}
@@ -553,6 +576,8 @@ export function AppShell({
             <CampaignsTab
               campaignDraft={campaignDraft}
               setCampaignDraft={setCampaignDraft}
+              campaignFormMode={campaignFormMode}
+              setCampaignFormMode={setCampaignFormMode}
               authorities={authorities}
               setAuthorities={setAuthorities}
               organization={organization}
@@ -669,6 +694,7 @@ export function AppShell({
           {activeTab === "engagement" && (
             <EngagementTab
               activeCampaign={activeCampaign}
+              organization={organization}
               campaignSigners={campaignSigners}
               metrics={metrics}
               broadcastMessage={broadcastMessage}

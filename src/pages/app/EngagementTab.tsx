@@ -1,13 +1,14 @@
 import { MessageCircle, Share2, Users } from "lucide-react";
-import type { Campaign, Signer } from "../../types";
+import type { Campaign, Organization, Signer } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
 import { Panel } from "../../ui/Panel";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
-import { renderCampaignMessage } from "../../utils/campaign";
+import { getCampaignPublicUrl, renderCampaignMessage } from "../../utils/campaign";
 import { whatsAppLink, smsLink } from "../../utils/links";
 
 interface EngagementTabProps {
   activeCampaign: Campaign | undefined;
+  organization: Organization;
   campaignSigners: Signer[];
   metrics: ReturnType<typeof getCampaignMetrics>;
   broadcastMessage: string;
@@ -19,6 +20,7 @@ interface EngagementTabProps {
 
 export function EngagementTab({
   activeCampaign,
+  organization,
   campaignSigners,
   metrics,
   broadcastMessage,
@@ -37,9 +39,11 @@ export function EngagementTab({
     );
   }
 
+  const publicUrl = getCampaignPublicUrl(organization, activeCampaign);
+  const campaignForMessages = { ...activeCampaign, shareUrl: publicUrl };
   const reportMessage = renderCampaignMessage(
     activeCampaign.participantUpdateMessage,
-    activeCampaign,
+    campaignForMessages,
     metrics
   );
   const effectiveMessage = broadcastMessage || reportMessage;
@@ -60,7 +64,7 @@ export function EngagementTab({
                 className="secondary-link-button"
                 href={whatsAppLink(
                   "",
-                  `${activeCampaign.socialShareText} ${activeCampaign.shareUrl}`
+                  `${activeCampaign.socialShareText} ${publicUrl}`
                 )}
                 target="_blank"
                 rel="noreferrer"
@@ -69,7 +73,7 @@ export function EngagementTab({
               </a>
               <a
                 className="secondary-link-button"
-                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(activeCampaign.shareUrl)}`}
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -77,7 +81,7 @@ export function EngagementTab({
               </a>
               <a
                 className="secondary-link-button"
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${activeCampaign.socialShareText} ${activeCampaign.shareUrl}`)}`}
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${activeCampaign.socialShareText} ${publicUrl}`)}`}
                 target="_blank"
                 rel="noreferrer"
               >

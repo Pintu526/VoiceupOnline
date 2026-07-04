@@ -25,6 +25,7 @@ import {
 import {
   applySignerLocationRestriction,
   getCampaignGoalValue,
+  getCampaignPublicUrl,
   getEffectiveSignerLocationRestrictionLevel,
   getLocationRestrictionMessage,
   getLockedLocationValues,
@@ -88,7 +89,9 @@ export function PublicCampaignPage({
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
     requiredFields.includes(field) ? `${label} *` : label;
   const shareText = encodeURIComponent(campaign.socialShareText || campaign.title);
-  const shareUrl = encodeURIComponent(campaign.shareUrl);
+  const publicUrl = getCampaignPublicUrl(organization, campaign);
+  const shareUrl = encodeURIComponent(publicUrl);
+  const campaignForMessages = { ...campaign, shareUrl: publicUrl };
 
   return (
     <section className="public-layout">
@@ -148,7 +151,7 @@ export function PublicCampaignPage({
           <QrCode size={40} />
           <div>
             <strong>{campaign.qrLabel}</strong>
-            <span>{campaign.shareUrl}</span>
+            <span>{publicUrl}</span>
           </div>
         </div>
         {campaign.campaignVideoUrl && (
@@ -320,7 +323,7 @@ export function PublicCampaignPage({
               <div className="public-share-grid">
                 <a
                   className="secondary-link-button"
-                  href={whatsAppLink("", renderCampaignMessage(campaign.thankYouMessage, campaign, metrics))}
+                  href={whatsAppLink("", renderCampaignMessage(campaign.thankYouMessage, campaignForMessages, metrics))}
                   target="_blank"
                   rel="noreferrer"
                 >

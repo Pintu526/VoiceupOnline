@@ -114,8 +114,9 @@ import {
   applyLocationGovernanceToCampaign,
   applySignerLocationRestriction,
   createRemoteState,
-  getCampaignBaseUrl,
+  getCampaignAdminUrl,
   getCampaignGoalValue,
+  getCampaignPublicUrl,
   isWithinLocationRestriction,
   getTomorrowDate,
   startOfToday,
@@ -202,6 +203,7 @@ function App() {
   const [toast, setToast] = useState({ open: false, title: "", description: "" });
   const [activeCampaignId, setActiveCampaignId] = useState(initialCampaigns[0]?.id ?? "");
   const [campaignDraft, setCampaignDraft] = useState<Campaign | null>(campaigns[0] ?? null);
+  const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">("edit");
   const [publicForm, setPublicForm] = useState(blankSigner);
   const [publicMessage, setPublicMessage] = useState("");
   const [otpCode, setOtpCode] = useState("");
@@ -298,6 +300,7 @@ function App() {
         label: campaign.title,
         detail: `Open ${campaign.status} campaign`,
         action: () => {
+          setCampaignFormMode("edit");
           setActiveCampaignId(campaign.id);
           setActiveTab("dashboard");
         }
@@ -420,14 +423,17 @@ function App() {
   ]);
 
   useEffect(() => {
-    setCampaignDraft(activeCampaign ?? null);
-  }, [activeCampaign]);
+    if (campaignFormMode === "edit") {
+      setCampaignDraft(activeCampaign ?? null);
+    }
+  }, [activeCampaign, campaignFormMode]);
 
   useEffect(() => {
     const slugFromPath = window.location.pathname.match(/^\/c\/([^/]+)/)?.[1];
     if (!slugFromPath) return;
     const campaignFromPath = campaigns.find((c) => c.slug === slugFromPath);
     if (campaignFromPath) {
+      setCampaignFormMode("edit");
       setActiveCampaignId(campaignFromPath.id);
       setActiveTab("public");
     }
@@ -437,6 +443,7 @@ function App() {
     if (!adminCampaignSlug) return;
     const campaignFromPath = campaigns.find((c) => c.slug === adminCampaignSlug);
     if (campaignFromPath) {
+      setCampaignFormMode("edit");
       setActiveCampaignId(campaignFromPath.id);
       setActiveTab((current) =>
         current === "saas" || current === "ideas" ? "dashboard" : current
@@ -448,12 +455,27 @@ function App() {
   function saveCampaign(event: FormEvent) {
     event.preventDefault();
     if (!campaignDraft) return;
-    const governedCampaignDraft = applyLocationGovernanceToCampaign(campaignDraft, organization);
-    setCampaigns((current) =>
-      current.map((c) => (c.id === governedCampaignDraft.id ? governedCampaignDraft : c))
-    );
+    const draftWithSlugUrls = {
+      ...campaignDraft,
+      shareUrl: getCampaignPublicUrl(organization, campaignDraft),
+      adminUrl: getCampaignAdminUrl(organization, campaignDraft)
+    };
+    const governedCampaignDraft = applyLocationGovernanceToCampaign(draftWithSlugUrls, organization);
+    const isExistingCampaign = campaigns.some((campaign) => campaign.id === governedCampaignDraft.id);
+    setCampaigns((current) => {
+      if (campaignFormMode === "create" || !isExistingCampaign) {
+        return [...current, governedCampaignDraft];
+      }
+      return current.map((c) => (c.id === governedCampaignDraft.id ? governedCampaignDraft : c));
+    });
+    setActiveCampaignId(governedCampaignDraft.id);
     setCampaignDraft(governedCampaignDraft);
-    addAuditLog("campaign.saved", `Saved campaign "${governedCampaignDraft.title}"`, governedCampaignDraft.id);
+    setCampaignFormMode("edit");
+    addAuditLog(
+      campaignFormMode === "create" || !isExistingCampaign ? "campaign.created" : "campaign.saved",
+      `${campaignFormMode === "create" || !isExistingCampaign ? "Created" : "Saved"} campaign "${governedCampaignDraft.title}"`,
+      governedCampaignDraft.id
+    );
   }
 
   function createCampaign() {
@@ -463,10 +485,11 @@ function App() {
       setActiveTab("saas");
       return;
     }
+    const slug = `new-campaign-${Date.now()}`;
     const campaign: Campaign = applyLocationGovernanceToCampaign({
       id: createId("cmp"),
       title: "New Public Campaign",
-      slug: `new-campaign-${Date.now()}`,
+      slug,
       category: "Civic",
       description: "Describe the public issue, requested action, and why citizens should support it.",
       appealContent:
@@ -502,8 +525,8 @@ function App() {
       datesLockedBySaas: false,
       maxSignersAllowed: 0,
       maxScansAllowed: 0,
-      shareUrl: `${getCampaignBaseUrl(organization)}/c/new-campaign`,
-      adminUrl: `${getCampaignBaseUrl(organization)}/admin/new-campaign`,
+      shareUrl: getCampaignPublicUrl(organization, { slug }),
+      adminUrl: getCampaignAdminUrl(organization, { slug }),
       adminEmail: organization.ownerEmail || organization.billingEmail || "",
       adminPasscode: createAdminPasscode(),
       qrLabel: "VOICEUP-INDIA-CAMPAIGN",
@@ -518,10 +541,8 @@ function App() {
         "{{campaign}} update: {{verified}} verified supporters have joined so far. Share this campaign: {{url}}",
       signerLocationRestrictionLevel: "none"
     }, organization);
-    setCampaigns((current) => [...current, campaign]);
-    addAuditLog("campaign.created", `Created campaign "${campaign.title}"`, campaign.id);
-    setActiveCampaignId(campaign.id);
     setCampaignDraft(campaign);
+    setCampaignFormMode("create");
     setActiveTab("campaigns");
   }
 
@@ -543,13 +564,19 @@ function App() {
     const publishedCampaign = applyLocationGovernanceToCampaign({
       ...campaignDraft,
       status: "Published" as const,
-      shareUrl: `${getCampaignBaseUrl(organization)}/c/${campaignDraft.slug}`,
-      adminUrl: `${getCampaignBaseUrl(organization)}/admin/${campaignDraft.slug}`
+      shareUrl: getCampaignPublicUrl(organization, campaignDraft),
+      adminUrl: getCampaignAdminUrl(organization, campaignDraft)
     }, organization);
+    const isExistingCampaign = campaigns.some((campaign) => campaign.id === publishedCampaign.id);
     setCampaignDraft(publishedCampaign);
-    setCampaigns((current) =>
-      current.map((c) => (c.id === publishedCampaign.id ? publishedCampaign : c))
-    );
+    setCampaigns((current) => {
+      if (campaignFormMode === "create" || !isExistingCampaign) {
+        return [...current, publishedCampaign];
+      }
+      return current.map((c) => (c.id === publishedCampaign.id ? publishedCampaign : c));
+    });
+    setActiveCampaignId(publishedCampaign.id);
+    setCampaignFormMode("edit");
     addAuditLog("campaign.published", `Published campaign "${publishedCampaign.title}"`, publishedCampaign.id);
   }
 
@@ -1148,6 +1175,8 @@ function App() {
         activeCampaign={activeCampaign}
         campaignDraft={campaignDraft}
         setCampaignDraft={setCampaignDraft}
+        campaignFormMode={campaignFormMode}
+        setCampaignFormMode={setCampaignFormMode}
         isCampaignAdminRoute={isCampaignAdminRoute}
         isAppRoute={isAppRoute}
         signers={signers}

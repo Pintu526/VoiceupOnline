@@ -1,4 +1,21 @@
-import { CalendarDays, FileScan, Globe2, Landmark, SearchCheck, Sparkles, Users } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  FileImage,
+  FileScan,
+  Globe2,
+  Landmark,
+  Megaphone,
+  QrCode,
+  SearchCheck,
+  Send,
+  Sparkles,
+  Users,
+  X
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import type { AuthorityRule, Campaign } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
 import { Panel } from "../../ui/Panel";
@@ -10,6 +27,7 @@ import type { Organization } from "../../types";
 
 interface DashboardTabProps {
   activeCampaign: Campaign | undefined;
+  campaigns: Campaign[];
   metrics: ReturnType<typeof getCampaignMetrics>;
   authorityMatch: { authority: AuthorityRule; score: number } | undefined;
   dailyTotals: Record<string, number>;
@@ -18,6 +36,105 @@ interface DashboardTabProps {
   onOpenSubscription: () => void;
   onOpenAiCopilot: () => void;
 }
+
+const organizationTypes = [
+  {
+    label: "NGO",
+    templates: "Civic, health, education, environment",
+    fields: "Name, phone, district",
+    authorities: "Collector, department officer, municipal body",
+    channels: "WhatsApp, email, field collection"
+  },
+  {
+    label: "Political organization",
+    templates: "Citizen rights, public policy, infrastructure",
+    fields: "Name, phone, ward, booth/locality",
+    authorities: "Councillor, MLA, MP, party office",
+    channels: "WhatsApp, SMS, social media"
+  },
+  {
+    label: "Temple trust",
+    templates: "Temple development, heritage, festival",
+    fields: "Name, phone, address",
+    authorities: "Temple committee, endowments, municipal body",
+    channels: "WhatsApp, posters, QR"
+  },
+  {
+    label: "RWA",
+    templates: "Road, garbage, street light, water",
+    fields: "Name, phone, block, apartment/ward",
+    authorities: "Municipal Commissioner, engineer, councillor",
+    channels: "WhatsApp, QR, field collection"
+  },
+  {
+    label: "Student body",
+    templates: "Scholarship, library, college infrastructure",
+    fields: "Name, phone, institution",
+    authorities: "Principal, education officer, university",
+    channels: "Social media, WhatsApp, email"
+  },
+  {
+    label: "Citizen group",
+    templates: "Civic infrastructure, RTI, public policy",
+    fields: "Name, phone, district",
+    authorities: "Collector, municipal body, public grievance",
+    channels: "WhatsApp, email, press"
+  },
+  {
+    label: "Social movement",
+    templates: "Citizen rights, women safety, youth",
+    fields: "Name, phone, state, district",
+    authorities: "Collector, CM office, department secretary",
+    channels: "Social media, WhatsApp, email"
+  },
+  {
+    label: "Educational institution",
+    templates: "School improvement, teacher recruitment, library",
+    fields: "Name, phone, role",
+    authorities: "Education officer, school committee",
+    channels: "Email, WhatsApp, QR"
+  },
+  {
+    label: "Healthcare group",
+    templates: "Medical camp, hospital upgrade, ambulance",
+    fields: "Name, phone, district",
+    authorities: "CDMO, hospital superintendent, collector",
+    channels: "WhatsApp, email, field collection"
+  },
+  {
+    label: "Animal welfare group",
+    templates: "Animal shelter, veterinary support, cow protection",
+    fields: "Name, phone, locality",
+    authorities: "Veterinary officer, animal resources, collector",
+    channels: "WhatsApp, social media, posters"
+  },
+  {
+    label: "Environment group",
+    templates: "Tree plantation, river cleaning, lake restoration",
+    fields: "Name, phone, district",
+    authorities: "Forest officer, pollution board, collector",
+    channels: "Social media, WhatsApp, press"
+  }
+];
+
+const helpPanels = [
+  ["Campaign Studio", "Build the public petition page, signer form, media, and publish readiness."],
+  ["Authority Intelligence", "Choose or recommend the offices that should receive the petition."],
+  ["Field Collection", "Bring paper sheets, OCR review, and manual supporter entry into one workflow."],
+  ["Movement CRM", "Understand supporters, volunteers, referrals, and movement health."],
+  ["AI Campaign Copilot", "Turn one sentence into a professional campaign draft you can review and save."]
+];
+
+const quickStartSteps: Array<[string, LucideIcon]> = [
+  ["Choose organization type", Building2],
+  ["Configure location governance", Globe2],
+  ["Choose campaign template", Megaphone],
+  ["Select authorities", Landmark],
+  ["Configure supporter fields", Users],
+  ["Add campaign media", FileImage],
+  ["Publish campaign", CheckCircle2],
+  ["Share link/QR", QrCode]
+];
 
 const PLACEHOLDER_CAMPAIGN: Campaign = {
   id: "",
@@ -72,6 +189,7 @@ const PLACEHOLDER_CAMPAIGN: Campaign = {
 
 export function DashboardTab({
   activeCampaign,
+  campaigns,
   metrics,
   authorityMatch,
   dailyTotals,
@@ -81,6 +199,50 @@ export function DashboardTab({
   onOpenAiCopilot
 }: DashboardTabProps) {
   const displayCampaign = activeCampaign ?? PLACEHOLDER_CAMPAIGN;
+  const [quickStartDismissed, setQuickStartDismissed] = useState(false);
+  const [selectedOrgType, setSelectedOrgType] = useState(organizationTypes[0].label);
+  const selectedOrgRecommendation = useMemo(
+    () => organizationTypes.find((type) => type.label === selectedOrgType) ?? organizationTypes[0],
+    [selectedOrgType]
+  );
+  const showQuickStart = !quickStartDismissed && campaigns.length <= 2;
+  const quickStartItems = [
+    {
+      label: "Workspace profile completed",
+      ready: Boolean(organization.name && organization.ownerEmail)
+    },
+    {
+      label: "Location governance configured",
+      ready: Boolean(organization.locationGovernance?.lockLevel && organization.locationGovernance.lockLevel !== "none")
+    },
+    {
+      label: "First campaign drafted",
+      ready: campaigns.length > 0
+    },
+    {
+      label: "Authority selected",
+      ready: Boolean(activeCampaign?.selectedAuthorityId || authorityMatch)
+    },
+    {
+      label: "Public page reviewed",
+      ready: Boolean(activeCampaign?.shareUrl)
+    },
+    {
+      label: "Field collection ready",
+      ready: Boolean(activeCampaign)
+    },
+    {
+      label: "Movement CRM ready",
+      ready: metrics.total > 0
+    },
+    {
+      label: "Communication provider-ready",
+      ready: Boolean(activeCampaign?.socialShareText || activeCampaign?.thankYouMessage)
+    }
+  ];
+  const quickStartProgress = Math.round(
+    (quickStartItems.filter((item) => item.ready).length / quickStartItems.length) * 100
+  );
 
   return (
     <section className="page-stack">
@@ -98,6 +260,97 @@ export function DashboardTab({
           <Sparkles size={18} /> Create with AI
         </button>
       </div>
+
+      {showQuickStart && (
+        <Panel title="Quick Start" icon={<Sparkles />}>
+          <div className="quick-start-panel">
+            <div className="quick-start-hero">
+              <div>
+                <span className="eyebrow">Launch in under 10 minutes</span>
+                <h2>Set up your workspace and first campaign with guided steps.</h2>
+                <p>
+                  Follow the checklist, pick your organization type, draft a campaign, then review
+                  and save using the existing campaign workflow.
+                </p>
+              </div>
+              <div className="quick-start-score">
+                <span>Setup progress</span>
+                <strong>{quickStartProgress}%</strong>
+                <small>{quickStartItems.filter((item) => item.ready).length} of {quickStartItems.length} ready</small>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Dismiss Quick Start"
+                onClick={() => setQuickStartDismissed(true)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="quick-start-steps">
+              {quickStartSteps.map(([label, Icon], index) => (
+                <div className="quick-start-step" key={String(label)}>
+                  <Icon size={18} />
+                  <span>{index + 1}</span>
+                  <strong>{label}</strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="quick-start-grid">
+              <div className="quick-start-card">
+                <span className="eyebrow">Organization type</span>
+                <div className="org-type-grid" role="list" aria-label="Organization type recommendations">
+                  {organizationTypes.map((type) => (
+                    <button
+                      className={selectedOrgType === type.label ? "selected" : ""}
+                      key={type.label}
+                      type="button"
+                      onClick={() => setSelectedOrgType(type.label)}
+                    >
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="quick-start-card recommendation-card">
+                <span className="eyebrow">Recommended setup</span>
+                <strong>{selectedOrgRecommendation.label}</strong>
+                <p><b>Templates:</b> {selectedOrgRecommendation.templates}</p>
+                <p><b>Supporter fields:</b> {selectedOrgRecommendation.fields}</p>
+                <p><b>Authorities:</b> {selectedOrgRecommendation.authorities}</p>
+                <p><b>Channels:</b> {selectedOrgRecommendation.channels}</p>
+              </div>
+            </div>
+
+            <div className="guided-checklist">
+              {quickStartItems.map((item) => (
+                <div className={item.ready ? "ready" : ""} key={item.label}>
+                  <CheckCircle2 size={18} />
+                  <span>{item.label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="quick-start-actions">
+              <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
+                <Sparkles size={18} /> Create with AI
+              </button>
+              <button className="secondary-button" type="button" onClick={onCreateCampaign}>
+                <Megaphone size={18} /> Create demo campaign draft
+              </button>
+              <button className="secondary-button" type="button" onClick={onOpenSubscription}>
+                <Globe2 size={18} /> Configure workspace
+              </button>
+              <span className="helper-text">
+                “Create demo campaign draft” uses the existing create campaign action and does not publish.
+              </span>
+            </div>
+          </div>
+        </Panel>
+      )}
 
       <div className="metric-grid dashboard-metrics" aria-label="Campaign performance metrics">
         <MetricCard
@@ -133,6 +386,17 @@ export function DashboardTab({
           onOpenSubscription={onOpenSubscription}
         />
       )}
+
+      <Panel title="Contextual help" icon={<SearchCheck />}>
+        <div className="help-panel-grid">
+          {helpPanels.map(([title, text]) => (
+            <div className="help-panel-card" key={title}>
+              <strong>{title}</strong>
+              <p>{text}</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
 
       <div className="two-column dashboard-insights">
         <Panel title="Daily campaign status" icon={<CalendarDays />}>

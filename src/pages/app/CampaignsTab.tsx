@@ -38,14 +38,16 @@ import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { IndiaLocationFields } from "../../components/IndiaLocationFields";
 import { PasswordField } from "../../ui/PasswordField";
 import { categories } from "../../constants";
+import { createId } from "../../lib";
 import {
   formatAuthorityDisplay,
   getAppealAuthority,
   getAuthorityOptionsForCampaign
 } from "../../utils/authority";
 import {
-  getCampaignBaseUrl,
+  getCampaignAdminUrl,
   getCampaignGoalValue,
+  getCampaignPublicUrl,
   getConfiguredLocationLockLevel,
   getLocationGovernance,
   getLocationLevelLabel,
@@ -58,6 +60,8 @@ import {
 interface CampaignsTabProps {
   campaignDraft: Campaign | null;
   setCampaignDraft: React.Dispatch<React.SetStateAction<Campaign | null>>;
+  campaignFormMode: "create" | "edit";
+  setCampaignFormMode: React.Dispatch<React.SetStateAction<"create" | "edit">>;
   authorities: AuthorityRule[];
   setAuthorities: React.Dispatch<React.SetStateAction<AuthorityRule[]>>;
   organization: Organization;
@@ -125,6 +129,11 @@ function addDays(dateValue: string, days: number) {
   return baseDate.toISOString().slice(0, 10);
 }
 
+function slugifyCampaignTitle(value: string) {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return slug || `template-campaign-${Date.now()}`;
+}
+
 function getCampaignQuality(
   campaign: Campaign,
   selectedAuthority: string,
@@ -183,6 +192,8 @@ function getCampaignQuality(
 export function CampaignsTab({
   campaignDraft,
   setCampaignDraft,
+  campaignFormMode,
+  setCampaignFormMode,
   authorities,
   setAuthorities,
   organization,
@@ -393,6 +404,10 @@ export function CampaignsTab({
 
   function applyTemplate(template: CampaignTemplate) {
     if (!campaignDraft) return;
+    const shouldCreateNewDraft = campaignFormMode === "edit";
+    const nextSlug = shouldCreateNewDraft
+      ? `${slugifyCampaignTitle(template.campaignTitle)}-${Date.now()}`
+      : campaignDraft.slug;
     const requiredFields = campaignDraft.requiredFieldsLockedBySaas
       ? campaignDraft.requiredFields
       : Array.from(new Set(template.suggestedSupporterFields)) as SignerRequiredField[];
@@ -400,6 +415,9 @@ export function CampaignsTab({
     setRecentTemplateIds((current) => [template.id, ...current.filter((id) => id !== template.id)].slice(0, 4));
     setCampaignDraft({
       ...campaignDraft,
+      id: shouldCreateNewDraft ? createId("cmp") : campaignDraft.id,
+      slug: nextSlug,
+      status: shouldCreateNewDraft ? "Draft" : campaignDraft.status,
       title: template.campaignTitle,
       category: template.suggestedCategory,
       description: template.summary,
@@ -415,8 +433,13 @@ export function CampaignsTab({
       socialShareText: template.socialShareText,
       thankYouMessage: template.whatsappMessage,
       participantUpdateMessage: template.whatsappMessage,
-      qrLabel: campaignDraft.qrLabel || template.name
+      qrLabel: shouldCreateNewDraft ? template.name : campaignDraft.qrLabel || template.name,
+      shareUrl: getCampaignPublicUrl(organization, { slug: nextSlug }),
+      adminUrl: getCampaignAdminUrl(organization, { slug: nextSlug })
     });
+    if (shouldCreateNewDraft) {
+      setCampaignFormMode("create");
+    }
   }
 
   function getAuthorityTargetLevel(entry: AuthorityDirectoryEntry): AuthorityTargetLevel {
@@ -627,7 +650,15 @@ export function CampaignsTab({
                 <Field label="Public slug">
                   <input
                     value={campaignDraft.slug}
-                    onChange={(e) => setCampaignDraft({ ...campaignDraft, slug: e.target.value })}
+                    onChange={(e) => {
+                      const slug = e.target.value;
+                      setCampaignDraft({
+                        ...campaignDraft,
+                        slug,
+                        shareUrl: getCampaignPublicUrl(organization, { slug }),
+                        adminUrl: getCampaignAdminUrl(organization, { slug })
+                      });
+                    }}
                   />
                 </Field>
                 <Field label="Category">
@@ -696,18 +727,17 @@ export function CampaignsTab({
                 </Field>
                 <Field label="Public share URL">
                   <input
-                    value={campaignDraft.shareUrl}
-                    onChange={(e) => setCampaignDraft({ ...campaignDraft, shareUrl: e.target.value })}
+                    value={getCampaignPublicUrl(organization, campaignDraft)}
+                    readOnly
                   />
+                  <small>Generated from the public slug.</small>
                 </Field>
                 <Field label="Campaign admin URL">
                   <input
-                    value={
-                      campaignDraft.adminUrl ??
-                      `${getCampaignBaseUrl(organization)}/admin/${campaignDraft.slug}`
-                    }
-                    onChange={(e) => setCampaignDraft({ ...campaignDraft, adminUrl: e.target.value })}
+                    value={getCampaignAdminUrl(organization, campaignDraft)}
+                    readOnly
                   />
+                  <small>Generated from the public slug.</small>
                 </Field>
                 <Field label="Campaign admin email">
                   <input
@@ -1591,7 +1621,7 @@ export function CampaignsTab({
                   </div>
                   <div>
                     <span className="label">Public URL</span>
-                    <strong>{campaignDraft.shareUrl || `${getCampaignBaseUrl(organization)}/${campaignDraft.slug}`}</strong>
+                    <strong>{getCampaignPublicUrl(organization, campaignDraft)}</strong>
                     <small>{campaignDraft.startDate || "No start date"} to {campaignDraft.endDate || "No end date"}</small>
                   </div>
                 </div>
@@ -1722,7 +1752,7 @@ export function CampaignsTab({
                   </div>
                   <div className="publish-url-card">
                     <span className="label">Campaign URL preview</span>
-                    <strong>{campaignDraft.shareUrl || `${getCampaignBaseUrl(organization)}/${campaignDraft.slug}`}</strong>
+                    <strong>{getCampaignPublicUrl(organization, campaignDraft)}</strong>
                     <small>{campaignDraft.status} · {getCampaignGoalValue(campaignDraft).toLocaleString()} target signatures</small>
                   </div>
                   <div className="qr-preview-card">
@@ -1751,7 +1781,7 @@ export function CampaignsTab({
                 Next step <ChevronRight size={18} />
               </button>
               <button className="primary-button" type="submit">
-                <Save size={18} /> Save campaign
+                <Save size={18} /> {campaignFormMode === "create" ? "Create new campaign" : "Update campaign"}
               </button>
               <button className="secondary-button" type="button" onClick={onPublishCampaign}>
                 <Rocket size={18} /> Publish campaign

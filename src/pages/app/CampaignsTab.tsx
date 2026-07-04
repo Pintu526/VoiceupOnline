@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   CheckCircle2,
   ChevronLeft,
@@ -6,9 +6,12 @@ import {
   Image as ImageIcon,
   Landmark,
   Plus,
+  QrCode,
   Rocket,
   Save,
-  Settings
+  Search,
+  Settings,
+  Star
 } from "lucide-react";
 import type {
   AuthorityRule,
@@ -17,8 +20,10 @@ import type {
   Campaign,
   CampaignCategory,
   LocationGovernanceLevel,
-  Organization
+  Organization,
+  SignerRequiredField
 } from "../../types";
+import type { CampaignTemplate } from "../../campaignTemplates";
 import type {
   LocationDeletionLevel,
   LocationDeletions,
@@ -77,22 +82,99 @@ interface CampaignsTabProps {
 
 const wizardSteps = [
   {
-    title: "Campaign basics",
-    helper: "Set the campaign identity, public links, dates, target, and admin access."
+    title: "Choose Template",
+    helper: "Start from a polished campaign blueprint, then edit every detail."
   },
   {
-    title: "Location and authority routing",
-    helper: "Choose the geography, upload routing masters, and confirm the appeal authority."
+    title: "Campaign Details",
+    helper: "Shape the title, story, target, dates, and campaign admin access."
   },
   {
-    title: "Public page content",
-    helper: "Prepare supporter-facing copy, media, donation settings, and signer requirements."
+    title: "Location",
+    helper: "Confirm governance limits, public signer restrictions, and local context."
   },
   {
-    title: "Review and publish readiness",
-    helper: "Check the key settings before saving or publishing the campaign."
+    title: "Authorities",
+    helper: "Review suggested authorities, routing choices, and uploaded authority masters."
+  },
+  {
+    title: "Supporter Form",
+    helper: "Choose required fields and preview the public signer experience."
+  },
+  {
+    title: "Media",
+    helper: "Polish the banner, focus point, donation media, and campaign sharing assets."
+  },
+  {
+    title: "Review",
+    helper: "Check quality, warnings, and missing information before publishing."
+  },
+  {
+    title: "Publish",
+    helper: "Preview public links, QR label, and final publish readiness."
   }
 ];
+
+function addDays(dateValue: string, days: number) {
+  const baseDate = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();
+  baseDate.setDate(baseDate.getDate() + days);
+  return baseDate.toISOString().slice(0, 10);
+}
+
+function getCampaignQuality(
+  campaign: Campaign,
+  selectedAuthority: string,
+  selectedTemplate: CampaignTemplate | undefined
+) {
+  const checks = [
+    {
+      label: "Title",
+      ready: campaign.title.trim().length >= 18,
+      suggestion: "Use a specific, action-oriented title."
+    },
+    {
+      label: "Description",
+      ready: campaign.description.trim().length >= 80 && (campaign.appealContent ?? "").trim().length >= 120,
+      suggestion: "Add a fuller summary and petition appeal."
+    },
+    {
+      label: "Banner",
+      ready: Boolean(campaign.heroImage),
+      suggestion: "Upload a clear campaign banner."
+    },
+    {
+      label: "Authority",
+      ready: Boolean(selectedAuthority || campaign.selectedAuthorityId || campaign.authorityTargetLevel),
+      suggestion: "Confirm who receives the petition."
+    },
+    {
+      label: "Location",
+      ready: Boolean(campaign.state && campaign.district),
+      suggestion: "Select at least state and district."
+    },
+    {
+      label: "Goal",
+      ready: getCampaignGoalValue(campaign) >= 100,
+      suggestion: "Set a realistic supporter target."
+    },
+    {
+      label: "Supporter form",
+      ready: (campaign.requiredFields ?? []).length > 0,
+      suggestion: "Choose at least one required signer field."
+    },
+    {
+      label: "Template fit",
+      ready: Boolean(selectedTemplate),
+      suggestion: "Start from a template for faster launch."
+    }
+  ];
+  const score = Math.round((checks.filter((check) => check.ready).length / checks.length) * 100);
+  return {
+    score,
+    checks,
+    suggestions: checks.filter((check) => !check.ready).map((check) => check.suggestion)
+  };
+}
 
 export function CampaignsTab({
   campaignDraft,
@@ -121,6 +203,26 @@ export function CampaignsTab({
   onUpdateCampaignDonationQr
 }: CampaignsTabProps) {
   const [activeStep, setActiveStep] = useState(0);
+  const [templates, setTemplates] = useState<CampaignTemplate[]>([]);
+  const [templateCategories, setTemplateCategories] = useState<string[]>(["All"]);
+  const [templateSearch, setTemplateSearch] = useState("");
+  const [templateCategory, setTemplateCategory] = useState("All");
+  const [favoriteTemplateIds, setFavoriteTemplateIds] = useState<string[]>([]);
+  const [recentTemplateIds, setRecentTemplateIds] = useState<string[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+    import("../../campaignTemplates").then((module) => {
+      if (!isMounted) return;
+      setTemplates(module.campaignTemplates);
+      setTemplateCategories(module.campaignTemplateCategories);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const locationGovernance = getLocationGovernance(organization);
   const configuredGovernanceLockLevel = getConfiguredLocationLockLevel(
     locationGovernance,
@@ -137,6 +239,24 @@ export function CampaignsTab({
     ? formatAuthorityDisplay(getAppealAuthority(effectiveCampaignDraft, authorities))
     : "";
   const progress = ((activeStep + 1) / wizardSteps.length) * 100;
+  const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+  const filteredTemplates = useMemo(() => {
+    const search = templateSearch.trim().toLowerCase();
+    return templates.filter((template) => {
+      const matchesCategory = templateCategory === "All" || template.categoryGroup === templateCategory;
+      const matchesSearch =
+        !search ||
+        [template.name, template.categoryGroup, template.campaignTitle, template.summary, ...template.suggestedTags]
+          .join(" ")
+          .toLowerCase()
+          .includes(search);
+      return matchesCategory && matchesSearch;
+    });
+  }, [templateCategory, templateSearch, templates]);
+  const favoriteTemplates = templates.filter((template) => favoriteTemplateIds.includes(template.id));
+  const recentTemplates = recentTemplateIds
+    .map((id) => templates.find((template) => template.id === id))
+    .filter((template): template is CampaignTemplate => Boolean(template));
 
   const readinessItems = campaignDraft
     ? [
@@ -166,6 +286,37 @@ export function CampaignsTab({
       ]
     : [];
   const readyCount = readinessItems.filter((item) => item.ready).length;
+  const campaignQuality = campaignDraft
+    ? getCampaignQuality(campaignDraft, selectedAuthority, selectedTemplate)
+    : null;
+
+  function applyTemplate(template: CampaignTemplate) {
+    if (!campaignDraft) return;
+    const requiredFields = campaignDraft.requiredFieldsLockedBySaas
+      ? campaignDraft.requiredFields
+      : Array.from(new Set(template.suggestedSupporterFields)) as SignerRequiredField[];
+    setSelectedTemplateId(template.id);
+    setRecentTemplateIds((current) => [template.id, ...current.filter((id) => id !== template.id)].slice(0, 4));
+    setCampaignDraft({
+      ...campaignDraft,
+      title: template.campaignTitle,
+      category: template.suggestedCategory,
+      description: template.summary,
+      appealContent: template.detailedDescription,
+      goal: campaignDraft.goalLockedBySaas ? campaignDraft.goal : template.suggestedTarget,
+      endDate: campaignDraft.datesLockedBySaas
+        ? campaignDraft.endDate
+        : addDays(campaignDraft.startDate, template.suggestedDurationDays),
+      consentText:
+        campaignDraft.consentText ||
+        "I consent to add my signature to this public petition and allow the campaign team to submit it to the relevant authority.",
+      requiredFields,
+      socialShareText: template.socialShareText,
+      thankYouMessage: template.whatsappMessage,
+      participantUpdateMessage: template.whatsappMessage,
+      qrLabel: campaignDraft.qrLabel || template.name
+    });
+  }
 
   return (
     <section className="page-stack">
@@ -197,6 +348,107 @@ export function CampaignsTab({
             </div>
 
             {activeStep === 0 && (
+              <div className="campaign-wizard-step template-library">
+                <div className="template-toolbar">
+                  <Field label="Search templates">
+                    <div className="input-with-icon">
+                      <Search size={18} />
+                      <input
+                        value={templateSearch}
+                        onChange={(e) => setTemplateSearch(e.target.value)}
+                        placeholder="Search by topic, authority, or tag"
+                      />
+                    </div>
+                  </Field>
+                  <Field label="Category filter">
+                    <select value={templateCategory} onChange={(e) => setTemplateCategory(e.target.value)}>
+                      {templateCategories.map((category) => (
+                        <option key={category}>{category}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                {(favoriteTemplates.length > 0 || recentTemplates.length > 0) && (
+                  <div className="template-quick-lanes">
+                    {favoriteTemplates.length > 0 && (
+                      <div>
+                        <span className="eyebrow">Favorites</span>
+                        <div className="template-chip-row">
+                          {favoriteTemplates.map((template) => (
+                            <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
+                              {template.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {recentTemplates.length > 0 && (
+                      <div>
+                        <span className="eyebrow">Recent</span>
+                        <div className="template-chip-row">
+                          {recentTemplates.map((template) => (
+                            <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
+                              {template.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="template-grid">
+                  {filteredTemplates.map((template) => {
+                    const isFavorite = favoriteTemplateIds.includes(template.id);
+                    const isSelected = selectedTemplateId === template.id;
+                    return (
+                      <article className={isSelected ? "template-card selected" : "template-card"} key={template.id}>
+                        <div className="template-card-header">
+                          <span className="template-icon" aria-hidden="true">{template.icon}</span>
+                          <button
+                            className={isFavorite ? "icon-button active" : "icon-button"}
+                            type="button"
+                            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                            onClick={() =>
+                              setFavoriteTemplateIds((current) =>
+                                isFavorite
+                                  ? current.filter((id) => id !== template.id)
+                                  : [...current, template.id]
+                              )
+                            }
+                          >
+                            <Star size={17} />
+                          </button>
+                        </div>
+                        <span className="eyebrow">{template.categoryGroup}</span>
+                        <h4>{template.name}</h4>
+                        <p>{template.preview}</p>
+                        <div className="template-meta">
+                          <span>{template.suggestedTarget.toLocaleString()} supporters</span>
+                          <span>{template.suggestedDurationDays} days</span>
+                          <span>{template.suggestedCategory}</span>
+                        </div>
+                        <details>
+                          <summary>Preview details</summary>
+                          <p>{template.summary}</p>
+                          <small>{template.suggestedBannerStyle}</small>
+                        </details>
+                        <button className="primary-button" type="button" onClick={() => applyTemplate(template)}>
+                          Use template
+                        </button>
+                      </article>
+                    );
+                  })}
+                </div>
+                {templates.length === 0 && <p className="helper-text">Loading campaign templates...</p>}
+                {templates.length > 0 && filteredTemplates.length === 0 && (
+                  <p className="helper-text">No templates match this search.</p>
+                )}
+              </div>
+            )}
+
+            {activeStep === 1 && (
               <div className="form-grid campaign-wizard-step">
                 {isCampaignAdminRoute && hasSaasLocks(campaignDraft) && (
                   <div className="info-message wide campaign-admin-control-summary">
@@ -335,7 +587,7 @@ export function CampaignsTab({
               </div>
             )}
 
-            {activeStep === 1 && effectiveCampaignDraft && (
+            {activeStep === 2 && effectiveCampaignDraft && (
               <div className="form-grid campaign-wizard-step">
                 {locationGovernance.lockLevel !== "none" && (
                   <div className="info-message wide geography-lock-summary">
@@ -363,6 +615,53 @@ export function CampaignsTab({
                   onAddLocation={onAddAdminLocationOption}
                   onRemoveLocation={onRemoveAdminLocationOption}
                 />
+
+                <div className="wide signer-restriction-panel">
+                  <span className="eyebrow">Public signer locality restriction</span>
+                  <p className="helper-text">
+                    Further restrict public signatures to the campaign locality for a local cause.
+                  </p>
+                  {(
+                    [
+                      ["none", "No public locality restriction"],
+                      ["state", "Restrict public signing to campaign State"],
+                      ["district", "Restrict public signing to campaign District"],
+                      ["block", "Restrict public signing to campaign Block"],
+                      ["panchayat", "Restrict public signing to campaign Panchayat/Ward"]
+                    ] as [LocationGovernanceLevel, string][]
+                  ).map(([level, label]) => (
+                    <label className="check-row" key={level}>
+                      <input
+                        type="radio"
+                        name="signerLocationRestrictionLevel"
+                        checked={getSignerLocationRestrictionLevel(campaignDraft) === level}
+                        onChange={() =>
+                          setCampaignDraft({
+                            ...campaignDraft,
+                            signerLocationRestrictionLevel: level
+                          })
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+
+              </div>
+            )}
+
+            {activeStep === 3 && effectiveCampaignDraft && (
+              <div className="form-grid campaign-wizard-step">
+                {selectedTemplate && (
+                  <div className="wide suggested-authorities">
+                    <span className="eyebrow">Suggested by selected template</span>
+                    <div className="template-chip-row">
+                      {selectedTemplate.suggestedAuthorities.map((authority) => (
+                        <span key={authority}>{authority}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <Field label="Appeal should go to authority">
                   <select
@@ -420,37 +719,6 @@ export function CampaignsTab({
                 <Field label="Selected appeal authority">
                   <input value={selectedAuthority} readOnly />
                 </Field>
-
-                <div className="wide signer-restriction-panel">
-                  <span className="eyebrow">Public signer locality restriction</span>
-                  <p className="helper-text">
-                    Further restrict public signatures to the campaign locality for a local cause.
-                  </p>
-                  {(
-                    [
-                      ["none", "No public locality restriction"],
-                      ["state", "Restrict public signing to campaign State"],
-                      ["district", "Restrict public signing to campaign District"],
-                      ["block", "Restrict public signing to campaign Block"],
-                      ["panchayat", "Restrict public signing to campaign Panchayat/Ward"]
-                    ] as [LocationGovernanceLevel, string][]
-                  ).map(([level, label]) => (
-                    <label className="check-row" key={level}>
-                      <input
-                        type="radio"
-                        name="signerLocationRestrictionLevel"
-                        checked={getSignerLocationRestrictionLevel(campaignDraft) === level}
-                        onChange={() =>
-                          setCampaignDraft({
-                            ...campaignDraft,
-                            signerLocationRestrictionLevel: level
-                          })
-                        }
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
 
                 <div className="wide upload-tools">
                   <div className="csv-upload-card">
@@ -524,7 +792,7 @@ export function CampaignsTab({
               </div>
             )}
 
-            {activeStep === 2 && (
+            {activeStep === 4 && (
               <div className="form-grid campaign-wizard-step">
                 <Field label="Campaign description" wide>
                   <textarea
@@ -786,28 +1054,125 @@ export function CampaignsTab({
               </div>
             )}
 
-            {activeStep === 3 && (
+            {activeStep === 5 && (
+              <div className="form-grid campaign-wizard-step">
+                <div className="wide media-studio">
+                  <div>
+                    <span className="eyebrow">Campaign media manager</span>
+                    <h4>Banner, focus, and device previews</h4>
+                    <p className="helper-text">
+                      Recommended banner size is 1600 x 900 px. Keep faces, roads, signs, or petition
+                      text near the selected focus point so mobile crops stay useful.
+                    </p>
+                    <label className="drop-zone compact-drop">
+                      <ImageIcon size={28} />
+                      <strong>Upload banner image</strong>
+                      <span>Existing upload and storage logic is reused.</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) onUpdateCampaignMedia(file);
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="device-preview-grid">
+                    <div
+                      className="desktop-preview"
+                      style={{
+                        backgroundImage: campaignDraft.heroImage
+                          ? `url(${campaignDraft.heroImage})`
+                          : undefined,
+                        backgroundPosition: campaignDraft.heroImagePosition,
+                        backgroundSize: `${campaignDraft.heroImageZoom}%`
+                      }}
+                    >
+                      <span>Desktop preview</span>
+                    </div>
+                    <div
+                      className="mobile-preview"
+                      style={{
+                        backgroundImage: campaignDraft.heroImage
+                          ? `url(${campaignDraft.heroImage})`
+                          : undefined,
+                        backgroundPosition: campaignDraft.heroImagePosition,
+                        backgroundSize: `${campaignDraft.heroImageZoom}%`
+                      }}
+                    >
+                      <span>Mobile preview</span>
+                    </div>
+                  </div>
+                  <Field label="Crop / zoom">
+                    <input
+                      type="range"
+                      min="100"
+                      max="220"
+                      value={campaignDraft.heroImageZoom}
+                      onChange={(e) =>
+                        setCampaignDraft({ ...campaignDraft, heroImageZoom: Number(e.target.value) })
+                      }
+                    />
+                  </Field>
+                  <Field label="Focus point">
+                    <select
+                      value={campaignDraft.heroImagePosition}
+                      onChange={(e) =>
+                        setCampaignDraft({ ...campaignDraft, heroImagePosition: e.target.value })
+                      }
+                    >
+                      <option value="center center">Center</option>
+                      <option value="center top">Top</option>
+                      <option value="center bottom">Bottom</option>
+                      <option value="left center">Left</option>
+                      <option value="right center">Right</option>
+                    </select>
+                  </Field>
+                  <Field label="Campaign video URL">
+                    <input
+                      placeholder="YouTube, Instagram, or hosted video link"
+                      value={campaignDraft.campaignVideoUrl}
+                      onChange={(e) =>
+                        setCampaignDraft({ ...campaignDraft, campaignVideoUrl: e.target.value })
+                      }
+                    />
+                  </Field>
+                </div>
+              </div>
+            )}
+
+            {activeStep === 6 && (
               <div className="form-grid campaign-wizard-step">
                 <div className="wide campaign-review-panel">
                   <div>
-                    <span className="eyebrow">Publish readiness</span>
-                    <strong>{readyCount} of {readinessItems.length} checks look ready</strong>
+                    <span className="eyebrow">Campaign quality score</span>
+                    <strong>{campaignQuality?.score ?? 0} / 100</strong>
                     <p className="helper-text">
-                      These are visual readiness checks only. Save and publish still use the existing handlers.
+                      Visual guidance only. Save and publish still use the existing handlers.
                     </p>
                   </div>
                   <div className="campaign-readiness-list">
-                    {readinessItems.map((item) => (
+                    {campaignQuality?.checks.map((item) => (
                       <div className={item.ready ? "ready" : ""} key={item.label}>
                         <CheckCircle2 size={18} />
                         <span>
                           <strong>{item.label}</strong>
-                          <small>{item.detail}</small>
+                          <small>{item.ready ? "Looks ready" : item.suggestion}</small>
                         </span>
                       </div>
                     ))}
                   </div>
                 </div>
+
+                {(campaignQuality?.suggestions.length ?? 0) > 0 && (
+                  <div className="wide quality-suggestions">
+                    <span className="eyebrow">Suggestions</span>
+                    {campaignQuality?.suggestions.map((suggestion) => (
+                      <p key={suggestion}>{suggestion}</p>
+                    ))}
+                  </div>
+                )}
 
                 <div className="wide campaign-review-summary">
                   <div>
@@ -944,6 +1309,28 @@ export function CampaignsTab({
                     </p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeStep === 7 && (
+              <div className="form-grid campaign-wizard-step">
+                <div className="wide publish-preview">
+                  <div>
+                    <span className="eyebrow">Ready to publish</span>
+                    <h4>{campaignDraft.title || "Untitled campaign"}</h4>
+                    <p>{campaignDraft.description || "Add a campaign summary before publishing."}</p>
+                    <strong>{readyCount} of {readinessItems.length} publish readiness checks look ready</strong>
+                  </div>
+                  <div className="publish-url-card">
+                    <span className="label">Campaign URL preview</span>
+                    <strong>{campaignDraft.shareUrl || `${getCampaignBaseUrl(organization)}/${campaignDraft.slug}`}</strong>
+                    <small>{campaignDraft.status} · {getCampaignGoalValue(campaignDraft).toLocaleString()} target signatures</small>
+                  </div>
+                  <div className="qr-preview-card">
+                    <QrCode size={64} />
+                    <span>{campaignDraft.qrLabel || campaignDraft.title || "Campaign QR"}</span>
+                  </div>
+                </div>
               </div>
             )}
 

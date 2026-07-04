@@ -194,7 +194,7 @@ function App() {
 
   // ─── UI state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "campaigns" | "public" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
+    "dashboard" | "campaigns" | "public" | "movement" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
   >("dashboard");
   const [theme, setTheme] = usePersistentState<"light" | "dark">(`${storagePrefix}-theme`, "light");
   const [commandOpen, setCommandOpen] = useState(false);
@@ -284,6 +284,7 @@ function App() {
       { label: "Dashboard", detail: "Open campaign overview", action: () => setActiveTab("dashboard") },
       { label: "Campaign admin", detail: "Edit campaign settings", action: () => setActiveTab("campaigns") },
       { label: "Public signing", detail: "Preview signup page", action: () => setActiveTab("public") },
+      { label: "Movement CRM", detail: "Open supporter and volunteer graph", action: () => setActiveTab("movement") },
       { label: "Reports", detail: "Open analytics and exports", action: () => setActiveTab("reports") },
       { label: "Engagement", detail: "Message participants", action: () => setActiveTab("engagement") },
       { label: "Activity", detail: "Review admin activity", action: () => setActiveTab("activity") }

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3,
@@ -12,6 +13,7 @@ import {
   ShieldCheck,
   Sparkles,
   Sun,
+  UsersRound,
   WalletCards
 } from "lucide-react";
 import type { Campaign, Organization } from "../types";
@@ -35,6 +37,10 @@ import type { LocationDeletionLevel, LocationWithPin } from "../geography";
 import type { ScanReviewItem as SRI } from "../types";
 import type { FormEvent } from "react";
 import { blankSigner } from "../constants";
+
+const MovementCrmTab = lazy(() =>
+  import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
+);
 
 interface ToastState {
   open: boolean;
@@ -305,6 +311,13 @@ export function AppShell({
               onClick={setActiveTab}
             />
             <NavButton
+              icon={<UsersRound />}
+              label="Movement CRM"
+              tab="movement"
+              activeTab={activeTab}
+              onClick={setActiveTab}
+            />
+            <NavButton
               icon={<FileScan />}
               label="Field Collection"
               tab="scans"
@@ -516,6 +529,18 @@ export function AppShell({
                 </button>
               </div>
             ))}
+
+          {activeTab === "movement" && (
+            <Suspense fallback={<div className="empty-state compact-empty">Loading Movement CRM...</div>}>
+              <MovementCrmTab
+                campaigns={campaigns}
+                activeCampaign={activeCampaign}
+                signers={signers}
+                campaignSigners={campaignSigners}
+                authorities={authorities}
+              />
+            </Suspense>
+          )}
 
           {activeTab === "scans" && (
             <ScansTab

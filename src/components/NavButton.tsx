@@ -4,6 +4,7 @@ export type Tab =
   | "dashboard"
   | "campaigns"
   | "public"
+  | "movement"
   | "scans"
   | "reports"
   | "engagement"

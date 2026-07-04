@@ -39,6 +39,7 @@ import {
 import {
   getCampaignBaseUrl,
   getCampaignGoalValue,
+  getConfiguredLocationLockLevel,
   getLocationGovernance,
   getLocationLevelLabel,
   getLockedLocationValues,
@@ -66,7 +67,7 @@ interface CampaignsTabProps {
   onPublishCampaign: () => void;
   onCreateCampaign: () => void;
   onAddAuthorityRule: () => void;
-  onAddAdminLocationOption: (values: LocationWithPin) => void;
+  onAddAdminLocationOption: (values: LocationWithPin) => boolean | Promise<boolean>;
   onRemoveAdminLocationOption: (values: LocationWithPin, level: LocationDeletionLevel) => void;
   onUploadLocationCsv: (file: File) => void;
   onUploadAuthorityCsv: (file: File) => void;
@@ -121,9 +122,13 @@ export function CampaignsTab({
 }: CampaignsTabProps) {
   const [activeStep, setActiveStep] = useState(0);
   const locationGovernance = getLocationGovernance(organization);
-  const governedLocationValues = getLockedLocationValues(
+  const configuredGovernanceLockLevel = getConfiguredLocationLockLevel(
     locationGovernance,
     locationGovernance.lockLevel
+  );
+  const governedLocationValues = getLockedLocationValues(
+    locationGovernance,
+    configuredGovernanceLockLevel
   );
   const effectiveCampaignDraft = campaignDraft
     ? { ...campaignDraft, ...governedLocationValues }
@@ -352,8 +357,8 @@ export function CampaignsTab({
                   onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values })}
                   locationOverrides={locationOverrides}
                   locationDeletions={locationDeletions}
-                  allowedLocation={locationGovernance.lockLevel === "none" ? undefined : governedLocationValues}
-                  lockedLevel={isCampaignAdminRoute ? locationGovernance.lockLevel : "none"}
+                  allowedLocation={configuredGovernanceLockLevel === "none" ? undefined : governedLocationValues}
+                  lockedLevel={isCampaignAdminRoute ? configuredGovernanceLockLevel : "none"}
                   allowInlineAdd
                   onAddLocation={onAddAdminLocationOption}
                   onRemoveLocation={onRemoveAdminLocationOption}

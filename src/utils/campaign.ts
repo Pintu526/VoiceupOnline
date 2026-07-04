@@ -62,8 +62,11 @@ export function getEffectiveSignerLocationRestrictionLevel(
   campaign: Campaign,
   organization?: Organization
 ): LocationGovernanceLevel {
-  const campaignLevel = getSignerLocationRestrictionLevel(campaign);
-  const governanceLevel = organization ? getLocationGovernance(organization).lockLevel : "none";
+  const campaignLevel = getConfiguredLocationLockLevel(campaign, getSignerLocationRestrictionLevel(campaign));
+  const governance = organization ? getLocationGovernance(organization) : undefined;
+  const governanceLevel = governance
+    ? getConfiguredLocationLockLevel(governance, governance.lockLevel)
+    : "none";
   return locationLevelOrder.indexOf(governanceLevel) > locationLevelOrder.indexOf(campaignLevel)
     ? governanceLevel
     : campaignLevel;
@@ -76,16 +79,28 @@ export function isLocationLevelAtLeast(
   return locationLevelOrder.indexOf(level) >= locationLevelOrder.indexOf(minimum);
 }
 
+export function getConfiguredLocationLockLevel(
+  values: Partial<LocationFields>,
+  requestedLevel: LocationGovernanceLevel
+): LocationGovernanceLevel {
+  if (requestedLevel === "none" || !values.state?.trim()) return "none";
+  if (requestedLevel === "state" || !values.district?.trim()) return "state";
+  if (requestedLevel === "district" || !values.block?.trim()) return "district";
+  if (requestedLevel === "block" || !values.panchayat?.trim()) return "block";
+  return "panchayat";
+}
+
 export function getLockedLocationValues(
   values: Partial<LocationFields>,
   level: LocationGovernanceLevel
 ): Partial<LocationFields> {
-  if (level === "none") return {};
+  const configuredLevel = getConfiguredLocationLockLevel(values, level);
+  if (configuredLevel === "none") return {};
   return {
-    ...(isLocationLevelAtLeast(level, "state") ? { state: values.state ?? "" } : {}),
-    ...(isLocationLevelAtLeast(level, "district") ? { district: values.district ?? "" } : {}),
-    ...(isLocationLevelAtLeast(level, "block") ? { block: values.block ?? "" } : {}),
-    ...(isLocationLevelAtLeast(level, "panchayat") ? { panchayat: values.panchayat ?? "" } : {})
+    ...(isLocationLevelAtLeast(configuredLevel, "state") ? { state: values.state ?? "" } : {}),
+    ...(isLocationLevelAtLeast(configuredLevel, "district") ? { district: values.district ?? "" } : {}),
+    ...(isLocationLevelAtLeast(configuredLevel, "block") ? { block: values.block ?? "" } : {}),
+    ...(isLocationLevelAtLeast(configuredLevel, "panchayat") ? { panchayat: values.panchayat ?? "" } : {})
   };
 }
 

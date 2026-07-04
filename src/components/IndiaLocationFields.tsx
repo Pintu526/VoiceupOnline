@@ -30,7 +30,7 @@ interface IndiaLocationFieldsProps {
   hiddenLockedLevel?: LocationGovernanceLevel;
   requiredFields?: SignerRequiredField[];
   showOptionalLabels?: boolean;
-  onAddLocation?: (values: LocationWithPin) => void;
+  onAddLocation?: (values: LocationWithPin) => boolean | Promise<boolean>;
   onRemoveLocation?: (values: LocationWithPin, level: LocationDeletionLevel) => void;
 }
 
@@ -57,6 +57,12 @@ export function IndiaLocationFields({
   const [newDistrict, setNewDistrict] = useState("");
   const [newBlock, setNewBlock] = useState("");
   const [newPanchayat, setNewPanchayat] = useState("");
+  const [pendingAdd, setPendingAdd] = useState<{
+    values: LocationWithPin;
+    level: "district" | "block" | "panchayat";
+    label: string;
+  } | null>(null);
+  const [isAddingLocation, setIsAddingLocation] = useState(false);
 
   const allowedState = allowedLocation?.state ?? "";
   const allowedDistrict = allowedLocation?.district ?? "";
@@ -140,18 +146,14 @@ export function IndiaLocationFields({
     const district = newDistrict.trim();
     if (!values.state || !district || optionExists(districtOptions, district)) return;
     const nextValues = { ...values, district, block: "", panchayat: "", postalCode: "" };
-    onAddLocation?.(nextValues);
-    updateLocation(nextValues);
-    setNewDistrict("");
+    setPendingAdd({ values: nextValues, level: "district", label: district });
   }
 
   function addBlock() {
     const block = newBlock.trim();
     if (!values.state || !values.district || !block || optionExists(blockOptions, block)) return;
     const nextValues = { ...values, block, panchayat: "", postalCode: "" };
-    onAddLocation?.(nextValues);
-    updateLocation(nextValues);
-    setNewBlock("");
+    setPendingAdd({ values: nextValues, level: "block", label: block });
   }
 
   function addPanchayat() {
@@ -166,9 +168,23 @@ export function IndiaLocationFields({
       return;
     }
     const nextValues = { ...values, panchayat };
-    onAddLocation?.(nextValues);
-    updateLocation(nextValues);
-    setNewPanchayat("");
+    setPendingAdd({ values: nextValues, level: "panchayat", label: panchayat });
+  }
+
+  async function confirmAddLocation() {
+    if (!pendingAdd) return;
+    setIsAddingLocation(true);
+    try {
+      const didAdd = (await onAddLocation?.(pendingAdd.values)) !== false;
+      if (!didAdd) return;
+      updateLocation(pendingAdd.values);
+      if (pendingAdd.level === "district") setNewDistrict("");
+      if (pendingAdd.level === "block") setNewBlock("");
+      if (pendingAdd.level === "panchayat") setNewPanchayat("");
+      setPendingAdd(null);
+    } finally {
+      setIsAddingLocation(false);
+    }
   }
 
   function deleteDistrict() {
@@ -188,6 +204,44 @@ export function IndiaLocationFields({
 
   return (
     <>
+      {pendingAdd && (
+        <div className="modal-backdrop" role="presentation">
+          <div className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby={`${idPrefix}-add-title`}>
+            <span className="eyebrow">Location option</span>
+            <h3 id={`${idPrefix}-add-title`}>Add this new location option?</h3>
+            <div className="location-confirmation-context">
+              {pendingAdd.values.state && <span>State: {pendingAdd.values.state}</span>}
+              {pendingAdd.values.district && pendingAdd.level !== "district" && (
+                <span>District: {pendingAdd.values.district}</span>
+              )}
+              {pendingAdd.values.block && pendingAdd.level === "panchayat" && (
+                <span>Block: {pendingAdd.values.block}</span>
+              )}
+              <strong>
+                New {getLocationLevelLabel(pendingAdd.level)}: {pendingAdd.label}
+              </strong>
+            </div>
+            <div className="button-row">
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={isAddingLocation}
+                onClick={() => setPendingAdd(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="primary-button"
+                type="button"
+                disabled={isAddingLocation}
+                onClick={confirmAddLocation}
+              >
+                Add location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {!hideState && (
         <Field label={fieldLabel("State / Union Territory", "state")}>
           <select

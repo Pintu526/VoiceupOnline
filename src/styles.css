@@ -270,6 +270,50 @@ button {
   z-index: 90;
 }
 
+.modal-backdrop {
+  align-items: center;
+  animation: fade-in 160ms ease;
+  background: rgba(2, 6, 23, 0.46);
+  backdrop-filter: blur(10px);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 18px;
+  position: fixed;
+  z-index: 95;
+}
+
+.confirmation-dialog {
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 28px 84px rgba(15, 23, 42, 0.28);
+  display: grid;
+  gap: 14px;
+  max-width: 440px;
+  padding: 22px;
+  width: min(100%, 440px);
+}
+
+.confirmation-dialog h3 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+.location-confirmation-context {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 6px;
+  padding: 13px;
+}
+
+.location-confirmation-context span,
+.location-confirmation-context strong {
+  overflow-wrap: anywhere;
+}
+
 .command-search {
   align-items: center;
   border-bottom: 1px solid var(--border);

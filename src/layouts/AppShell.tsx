@@ -149,7 +149,7 @@ interface AppShellProps {
   onApproveScan: (scan: SRI) => void;
   onUpdateSignerStatus: (signerId: string, status: Signer["status"]) => void;
   onAddAuthorityRule: () => void;
-  onAddAdminLocationOption: (values: LocationWithPin) => void;
+  onAddAdminLocationOption: (values: LocationWithPin) => boolean | Promise<boolean>;
   onRemoveAdminLocationOption: (values: LocationWithPin, level: LocationDeletionLevel) => void;
   onUploadLocationCsv: (file: File) => void;
   onUploadAuthorityCsv: (file: File) => void;

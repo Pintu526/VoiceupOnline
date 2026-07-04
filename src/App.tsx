@@ -814,11 +814,42 @@ function App() {
     }
   }
 
-  function addAdminLocationOption(values: LocationWithPin) {
+  function addAdminLocationOption(values: LocationWithPin): boolean {
     const level = getLocationLevel(values);
-    setLocationOverrides((current) => addLocationOverride(current, values));
-    setLocationDeletions((current) => clearLocationDeletion(current, values, level));
+    const nextOverrides = addLocationOverride(locationOverrides, values);
+    const nextDeletions = clearLocationDeletion(locationDeletions, values, level);
+    setLocationOverrides(nextOverrides);
+    setLocationDeletions(nextDeletions);
     addAuditLog("location.added", `Added ${level} dropdown value`, activeCampaign?.id);
+    setBackendMessage(`Added ${level} location option. Saving to shared database...`);
+
+    if (isBackendConfigured && remoteStateLoaded) {
+      void saveRemoteState(createRemoteState({
+          campaigns,
+          signers,
+          authorities,
+          organization,
+          scanItems,
+          locationOverrides: nextOverrides,
+          locationDeletions: nextDeletions,
+          auditLogs,
+          integrations,
+          commercialPackages
+        }))
+        .then(() => {
+          setBackendMessage(`Added ${level} location option and saved to shared database.`);
+          showToast("Location added", "The new location option was saved.");
+        })
+        .catch((error) => {
+          setBackendMessage(`Location save error: ${error instanceof Error ? error.message : "Unable to save"}`);
+          showToast("Location save failed", "The option was added locally but could not be saved remotely.");
+        });
+    } else {
+      setBackendMessage(`Added ${level} location option locally.`);
+      showToast("Location added", "The new location option was added locally.");
+    }
+
+    return true;
   }
 
   function removeAdminLocationOption(values: LocationWithPin, level: LocationDeletionLevel) {

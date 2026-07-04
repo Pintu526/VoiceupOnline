@@ -10,6 +10,7 @@ import type {
   Signer
 } from "./types";
 import type { LocationDeletions, LocationOverrides } from "./geography";
+import { mergeLocationOverrides } from "./geography";
 
 export interface VoiceupRemoteState {
   campaigns: Campaign[];
@@ -78,10 +79,29 @@ export async function loadRemoteState() {
 export async function saveRemoteState(state: VoiceupRemoteState) {
   if (!supabase) return;
 
+  const { data: existingData, error: loadError } = await supabase
+    .from("voiceup_workspaces")
+    .select("data")
+    .eq("id", workspaceId)
+    .maybeSingle();
+
+  if (loadError) {
+    throw new Error(loadError.message);
+  }
+
+  const existingState = (existingData?.data as VoiceupRemoteState | undefined) ?? null;
+  const stateToSave: VoiceupRemoteState = {
+    ...state,
+    locationOverrides: mergeLocationOverrides(
+      existingState?.locationOverrides ?? {},
+      state.locationOverrides ?? {}
+    )
+  };
+
   const { error } = await supabase.from("voiceup_workspaces").upsert(
     {
       id: workspaceId,
-      data: state,
+      data: stateToSave,
       updated_at: new Date().toISOString()
     },
     { onConflict: "id" }

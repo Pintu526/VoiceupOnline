@@ -39,6 +39,7 @@ import {
   addLocationOverride,
   clearLocationDeletion,
   emptyLocationDeletions,
+  mergeLocationOverrides,
   removeLocationOption,
   type LocationDeletionLevel,
   type LocationDeletions,
@@ -359,7 +360,9 @@ function App() {
           setAuthorities(remoteState.authorities ?? initialAuthorities);
           setOrganization(remoteState.organization ?? initialOrganization);
           setScanItems(remoteState.scanItems ?? []);
-          setLocationOverrides(remoteState.locationOverrides ?? {});
+          setLocationOverrides((current) =>
+            mergeLocationOverrides(remoteState.locationOverrides ?? {}, current)
+          );
           setLocationDeletions(remoteState.locationDeletions ?? emptyLocationDeletions);
           setAuditLogs(remoteState.auditLogs ?? []);
           setIntegrations(remoteState.integrations ?? initialIntegrationSettings);

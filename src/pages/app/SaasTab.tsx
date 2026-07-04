@@ -7,7 +7,7 @@ import type {
   Organization
 } from "../../types";
 import type { Campaign, ScanReviewItem, Signer } from "../../types";
-import { emptyLocationDeletions, type LocationWithPin } from "../../geography";
+import type { LocationDeletions, LocationOverrides, LocationWithPin } from "../../geography";
 import { IndiaLocationFields } from "../../components/IndiaLocationFields";
 import { subscriptionPlans } from "../../data";
 import { Panel } from "../../ui/Panel";
@@ -43,6 +43,8 @@ interface SaasTabProps {
   setCommercialPackages: React.Dispatch<React.SetStateAction<CommercialPackage[]>>;
   integrations: IntegrationSettings;
   setIntegrations: React.Dispatch<React.SetStateAction<IntegrationSettings>>;
+  locationOverrides: LocationOverrides;
+  locationDeletions: LocationDeletions;
   onSelectSubscriptionPlan: (planName: BillingPlan) => void;
   onStartOneDayTrial: () => void;
   onActivateSubscriptionManually: () => void;
@@ -72,6 +74,8 @@ export function SaasTab({
   setCommercialPackages,
   integrations,
   setIntegrations,
+  locationOverrides,
+  locationDeletions,
   onSelectSubscriptionPlan,
   onStartOneDayTrial,
   onActivateSubscriptionManually,
@@ -263,8 +267,8 @@ export function SaasTab({
               idPrefix="saas-location-governance"
               values={governanceValues}
               onChange={updateLocationGovernance}
-              locationOverrides={{}}
-              locationDeletions={emptyLocationDeletions}
+              locationOverrides={locationOverrides}
+              locationDeletions={locationDeletions}
             />
             <Field label="Lock level">
               <select

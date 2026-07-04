@@ -580,6 +580,8 @@ export function AppShell({
               setCommercialPackages={setCommercialPackages}
               integrations={integrations}
               setIntegrations={setIntegrations}
+              locationOverrides={locationOverrides}
+              locationDeletions={locationDeletions}
               onSelectSubscriptionPlan={onSelectSubscriptionPlan}
               onStartOneDayTrial={onStartOneDayTrial}
               onActivateSubscriptionManually={onActivateSubscriptionManually}

@@ -577,6 +577,39 @@ export function flattenLocationOverrides(overrides: LocationOverrides) {
   );
 }
 
+export function mergeLocationOverrides(
+  first: LocationOverrides = {},
+  second: LocationOverrides = {}
+): LocationOverrides {
+  return Object.entries(second).reduce<LocationOverrides>((stateAccumulator, [state, districts]) => {
+    const stateKey = findExistingKey(Object.keys(stateAccumulator), state) ?? state;
+    const existingDistricts = stateAccumulator[stateKey] ?? {};
+    const nextDistricts = Object.entries(districts).reduce<Record<string, Record<string, string[]>>>(
+      (districtAccumulator, [district, blocks]) => {
+        const districtKey = findExistingKey(Object.keys(districtAccumulator), district) ?? district;
+        const existingBlocks = districtAccumulator[districtKey] ?? {};
+        const nextBlocks = Object.entries(blocks).reduce<Record<string, string[]>>(
+          (blockAccumulator, [block, panchayats]) => {
+            const blockKey = findExistingKey(Object.keys(blockAccumulator), block) ?? block;
+            blockAccumulator[blockKey] = uniqueOptions([...(blockAccumulator[blockKey] ?? []), ...panchayats]);
+            return blockAccumulator;
+          },
+          { ...existingBlocks }
+        );
+
+        districtAccumulator[districtKey] = nextBlocks;
+        return districtAccumulator;
+      },
+      { ...existingDistricts }
+    );
+
+    return {
+      ...stateAccumulator,
+      [stateKey]: nextDistricts
+    };
+  }, { ...first });
+}
+
 export function findPinCode(values: LocationValues) {
   return pinCodeDirectory.find(
     (entry) =>

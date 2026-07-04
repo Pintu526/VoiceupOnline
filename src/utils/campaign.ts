@@ -6,6 +6,7 @@ import {
 import type { VoiceupRemoteState } from "../backend";
 import type { Campaign, LocationGovernanceLevel, Organization } from "../types";
 import { getCampaignMetrics } from "../lib";
+import { getCanonicalBaseUrl } from "./links";
 
 const locationLevelOrder: LocationGovernanceLevel[] = [
   "none",
@@ -17,30 +18,24 @@ const locationLevelOrder: LocationGovernanceLevel[] = [
 
 type LocationFields = Pick<Campaign, "state" | "district" | "block" | "panchayat">;
 
-export function getCampaignBaseUrl(organization: Organization): string {
-  if (organization.customDomain.trim()) {
-    return `https://${organization.customDomain.trim().replace(/^https?:\/\//, "")}`;
-  }
-  if (typeof window !== "undefined") {
-    return window.location.origin;
-  }
-  return "https://voiceup.in";
+export function getCampaignBaseUrl(_organization: Organization): string {
+  return getCanonicalBaseUrl();
 }
 
 export function getCampaignPublicUrl(
   organization: Organization | undefined,
   campaign: Pick<Campaign, "slug">
 ): string {
-  const baseUrl = organization ? getCampaignBaseUrl(organization) : (typeof window !== "undefined" ? window.location.origin : "https://voiceup.in");
+  const baseUrl = organization ? getCampaignBaseUrl(organization) : getCanonicalBaseUrl();
   return `${baseUrl}/c/${campaign.slug}`;
 }
 
 export function getCampaignAdminUrl(
   organization: Organization | undefined,
-  campaign: Pick<Campaign, "slug">
+  _campaign: Pick<Campaign, "slug">
 ): string {
-  const baseUrl = organization ? getCampaignBaseUrl(organization) : (typeof window !== "undefined" ? window.location.origin : "https://voiceup.in");
-  return `${baseUrl}/admin/${campaign.slug}`;
+  const baseUrl = organization ? getCampaignBaseUrl(organization) : getCanonicalBaseUrl();
+  return `${baseUrl}/admin`;
 }
 
 export function getCampaignGoalValue(campaign: Campaign): number {

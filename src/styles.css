@@ -1182,6 +1182,26 @@ td span {
   color: var(--text-soft);
 }
 
+.campaign-wizard-title-row,
+.ai-entry-strip {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ai-entry-strip {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, #ffffff), #ffffff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+}
+
+.ai-entry-strip strong {
+  display: block;
+}
+
 .campaign-wizard-step {
   animation: fade-in 160ms ease;
 }
@@ -1563,6 +1583,321 @@ td span {
 
 .engagement-channel-card svg {
   color: var(--primary);
+}
+
+.ai-copilot-backdrop {
+  align-items: stretch;
+  background: rgba(15, 23, 42, 0.52);
+  display: grid;
+  inset: 0;
+  justify-items: end;
+  padding: 18px;
+  position: fixed;
+  z-index: 80;
+}
+
+.ai-copilot-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+  display: grid;
+  gap: 16px;
+  max-width: 1180px;
+  overflow: auto;
+  padding: 18px;
+  width: min(1180px, 100%);
+}
+
+.ai-copilot-header {
+  align-items: start;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-bottom: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.ai-copilot-header h2,
+.ai-copilot-header p,
+.ai-draft-preview h3,
+.ai-draft-preview p,
+.ai-advisor-grid p,
+.ai-content-studio p,
+.ai-workspace p {
+  margin: 0;
+}
+
+.ai-copilot-header p,
+.ai-advisor-grid p,
+.ai-content-studio p,
+.ai-workspace p {
+  color: var(--text-soft);
+}
+
+.ai-copilot-grid {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(330px, 0.76fr) minmax(0, 1.24fr);
+}
+
+.ai-copilot-input,
+.ai-copilot-output,
+.ai-draft-preview,
+.ai-quality-card,
+.ai-advisor-grid > div,
+.ai-content-studio,
+.ai-workspace > div {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ai-copilot-input {
+  position: sticky;
+  top: 92px;
+}
+
+.ai-copilot-output {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.ai-assistant-card {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, #ffffff), #ffffff);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, var(--border));
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 7px;
+  padding: 14px;
+}
+
+.ai-assistant-card p {
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.ai-thinking-timeline {
+  display: grid;
+  gap: 8px;
+}
+
+.thinking-step {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 5px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  padding: 11px;
+}
+
+.thinking-step span {
+  align-items: center;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-soft);
+  display: inline-flex;
+  font-size: 0.76rem;
+  font-weight: 900;
+  height: 28px;
+  justify-content: center;
+  width: 28px;
+}
+
+.thinking-step strong,
+.thinking-step small {
+  min-width: 0;
+}
+
+.thinking-step small {
+  color: var(--text-soft);
+  grid-column: 2;
+  overflow-wrap: anywhere;
+}
+
+.thinking-step.active span {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.provider-ready-list,
+.ai-workspace {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-review-list {
+  display: grid;
+  gap: 14px;
+}
+
+.provider-ready-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.provider-ready-list .eyebrow {
+  grid-column: 1 / -1;
+}
+
+.provider-ready-list span:not(.eyebrow) {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 7px 10px;
+}
+
+.prompt-preview pre {
+  background: #0f172a;
+  border-radius: var(--radius-sm);
+  color: #e2e8f0;
+  font-size: 0.78rem;
+  max-height: 240px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+.ai-quality-card {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 12%, #ffffff), #ffffff);
+  grid-template-columns: minmax(0, 0.72fr) minmax(220px, 0.28fr);
+  padding: 18px;
+}
+
+.ai-quality-card strong {
+  color: var(--primary-dark);
+  font-size: 2.2rem;
+}
+
+.ai-generated-idea {
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+}
+
+.ai-generated-idea p {
+  font-weight: 850;
+  margin: 0;
+}
+
+.ai-review-card {
+  align-items: start;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-subtle);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  padding: 18px;
+}
+
+.ai-review-card-main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ai-review-card-heading {
+  align-items: start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ai-review-card-heading strong {
+  display: block;
+  font-size: 1.03rem;
+}
+
+.ai-review-card-heading small {
+  color: var(--text-soft);
+}
+
+.confidence-pill {
+  background: color-mix(in srgb, var(--india-green) 12%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--india-green) 26%, var(--border));
+  border-radius: 999px;
+  color: #166534;
+  font-size: 0.76rem;
+  font-weight: 900;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.ai-review-content {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-review-content p {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: #334155;
+  line-height: 1.58;
+  margin: 0;
+  padding: 12px 13px;
+}
+
+.ai-advisor-grid,
+.ai-workspace {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ai-follow-up-box {
+  background:
+    linear-gradient(135deg, #ffffff, color-mix(in srgb, var(--primary) 7%, #ffffff));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ai-follow-up-box .primary-button {
+  justify-self: end;
+}
+
+.ai-content-studio details {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.ai-copilot-actions {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  bottom: 0;
+  box-shadow: 0 -10px 30px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 12px;
+  position: sticky;
+  z-index: 2;
 }
 
 .quality-suggestions p {
@@ -2883,6 +3218,13 @@ td span {
 
   .movement-hero,
   .movement-graph,
+  .campaign-wizard-title-row,
+  .ai-entry-strip,
+  .ai-copilot-grid,
+  .ai-advisor-grid,
+  .ai-workspace,
+  .ai-quality-card,
+  .ai-review-card-heading,
   .volunteer-level-grid,
   .segment-grid,
   .engagement-channel-grid,
@@ -2945,12 +3287,38 @@ td span {
   .authority-directory-grid,
   .movement-hero,
   .movement-graph,
+  .campaign-wizard-title-row,
+  .ai-entry-strip,
+  .ai-review-card,
+  .ai-copilot-grid,
+  .ai-advisor-grid,
+  .ai-workspace,
+  .ai-quality-card,
+  .ai-review-card-heading,
   .volunteer-level-grid,
   .segment-grid,
   .engagement-channel-grid,
   .campaign-integration-grid,
   .device-preview-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ai-copilot-backdrop {
+    padding: 8px;
+  }
+
+  .ai-copilot-panel {
+    border-radius: 18px;
+    padding: 12px;
+  }
+
+  .ai-copilot-header,
+  .ai-copilot-input {
+    position: static;
+  }
+
+  .confidence-pill {
+    width: fit-content;
   }
 
   .mobile-preview {

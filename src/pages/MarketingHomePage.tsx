@@ -62,6 +62,9 @@ export function MarketingHomePage({ theme, setTheme }: MarketingHomePageProps) {
             authority, and report campaign progress.
           </p>
           <div className="button-row">
+            <a className="primary-link-button" href="/app?ai=1">
+              Create with AI
+            </a>
             <a className="primary-link-button" href="/app">
               Start campaign workspace
             </a>

@@ -12,6 +12,7 @@ import {
   Send,
   Share2,
   ShieldCheck,
+  Sparkles,
   UserRound,
   UsersRound
 } from "lucide-react";
@@ -26,6 +27,7 @@ interface MovementCrmTabProps {
   signers: Signer[];
   campaignSigners: Signer[];
   authorities: AuthorityRule[];
+  onOpenAiCopilot: () => void;
 }
 
 const volunteerLevels = [
@@ -69,7 +71,8 @@ export function MovementCrmTab({
   activeCampaign,
   signers,
   campaignSigners,
-  authorities
+  authorities,
+  onOpenAiCopilot
 }: MovementCrmTabProps) {
   const movementSigners = activeCampaign ? campaignSigners : signers;
   const supporterProfiles = useMemo(
@@ -150,6 +153,9 @@ export function MovementCrmTab({
               Connect supporters, volunteers, campaigns, authorities, communications, referrals,
               documents, events, and donations from one operating surface.
             </p>
+            <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
+              <Sparkles size={18} /> Create with AI
+            </button>
           </div>
           <div className="movement-health">
             <span>Movement Health</span>

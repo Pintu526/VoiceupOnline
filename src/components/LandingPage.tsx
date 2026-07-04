@@ -24,7 +24,8 @@ import {
   Globe,
   Share2,
   Landmark,
-  Building2
+  Building2,
+  Sparkles
 } from "lucide-react";
 
 interface LandingPageProps {
@@ -209,6 +210,13 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               >
                 Start Your Free Campaign
                 <ArrowRight className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => (window.location.href = "/app?ai=1")}
+                className="px-8 py-4 bg-white text-slate-900 hover:bg-slate-100 rounded-lg font-semibold text-lg transition-all transform hover:scale-105 inline-flex items-center justify-center gap-2"
+              >
+                Create with AI
+                <Sparkles className="w-5 h-5" />
               </button>
               <button
                 onClick={onGetStarted}

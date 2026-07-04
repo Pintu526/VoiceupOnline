@@ -1,4 +1,4 @@
-import { CalendarDays, FileScan, Globe2, Landmark, SearchCheck, Users } from "lucide-react";
+import { CalendarDays, FileScan, Globe2, Landmark, SearchCheck, Sparkles, Users } from "lucide-react";
 import type { AuthorityRule, Campaign } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
 import { Panel } from "../../ui/Panel";
@@ -16,6 +16,7 @@ interface DashboardTabProps {
   organization: Organization;
   onCreateCampaign: () => void;
   onOpenSubscription: () => void;
+  onOpenAiCopilot: () => void;
 }
 
 const PLACEHOLDER_CAMPAIGN: Campaign = {
@@ -76,7 +77,8 @@ export function DashboardTab({
   dailyTotals,
   organization,
   onCreateCampaign,
-  onOpenSubscription
+  onOpenSubscription,
+  onOpenAiCopilot
 }: DashboardTabProps) {
   const displayCampaign = activeCampaign ?? PLACEHOLDER_CAMPAIGN;
 
@@ -87,6 +89,15 @@ export function DashboardTab({
         metrics={metrics}
         authority={authorityMatch?.authority}
       />
+      <div className="ai-entry-strip">
+        <div>
+          <span className="eyebrow">AI Campaign Copilot</span>
+          <strong>Turn one sentence into a professional campaign draft.</strong>
+        </div>
+        <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
+          <Sparkles size={18} /> Create with AI
+        </button>
+      </div>
 
       <div className="metric-grid dashboard-metrics" aria-label="Campaign performance metrics">
         <MetricCard

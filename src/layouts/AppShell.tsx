@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3,
@@ -37,10 +37,20 @@ import type { LocationDeletionLevel, LocationWithPin } from "../geography";
 import type { ScanReviewItem as SRI } from "../types";
 import type { FormEvent } from "react";
 import { blankSigner } from "../constants";
+import type { AiCampaignCopilotResult } from "../ai/types";
 
 const MovementCrmTab = lazy(() =>
   import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
 );
+const AiCampaignCopilot = lazy(() => import("../pages/app/AiCampaignCopilot"));
+
+type AiReviewState = Record<string, "accepted" | "rejected" | "editing">;
+
+function addDays(dateValue: string, days: number) {
+  const baseDate = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();
+  baseDate.setDate(baseDate.getDate() + days);
+  return baseDate.toISOString().slice(0, 10);
+}
 
 interface ToastState {
   open: boolean;
@@ -268,6 +278,74 @@ export function AppShell({
   onLogoutCampaignAdmin,
   onLogoutAppAdmin
 }: AppShellProps) {
+  const [aiCopilotOpen, setAiCopilotOpen] = useState(false);
+  const [aiDraftAppliedFocusKey, setAiDraftAppliedFocusKey] = useState(0);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("ai") === "1") {
+      setAiCopilotOpen(true);
+      params.delete("ai");
+      const nextQuery = params.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+      window.history.replaceState({}, "", nextUrl);
+    }
+  }, []);
+
+  function applyAiDraftToCampaign(
+    aiResult: AiCampaignCopilotResult,
+    reviewState: AiReviewState
+  ) {
+    if (!campaignDraft) return;
+    const isRejected = (section: string) => reviewState[section] === "rejected";
+    const objectiveText = aiResult.draft.objectives.map((item) => `- ${item}`).join("\n");
+    const volunteerText = aiResult.draft.volunteerPlan.map((item) => `- ${item}`).join("\n");
+    const appealSections = [
+      !isRejected("Campaign Title") ? `Subtitle:\n${aiResult.draft.subtitle}` : "",
+      !isRejected("Full Description") ? aiResult.draft.fullDescription : campaignDraft.appealContent,
+      !isRejected("Full Description") ? `Problem statement:\n${aiResult.draft.problemStatement}` : "",
+      !isRejected("Objectives") ? `Objectives:\n${objectiveText}` : "",
+      !isRejected("Full Description") ? `Expected outcome:\n${aiResult.draft.expectedOutcome}` : "",
+      !isRejected("Authority") ? `Suggested authority:\n${aiResult.draft.suggestedAuthority}` : "",
+      !isRejected("Summary") ? `Suggested tags:\n${aiResult.draft.suggestedTags.join(", ")}` : "",
+      !isRejected("Summary") ? `Suggested banner style:\n${aiResult.draft.suggestedBannerStyle}` : "",
+      !isRejected("Summary") ? `Suggested hero image prompt:\n${aiResult.draft.suggestedHeroImagePrompt}` : "",
+      !isRejected("Volunteer Plan") ? `Volunteer plan:\n${volunteerText}` : "",
+      !isRejected("Press Release") ? `Press release:\n${aiResult.draft.pressRelease}` : ""
+    ].filter(Boolean).join("\n\n");
+
+    const nextDraft: Campaign = {
+      ...campaignDraft,
+      title: isRejected("Campaign Title") ? campaignDraft.title : aiResult.draft.title,
+      description: isRejected("Summary") ? campaignDraft.description : aiResult.draft.summary,
+      appealContent: appealSections || campaignDraft.appealContent,
+      category: aiResult.draft.suggestedCategory,
+      goal: campaignDraft.goalLockedBySaas ? campaignDraft.goal : aiResult.draft.suggestedTarget,
+      endDate: campaignDraft.datesLockedBySaas
+        ? campaignDraft.endDate
+        : addDays(campaignDraft.startDate, aiResult.draft.suggestedDurationDays),
+      requiredFields: campaignDraft.requiredFieldsLockedBySaas
+        ? campaignDraft.requiredFields
+        : Array.from(new Set(aiResult.draft.suggestedSupporterFields)),
+      socialShareText: isRejected("Social Posts") ? campaignDraft.socialShareText : aiResult.draft.whatsappMessage,
+      thankYouMessage: isRejected("Social Posts") ? campaignDraft.thankYouMessage : aiResult.draft.whatsappMessage,
+      participantUpdateMessage: isRejected("Social Posts")
+        ? campaignDraft.participantUpdateMessage
+        : aiResult.draft.linkedInPost,
+      qrLabel: isRejected("Press Release") ? campaignDraft.qrLabel : aiResult.draft.qrPosterHeadline
+    };
+
+    setCampaignDraft(nextDraft);
+    setAiDraftAppliedFocusKey((current) => current + 1);
+    setActiveTab("campaigns");
+    setAiCopilotOpen(false);
+    setToast({
+      open: true,
+      title: "AI draft applied",
+      description: "AI draft applied. Review and save your campaign."
+    });
+  }
+
   return (
     <>
       <CommandPalette
@@ -416,6 +494,13 @@ export function AppShell({
                 <button
                   className="secondary-button"
                   type="button"
+                  onClick={() => setAiCopilotOpen(true)}
+                >
+                  <Sparkles size={18} /> Create with AI
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
                   onClick={onCreateCampaign}
                 >
                   <Plus size={18} /> New campaign
@@ -460,6 +545,7 @@ export function AppShell({
               organization={organization}
               onCreateCampaign={onCreateCampaign}
               onOpenSubscription={() => setActiveTab("saas")}
+              onOpenAiCopilot={() => setAiCopilotOpen(true)}
             />
           )}
 
@@ -482,6 +568,8 @@ export function AppShell({
               onSaveCampaign={onSaveCampaign}
               onPublishCampaign={onPublishCampaign}
               onCreateCampaign={onCreateCampaign}
+              onOpenAiCopilot={() => setAiCopilotOpen(true)}
+              aiDraftAppliedFocusKey={aiDraftAppliedFocusKey}
               onAddAuthorityRule={onAddAuthorityRule}
               onAddAdminLocationOption={onAddAdminLocationOption}
               onRemoveAdminLocationOption={onRemoveAdminLocationOption}
@@ -538,6 +626,7 @@ export function AppShell({
                 signers={signers}
                 campaignSigners={campaignSigners}
                 authorities={authorities}
+                onOpenAiCopilot={() => setAiCopilotOpen(true)}
               />
             </Suspense>
           )}
@@ -620,6 +709,15 @@ export function AppShell({
           {activeTab === "ideas" && <IdeasTab />}
         </motion.main>
       </div>
+      {aiCopilotOpen && (
+        <Suspense fallback={<div className="empty-state compact-empty">Loading AI Campaign Copilot...</div>}>
+          <AiCampaignCopilot
+            campaignDraft={campaignDraft}
+            onApplyAiDraft={applyAiDraftToCampaign}
+            onClose={() => setAiCopilotOpen(false)}
+          />
+        </Suspense>
+      )}
       <AppToast toast={toast} setToast={setToast} />
     </>
   );

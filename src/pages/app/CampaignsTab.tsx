@@ -11,6 +11,7 @@ import {
   Save,
   Search,
   Settings,
+  Sparkles,
   Star
 } from "lucide-react";
 import type {
@@ -72,6 +73,8 @@ interface CampaignsTabProps {
   onSaveCampaign: (event: FormEvent) => void;
   onPublishCampaign: () => void;
   onCreateCampaign: () => void;
+  onOpenAiCopilot: () => void;
+  aiDraftAppliedFocusKey: number;
   onAddAuthorityRule: () => void;
   onAddAdminLocationOption: (values: LocationWithPin) => boolean | Promise<boolean>;
   onRemoveAdminLocationOption: (values: LocationWithPin, level: LocationDeletionLevel) => void;
@@ -195,6 +198,8 @@ export function CampaignsTab({
   onSaveCampaign,
   onPublishCampaign,
   onCreateCampaign,
+  onOpenAiCopilot,
+  aiDraftAppliedFocusKey,
   onAddAuthorityRule,
   onAddAdminLocationOption,
   onRemoveAdminLocationOption,
@@ -224,6 +229,12 @@ export function CampaignsTab({
   const [recentAuthorityIds, setRecentAuthorityIds] = useState<string[]>([]);
   const [secondaryAuthorityIds, setSecondaryAuthorityIds] = useState<string[]>([]);
   const [ccAuthorityIds, setCcAuthorityIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (aiDraftAppliedFocusKey > 0) {
+      setActiveStep(1);
+    }
+  }, [aiDraftAppliedFocusKey]);
 
   useEffect(() => {
     let isMounted = true;
@@ -468,9 +479,16 @@ export function CampaignsTab({
             </div>
 
             <div className="campaign-wizard-header">
-              <span className="eyebrow">Step {activeStep + 1} of {wizardSteps.length}</span>
-              <h3>{wizardSteps[activeStep].title}</h3>
-              <p>{wizardSteps[activeStep].helper}</p>
+              <div className="campaign-wizard-title-row">
+                <div>
+                  <span className="eyebrow">Step {activeStep + 1} of {wizardSteps.length}</span>
+                  <h3>{wizardSteps[activeStep].title}</h3>
+                  <p>{wizardSteps[activeStep].helper}</p>
+                </div>
+                <button className="secondary-button" type="button" onClick={onOpenAiCopilot}>
+                  <Sparkles size={18} /> Create with AI
+                </button>
+              </div>
               <div className="progress">
                 <div style={{ width: `${progress}%` }} />
               </div>

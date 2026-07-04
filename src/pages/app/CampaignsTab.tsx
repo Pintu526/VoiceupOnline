@@ -24,6 +24,7 @@ import type {
   SignerRequiredField
 } from "../../types";
 import type { CampaignTemplate } from "../../campaignTemplates";
+import type { AuthorityDirectoryEntry } from "../../authorityDirectory";
 import type {
   LocationDeletionLevel,
   LocationDeletions,
@@ -210,6 +211,19 @@ export function CampaignsTab({
   const [favoriteTemplateIds, setFavoriteTemplateIds] = useState<string[]>([]);
   const [recentTemplateIds, setRecentTemplateIds] = useState<string[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [authorityDirectory, setAuthorityDirectory] = useState<AuthorityDirectoryEntry[]>([]);
+  const [authorityDirectoryCategories, setAuthorityDirectoryCategories] = useState<string[]>(["All"]);
+  const [authorityRecommendations, setAuthorityRecommendations] = useState<AuthorityDirectoryEntry[]>([]);
+  const [authoritySearch, setAuthoritySearch] = useState("");
+  const [authorityCategoryFilter, setAuthorityCategoryFilter] = useState("All");
+  const [authorityKindFilter, setAuthorityKindFilter] = useState("All");
+  const [authorityDepartmentFilter, setAuthorityDepartmentFilter] = useState("All");
+  const [authorityStateFilter, setAuthorityStateFilter] = useState("");
+  const [authorityDistrictFilter, setAuthorityDistrictFilter] = useState("");
+  const [favoriteAuthorityIds, setFavoriteAuthorityIds] = useState<string[]>([]);
+  const [recentAuthorityIds, setRecentAuthorityIds] = useState<string[]>([]);
+  const [secondaryAuthorityIds, setSecondaryAuthorityIds] = useState<string[]>([]);
+  const [ccAuthorityIds, setCcAuthorityIds] = useState<string[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -217,6 +231,18 @@ export function CampaignsTab({
       if (!isMounted) return;
       setTemplates(module.campaignTemplates);
       setTemplateCategories(module.campaignTemplateCategories);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    import("../../authorityDirectory").then((module) => {
+      if (!isMounted) return;
+      setAuthorityDirectory(module.authorityDirectory);
+      setAuthorityDirectoryCategories(module.authorityDirectoryCategories);
     });
     return () => {
       isMounted = false;
@@ -240,6 +266,22 @@ export function CampaignsTab({
     : "";
   const progress = ((activeStep + 1) / wizardSteps.length) * 100;
   const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+  useEffect(() => {
+    let isMounted = true;
+    if (!selectedTemplate) {
+      setAuthorityRecommendations([]);
+      return;
+    }
+    import("../../authorityDirectory").then((module) => {
+      if (!isMounted) return;
+      setAuthorityRecommendations(
+        module.getAuthorityRecommendations(selectedTemplate.name, selectedTemplate.categoryGroup)
+      );
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedTemplate]);
   const filteredTemplates = useMemo(() => {
     const search = templateSearch.trim().toLowerCase();
     return templates.filter((template) => {
@@ -257,6 +299,54 @@ export function CampaignsTab({
   const recentTemplates = recentTemplateIds
     .map((id) => templates.find((template) => template.id === id))
     .filter((template): template is CampaignTemplate => Boolean(template));
+  const authorityDepartments = useMemo(
+    () => ["All", ...Array.from(new Set(authorityDirectory.map((entry) => entry.department))).sort()],
+    [authorityDirectory]
+  );
+  const filteredAuthorityDirectory = useMemo(() => {
+    const search = authoritySearch.trim().toLowerCase();
+    return authorityDirectory.filter((entry) => {
+      const matchesSearch =
+        !search ||
+        [
+          entry.name,
+          entry.designation,
+          entry.department,
+          entry.category,
+          entry.level,
+          entry.state,
+          entry.district,
+          entry.politicalParty,
+          entry.notes
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(search);
+      const matchesCategory =
+        authorityCategoryFilter === "All" || entry.category === authorityCategoryFilter;
+      const matchesKind = authorityKindFilter === "All" || entry.kind === authorityKindFilter;
+      const matchesDepartment =
+        authorityDepartmentFilter === "All" || entry.department === authorityDepartmentFilter;
+      const matchesState =
+        !authorityStateFilter.trim() ||
+        entry.state.toLowerCase().includes(authorityStateFilter.trim().toLowerCase());
+      const matchesDistrict =
+        !authorityDistrictFilter.trim() ||
+        entry.district.toLowerCase().includes(authorityDistrictFilter.trim().toLowerCase());
+      return matchesSearch && matchesCategory && matchesKind && matchesDepartment && matchesState && matchesDistrict;
+    });
+  }, [
+    authorityCategoryFilter,
+    authorityDepartmentFilter,
+    authorityDirectory,
+    authorityDistrictFilter,
+    authorityKindFilter,
+    authoritySearch,
+    authorityStateFilter
+  ]);
+  const recentAuthorities = recentAuthorityIds
+    .map((id) => authorityDirectory.find((entry) => entry.id === id))
+    .filter((entry): entry is AuthorityDirectoryEntry => Boolean(entry));
 
   const readinessItems = campaignDraft
     ? [
@@ -316,6 +406,45 @@ export function CampaignsTab({
       participantUpdateMessage: template.whatsappMessage,
       qrLabel: campaignDraft.qrLabel || template.name
     });
+  }
+
+  function getAuthorityTargetLevel(entry: AuthorityDirectoryEntry): AuthorityTargetLevel {
+    if (["National", "State"].includes(entry.level)) return "state";
+    return "district";
+  }
+
+  function findUploadedAuthorityMatch(entry: AuthorityDirectoryEntry) {
+    return authorities.find((authority) => {
+      const haystack = [authority.name, authority.position, authority.department]
+        .join(" ")
+        .toLowerCase();
+      return (
+        haystack.includes(entry.designation.toLowerCase()) ||
+        haystack.includes(entry.department.toLowerCase())
+      );
+    });
+  }
+
+  function useAuthorityEntry(entry: AuthorityDirectoryEntry) {
+    if (!campaignDraft) return;
+    const uploadedMatch = findUploadedAuthorityMatch(entry);
+    setRecentAuthorityIds((current) => [entry.id, ...current.filter((id) => id !== entry.id)].slice(0, 5));
+    setCampaignDraft({
+      ...campaignDraft,
+      authorityTargetLevel: getAuthorityTargetLevel(entry),
+      selectedAuthorityId: uploadedMatch?.id ?? campaignDraft.selectedAuthorityId
+    });
+  }
+
+  function toggleAuthorityList(
+    entryId: string,
+    setter: React.Dispatch<React.SetStateAction<string[]>>
+  ) {
+    setter((current) =>
+      current.includes(entryId)
+        ? current.filter((id) => id !== entryId)
+        : [...current, entryId]
+    );
   }
 
   return (
@@ -652,16 +781,215 @@ export function CampaignsTab({
 
             {activeStep === 3 && effectiveCampaignDraft && (
               <div className="form-grid campaign-wizard-step">
-                {selectedTemplate && (
-                  <div className="wide suggested-authorities">
-                    <span className="eyebrow">Suggested by selected template</span>
-                    <div className="template-chip-row">
-                      {selectedTemplate.suggestedAuthorities.map((authority) => (
-                        <span key={authority}>{authority}</span>
-                      ))}
+                <div className="wide authority-intelligence-panel">
+                  <div className="authority-intelligence-header">
+                    <div>
+                      <span className="eyebrow">Authority Intelligence</span>
+                      <h4>Recommended routing for this campaign</h4>
+                      <p className="helper-text">
+                        Recommendations are generated from the selected template and campaign geography.
+                        Select an uploaded authority when available, or use a recommendation as a routing hint.
+                      </p>
                     </div>
+                    <button className="secondary-button" type="button" onClick={onAddAuthorityRule}>
+                      <Plus size={18} /> Add manually
+                    </button>
                   </div>
-                )}
+
+                  <div className="authority-recommendation-grid">
+                    {(authorityRecommendations.length > 0 ? authorityRecommendations : []).map((entry, index) => {
+                      const uploadedMatch = findUploadedAuthorityMatch(entry);
+                      return (
+                        <article className="authority-recommendation-card" key={entry.id}>
+                          <span className="priority-pill">Priority {index + 1}</span>
+                          <strong>{entry.designation}</strong>
+                          <small>{entry.department} - {entry.level} - {entry.kind}</small>
+                          <p>{entry.notes}</p>
+                          <div className="template-chip-row">
+                            <span>{uploadedMatch ? "Uploaded match found" : "Directory profile"}</span>
+                            <span>{entry.status}</span>
+                            <span>Public visibility ready</span>
+                          </div>
+                          <div className="button-row">
+                            <button className="primary-button" type="button" onClick={() => useAuthorityEntry(entry)}>
+                              Accept
+                            </button>
+                            <button
+                              className="secondary-button"
+                              type="button"
+                              onClick={() => toggleAuthorityList(entry.id, setSecondaryAuthorityIds)}
+                            >
+                              {secondaryAuthorityIds.includes(entry.id) ? "Remove secondary" : "Secondary"}
+                            </button>
+                            <button
+                              className="secondary-button"
+                              type="button"
+                              onClick={() => toggleAuthorityList(entry.id, setCcAuthorityIds)}
+                            >
+                              {ccAuthorityIds.includes(entry.id) ? "Remove CC" : "CC"}
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                    {selectedTemplate && authorityRecommendations.length === 0 && (
+                      <p className="helper-text">
+                        No exact directory routing rule is defined yet. Use search below or add an authority manually.
+                      </p>
+                    )}
+                    {!selectedTemplate && (
+                      <p className="helper-text">
+                        Choose a campaign template first to get automatic authority recommendations.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="wide authority-picker-panel">
+                  <div className="authority-picker-toolbar">
+                    <Field label="Search authority directory">
+                      <div className="input-with-icon">
+                        <Search size={18} />
+                        <input
+                          value={authoritySearch}
+                          onChange={(e) => setAuthoritySearch(e.target.value)}
+                          placeholder="Search designation, department, district, party, notes"
+                        />
+                      </div>
+                    </Field>
+                    <Field label="Category">
+                      <select
+                        value={authorityCategoryFilter}
+                        onChange={(e) => setAuthorityCategoryFilter(e.target.value)}
+                      >
+                        {authorityDirectoryCategories.map((category) => (
+                          <option key={category}>{category}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Type">
+                      <select value={authorityKindFilter} onChange={(e) => setAuthorityKindFilter(e.target.value)}>
+                        <option>All</option>
+                        <option>Government</option>
+                        <option>Political</option>
+                        <option>NGO</option>
+                      </select>
+                    </Field>
+                    <Field label="Department">
+                      <select
+                        value={authorityDepartmentFilter}
+                        onChange={(e) => setAuthorityDepartmentFilter(e.target.value)}
+                      >
+                        {authorityDepartments.map((department) => (
+                          <option key={department}>{department}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="State">
+                      <input
+                        value={authorityStateFilter}
+                        onChange={(e) => setAuthorityStateFilter(e.target.value)}
+                        placeholder={effectiveCampaignDraft.state || "Any state"}
+                      />
+                    </Field>
+                    <Field label="District">
+                      <input
+                        value={authorityDistrictFilter}
+                        onChange={(e) => setAuthorityDistrictFilter(e.target.value)}
+                        placeholder={effectiveCampaignDraft.district || "Any district"}
+                      />
+                    </Field>
+                  </div>
+
+                  {(recentAuthorities.length > 0 || favoriteAuthorityIds.length > 0) && (
+                    <div className="template-quick-lanes">
+                      {recentAuthorities.length > 0 && (
+                        <div>
+                          <span className="eyebrow">Recently used</span>
+                          <div className="template-chip-row">
+                            {recentAuthorities.map((entry) => (
+                              <button key={entry.id} type="button" onClick={() => useAuthorityEntry(entry)}>
+                                {entry.designation}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {favoriteAuthorityIds.length > 0 && (
+                        <div>
+                          <span className="eyebrow">Favorites</span>
+                          <div className="template-chip-row">
+                            {authorityDirectory
+                              .filter((entry) => favoriteAuthorityIds.includes(entry.id))
+                              .map((entry) => (
+                                <button key={entry.id} type="button" onClick={() => useAuthorityEntry(entry)}>
+                                  {entry.designation}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="authority-directory-grid">
+                    {filteredAuthorityDirectory.slice(0, 12).map((entry) => {
+                      const isFavorite = favoriteAuthorityIds.includes(entry.id);
+                      return (
+                        <article className="authority-directory-card" key={entry.id}>
+                          <div className="template-card-header">
+                            <span className="status-pill">{entry.kind}</span>
+                            <button
+                              className={isFavorite ? "icon-button active" : "icon-button"}
+                              type="button"
+                              aria-label={isFavorite ? "Remove authority favorite" : "Favorite authority"}
+                              onClick={() =>
+                                setFavoriteAuthorityIds((current) =>
+                                  isFavorite
+                                    ? current.filter((id) => id !== entry.id)
+                                    : [...current, entry.id]
+                                )
+                              }
+                            >
+                              <Star size={17} />
+                            </button>
+                          </div>
+                          <strong>{entry.designation}</strong>
+                          <small>{entry.department} - {entry.level}</small>
+                          <div className="authority-edit-grid" aria-label={`${entry.designation} editable directory fields`}>
+                            <input aria-label="Name" value={entry.name} readOnly />
+                            <input aria-label="Email" value={entry.email} readOnly placeholder="Email" />
+                            <input aria-label="Phone" value={entry.phone} readOnly placeholder="Phone" />
+                            <input aria-label="Office address" value={entry.officeAddress} readOnly placeholder="Office address" />
+                          </div>
+                          <div className="button-row">
+                            <button className="primary-button" type="button" onClick={() => useAuthorityEntry(entry)}>
+                              Replace primary
+                            </button>
+                            <button
+                              className="secondary-button"
+                              type="button"
+                              onClick={() => toggleAuthorityList(entry.id, setSecondaryAuthorityIds)}
+                            >
+                              Secondary
+                            </button>
+                            <button
+                              className="secondary-button"
+                              type="button"
+                              onClick={() => toggleAuthorityList(entry.id, setCcAuthorityIds)}
+                            >
+                              CC
+                            </button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                  <p className="helper-text">
+                    Showing {Math.min(filteredAuthorityDirectory.length, 12)} of {filteredAuthorityDirectory.length} profiles.
+                    Local office details remain editable in uploaded authority rules.
+                  </p>
+                </div>
 
                 <Field label="Appeal should go to authority">
                   <select
@@ -720,6 +1048,32 @@ export function CampaignsTab({
                   <input value={selectedAuthority} readOnly />
                 </Field>
 
+                <div className="wide multi-authority-panel">
+                  <span className="eyebrow">Multi-authority routing plan</span>
+                  <div className="campaign-review-summary">
+                    <div>
+                      <span className="label">Primary Authority</span>
+                      <strong>{selectedAuthority || "Default authority routing"}</strong>
+                      <small>Persisted through existing campaign authority selection.</small>
+                    </div>
+                    <div>
+                      <span className="label">Secondary Authorities</span>
+                      <strong>{secondaryAuthorityIds.length}</strong>
+                      <small>Provider ready for future email, WhatsApp, SMS, IVR, PDF, and API dispatch.</small>
+                    </div>
+                    <div>
+                      <span className="label">CC Authorities</span>
+                      <strong>{ccAuthorityIds.length}</strong>
+                      <small>Planning only until provider dispatch is implemented.</small>
+                    </div>
+                    <div>
+                      <span className="label">Public visibility</span>
+                      <strong>Configurable</strong>
+                      <small>Designed for future authority visibility controls.</small>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="wide upload-tools">
                   <div className="csv-upload-card">
                     <span className="label">Location master CSV</span>
@@ -777,6 +1131,33 @@ export function CampaignsTab({
                     Location CSV: state,district,block,panchayat,pin. Authority CSV:
                     level,state,district,position,name,address,email,phone.
                   </span>
+                  {authorityCsvFile && (
+                    <div className="csv-review-panel wide">
+                      <span className="eyebrow">Authority CSV preview - provider ready</span>
+                      <div className="campaign-review-summary">
+                        <div>
+                          <span className="label">File</span>
+                          <strong>{authorityCsvFile.name}</strong>
+                          <small>{Math.round(authorityCsvFile.size / 1024)} KB selected</small>
+                        </div>
+                        <div>
+                          <span className="label">Validation</span>
+                          <strong>Ready to validate</strong>
+                          <small>Column checks run through the existing upload handler.</small>
+                        </div>
+                        <div>
+                          <span className="label">Duplicates</span>
+                          <strong>Ready to detect</strong>
+                          <small>Name, designation, email, and phone can be compared before import.</small>
+                        </div>
+                        <div>
+                          <span className="label">Import summary</span>
+                          <strong>Generated after upload</strong>
+                          <small>Existing upload message is displayed below.</small>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {csvUploadMessage && (
                     <p
                       className={

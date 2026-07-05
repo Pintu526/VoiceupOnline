@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 export type Tab =
   | "dashboard"
+  | "command"
   | "campaigns"
   | "public"
   | "movement"

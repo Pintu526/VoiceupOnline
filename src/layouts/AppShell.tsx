@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   BarChart3,
   Command,
+  Crosshair,
   FileScan,
   FileText,
   Globe2,
@@ -43,6 +44,9 @@ import { getCampaignAdminUrl, getCampaignPublicUrl } from "../utils/campaign";
 
 const MovementCrmTab = lazy(() =>
   import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
+);
+const CommandCenterTab = lazy(() =>
+  import("../pages/app/CommandCenterTab").then((module) => ({ default: module.CommandCenterTab }))
 );
 const AiCampaignCopilot = lazy(() => import("../pages/app/AiCampaignCopilot"));
 
@@ -459,6 +463,13 @@ export function AppShell({
               onClick={setActiveTab}
             />
             <NavButton
+              icon={<Crosshair />}
+              label="Command Center"
+              tab="command"
+              activeTab={activeTab}
+              onClick={setActiveTab}
+            />
+            <NavButton
               icon={<Megaphone />}
               label="Campaign admin"
               tab="campaigns"
@@ -642,6 +653,33 @@ export function AppShell({
               onOpenSubscription={() => setActiveTab("saas")}
               onOpenAiCopilot={() => setAiCopilotOpen(true)}
             />
+          )}
+
+          {activeTab === "command" && (
+            <Suspense fallback={<div className="empty-state compact-empty">Loading Command Center...</div>}>
+              <CommandCenterTab
+                activeCampaign={activeCampaign}
+                campaigns={campaigns}
+                campaignSigners={campaignSigners}
+                signers={signers}
+                authorities={authorities}
+                scanItems={scanItems}
+                organization={organization}
+                integrations={integrations}
+                metrics={metrics}
+                authorityMatch={authorityMatch}
+                stateTotals={stateTotals}
+                districtTotals={districtTotals}
+                blockTotals={blockTotals}
+                panchayatTotals={panchayatTotals}
+                onOpenCampaigns={() => setActiveTab("campaigns")}
+                onOpenFieldCollection={() => setActiveTab("scans")}
+                onOpenEngagement={() => setActiveTab("engagement")}
+                onOpenAuthorities={() => setActiveTab("campaigns")}
+                onOpenSaas={() => setActiveTab("saas")}
+                onOpenMovement={() => setActiveTab("movement")}
+              />
+            </Suspense>
           )}
 
           {activeTab === "campaigns" && (

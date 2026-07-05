@@ -196,7 +196,7 @@ function App() {
 
   // ─── UI state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "campaigns" | "public" | "movement" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
+    "dashboard" | "command" | "campaigns" | "public" | "movement" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
   >(isSaasAdminRoute ? "saas" : "dashboard");
   const [theme, setTheme] = usePersistentState<"light" | "dark">(`${storagePrefix}-theme`, "light");
   const [commandOpen, setCommandOpen] = useState(false);

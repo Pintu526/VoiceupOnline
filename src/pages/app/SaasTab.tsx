@@ -1,4 +1,4 @@
-import { Building2, MapPin, Settings, WalletCards } from "lucide-react";
+import { Building2, Image as ImageIcon, MapPin, ShieldCheck, Settings, UsersRound, WalletCards } from "lucide-react";
 import type {
   BillingPlan,
   CommercialPackage,
@@ -296,6 +296,66 @@ export function SaasTab({
                 Campaign admins can only configure campaigns inside the selected geography when
                 a lock level is active.
               </span>
+            </div>
+          </div>
+        </Panel>
+      )}
+
+      {saasSection === "organization" && (
+        <Panel title="Organization Workspace" icon={<ShieldCheck />}>
+          <div className="workspace-grid">
+            <div className="workspace-card">
+              <Building2 size={22} />
+              <span className="eyebrow">Workspace profile</span>
+              <strong>{organization.name || "Unnamed workspace"}</strong>
+              <p>{organization.ownerEmail || "Add owner email"} - {organization.seats} seats</p>
+            </div>
+            <div className="workspace-card branding-preview">
+              <ImageIcon size={22} />
+              <span className="eyebrow">Branding settings</span>
+              <strong>{organization.customBranding ? "Custom branding enabled" : "Default Voiceup branding"}</strong>
+              <p>Logo/banner preview and asset library are provider-ready UI foundations.</p>
+            </div>
+            <div className="workspace-card">
+              <UsersRound size={22} />
+              <span className="eyebrow">Roles and permissions</span>
+              <strong>Provider-ready</strong>
+              <p>Platform owner, organization admin, campaign admin, reviewer, and viewer roles.</p>
+            </div>
+            <div className="workspace-card">
+              <UsersRound size={22} />
+              <span className="eyebrow">Team members</span>
+              <strong>{organization.seats.toLocaleString()} seat capacity</strong>
+              <p>Invitation and member management UI placeholder.</p>
+            </div>
+            <div className="workspace-card">
+              <ShieldCheck size={22} />
+              <span className="eyebrow">Audit log</span>
+              <strong>Available in Activity</strong>
+              <p>Workspace audit summary placeholder for future filtering.</p>
+            </div>
+            <div className="workspace-card">
+              <WalletCards size={22} />
+              <span className="eyebrow">Billing readiness</span>
+              <strong>{organization.subscriptionStatus}</strong>
+              <p>Plan, usage, recharge packages, and subscription controls remain in existing tabs.</p>
+            </div>
+          </div>
+          <div className="white-label-readiness">
+            <span className="eyebrow">White-label readiness</span>
+            <div className="guided-checklist">
+              {[
+                ["Custom domain", Boolean(organization.customDomain)],
+                ["Custom branding", organization.customBranding],
+                ["Owner email", Boolean(organization.ownerEmail)],
+                ["Location governance", Boolean(organization.locationGovernance?.lockLevel && organization.locationGovernance.lockLevel !== "none")],
+                ["Subscription active", organization.subscriptionStatus === "Active"]
+              ].map(([label, ready]) => (
+                <div className={ready ? "ready" : ""} key={String(label)}>
+                  <ShieldCheck size={18} />
+                  <span>{label}</span>
+                </div>
+              ))}
             </div>
           </div>
         </Panel>

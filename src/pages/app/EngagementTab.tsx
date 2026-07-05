@@ -1,4 +1,4 @@
-import { MessageCircle, Share2, Users } from "lucide-react";
+import { BellRing, Mail, MessageCircle, Send, Share2, Smartphone, Users } from "lucide-react";
 import type { Campaign, Organization, Signer } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
 import { Panel } from "../../ui/Panel";
@@ -47,9 +47,69 @@ export function EngagementTab({
     metrics
   );
   const effectiveMessage = broadcastMessage || reportMessage;
+  const communicationChannels = [
+    ["SMS", "Provider ready", Smartphone],
+    ["WhatsApp", "Link sharing active / API provider ready", MessageCircle],
+    ["Email", "Provider ready", Mail],
+    ["IVR", "Provider ready", BellRing],
+    ["Telegram", "Provider ready", Send],
+    ["Social Media", "Share links active", Share2],
+    ["Push", "Provider ready", BellRing]
+  ] as const;
 
   return (
     <section className="page-stack">
+      <Panel title="Communication Hub" icon={<Send />}>
+        <div className="communication-hub-grid">
+          <div className="communication-audience-card">
+            <span className="eyebrow">Audience selector</span>
+            <strong>{campaignSigners.length.toLocaleString()} campaign supporters</strong>
+            <p>{campaignSigners.filter((signer) => signer.phone).length.toLocaleString()} phone-ready, {campaignSigners.filter((signer) => signer.email).length.toLocaleString()} email-ready.</p>
+            <p className="info-message">Consent-aware sending is provider-ready. Do not send messages without consent verification.</p>
+          </div>
+          <div className="communication-preview-card">
+            <span className="eyebrow">Message preview</span>
+            <p>{effectiveMessage}</p>
+            <div className="button-row">
+              <button className="secondary-button" type="button" onClick={() => onCopyText(effectiveMessage)}>
+                Copy preview
+              </button>
+              <button className="secondary-button" type="button" disabled>
+                Schedule provider-ready
+              </button>
+            </div>
+          </div>
+          <div className="communication-preview-card">
+            <span className="eyebrow">Scheduling UI</span>
+            <label className="field">
+              <span className="label">Send window</span>
+              <input type="datetime-local" disabled />
+            </label>
+            <p>Scheduling is disabled until a real communication provider is connected.</p>
+          </div>
+          <div className="communication-preview-card">
+            <span className="eyebrow">Delivery history</span>
+            <strong>No provider delivery records yet</strong>
+            <p>Future sends will show queued, delivered, failed, opted-out, and consent-blocked statuses here.</p>
+          </div>
+        </div>
+        <div className="engagement-channel-grid">
+          {communicationChannels.map(([label, status, Icon]) => (
+            <article className="engagement-channel-card" key={label}>
+              <Icon size={20} />
+              <strong>{label}</strong>
+              <small>{status}</small>
+              <p>Template library, scheduling, configuration, and delivery history foundations are UI-only.</p>
+            </article>
+          ))}
+        </div>
+        <div className="template-chip-row">
+          {["Campaign launch", "Authority follow-up", "Volunteer call", "Thank-you", "Field collection reminder"].map((template) => (
+            <span key={template}>{template}</span>
+          ))}
+        </div>
+      </Panel>
+
       <Panel title="Social publishing and participant engagement" icon={<MessageCircle />}>
         <div className="engagement-grid">
           <div className="engagement-card">

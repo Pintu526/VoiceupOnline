@@ -24,6 +24,8 @@ export type UserRole = "platform_owner" | "organization_admin" | "campaign_admin
 export type AuditAction =
   | "campaign.created"
   | "campaign.saved"
+  | "campaign.cloned"
+  | "campaign.archived"
   | "campaign.published"
   | "campaign.signed"
   | "location.added"
@@ -88,6 +90,8 @@ export interface Campaign {
   thankYouMessage: string;
   participantUpdateMessage: string;
   signerLocationRestrictionLevel?: LocationGovernanceLevel;
+  archivedAt?: string;
+  clonedFromCampaignId?: string;
 }
 
 export interface Signer {

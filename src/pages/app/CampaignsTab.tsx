@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
+  Archive,
+  AlertTriangle,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Copy,
+  GitBranch,
+  History,
   Image as ImageIcon,
   Landmark,
   Plus,
@@ -19,6 +23,7 @@ import type {
   AuthorityRule,
   AuthoritySelectionMode,
   AuthorityTargetLevel,
+  AuditLogEntry,
   Campaign,
   CampaignCategory,
   LocationGovernanceLevel,
@@ -61,11 +66,13 @@ import {
 
 interface CampaignsTabProps {
   campaignDraft: Campaign | null;
+  activeCampaign: Campaign | undefined;
   setCampaignDraft: React.Dispatch<React.SetStateAction<Campaign | null>>;
   campaignFormMode: "create" | "edit";
   setCampaignFormMode: React.Dispatch<React.SetStateAction<"create" | "edit">>;
   authorities: AuthorityRule[];
   setAuthorities: React.Dispatch<React.SetStateAction<AuthorityRule[]>>;
+  auditLogs: AuditLogEntry[];
   organization: Organization;
   isCampaignAdminRoute: boolean;
   locationOverrides: LocationOverrides;
@@ -79,6 +86,8 @@ interface CampaignsTabProps {
   onSaveCampaign: (event: FormEvent) => void;
   onPublishCampaign: () => void;
   onCreateCampaign: () => void;
+  onCloneCampaign: () => void;
+  onArchiveCampaign: () => void;
   onOpenAiCopilot: () => void;
   aiDraftAppliedFocusKey: number;
   onAddAuthorityRule: () => void;
@@ -134,6 +143,11 @@ function addDays(dateValue: string, days: number) {
 function slugifyCampaignTitle(value: string) {
   const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return slug || `template-campaign-${Date.now()}`;
+}
+
+function campaignSnapshot(campaign: Campaign | null | undefined) {
+  if (!campaign) return "";
+  return JSON.stringify(campaign);
 }
 
 function getCampaignQuality(
@@ -193,11 +207,13 @@ function getCampaignQuality(
 
 export function CampaignsTab({
   campaignDraft,
+  activeCampaign,
   setCampaignDraft,
   campaignFormMode,
   setCampaignFormMode,
   authorities,
   setAuthorities,
+  auditLogs,
   organization,
   isCampaignAdminRoute,
   locationOverrides,
@@ -211,6 +227,8 @@ export function CampaignsTab({
   onSaveCampaign,
   onPublishCampaign,
   onCreateCampaign,
+  onCloneCampaign,
+  onArchiveCampaign,
   onOpenAiCopilot,
   aiDraftAppliedFocusKey,
   onAddAuthorityRule,
@@ -244,6 +262,11 @@ export function CampaignsTab({
   const [ccAuthorityIds, setCcAuthorityIds] = useState<string[]>([]);
   const [copiedCampaignLink, setCopiedCampaignLink] = useState("");
   const [campaignLinkMessage, setCampaignLinkMessage] = useState("");
+  const savedSnapshot = campaignFormMode === "edit" ? campaignSnapshot(activeCampaign) : "";
+  const draftSnapshot = campaignSnapshot(campaignDraft);
+  const hasUnsavedChanges = Boolean(campaignDraft) && (
+    campaignFormMode === "create" || draftSnapshot !== savedSnapshot
+  );
 
   useEffect(() => {
     if (aiDraftAppliedFocusKey > 0) {
@@ -259,6 +282,16 @@ export function CampaignsTab({
     }, 2200);
     return () => window.clearTimeout(timeoutId);
   }, [copiedCampaignLink]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return undefined;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   useEffect(() => {
     let isMounted = true;
@@ -382,6 +415,24 @@ export function CampaignsTab({
   const recentAuthorities = recentAuthorityIds
     .map((id) => authorityDirectory.find((entry) => entry.id === id))
     .filter((entry): entry is AuthorityDirectoryEntry => Boolean(entry));
+  const authorityEscalationChain = ["Ward", "Panchayat", "Block", "District", "State", "National"];
+  const politicalHierarchy = ["Ward Member", "Sarpanch", "Councillor", "MLA", "MP", "Minister"];
+  const departmentMapping = selectedTemplate
+    ? `${selectedTemplate.suggestedCategory} -> ${
+        authorityRecommendations[0]?.department ?? "Responsible department"
+      }`
+    : "Choose a template to map department";
+  const authorityConfidenceScore = Math.min(
+    98,
+    54 +
+      (authorityRecommendations.length ? 18 : 0) +
+      (effectiveCampaignDraft?.state ? 8 : 0) +
+      (effectiveCampaignDraft?.district ? 8 : 0) +
+      (campaignDraft?.selectedAuthorityId ? 10 : 0)
+  );
+  const duplicateAuthorityKeys = authorities
+    .map((authority) => `${authority.name}|${authority.department}|${authority.email}`.toLowerCase())
+    .filter((key, index, list) => key.trim() && list.indexOf(key) !== index);
 
   const readinessItems = campaignDraft
     ? [
@@ -414,6 +465,11 @@ export function CampaignsTab({
   const campaignQuality = campaignDraft
     ? getCampaignQuality(campaignDraft, selectedAuthority, selectedTemplate)
     : null;
+  const campaignVersionHistory = campaignDraft
+    ? auditLogs
+        .filter((log) => log.campaignId === campaignDraft.id)
+        .slice(0, 8)
+    : [];
   const draftSlug = campaignDraft?.slug.trim() ?? "";
   const hasDraftSlug = Boolean(draftSlug);
   const publicCampaignUrl = hasDraftSlug
@@ -434,6 +490,14 @@ export function CampaignsTab({
       setCopiedCampaignLink("");
       setCampaignLinkMessage("Copy failed. Select and copy the link manually.");
     }
+  }
+
+  function confirmArchiveCampaign() {
+    if (!campaignDraft) return;
+    const confirmed = window.confirm(
+      `Archive "${campaignDraft.title || "this campaign"}"? It will be marked Closed and kept in the workspace.`
+    );
+    if (confirmed) onArchiveCampaign();
   }
 
   function applyTemplate(template: CampaignTemplate) {
@@ -550,6 +614,20 @@ export function CampaignsTab({
                 <div style={{ width: `${progress}%` }} />
               </div>
             </div>
+
+            {hasUnsavedChanges && (
+              <div className="unsaved-changes-banner" role="status">
+                <AlertTriangle size={18} />
+                <div>
+                  <strong>Unsaved changes</strong>
+                  <span>
+                    {campaignFormMode === "create"
+                      ? "This is a new campaign draft. Use Create new campaign to save it."
+                      : "Update this campaign before leaving Campaign Studio."}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {activeStep === 0 && (
               <div className="campaign-wizard-step template-library">
@@ -1709,6 +1787,75 @@ export function CampaignsTab({
                     <strong>{hasDraftSlug ? publicCampaignUrl : "Add a campaign slug to generate links."}</strong>
                     <small>{campaignDraft.startDate || "No start date"} to {campaignDraft.endDate || "No end date"}</small>
                   </div>
+
+                  <div className="authority-2-grid">
+                    <div className="authority-2-card">
+                      <span className="eyebrow">Escalation chain</span>
+                      <div className="hierarchy-chain">
+                        {authorityEscalationChain.map((level) => <span key={level}>{level}</span>)}
+                      </div>
+                      <small>Government hierarchy: Ward {"->"} Panchayat {"->"} Block {"->"} District {"->"} State {"->"} National</small>
+                    </div>
+                    <div className="authority-2-card">
+                      <span className="eyebrow">Political hierarchy</span>
+                      <div className="hierarchy-chain">
+                        {politicalHierarchy.map((level) => <span key={level}>{level}</span>)}
+                      </div>
+                      <small>Use as escalation context; not sent automatically.</small>
+                    </div>
+                    <div className="authority-2-card">
+                      <span className="eyebrow">Department mapping</span>
+                      <strong>{departmentMapping}</strong>
+                      <small>Mapped from campaign category and template recommendation.</small>
+                    </div>
+                    <div className="authority-2-card">
+                      <span className="eyebrow">Authority confidence</span>
+                      <strong>{authorityConfidenceScore}%</strong>
+                      <small>Based on template, selected authority, and location completeness.</small>
+                    </div>
+                    <div className="authority-2-card">
+                      <span className="eyebrow">CSV validation preview</span>
+                      <strong>{authorityCsvFile ? authorityCsvFile.name : "No CSV selected"}</strong>
+                      <small>{csvUploadMessage || "Upload preview is UI/provider-ready; existing upload handler remains unchanged."}</small>
+                    </div>
+                    <div className="authority-2-card">
+                      <span className="eyebrow">Duplicate detection</span>
+                      <strong>{duplicateAuthorityKeys.length.toLocaleString()} possible duplicates</strong>
+                      <small>Checks uploaded authority name, department, and email keys.</small>
+                    </div>
+                    <div className="authority-2-card selected-authority-package">
+                      <span className="eyebrow">Selected authority package</span>
+                      <strong>{selectedAuthority || "No primary authority selected"}</strong>
+                      <small>Primary + secondary + CC package is ready for future petition delivery providers.</small>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="wide campaign-version-history">
+                  <div className="version-history-header">
+                    <History size={20} />
+                    <div>
+                      <span className="eyebrow">Version history</span>
+                      <h4>Recent campaign changes</h4>
+                    </div>
+                  </div>
+                  {campaignVersionHistory.length > 0 ? (
+                    <div className="version-history-list">
+                      {campaignVersionHistory.map((entry) => (
+                        <div key={entry.id}>
+                          <strong>{entry.description}</strong>
+                          <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="helper-text">
+                      Version history appears after this campaign is created, updated, published, cloned, or archived.
+                    </p>
+                  )}
+                  {campaignDraft.archivedAt && (
+                    <p className="info-message">Archived on {new Date(campaignDraft.archivedAt).toLocaleString()}.</p>
+                  )}
                 </div>
 
                 {!isCampaignAdminRoute && (
@@ -1869,7 +2016,18 @@ export function CampaignsTab({
                 <Save size={18} /> {campaignFormMode === "create" ? "Create new campaign" : "Update campaign"}
               </button>
               <button className="secondary-button" type="button" onClick={onPublishCampaign}>
-                <Rocket size={18} /> Publish campaign
+                <Rocket size={18} /> Publish current campaign
+              </button>
+              <button className="secondary-button" type="button" onClick={onCloneCampaign}>
+                <GitBranch size={18} /> Clone campaign
+              </button>
+              <button
+                className="danger-button"
+                type="button"
+                disabled={campaignFormMode === "create"}
+                onClick={confirmArchiveCampaign}
+              >
+                <Archive size={18} /> Archive campaign
               </button>
             </div>
           </form>

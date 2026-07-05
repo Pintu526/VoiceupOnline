@@ -243,6 +243,21 @@ export function DashboardTab({
   const quickStartProgress = Math.round(
     (quickStartItems.filter((item) => item.ready).length / quickStartItems.length) * 100
   );
+  const movementBrainScore = Math.min(
+    100,
+    (campaigns.length > 0 ? 20 : 0) +
+      (metrics.total > 0 ? 20 : 0) +
+      (metrics.verified > 0 ? 20 : 0) +
+      (authorityMatch ? 20 : 0) +
+      (activeCampaign?.shareUrl ? 20 : 0)
+  );
+  const lowParticipationHints = [
+    metrics.total === 0 ? "No supporters yet. Share the public campaign link first." : "",
+    metrics.verified < Math.max(1, Math.round(metrics.total * 0.5)) ? "Verification coverage is below ideal for authority submission." : "",
+    !authorityMatch ? "Authority route needs confirmation before petition delivery." : "",
+    !activeCampaign?.heroImage ? "Add a campaign image to improve public page trust." : "",
+    !activeCampaign?.socialShareText ? "Prepare WhatsApp/social copy for faster distribution." : ""
+  ].filter(Boolean);
 
   return (
     <section className="page-stack">
@@ -378,6 +393,42 @@ export function DashboardTab({
           detail="Flagged automatically"
         />
       </div>
+
+      <Panel title="AI Movement Brain" icon={<Sparkles />}>
+        <div className="movement-brain-panel">
+          <div className="movement-brain-score">
+            <span className="eyebrow">Provider-ready insight layer</span>
+            <strong>{movementBrainScore}/100</strong>
+            <small>Mock recommendations using existing campaign, signer, and authority data.</small>
+          </div>
+          <div className="movement-brain-grid">
+            <div>
+              <span>Campaign health</span>
+              <strong>{movementBrainScore >= 70 ? "Demo ready" : "Needs attention"}</strong>
+              <p>{activeCampaign?.title ?? "Create a campaign to unlock movement insights."}</p>
+            </div>
+            <div>
+              <span>Low-participation locations</span>
+              <strong>{Object.keys(dailyTotals).length ? "Monitor daily trend" : "No trend yet"}</strong>
+              <p>Location-level AI recommendations are provider-ready until richer activity data is connected.</p>
+            </div>
+            <div>
+              <span>Authority follow-up</span>
+              <strong>{authorityMatch ? `${authorityMatch.score}% confidence` : "Needs route"}</strong>
+              <p>{authorityMatch ? authorityMatch.authority.name : "Confirm authority before petition delivery."}</p>
+            </div>
+            <div>
+              <span>What should we do next?</span>
+              <strong>{lowParticipationHints[0] ?? "Keep momentum"}</strong>
+              <p>Assistant UI is mock/provider-ready and does not call an AI API.</p>
+            </div>
+          </div>
+          <div className="quality-suggestions">
+            {lowParticipationHints.map((hint) => <p key={hint}>{hint}</p>)}
+            {lowParticipationHints.length === 0 && <p>Campaign looks ready for a customer demo workflow.</p>}
+          </div>
+        </div>
+      </Panel>
 
       {!activeCampaign && (
         <EmptyWorkspace

@@ -976,7 +976,8 @@ td span {
 }
 
 .primary-button,
-.secondary-button {
+.secondary-button,
+.danger-button {
   align-items: center;
   border: 0;
   border-radius: var(--radius-sm);
@@ -1000,7 +1001,8 @@ td span {
 }
 
 .primary-button:disabled,
-.secondary-button:disabled {
+.secondary-button:disabled,
+.danger-button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
@@ -1011,10 +1013,16 @@ td span {
 }
 
 .secondary-button:hover,
+.danger-button:hover,
 .secondary-link-button:hover,
 .primary-link-button:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-soft);
+}
+
+.danger-button {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .icon-button {
@@ -1024,6 +1032,7 @@ td span {
 
 .primary-button svg,
 .secondary-button svg,
+.danger-button svg,
 .secondary-link-button svg,
 .primary-link-button svg,
 .status-pill svg {
@@ -1180,6 +1189,26 @@ td span {
 
 .campaign-wizard-header p {
   color: var(--text-soft);
+}
+
+.unsaved-changes-banner {
+  align-items: center;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md);
+  color: #92400e;
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.unsaved-changes-banner div {
+  display: grid;
+  gap: 2px;
+}
+
+.unsaved-changes-banner span {
+  font-size: 0.9rem;
 }
 
 .campaign-wizard-title-row,
@@ -1675,6 +1704,8 @@ td span {
 .supporter-profile-card,
 .timeline-item,
 .referral-node,
+.segment-builder-card,
+.leaderboard-row,
 .volunteer-level-card,
 .segment-card,
 .engagement-channel-card,
@@ -1749,8 +1780,140 @@ td span {
   font-size: 1.45rem;
 }
 
+.segment-builder-card {
+  margin-bottom: 12px;
+}
+
+.leaderboard-list {
+  display: grid;
+  gap: 10px;
+}
+
+.leaderboard-row {
+  align-items: center;
+  grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.leaderboard-row > span {
+  align-items: center;
+  background: color-mix(in srgb, var(--primary) 10%, #ffffff);
+  border-radius: 999px;
+  color: var(--primary);
+  display: inline-flex;
+  font-weight: 900;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.leaderboard-row small {
+  color: var(--muted);
+}
+
 .engagement-channel-card svg {
   color: var(--primary);
+}
+
+.movement-brain-panel,
+.communication-hub-grid,
+.analytics-command-grid,
+.field-ops-grid,
+.workspace-grid,
+.authority-2-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.movement-brain-grid,
+.analytics-command-grid,
+.field-ops-grid,
+.workspace-grid,
+.authority-2-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.communication-hub-grid {
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+}
+
+.movement-brain-score,
+.movement-brain-grid > div,
+.communication-audience-card,
+.communication-preview-card,
+.analytics-command-card,
+.field-ops-card,
+.workspace-card,
+.authority-2-card,
+.export-ready-card,
+.qr-handout-card,
+.supporter-detail-drawer {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.movement-brain-score strong,
+.analytics-command-card strong,
+.field-ops-card strong,
+.workspace-card strong,
+.authority-2-card strong {
+  font-size: 1.45rem;
+}
+
+.movement-brain-grid span,
+.analytics-command-card span,
+.field-ops-card span,
+.workspace-card span,
+.authority-2-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.hierarchy-chain,
+.qr-handout-card {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hierarchy-chain span {
+  background: #eef2ff;
+  border-radius: 999px;
+  color: #3730a3;
+  padding: 6px 9px;
+}
+
+.selected-authority-package {
+  grid-column: span 2;
+}
+
+.communication-preview-card p,
+.export-ready-card p,
+.qr-handout-card p,
+.workspace-card p,
+.authority-2-card small {
+  color: var(--text-soft);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.supporter-detail-drawer {
+  margin-top: 12px;
+  position: relative;
+}
+
+.supporter-detail-drawer .icon-button {
+  position: absolute;
+  right: 12px;
+  top: 12px;
 }
 
 .ai-copilot-backdrop {
@@ -2026,6 +2189,22 @@ td span {
   padding: 12px 13px;
 }
 
+.ai-rewrite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-rewrite-actions button {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 999px;
+  color: #3730a3;
+  font-size: 0.78rem;
+  font-weight: 850;
+  padding: 7px 10px;
+}
+
 .ai-advisor-grid,
 .ai-workspace {
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2043,6 +2222,43 @@ td span {
 
 .ai-follow-up-box .primary-button {
   justify-self: end;
+}
+
+.ai-language-panel {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ai-language-panel > div {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ai-language-panel button {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  display: grid;
+  font-weight: 900;
+  gap: 4px;
+  padding: 12px;
+  text-align: left;
+}
+
+.ai-language-panel button.active {
+  background: color-mix(in srgb, var(--primary) 10%, #ffffff);
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+}
+
+.ai-language-panel small {
+  color: var(--muted);
+  font-weight: 750;
 }
 
 .ai-content-studio details {
@@ -2291,6 +2507,42 @@ td span {
   gap: 4px;
   min-width: 0;
   padding: 12px;
+}
+
+.campaign-version-history {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.version-history-header {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.version-history-header h4 {
+  margin: 3px 0 0;
+}
+
+.version-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.version-history-list div {
+  border-left: 3px solid var(--primary);
+  display: grid;
+  gap: 3px;
+  padding-left: 10px;
+}
+
+.version-history-list span {
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .field {
@@ -3465,6 +3717,12 @@ td span {
 
   .movement-hero,
   .movement-graph,
+  .movement-brain-grid,
+  .communication-hub-grid,
+  .analytics-command-grid,
+  .field-ops-grid,
+  .workspace-grid,
+  .authority-2-grid,
   .quick-start-hero,
   .quick-start-grid,
   .quick-start-steps,
@@ -3545,6 +3803,12 @@ td span {
   .authority-directory-grid,
   .movement-hero,
   .movement-graph,
+  .movement-brain-grid,
+  .communication-hub-grid,
+  .analytics-command-grid,
+  .field-ops-grid,
+  .workspace-grid,
+  .authority-2-grid,
   .quick-start-hero,
   .quick-start-grid,
   .quick-start-steps,

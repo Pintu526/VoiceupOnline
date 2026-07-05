@@ -159,6 +159,8 @@ interface AppShellProps {
 
   // Handlers
   onCreateCampaign: () => void;
+  onCloneCampaign: () => void;
+  onArchiveCampaign: () => void;
   onSaveCampaign: (event: FormEvent) => void;
   onPublishCampaign: () => void;
   onSubmitPublicSignature: (event: FormEvent) => void;
@@ -261,6 +263,8 @@ export function AppShell({
   backendMessage,
   filteredCommandItems,
   onCreateCampaign,
+  onCloneCampaign,
+  onArchiveCampaign,
   onSaveCampaign,
   onPublishCampaign,
   onSubmitPublicSignature,
@@ -291,6 +295,7 @@ export function AppShell({
 }: AppShellProps) {
   const [aiCopilotOpen, setAiCopilotOpen] = useState(false);
   const [aiDraftAppliedFocusKey, setAiDraftAppliedFocusKey] = useState(0);
+  const [aiUndoDraft, setAiUndoDraft] = useState<Campaign | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -308,6 +313,7 @@ export function AppShell({
     reviewState: AiReviewState
   ) {
     if (!campaignDraft) return;
+    setAiUndoDraft(campaignDraft);
     const isRejected = (section: string) => reviewState[section] === "rejected";
     const objectiveText = aiResult.draft.objectives.map((item) => `- ${item}`).join("\n");
     const volunteerText = aiResult.draft.volunteerPlan.map((item) => `- ${item}`).join("\n");
@@ -362,6 +368,65 @@ export function AppShell({
       open: true,
       title: "AI draft applied",
       description: "AI draft applied. Review and save your campaign."
+    });
+  }
+
+  function applyAiSectionToCampaign(aiResult: AiCampaignCopilotResult, section: string) {
+    if (!campaignDraft) return;
+    setAiUndoDraft(campaignDraft);
+    const nextDraft: Campaign = { ...campaignDraft };
+    if (section === "Campaign Title") {
+      nextDraft.title = aiResult.draft.title;
+      nextDraft.appealContent = [`Subtitle:\n${aiResult.draft.subtitle}`, nextDraft.appealContent].filter(Boolean).join("\n\n");
+    } else if (section === "Summary") {
+      nextDraft.description = aiResult.draft.summary;
+    } else if (section === "Full Description") {
+      nextDraft.appealContent = [
+        aiResult.draft.fullDescription,
+        `Problem statement:\n${aiResult.draft.problemStatement}`,
+        `Expected outcome:\n${aiResult.draft.expectedOutcome}`
+      ].join("\n\n");
+    } else if (section === "Objectives") {
+      nextDraft.appealContent = [
+        nextDraft.appealContent,
+        `Objectives:\n${aiResult.draft.objectives.map((item) => `- ${item}`).join("\n")}`
+      ].filter(Boolean).join("\n\n");
+    } else if (section === "Authority") {
+      nextDraft.category = aiResult.draft.suggestedCategory;
+      nextDraft.goal = nextDraft.goalLockedBySaas ? nextDraft.goal : aiResult.draft.suggestedTarget;
+    } else if (section === "Social Posts") {
+      nextDraft.socialShareText = aiResult.draft.whatsappMessage;
+      nextDraft.thankYouMessage = aiResult.draft.whatsappMessage;
+      nextDraft.participantUpdateMessage = aiResult.draft.linkedInPost;
+    } else if (section === "Volunteer Plan") {
+      nextDraft.appealContent = [
+        nextDraft.appealContent,
+        `Volunteer plan:\n${aiResult.draft.volunteerPlan.map((item) => `- ${item}`).join("\n")}`
+      ].filter(Boolean).join("\n\n");
+    } else if (section === "Press Release") {
+      nextDraft.qrLabel = aiResult.draft.qrPosterHeadline;
+      nextDraft.appealContent = [nextDraft.appealContent, `Press release:\n${aiResult.draft.pressRelease}`].filter(Boolean).join("\n\n");
+    }
+    setCampaignDraft(nextDraft);
+    setAiDraftAppliedFocusKey((current) => current + 1);
+    setActiveTab("campaigns");
+    setToast({
+      open: true,
+      title: "AI section applied",
+      description: `${section} was applied to the current draft.`
+    });
+  }
+
+  function undoLastAiApply() {
+    if (!aiUndoDraft) return;
+    setCampaignDraft(aiUndoDraft);
+    setCampaignFormMode("create");
+    setActiveTab("campaigns");
+    setAiUndoDraft(null);
+    setToast({
+      open: true,
+      title: "AI apply undone",
+      description: "The previous campaign draft has been restored."
     });
   }
 
@@ -582,11 +647,13 @@ export function AppShell({
           {activeTab === "campaigns" && (
             <CampaignsTab
               campaignDraft={campaignDraft}
+              activeCampaign={activeCampaign}
               setCampaignDraft={setCampaignDraft}
               campaignFormMode={campaignFormMode}
               setCampaignFormMode={setCampaignFormMode}
               authorities={authorities}
               setAuthorities={setAuthorities}
+              auditLogs={auditLogs}
               organization={organization}
               isCampaignAdminRoute={isCampaignAdminRoute}
               locationOverrides={locationOverrides}
@@ -600,6 +667,8 @@ export function AppShell({
               onSaveCampaign={onSaveCampaign}
               onPublishCampaign={onPublishCampaign}
               onCreateCampaign={onCreateCampaign}
+              onCloneCampaign={onCloneCampaign}
+              onArchiveCampaign={onArchiveCampaign}
               onOpenAiCopilot={() => setAiCopilotOpen(true)}
               aiDraftAppliedFocusKey={aiDraftAppliedFocusKey}
               onAddAuthorityRule={onAddAuthorityRule}
@@ -747,6 +816,9 @@ export function AppShell({
           <AiCampaignCopilot
             campaignDraft={campaignDraft}
             onApplyAiDraft={applyAiDraftToCampaign}
+            onApplyAiSection={applyAiSectionToCampaign}
+            onUndoAiApply={undoLastAiApply}
+            canUndoAiApply={Boolean(aiUndoDraft)}
             onClose={() => setAiCopilotOpen(false)}
           />
         </Suspense>

@@ -19,6 +19,9 @@ interface AiCampaignCopilotProps {
     result: AiCampaignCopilotResult,
     sectionState: Record<string, "accepted" | "rejected" | "editing">
   ) => void;
+  onApplyAiSection: (result: AiCampaignCopilotResult, section: string) => void;
+  onUndoAiApply: () => void;
+  canUndoAiApply: boolean;
   onClose: () => void;
 }
 
@@ -73,7 +76,24 @@ function getSectionConfidence(result: AiCampaignCopilotResult, index: number) {
   return Math.max(68, Math.min(96, result.draft.qualityScore + 8 - index * 2));
 }
 
-export function AiCampaignCopilot({ campaignDraft, onApplyAiDraft, onClose }: AiCampaignCopilotProps) {
+type RewriteTone = "shorter" | "emotional" | "professional" | "legal" | "citizen";
+
+function rewriteText(value: string, tone: RewriteTone, idea: string) {
+  if (tone === "shorter") return `Support "${idea}" and request timely action from the responsible authority.`;
+  if (tone === "emotional") return `"${idea}" affects real people every day. Add your voice for visible, accountable action.`;
+  if (tone === "professional") return `This campaign requests a clear, time-bound response on "${idea}" from the responsible authority.`;
+  if (tone === "legal") return `Citizens respectfully request lawful, documented, and time-bound administrative action on "${idea}".`;
+  return `We can solve "${idea}" together by signing, sharing, and asking the right authority for action.`;
+}
+
+export function AiCampaignCopilot({
+  campaignDraft,
+  onApplyAiDraft,
+  onApplyAiSection,
+  onUndoAiApply,
+  canUndoAiApply,
+  onClose
+}: AiCampaignCopilotProps) {
   const [idea, setIdea] = useState("");
   const [generatedIdea, setGeneratedIdea] = useState("");
   const [language, setLanguage] = useState<AiLanguage>("English");
@@ -161,6 +181,48 @@ export function AiCampaignCopilot({ campaignDraft, onApplyAiDraft, onClose }: Ai
     setResult(next);
     setHistory((current) => [`Follow-up: ${followUpInstruction.trim()}`, ...current].slice(0, 6));
     setFollowUpInstruction("");
+  }
+
+  function rewriteSection(section: string, tone: RewriteTone) {
+    if (!result) return;
+    const next = { ...result, draft: { ...result.draft }, advisor: [...result.advisor] };
+    const ideaText = generatedIdea || idea || "this campaign";
+    const rewritten = rewriteText(next.draft.summary, tone, ideaText);
+    if (section === "Campaign Title") {
+      next.draft.subtitle = rewritten;
+    } else if (section === "Summary") {
+      next.draft.summary = rewritten;
+    } else if (section === "Full Description") {
+      next.draft.fullDescription = `${rewritten}\n\nThis petition keeps the request focused, respectful, and ready for authority review.`;
+    } else if (section === "Objectives") {
+      next.draft.objectives = [
+        rewritten,
+        `Collect verified support for "${ideaText}"`,
+        "Create a clear follow-up trail with the responsible authority"
+      ];
+    } else if (section === "Authority") {
+      next.draft.suggestedAuthority = tone === "legal"
+        ? `${next.draft.suggestedAuthority}; legal escalation: District administration`
+        : next.draft.suggestedAuthority;
+    } else if (section === "Social Posts") {
+      next.draft.whatsappMessage = rewritten;
+      next.draft.facebookPost = rewritten;
+      next.draft.xPost = `${rewritten} #Voiceup`;
+      next.draft.linkedInPost = rewritten;
+    } else if (section === "Volunteer Plan") {
+      next.draft.volunteerPlan = [
+        "Assign outreach owners",
+        "Collect local evidence",
+        "Share citizen-friendly updates",
+        "Track authority follow-up"
+      ];
+    } else if (section === "Press Release") {
+      next.draft.pressRelease = rewritten;
+    }
+    next.advisor = [`${section} rewritten in ${tone === "citizen" ? "citizen friendly" : tone} tone.`, ...next.advisor].slice(0, 6);
+    next.draft.qualityScore = Math.min(95, next.draft.qualityScore + 1);
+    setResult(next);
+    setSectionState((current) => ({ ...current, [section]: "editing" }));
   }
 
   function applyToDraft() {
@@ -285,8 +347,32 @@ export function AiCampaignCopilot({ campaignDraft, onApplyAiDraft, onClose }: Ai
                             <p key={item}>{item}</p>
                           ))}
                         </div>
+                        <div className="ai-rewrite-actions" aria-label={`Rewrite ${section}`}>
+                          {[
+                            ["shorter", "Shorter"],
+                            ["emotional", "Emotional"],
+                            ["professional", "Professional"],
+                            ["legal", "Legal tone"],
+                            ["citizen", "Citizen friendly"]
+                          ].map(([tone, label]) => (
+                            <button
+                              key={tone}
+                              type="button"
+                              onClick={() => rewriteSection(section, tone as RewriteTone)}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <div className="button-row">
+                        <button
+                          className="primary-button"
+                          type="button"
+                          onClick={() => onApplyAiSection(result, section)}
+                        >
+                          Apply section
+                        </button>
                         <button
                           className="secondary-button"
                           type="button"
@@ -346,6 +432,12 @@ export function AiCampaignCopilot({ campaignDraft, onApplyAiDraft, onClose }: Ai
                   <div>
                     <span className="eyebrow">Campaign Advisor</span>
                     {result.advisor.map((item) => <p key={item}>{item}</p>)}
+                    {[
+                      result.draft.title.length > 90 ? "Shorten the title for mobile sharing." : "Title length looks good for mobile sharing.",
+                      result.draft.fullDescription.length < 240 ? "Add a little more evidence or local context." : "Description has enough substance for review.",
+                      result.draft.suggestedAuthority ? "Authority suggestion is ready to verify." : "Add an authority before publishing.",
+                      result.draft.suggestedSupporterFields.length <= 3 ? "Supporter form is conversion-friendly." : "Consider fewer required supporter fields."
+                    ].map((item) => <p key={item}>{item}</p>)}
                   </div>
                   <div>
                     <span className="eyebrow">Copilot Suggestions</span>
@@ -399,6 +491,23 @@ export function AiCampaignCopilot({ campaignDraft, onApplyAiDraft, onClose }: Ai
                   </button>
                 </div>
 
+                <div className="ai-language-panel">
+                  <span className="eyebrow">Provider-ready languages</span>
+                  <div>
+                    {(["English", "Hindi", "Odia"] as AiLanguage[]).map((item) => (
+                      <button
+                        key={item}
+                        className={language === item ? "active" : ""}
+                        type="button"
+                        onClick={() => setLanguage(item)}
+                      >
+                        {item}
+                        <small>{item === "English" ? "Mock output active" : "Provider-ready"}</small>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="ai-content-studio">
                   <span className="eyebrow">Content Studio</span>
                   {Object.entries(result.contentStudio).map(([label, value]) => (
@@ -426,6 +535,9 @@ export function AiCampaignCopilot({ campaignDraft, onApplyAiDraft, onClose }: Ai
                   </button>
                   <button className="secondary-button" type="button">
                     <Languages size={18} /> Multi-language provider ready
+                  </button>
+                  <button className="secondary-button" type="button" disabled={!canUndoAiApply} onClick={onUndoAiApply}>
+                    Undo AI apply
                   </button>
                   <button className="primary-button" type="button" disabled={!result || !campaignDraft} onClick={applyToDraft}>
                     Apply accepted basics to current draft

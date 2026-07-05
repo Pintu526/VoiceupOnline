@@ -1,4 +1,4 @@
-import { CheckCircle2, ClipboardList, FileScan, Plus, SearchCheck, Upload, UsersRound } from "lucide-react";
+import { CheckCircle2, ClipboardList, FileScan, Plus, QrCode, SearchCheck, Upload, UsersRound } from "lucide-react";
 import type { Campaign, ScanReviewItem, Signer } from "../../types";
 import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
@@ -57,9 +57,41 @@ export function ScansTab({
     (signer) => signer.status === "duplicate" || signer.status === "rejected"
   );
   const rejectedScanItems = campaignScanItems.filter((item) => item.status === "Rejected");
+  const districtCount = new Set(campaignSigners.map((signer) => signer.district).filter(Boolean)).size;
+  const blockCount = new Set(campaignSigners.map((signer) => signer.block).filter(Boolean)).size;
+  const panchayatCount = new Set(campaignSigners.map((signer) => signer.panchayat).filter(Boolean)).size;
 
   return (
     <section className="page-stack">
+      <Panel title="Offline Field Operations" icon={<ClipboardList />}>
+        <div className="field-ops-grid">
+          {[
+            ["Paper sheet upload queue", campaignScanItems.length, "Real OCR/review items"],
+            ["Manual supporter entry", reviewQueueItems.length, "Ready for approval"],
+            ["Batch review and approval", reviewQueueItems.length, "Use existing review queue"],
+            ["Duplicate detection", duplicateOrRejectedSigners.length, "Real signer status flags"],
+            ["Volunteer attribution", "Provider ready", "Future field team ownership"],
+            ["District tracking", districtCount, "Real signer location data"],
+            ["Block tracking", blockCount, "Real signer location data"],
+            ["Panchayat tracking", panchayatCount, "Real signer location data"],
+            ["Import summary", importedSupporters.length, "Imported scan supporters"]
+          ].map(([label, value, detail]) => (
+            <div className="field-ops-card" key={String(label)}>
+              <span>{label}</span>
+              <strong>{typeof value === "number" ? value.toLocaleString() : value}</strong>
+              <small>{detail}</small>
+            </div>
+          ))}
+        </div>
+        <div className="qr-handout-card">
+          <QrCode size={42} />
+          <div>
+            <strong>QR code handout section</strong>
+            <p>Use the campaign public link QR on posters and field sheets. Printable handout generation is provider-ready.</p>
+          </div>
+        </div>
+      </Panel>
+
       <Panel title="Upload paper sheet" icon={<Upload />}>
         <div className="scan-grid">
           <label className="drop-zone">

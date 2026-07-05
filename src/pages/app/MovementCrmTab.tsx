@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   BadgeCheck,
   BellRing,
@@ -74,6 +74,7 @@ export function MovementCrmTab({
   authorities,
   onOpenAiCopilot
 }: MovementCrmTabProps) {
+  const [selectedProfileId, setSelectedProfileId] = useState("");
   const movementSigners = activeCampaign ? campaignSigners : signers;
   const supporterProfiles = useMemo(
     () =>
@@ -141,6 +142,11 @@ export function MovementCrmTab({
   ];
 
   const topReferrers = supporterProfiles.slice(0, 3);
+  const selectedProfile = supporterProfiles.find((profile) => profile.id === selectedProfileId);
+  const leaderboard = supporterProfiles
+    .slice()
+    .sort((a, b) => b.campaignsSupported - a.campaignsSupported || Number(b.otpVerified) - Number(a.otpVerified))
+    .slice(0, 5);
 
   return (
     <section className="page-stack movement-crm">
@@ -217,10 +223,31 @@ export function MovementCrmTab({
                 </div>
                 <small>Last activity: {new Date(profile.lastActivity).toLocaleDateString()}</small>
                 {profile.comment && <p>{profile.comment}</p>}
+                <button className="secondary-button" type="button" onClick={() => setSelectedProfileId(profile.id)}>
+                  Open profile
+                </button>
               </article>
             ))}
             {supporterProfiles.length === 0 && <p className="helper-text">No supporter records yet.</p>}
           </div>
+          {selectedProfile && (
+            <aside className="supporter-detail-drawer" aria-label="Supporter profile detail">
+              <button className="icon-button" type="button" aria-label="Close supporter profile" onClick={() => setSelectedProfileId("")}>
+                X
+              </button>
+              <span className="eyebrow">Supporter profile</span>
+              <h3>{selectedProfile.name || "Unnamed supporter"}</h3>
+              <p>{selectedProfile.phone || "No phone"} - {selectedProfile.email || "No email"}</p>
+              <div className="profile-grid">
+                <span>Location</span><strong>{selectedProfile.location || "Not captured"}</strong>
+                <span>Volunteer level</span><strong>{selectedProfile.volunteerLevel}</strong>
+                <span>Tags</span><strong>{selectedProfile.tags.join(", ")}</strong>
+                <span>Journey</span><strong>Signed campaign {"->"} Provider-ready volunteer path</strong>
+                <span>Referral tree</span><strong>Provider-ready placeholder</strong>
+                <span>Consent readiness</span><strong>{selectedProfile.phone || selectedProfile.email ? "Contact field available" : "Needs contact"}</strong>
+              </div>
+            </aside>
+          )}
         </Panel>
 
         <Panel title="Movement Timeline" icon={<HeartPulse />}>
@@ -264,6 +291,16 @@ export function MovementCrmTab({
 
       <div className="two-column">
         <Panel title="Smart Segments" icon={<UsersRound />}>
+          <div className="segment-builder-card">
+            <span className="eyebrow">Segment builder</span>
+            <strong>Build audience using existing supporter data</strong>
+            <div className="template-chip-row">
+              {["State", "District", "Campaign", "Verified", "New supporters", "Inactive"].map((filter) => (
+                <span key={filter}>{filter}</span>
+              ))}
+            </div>
+            <p className="helper-text">Saved segment persistence and automation are provider-ready.</p>
+          </div>
           <div className="segment-grid">
             {segments.map(([label, value, detail]) => (
               <button className="segment-card" type="button" key={label}>
@@ -291,6 +328,22 @@ export function MovementCrmTab({
       </div>
 
       <div className="two-column">
+        <Panel title="Movement Leaderboard" icon={<BadgeCheck />}>
+          <div className="leaderboard-list">
+            {leaderboard.length === 0 && <p className="helper-text">Leaderboard appears after supporters join.</p>}
+            {leaderboard.map((profile, index) => (
+              <div className="leaderboard-row" key={profile.id}>
+                <span>{index + 1}</span>
+                <div>
+                  <strong>{profile.name || "Unnamed supporter"}</strong>
+                  <small>{profile.campaignsSupported} campaign touchpoint{profile.campaignsSupported === 1 ? "" : "s"} - {profile.otpVerified ? "verified" : "pending"}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="helper-text">Volunteer score and referral-based ranking are provider-ready.</p>
+        </Panel>
+
         <Panel title="Referral Network" icon={<Share2 />}>
           <div className="referral-network">
             {topReferrers.map((profile, index) => (

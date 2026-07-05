@@ -1,4 +1,4 @@
-import { Download, FileText, Users } from "lucide-react";
+import { BarChart3, Download, FileText, MapPin, Users } from "lucide-react";
 import type { AuthorityRule, Campaign, Signer } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
 import { exportCsv, exportPdf, exportSignerAppealPdf } from "../../lib";
@@ -43,9 +43,50 @@ export function ReportsTab({
       />
     );
   }
+  const locationCoverage =
+    Object.keys(stateTotals).length +
+    Object.keys(districtTotals).length +
+    Object.keys(blockTotals).length +
+    Object.keys(panchayatTotals).length;
+  const verifiedCount = campaignSigners.filter((signer) => signer.status === "verified" || signer.otpVerified).length;
+  const communicationReady = campaignSigners.filter((signer) => signer.phone || signer.email).length;
+  const authorityReady = authorityMatch ? "Ready" : "Needs authority";
 
   return (
     <section className="page-stack">
+      <Panel title="Analytics Command Center" icon={<BarChart3 />}>
+        <div className="analytics-command-grid">
+          {[
+            ["National overview", campaignSigners.length, "Real campaign signer records"],
+            ["Verified supporters", verifiedCount, "OTP verified or approved"],
+            ["Location coverage", locationCoverage, "State/district/block/panchayat buckets"],
+            ["Authority readiness", authorityReady, authorityMatch ? `${authorityMatch.score}% confidence` : "No match"],
+            ["Field collection status", campaignSigners.filter((signer) => signer.source === "scan").length, "Imported scan supporters"],
+            ["Communication readiness", communicationReady, "Phone or email available"],
+            ["Volunteer activity", "Provider ready", "Will use volunteer tracking"],
+            ["AI insight cards", "Provider ready", "Mock recommendations only"]
+          ].map(([label, value, detail]) => (
+            <div className="analytics-command-card" key={String(label)}>
+              <span>{label}</span>
+              <strong>{typeof value === "number" ? value.toLocaleString() : value}</strong>
+              <small>{detail}</small>
+            </div>
+          ))}
+        </div>
+        <div className="two-column">
+          <div className="export-ready-card">
+            <FileText size={22} />
+            <strong>Export-ready reporting section</strong>
+            <p>PDF and CSV export buttons below continue using existing export functions.</p>
+          </div>
+          <div className="export-ready-card">
+            <MapPin size={22} />
+            <strong>Distribution insight</strong>
+            <p>Use the existing location reports below to compare state, district, block, and panchayat coverage.</p>
+          </div>
+        </div>
+      </Panel>
+
       <Panel title="Reports and exports" icon={<Download />}>
         <div className="button-row">
           <button

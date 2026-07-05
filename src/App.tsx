@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import * as Toast from "@radix-ui/react-toast";
-import Tesseract from "tesseract.js";
 import { LandingPage } from "./components/LandingPage";
 import {
   initialAuthorities,
@@ -548,6 +547,52 @@ function App() {
     setActiveTab("campaigns");
   }
 
+  function cloneCampaign() {
+    if (!campaignDraft) return;
+    const sourceSlug = campaignDraft.slug.trim() || `campaign-${Date.now()}`;
+    const slug = `${sourceSlug}-copy-${Date.now()}`;
+    const clonedCampaign: Campaign = applyLocationGovernanceToCampaign({
+      ...campaignDraft,
+      id: createId("cmp"),
+      title: `Copy of ${campaignDraft.title || "Untitled campaign"}`,
+      slug,
+      status: "Draft",
+      shareUrl: getCampaignPublicUrl(organization, { slug }),
+      adminUrl: getCampaignAdminUrl(organization, { slug }),
+      clonedFromCampaignId: campaignDraft.id,
+      archivedAt: undefined
+    }, organization);
+    setCampaignDraft(clonedCampaign);
+    setCampaignFormMode("create");
+    setActiveTab("campaigns");
+    addAuditLog("campaign.cloned", `Prepared clone draft from "${campaignDraft.title}"`, campaignDraft.id);
+    showToast("Campaign cloned", "Review the cloned draft, then create it as a new campaign.");
+  }
+
+  function archiveCampaign() {
+    if (!campaignDraft) return;
+    const isExistingCampaign = campaigns.some((campaign) => campaign.id === campaignDraft.id);
+    if (!isExistingCampaign || campaignFormMode === "create") {
+      showToast("Archive unavailable", "Create or save this campaign before archiving it.");
+      return;
+    }
+    const archivedCampaign = applyLocationGovernanceToCampaign({
+      ...campaignDraft,
+      status: "Closed" as const,
+      archivedAt: new Date().toISOString(),
+      shareUrl: getCampaignPublicUrl(organization, campaignDraft),
+      adminUrl: getCampaignAdminUrl(organization, campaignDraft)
+    }, organization);
+    setCampaigns((current) =>
+      current.map((campaign) => (campaign.id === archivedCampaign.id ? archivedCampaign : campaign))
+    );
+    setCampaignDraft(archivedCampaign);
+    setCampaignFormMode("edit");
+    setActiveCampaignId(archivedCampaign.id);
+    addAuditLog("campaign.archived", `Archived campaign "${archivedCampaign.title}"`, archivedCampaign.id);
+    showToast("Campaign archived", "The campaign was marked Closed and remains available in the workspace.");
+  }
+
   function publishCampaign() {
     if (!campaignDraft) return;
     if (campaignDraft.publishingLockedBySaas && isCampaignAdminRoute) {
@@ -678,7 +723,8 @@ function App() {
     setScanMessage(`Reading ${file.name} with OCR. Handwriting may need manual correction.`);
     const scanFileUrl = await uploadCampaignAsset(file, "scan", false);
     try {
-      const result = await Tesseract.recognize(file, "eng");
+      const { recognize } = await import("tesseract.js");
+      const result = await recognize(file, "eng");
       const extractedText = result.data.text.trim() || scanText;
       const item = { ...createScanReviewItem(activeCampaign.id, file.name, extractedText), fileUrl: scanFileUrl };
       setScanItems((current) => [item, ...current]);
@@ -1231,6 +1277,8 @@ function App() {
         backendMessage={backendMessage}
         filteredCommandItems={filteredCommandItems}
         onCreateCampaign={createCampaign}
+        onCloneCampaign={cloneCampaign}
+        onArchiveCampaign={archiveCampaign}
         onSaveCampaign={saveCampaign}
         onPublishCampaign={publishCampaign}
         onSubmitPublicSignature={submitPublicSignature}

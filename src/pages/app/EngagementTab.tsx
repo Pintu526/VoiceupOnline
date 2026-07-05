@@ -52,6 +52,9 @@ export function EngagementTab({
   const effectiveMessage = broadcastMessage || reportMessage;
   const [selectedSegment, setSelectedSegment] = useState("All supporters");
   const [selectedTemplate, setSelectedTemplate] = useState("Campaign update");
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(["WhatsApp", "SMS"]);
+  const [scheduledFor, setScheduledFor] = useState("");
+  const [deliveryPriority, setDeliveryPriority] = useState("Normal");
   const supporterSegments = useMemo(
     () => [
       {
@@ -121,6 +124,7 @@ export function EngagementTab({
     ["Email", integrations.emailProvider, integrations.emailSender || "Sender email not set"],
     ["IVR", "Not configured", "Provider-ready"],
     ["Telegram", "Not configured", "Provider-ready"],
+    ["Social Media", "Manual share", "Provider-ready for scheduling/publishing APIs"],
     ["Push", "Not configured", "Provider-ready"]
   ];
   const communicationChannels = [
@@ -133,6 +137,15 @@ export function EngagementTab({
     ["Push", "Provider ready", BellRing]
   ] as const;
   const previewMessage = broadcastMessage || activeTemplate.message;
+  const selectedProviderCount = selectedChannels.length;
+
+  function toggleChannel(channel: string) {
+    setSelectedChannels((current) =>
+      current.includes(channel)
+        ? current.filter((item) => item !== channel)
+        : [...current, channel]
+    );
+  }
 
   return (
     <section className="page-stack">
@@ -184,27 +197,67 @@ export function EngagementTab({
           <div className="communication-preview-card">
             <span className="eyebrow">Scheduling UI</span>
             <label className="field">
-              <span className="label">Send window</span>
-              <input type="datetime-local" disabled />
+              <span className="label">Planned send window</span>
+              <input
+                type="datetime-local"
+                value={scheduledFor}
+                onChange={(event) => setScheduledFor(event.target.value)}
+              />
             </label>
-            <p>Scheduling is disabled until a real communication provider is connected.</p>
+            <label className="field">
+              <span className="label">Priority</span>
+              <select value={deliveryPriority} onChange={(event) => setDeliveryPriority(event.target.value)}>
+                <option>Low</option>
+                <option>Normal</option>
+                <option>High</option>
+              </select>
+            </label>
+            <p>
+              Schedule is UI-only. {scheduledFor ? `Prepared for ${new Date(scheduledFor).toLocaleString()}.` : "Choose a future window for planning."}
+            </p>
           </div>
           <div className="communication-preview-card">
             <span className="eyebrow">Delivery history</span>
             <strong>No provider delivery records yet</strong>
             <p>Future sends will show queued, delivered, failed, opted-out, and consent-blocked statuses here.</p>
+            <div className="delivery-status-row">
+              {["Queued", "Delivered", "Failed", "Opted-out", "Consent-blocked"].map((status) => (
+                <span key={status}>{status}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="consent-compliance-card">
+          <BellRing size={22} />
+          <div>
+            <strong>Consent warning</strong>
+            <p>
+              No bulk sending is enabled. Verify supporter consent, opt-out rules, and provider compliance before using
+              SMS, WhatsApp, Email, IVR, Telegram, Social Media, or Push delivery.
+            </p>
           </div>
         </div>
         <div className="engagement-channel-grid">
           {communicationChannels.map(([label, status, Icon]) => (
-            <article className="engagement-channel-card" key={label}>
+            <article className={selectedChannels.includes(label) ? "engagement-channel-card selected" : "engagement-channel-card"} key={label}>
               <Icon size={20} />
               <strong>{label}</strong>
               <small>{status}</small>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  checked={selectedChannels.includes(label)}
+                  onChange={() => toggleChannel(label)}
+                />
+                Include in provider-ready plan
+              </label>
               <p>Template library, scheduling, configuration, and delivery history foundations are UI-only.</p>
             </article>
           ))}
         </div>
+        <p className="info-message">
+          Prepared audience: {activeSegment.count.toLocaleString()} supporters - {selectedProviderCount} selected channels - priority {deliveryPriority}. This is a planning preview only.
+        </p>
         <div className="communication-library-grid">
           {messageTemplates.map((template) => (
             <button

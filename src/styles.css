@@ -1969,6 +1969,26 @@ td span {
   color: var(--primary);
 }
 
+.engagement-channel-card.selected {
+  background: color-mix(in srgb, var(--primary) 8%, #ffffff);
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--border));
+}
+
+.delivery-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.delivery-status-row span {
+  background: #eef2ff;
+  border-radius: 999px;
+  color: #3730a3;
+  font-size: 0.76rem;
+  font-weight: 850;
+  padding: 6px 9px;
+}
+
 .volunteer-ops-hero {
   align-items: stretch;
   display: grid;
@@ -2039,6 +2059,39 @@ td span {
 .volunteer-task-board,
 .coordinator-gap-board {
   margin-top: 14px;
+}
+
+.volunteer-assignment-controls,
+.mobile-volunteer-dashboard {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.mobile-volunteer-dashboard {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mobile-volunteer-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.mobile-volunteer-card span,
+.mobile-volunteer-card small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.mobile-volunteer-card strong {
+  font-size: 1.35rem;
 }
 
 .volunteer-task-card {
@@ -2243,6 +2296,121 @@ td span {
 
 .campaign-comparison-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.analytics-progress-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.analytics-progress-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.analytics-progress-card strong {
+  font-size: 1.35rem;
+}
+
+.analytics-progress-card small {
+  color: var(--text-soft);
+}
+
+.analytics-progress-card.ai-ready {
+  background: color-mix(in srgb, var(--primary) 7%, #ffffff);
+}
+
+.workspace-management-hero {
+  align-items: stretch;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 10%, #ffffff), #ffffff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  margin-bottom: 14px;
+  padding: clamp(18px, 3vw, 26px);
+}
+
+.workspace-management-hero h3,
+.workspace-management-hero p,
+.workspace-management-card p {
+  margin: 0;
+}
+
+.workspace-management-hero p,
+.workspace-management-card p,
+.workspace-brand-preview small {
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.workspace-brand-preview,
+.workspace-management-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.workspace-logo-preview {
+  align-items: center;
+  background: linear-gradient(135deg, var(--primary), var(--chakra));
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  display: grid;
+  font-size: 2rem;
+  font-weight: 950;
+  height: 74px;
+  place-items: center;
+  width: 74px;
+}
+
+.workspace-management-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.workspace-management-card svg {
+  color: var(--primary);
+}
+
+.workspace-banner-preview {
+  align-items: end;
+  background:
+    linear-gradient(135deg, rgba(11, 61, 145, 0.9), rgba(19, 136, 8, 0.66)),
+    #0f172a;
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+  display: grid;
+  min-height: 92px;
+  padding: 12px;
+}
+
+.workspace-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.workspace-chip-row span {
+  background: #eef2ff;
+  border-radius: 999px;
+  color: #3730a3;
+  font-size: 0.76rem;
+  font-weight: 850;
+  padding: 6px 9px;
 }
 
 .communication-segment-grid,
@@ -4448,12 +4616,17 @@ td span {
   .movement-brain-grid,
   .national-command-hero,
   .campaign-comparison-grid,
+  .analytics-progress-grid,
+  .workspace-management-hero,
+  .workspace-management-grid,
   .audit-summary-grid,
   .privacy-readiness-list,
   .integration-readiness-hero,
   .provider-card-grid,
   .volunteer-ops-hero,
   .volunteer-ops-grid,
+  .volunteer-assignment-controls,
+  .mobile-volunteer-dashboard,
   .command-hero,
   .paper-import-hero,
   .paper-import-grid,
@@ -4553,12 +4726,17 @@ td span {
   .movement-brain-grid,
   .national-command-hero,
   .campaign-comparison-grid,
+  .analytics-progress-grid,
+  .workspace-management-hero,
+  .workspace-management-grid,
   .audit-summary-grid,
   .privacy-readiness-list,
   .integration-readiness-hero,
   .provider-card-grid,
   .volunteer-ops-hero,
   .volunteer-ops-grid,
+  .volunteer-assignment-controls,
+  .mobile-volunteer-dashboard,
   .command-hero,
   .paper-import-hero,
   .paper-import-grid,

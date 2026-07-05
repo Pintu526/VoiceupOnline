@@ -15,6 +15,7 @@ import {
   Share2,
   ShieldCheck,
   Sparkles,
+  Smartphone,
   Target,
   UploadCloud,
   UserRound,
@@ -24,6 +25,7 @@ import type { LucideIcon } from "lucide-react";
 import type { AuthorityRule, Campaign, ScanReviewItem, Signer } from "../../types";
 import { Panel } from "../../ui/Panel";
 import { MetricCard } from "../../ui/MetricCard";
+import { Field } from "../../ui/Field";
 
 interface MovementCrmTabProps {
   campaigns: Campaign[];
@@ -81,6 +83,9 @@ export function MovementCrmTab({
   onOpenAiCopilot
 }: MovementCrmTabProps) {
   const [selectedProfileId, setSelectedProfileId] = useState("");
+  const [selectedVolunteerLevel, setSelectedVolunteerLevel] = useState("Volunteer");
+  const [taskOwner, setTaskOwner] = useState("Field lead");
+  const [dailyTarget, setDailyTarget] = useState(25);
   const movementSigners = activeCampaign ? campaignSigners : signers;
   const supporterProfiles = useMemo(
     () =>
@@ -179,6 +184,20 @@ export function MovementCrmTab({
     ["Panchayat Coordinator", panchayatCoverage > 0, "Assign for ward/panchayat mobilization"],
     ["Ward Coordinator", panchayatCoverage > 0, "Use when ward data is available"]
   ];
+  const districtGaps = Array.from(new Set(movementSigners.map((signer) => signer.district).filter(Boolean)))
+    .slice(0, 6)
+    .map((district) => ({
+      label: district,
+      ready: false,
+      detail: "Assign district coordinator"
+    }));
+  const blockGaps = Array.from(new Set(movementSigners.map((signer) => signer.block).filter(Boolean)))
+    .slice(0, 6)
+    .map((block) => ({
+      label: block,
+      ready: false,
+      detail: "Assign block coordinator"
+    }));
   const volunteerTasks = [
     ["Field collection", "Collect 25 signatures from weak localities", "Field lead", activeCampaign ? "Ready to assign" : "Setup needed"],
     ["Upload tracking", pendingUploads > 0 ? `Review ${pendingUploads} pending upload${pendingUploads === 1 ? "" : "s"}` : "Upload new paper sheets", "Review lead", "Real queue"],
@@ -297,12 +316,34 @@ export function MovementCrmTab({
         <div className="two-column">
           <div className="volunteer-task-board">
             <span className="eyebrow">Task assignment UI</span>
+            <div className="volunteer-assignment-controls">
+              <Field label="Volunteer level">
+                <select value={selectedVolunteerLevel} onChange={(event) => setSelectedVolunteerLevel(event.target.value)}>
+                  {volunteerLevels.map(([level]) => <option key={level}>{level}</option>)}
+                </select>
+              </Field>
+              <Field label="Suggested owner">
+                <select value={taskOwner} onChange={(event) => setTaskOwner(event.target.value)}>
+                  {["Field lead", "Volunteer", "Ward Coordinator", "Block Coordinator", "District Coordinator"].map((owner) => (
+                    <option key={owner}>{owner}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Daily target">
+                <input
+                  type="number"
+                  min="0"
+                  value={dailyTarget}
+                  onChange={(event) => setDailyTarget(Number(event.target.value))}
+                />
+              </Field>
+            </div>
             {volunteerTasks.map(([task, detail, owner, status]) => (
               <article className="volunteer-task-card" key={task}>
                 <div>
                   <strong>{task}</strong>
                   <p>{detail}</p>
-                  <small>Suggested owner: {owner}</small>
+                  <small>Suggested owner: {owner} - planning owner: {taskOwner}</small>
                 </div>
                 <span>{status}</span>
               </article>
@@ -315,6 +356,55 @@ export function MovementCrmTab({
                 <strong>{level}</strong>
                 <small>{detail}</small>
                 <span>{ready ? "Coverage available" : "Setup needed"}</span>
+              </article>
+            ))}
+          </div>
+        </div>
+      </Panel>
+
+      <Panel title="Mobile Volunteer Dashboard" icon={<Smartphone />}>
+        <div className="mobile-volunteer-dashboard">
+          <div className="mobile-volunteer-card">
+            <span>Today's target</span>
+            <strong>{dailyTarget.toLocaleString()}</strong>
+            <small>{selectedVolunteerLevel} planning view</small>
+          </div>
+          <div className="mobile-volunteer-card">
+            <span>Uploads pending</span>
+            <strong>{pendingUploads.toLocaleString()}</strong>
+            <small>Review before counting as imported supporters</small>
+          </div>
+          <div className="mobile-volunteer-card">
+            <span>Field supporters</span>
+            <strong>{fieldCollectionSupporters.toLocaleString()}</strong>
+            <small>Scan/manual sourced supporters</small>
+          </div>
+          <div className="mobile-volunteer-card">
+            <span>Attendance</span>
+            <strong>Provider-ready</strong>
+            <small>Event check-in and shift tracking placeholder</small>
+          </div>
+        </div>
+        <div className="two-column">
+          <div className="coordinator-gap-board">
+            <span className="eyebrow">District coordinator gaps</span>
+            {districtGaps.length === 0 && <p className="helper-text">District gap detection appears after signer location data is available.</p>}
+            {districtGaps.map((gap) => (
+              <article className="coordinator-gap-card" key={gap.label}>
+                <strong>{gap.label}</strong>
+                <small>{gap.detail}</small>
+                <span>Setup needed</span>
+              </article>
+            ))}
+          </div>
+          <div className="coordinator-gap-board">
+            <span className="eyebrow">Block coordinator gaps</span>
+            {blockGaps.length === 0 && <p className="helper-text">Block gap detection appears after signer location data is available.</p>}
+            {blockGaps.map((gap) => (
+              <article className="coordinator-gap-card" key={gap.label}>
+                <strong>{gap.label}</strong>
+                <small>{gap.detail}</small>
+                <span>Setup needed</span>
               </article>
             ))}
           </div>

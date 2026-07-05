@@ -87,6 +87,27 @@ export function ReportsTab({
     integrations.whatsappProvider !== "Not configured" ||
     integrations.smsProvider !== "Not configured" ||
     integrations.emailProvider !== "Not configured";
+  const collectionTotal = Math.max(1, onlineCount + paperCount + manualCount);
+  const topStates = Object.entries(stateTotals).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const topBlocks = Object.entries(blockTotals).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const weakBlocks = Object.entries(blockTotals)
+    .filter(([, count]) => count <= Math.max(1, Math.floor(campaignSigners.length * 0.05)))
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 5);
+  const aiInsights = [
+    weakDistricts.length > 0
+      ? `Prioritize ${weakDistricts[0][0]} for field collection and volunteer outreach.`
+      : "District coverage looks balanced or needs more district data.",
+    authorityMatch
+      ? `Authority route is ready with ${authorityMatch.score}% confidence.`
+      : "Add or confirm an authority before large-scale outreach.",
+    communicationReady > 0
+      ? `${communicationReady.toLocaleString()} supporters are reachable by phone or email after consent checks.`
+      : "Collect consented phone or email fields before communication pushes.",
+    pendingScans > 0
+      ? `Review ${pendingScans.toLocaleString()} pending field collection rows.`
+      : "Field collection queue has no pending review rows."
+  ];
 
   return (
     <section className="page-stack">
@@ -122,6 +143,93 @@ export function ReportsTab({
               <small>{detail}</small>
             </div>
           ))}
+        </div>
+      </Panel>
+
+      <Panel title="State, District, and Block Progress" icon={<MapPin />}>
+        <div className="analytics-progress-grid">
+          <div className="analytics-progress-card">
+            <span className="eyebrow">Top states</span>
+            <div className="ranked-list">
+              {topStates.length === 0 && <p className="helper-text">State data appears after supporters provide location.</p>}
+              {topStates.map(([state, count]) => (
+                <div key={state}>
+                  <span>{state}</span>
+                  <strong>{count.toLocaleString()}</strong>
+                  <div className="progress">
+                    <div style={{ width: `${Math.min(100, (count / Math.max(...Object.values(stateTotals), 1)) * 100)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="analytics-progress-card">
+            <span className="eyebrow">Top districts</span>
+            <div className="ranked-list">
+              {topDistricts.length === 0 && <p className="helper-text">District progress appears after district data is available.</p>}
+              {topDistricts.map(([district, count]) => (
+                <div key={district}>
+                  <span>{district}</span>
+                  <strong>{count.toLocaleString()}</strong>
+                  <div className="progress">
+                    <div style={{ width: `${Math.min(100, (count / Math.max(...Object.values(districtTotals), 1)) * 100)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="analytics-progress-card">
+            <span className="eyebrow">Top blocks</span>
+            <div className="ranked-list">
+              {topBlocks.length === 0 && <p className="helper-text">Block progress appears after block data is available.</p>}
+              {topBlocks.map(([block, count]) => (
+                <div key={block}>
+                  <span>{block}</span>
+                  <strong>{count.toLocaleString()}</strong>
+                  <div className="progress">
+                    <div style={{ width: `${Math.min(100, (count / Math.max(...Object.values(blockTotals), 1)) * 100)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="analytics-progress-card">
+            <span className="eyebrow">Weak blocks</span>
+            <div className="ranked-list weak">
+              {weakBlocks.length === 0 && <p className="helper-text">Weak block insight appears after block-level data is available.</p>}
+              {weakBlocks.map(([block, count]) => (
+                <div key={block}>
+                  <span>{block}</span>
+                  <strong>{count.toLocaleString()}</strong>
+                  <small>Needs local coordinator push.</small>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      <Panel title="Collection Split and AI Insights" icon={<RadioTower />}>
+        <div className="analytics-progress-grid">
+          {[
+            ["Online", onlineCount, "Public signing page"],
+            ["Paper", paperCount, "OCR/scan import"],
+            ["Manual", manualCount, "Manual field entry"]
+          ].map(([label, value, detail]) => (
+            <div className="analytics-progress-card" key={String(label)}>
+              <span className="eyebrow">{label}</span>
+              <strong>{Number(value).toLocaleString()}</strong>
+              <div className="progress">
+                <div style={{ width: `${Math.min(100, (Number(value) / collectionTotal) * 100)}%` }} />
+              </div>
+              <small>{detail}</small>
+            </div>
+          ))}
+          <div className="analytics-progress-card ai-ready">
+            <span className="eyebrow">AI insight cards</span>
+            <strong>Provider-ready</strong>
+            {aiInsights.map((insight) => <small key={insight}>{insight}</small>)}
+          </div>
         </div>
       </Panel>
 

@@ -408,6 +408,88 @@ export function SaasTab({
       )}
 
       {saasSection === "organization" && (
+        <Panel title="Workspace management" icon={<Building2 />}>
+          <div className="workspace-management-hero">
+            <div>
+              <span className="eyebrow">Workspace profile</span>
+              <h3>{organization.name || "Unnamed workspace"}</h3>
+              <p>
+                Manage the customer-facing workspace shell, brand readiness, team capacity, roles, billing posture,
+                and audit visibility from one admin surface.
+              </p>
+            </div>
+            <div className="workspace-brand-preview">
+              <div className="workspace-logo-preview">
+                {(organization.name || "V").slice(0, 1).toUpperCase()}
+              </div>
+              <strong>{organization.customBranding ? "Custom brand ready" : "Default Voiceup brand"}</strong>
+              <small>{organization.customDomain || "No custom domain configured"}</small>
+            </div>
+          </div>
+
+          <div className="workspace-management-grid">
+            <article className="workspace-management-card">
+              <ImageIcon size={22} />
+              <span className="eyebrow">Logo/banner preview</span>
+              <strong>{organization.name || "Voiceup workspace"}</strong>
+              <div className="workspace-banner-preview">
+                <span>{organization.customBranding ? "Custom branding enabled" : "Voiceup default banner"}</span>
+              </div>
+              <p>Logo upload, banner asset library, and brand color controls are provider-ready.</p>
+            </article>
+            <article className="workspace-management-card">
+              <UsersRound size={22} />
+              <span className="eyebrow">Team members</span>
+              <strong>{organization.seats.toLocaleString()} seat capacity</strong>
+              <p>Invite, suspend, resend invite, and seat assignment workflows are placeholder UI.</p>
+              <div className="workspace-chip-row">
+                <span>Owner</span>
+                <span>Admin</span>
+                <span>Reviewer</span>
+              </div>
+            </article>
+            <article className="workspace-management-card">
+              <ShieldCheck size={22} />
+              <span className="eyebrow">Roles and permissions</span>
+              <strong>Provider-ready matrix</strong>
+              <p>Platform owner, organization admin, campaign admin, reviewer, viewer, and field volunteer roles.</p>
+              <div className="workspace-chip-row">
+                <span>Create</span>
+                <span>Review</span>
+                <span>Publish</span>
+                <span>Export</span>
+              </div>
+            </article>
+            <article className="workspace-management-card">
+              <ShieldCheck size={22} />
+              <span className="eyebrow">Audit log placeholder</span>
+              <strong>Activity tab connected</strong>
+              <p>Future filters: user, campaign, action, date range, export, and security alerts.</p>
+            </article>
+            <article className="workspace-management-card">
+              <WalletCards size={22} />
+              <span className="eyebrow">Billing and subscription</span>
+              <strong>{organization.plan} - {organization.subscriptionStatus}</strong>
+              <p>Usage, subscription controls, and recharge packages remain in existing SaaS admin tabs.</p>
+            </article>
+            <article className="workspace-management-card">
+              <LockKeyhole size={22} />
+              <span className="eyebrow">White-label readiness</span>
+              <strong>
+                {[
+                  Boolean(organization.customDomain),
+                  organization.customBranding,
+                  Boolean(organization.ownerEmail),
+                  organization.subscriptionStatus === "Active"
+                ].filter(Boolean).length} / 4 ready
+              </strong>
+              <p>Custom domain, custom branding, owner email, and active subscription readiness.</p>
+            </article>
+          </div>
+        </Panel>
+      )}
+
+      {saasSection === "organization" && (
         <Panel title="Production safety, privacy, and backup readiness" icon={<LockKeyhole />}>
           <div className="workspace-grid">
             <div className="workspace-card">

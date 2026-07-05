@@ -99,6 +99,10 @@ export function ScansTab({
     );
   }
 
+  function batchApproveReviewItems() {
+    reviewQueueItems.forEach((item) => onApproveScan(item));
+  }
+
   return (
     <section className="page-stack">
       <Panel title="Paper-to-Movement Import Wizard" icon={<FileScan />}>
@@ -248,12 +252,12 @@ export function ScansTab({
           </div>
           <div className="button-row">
             <button
-              className="secondary-button"
+              className="primary-button"
               type="button"
               disabled={reviewQueueItems.length === 0}
-              onClick={() => batchUpdateReviewItems("Approved")}
+              onClick={batchApproveReviewItems}
             >
-              Mark reviewed
+              Batch approve into supporters
             </button>
             <button
               className="secondary-button"

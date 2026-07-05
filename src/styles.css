@@ -2131,6 +2131,78 @@ td span {
   overflow-wrap: anywhere;
 }
 
+.campaign-links-card {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.campaign-links-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.campaign-links-header h4 {
+  margin: 4px 0 0;
+}
+
+.route-warning {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  color: #9a3412;
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 6px 10px;
+}
+
+.campaign-link-list {
+  display: grid;
+  gap: 10px;
+}
+
+.campaign-link-row {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 170px minmax(0, 1fr) auto;
+  padding: 12px;
+}
+
+.campaign-link-row span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.campaign-link-row code {
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.public-route {
+  border-left-color: #16a34a;
+}
+
+.campaign-admin-route {
+  border-left-color: #2563eb;
+}
+
+.saas-admin-route {
+  border-left-color: #7c3aed;
+}
+
 .qr-preview-card {
   place-items: center;
   text-align: center;
@@ -3180,6 +3252,13 @@ td span {
   max-width: 560px;
 }
 
+.route-context {
+  color: rgba(255, 255, 255, 0.78);
+  display: block;
+  font-weight: 900;
+  overflow-wrap: anywhere;
+}
+
 .login-value-grid {
   align-self: end;
   display: grid;
@@ -3453,6 +3532,12 @@ td span {
 
   .campaign-wizard-actions .secondary-button:first-child {
     margin-right: 0;
+  }
+
+  .campaign-links-header,
+  .campaign-link-row {
+    align-items: stretch;
+    grid-template-columns: 1fr;
   }
 
   .template-grid,

@@ -34,8 +34,9 @@ export function CampaignAdminLoginPage({
           </div>
 
           <div className="login-copy">
-            <span className="eyebrow">Protected campaign admin</span>
+            <span className="eyebrow">Campaign Administration</span>
             <h1 id="campaign-admin-login-title">{campaign.title}</h1>
+            <small className="route-context">/{campaign.slug}</small>
             <p>
               Sign in to review supporters, process scanned forms, send participant updates, and
               keep campaign operations moving.

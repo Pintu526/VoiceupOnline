@@ -8,6 +8,11 @@ export function getCampaignAdminSlug(): string {
   return window.location.pathname.match(/^\/admin\/([^/]+)\/?$/)?.[1] ?? "";
 }
 
+export function getIsSaasAdminRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.pathname === "/admin" || window.location.pathname === "/admin/";
+}
+
 export function getIsAppRoute(): boolean {
   if (typeof window === "undefined") return false;
   return window.location.pathname === "/app" || window.location.pathname.startsWith("/app/");

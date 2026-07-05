@@ -478,10 +478,17 @@ export function AppShell({
           <header className="topbar">
             <div className="topbar-context">
               <span className="eyebrow">
-                {isCampaignAdminRoute ? "Campaign admin page" : "Selected campaign"}
+                {isCampaignAdminRoute
+                  ? "Campaign Administration"
+                  : activeTab === "saas"
+                    ? "SaaS Administration"
+                    : "Selected campaign"}
               </span>
               {isCampaignAdminRoute ? (
-                <strong>{activeCampaign?.title}</strong>
+                <strong>
+                  {activeCampaign?.title}
+                  {activeCampaign?.slug ? <small>/{activeCampaign.slug}</small> : null}
+                </strong>
               ) : (
                 <select
                   value={activeCampaignId}

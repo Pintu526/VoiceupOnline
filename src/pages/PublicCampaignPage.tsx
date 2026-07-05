@@ -108,6 +108,7 @@ export function PublicCampaignPage({
         }}
       >
         <div className="public-hero-content">
+          <span className="eyebrow">Public Campaign Page</span>
           <span className="status-pill" data-status={campaign.status}>{campaign.status}</span>
           <h1>{campaign.title}</h1>
           <p className="public-summary">{campaign.description}</p>

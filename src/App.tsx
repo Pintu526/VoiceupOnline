@@ -72,6 +72,7 @@ import {
   getCampaignAdminSlug,
   getIsAppRoute,
   getIsLandingPageRoute,
+  getIsSaasAdminRoute,
   getLegalPage,
   getPublicCampaignSlug
 } from "./utils/routing";
@@ -145,6 +146,7 @@ import { AppShell } from "./layouts/AppShell";
 const publicCampaignSlug = getPublicCampaignSlug();
 const adminCampaignSlug = getCampaignAdminSlug();
 const isAppRoute = getIsAppRoute();
+const isSaasAdminRoute = getIsSaasAdminRoute();
 const legalPage = getLegalPage();
 const isLandingPageRoute = getIsLandingPageRoute();
 const isPublicCampaignRoute = Boolean(publicCampaignSlug);
@@ -196,7 +198,7 @@ function App() {
   // ─── UI state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "campaigns" | "public" | "movement" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
-  >("dashboard");
+  >(isSaasAdminRoute ? "saas" : "dashboard");
   const [theme, setTheme] = usePersistentState<"light" | "dark">(`${storagePrefix}-theme`, "light");
   const [commandOpen, setCommandOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
@@ -1132,8 +1134,10 @@ function App() {
 
   if (legalPage) return <LegalPage page={legalPage} />;
   if (isLandingPageRoute) return <LandingPage onGetStarted={() => (window.location.href = "/app")} />;
-  if (!isAppRoute && !isCampaignAdminRoute) return <MarketingHomePage theme={theme} setTheme={setTheme} />;
-  if (isAppRoute && backendLoading) {
+  if (!isAppRoute && !isSaasAdminRoute && !isCampaignAdminRoute) {
+    return <MarketingHomePage theme={theme} setTheme={setTheme} />;
+  }
+  if ((isAppRoute || isSaasAdminRoute) && backendLoading) {
     return (
       <main className="app-loading-screen">
         <div className="app-loading-card">
@@ -1145,7 +1149,7 @@ function App() {
     );
   }
 
-  if (isAppRoute && !isAppAuthenticated) {
+  if ((isAppRoute || isSaasAdminRoute) && !isAppAuthenticated) {
     return (
       <SaasAppLoginPage
         appLogin={appLogin}
@@ -1178,7 +1182,7 @@ function App() {
         campaignFormMode={campaignFormMode}
         setCampaignFormMode={setCampaignFormMode}
         isCampaignAdminRoute={isCampaignAdminRoute}
-        isAppRoute={isAppRoute}
+        isAppRoute={isAppRoute || isSaasAdminRoute}
         signers={signers}
         authorities={authorities}
         setAuthorities={setAuthorities}

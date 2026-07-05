@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Image as ImageIcon,
   Landmark,
   Plus,
@@ -53,6 +54,7 @@ import {
   getLocationLevelLabel,
   getLockedLocationValues,
   getSignerLocationRestrictionLevel,
+  getSaasAdminPageUrl,
   hasSaasLocks,
   signerFieldLabel
 } from "../../utils/campaign";
@@ -240,12 +242,23 @@ export function CampaignsTab({
   const [recentAuthorityIds, setRecentAuthorityIds] = useState<string[]>([]);
   const [secondaryAuthorityIds, setSecondaryAuthorityIds] = useState<string[]>([]);
   const [ccAuthorityIds, setCcAuthorityIds] = useState<string[]>([]);
+  const [copiedCampaignLink, setCopiedCampaignLink] = useState("");
+  const [campaignLinkMessage, setCampaignLinkMessage] = useState("");
 
   useEffect(() => {
     if (aiDraftAppliedFocusKey > 0) {
       setActiveStep(1);
     }
   }, [aiDraftAppliedFocusKey]);
+
+  useEffect(() => {
+    if (!copiedCampaignLink) return undefined;
+    const timeoutId = window.setTimeout(() => {
+      setCopiedCampaignLink("");
+      setCampaignLinkMessage("");
+    }, 2200);
+    return () => window.clearTimeout(timeoutId);
+  }, [copiedCampaignLink]);
 
   useEffect(() => {
     let isMounted = true;
@@ -401,6 +414,27 @@ export function CampaignsTab({
   const campaignQuality = campaignDraft
     ? getCampaignQuality(campaignDraft, selectedAuthority, selectedTemplate)
     : null;
+  const draftSlug = campaignDraft?.slug.trim() ?? "";
+  const hasDraftSlug = Boolean(draftSlug);
+  const publicCampaignUrl = hasDraftSlug
+    ? getCampaignPublicUrl(organization, { slug: draftSlug })
+    : "";
+  const campaignAdminUrl = hasDraftSlug
+    ? getCampaignAdminUrl(organization, { slug: draftSlug })
+    : "";
+  const saasAdminUrl = getSaasAdminPageUrl();
+
+  async function copyCampaignLink(kind: string, value: string) {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedCampaignLink(kind);
+      setCampaignLinkMessage(`${kind} copied.`);
+    } catch {
+      setCopiedCampaignLink("");
+      setCampaignLinkMessage("Copy failed. Select and copy the link manually.");
+    }
+  }
 
   function applyTemplate(template: CampaignTemplate) {
     if (!campaignDraft) return;
@@ -727,18 +761,69 @@ export function CampaignsTab({
                 </Field>
                 <Field label="Public share URL">
                   <input
-                    value={getCampaignPublicUrl(organization, campaignDraft)}
+                    value={hasDraftSlug ? publicCampaignUrl : ""}
+                    placeholder="Add a campaign slug to generate this URL"
                     readOnly
                   />
                   <small>Generated from the public slug.</small>
                 </Field>
                 <Field label="Campaign admin URL">
                   <input
-                    value={getCampaignAdminUrl(organization, campaignDraft)}
+                    value={hasDraftSlug ? campaignAdminUrl : ""}
+                    placeholder="Add a campaign slug to generate this URL"
                     readOnly
                   />
                   <small>Generated from the public slug.</small>
                 </Field>
+                <div className="campaign-links-card wide" aria-live="polite">
+                  <div className="campaign-links-header">
+                    <div>
+                      <span className="eyebrow">Campaign links</span>
+                      <h4>Slug-based routes</h4>
+                    </div>
+                    {!hasDraftSlug && (
+                      <span className="route-warning">Add a campaign slug to generate links.</span>
+                    )}
+                  </div>
+                  <div className="campaign-link-list">
+                    <div className="campaign-link-row public-route">
+                      <span>Public campaign URL</span>
+                      <code>{hasDraftSlug ? publicCampaignUrl : "Slug required"}</code>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        disabled={!hasDraftSlug}
+                        onClick={() => copyCampaignLink("Public campaign URL", publicCampaignUrl)}
+                      >
+                        <Copy size={16} /> {copiedCampaignLink === "Public campaign URL" ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                    <div className="campaign-link-row campaign-admin-route">
+                      <span>Campaign admin URL</span>
+                      <code>{hasDraftSlug ? campaignAdminUrl : "Slug required"}</code>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        disabled={!hasDraftSlug}
+                        onClick={() => copyCampaignLink("Campaign admin URL", campaignAdminUrl)}
+                      >
+                        <Copy size={16} /> {copiedCampaignLink === "Campaign admin URL" ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                    <div className="campaign-link-row saas-admin-route">
+                      <span>SaaS admin URL</span>
+                      <code>{saasAdminUrl}</code>
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={() => copyCampaignLink("SaaS admin URL", saasAdminUrl)}
+                      >
+                        <Copy size={16} /> {copiedCampaignLink === "SaaS admin URL" ? "Copied" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+                  {campaignLinkMessage && <p className="success-message">{campaignLinkMessage}</p>}
+                </div>
                 <Field label="Campaign admin email">
                   <input
                     type="email"
@@ -1621,7 +1706,7 @@ export function CampaignsTab({
                   </div>
                   <div>
                     <span className="label">Public URL</span>
-                    <strong>{getCampaignPublicUrl(organization, campaignDraft)}</strong>
+                    <strong>{hasDraftSlug ? publicCampaignUrl : "Add a campaign slug to generate links."}</strong>
                     <small>{campaignDraft.startDate || "No start date"} to {campaignDraft.endDate || "No end date"}</small>
                   </div>
                 </div>
@@ -1752,7 +1837,7 @@ export function CampaignsTab({
                   </div>
                   <div className="publish-url-card">
                     <span className="label">Campaign URL preview</span>
-                    <strong>{getCampaignPublicUrl(organization, campaignDraft)}</strong>
+                    <strong>{hasDraftSlug ? publicCampaignUrl : "Add a campaign slug to generate links."}</strong>
                     <small>{campaignDraft.status} · {getCampaignGoalValue(campaignDraft).toLocaleString()} target signatures</small>
                   </div>
                   <div className="qr-preview-card">

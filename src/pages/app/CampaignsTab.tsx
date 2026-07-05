@@ -688,6 +688,14 @@ export function CampaignsTab({
                 )}
 
                 <div className="template-grid">
+                  {templates.length === 0 &&
+                    Array.from({ length: 6 }).map((_, index) => (
+                      <div className="template-card loading-card" key={`template-loading-${index}`} aria-hidden="true">
+                        <span className="skeleton-line short" />
+                        <span className="skeleton-line" />
+                        <span className="skeleton-line" />
+                      </div>
+                    ))}
                   {filteredTemplates.map((template) => {
                     const isFavorite = favoriteTemplateIds.includes(template.id);
                     const isSelected = selectedTemplateId === template.id;
@@ -1151,6 +1159,14 @@ export function CampaignsTab({
                   )}
 
                   <div className="authority-directory-grid">
+                    {authorityDirectory.length === 0 &&
+                      Array.from({ length: 6 }).map((_, index) => (
+                        <div className="authority-directory-card loading-card" key={`authority-loading-${index}`} aria-hidden="true">
+                          <span className="skeleton-line short" />
+                          <span className="skeleton-line" />
+                          <span className="skeleton-line" />
+                        </div>
+                      ))}
                     {filteredAuthorityDirectory.slice(0, 12).map((entry) => {
                       const isFavorite = favoriteAuthorityIds.includes(entry.id);
                       return (
@@ -1204,8 +1220,9 @@ export function CampaignsTab({
                     })}
                   </div>
                   <p className="helper-text">
-                    Showing {Math.min(filteredAuthorityDirectory.length, 12)} of {filteredAuthorityDirectory.length} profiles.
-                    Local office details remain editable in uploaded authority rules.
+                    {authorityDirectory.length === 0
+                      ? "Loading authority directory..."
+                      : `Showing ${Math.min(filteredAuthorityDirectory.length, 12)} of ${filteredAuthorityDirectory.length} profiles. Local office details remain editable in uploaded authority rules.`}
                   </p>
                 </div>
 

@@ -11,7 +11,6 @@ import {
 import type { AuthorityRule, Campaign, Organization, Signer, SignerRequiredField } from "../types";
 import type { LocationDeletions, LocationOverrides } from "../geography";
 import type { getCampaignMetrics } from "../lib";
-import { exportSignerAppealPdf } from "../lib";
 import { Panel } from "../ui/Panel";
 import { Field } from "../ui/Field";
 import { DonationCard } from "../components/DonationCard";
@@ -315,9 +314,10 @@ export function PublicCampaignPage({
               <button
                 className="secondary-button"
                 type="button"
-                onClick={() =>
-                  exportSignerAppealPdf(campaign, lastSignedSigner, resolvedAuthority)
-                }
+                onClick={async () => {
+                  const { exportSignerAppealPdf } = await import("../pdfExports");
+                  exportSignerAppealPdf(campaign, lastSignedSigner, resolvedAuthority);
+                }}
               >
                 Download signed appeal PDF
               </button>

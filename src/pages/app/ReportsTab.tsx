@@ -1,7 +1,8 @@
 import { BarChart3, Download, FileText, MapPin, RadioTower, Users } from "lucide-react";
 import type { AuthorityRule, Campaign, IntegrationSettings, ScanReviewItem, Signer } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
-import { exportCsv, exportPdf, exportSignerAppealPdf } from "../../lib";
+import { exportCsv } from "../../lib";
+import { exportPdf, exportSignerAppealPdf } from "../../pdfExports";
 import { Panel } from "../../ui/Panel";
 import { ReportBlock } from "../../ui/ReportBlock";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";

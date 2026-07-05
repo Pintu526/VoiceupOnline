@@ -767,6 +767,15 @@ textarea {
   min-height: 130px;
 }
 
+.loading-card {
+  pointer-events: none;
+}
+
+.template-card.loading-card,
+.authority-directory-card.loading-card {
+  min-height: 180px;
+}
+
 @keyframes skeletonPulse {
   0%,
   100% {

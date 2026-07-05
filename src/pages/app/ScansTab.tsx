@@ -1,4 +1,15 @@
-import { CheckCircle2, ClipboardList, FileScan, Plus, QrCode, SearchCheck, Upload, UsersRound } from "lucide-react";
+import {
+  CheckCircle2,
+  ClipboardList,
+  FileSpreadsheet,
+  FileScan,
+  FileText,
+  Plus,
+  QrCode,
+  SearchCheck,
+  Upload,
+  UsersRound
+} from "lucide-react";
 import type { Campaign, ScanReviewItem, Signer } from "../../types";
 import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
@@ -50,6 +61,7 @@ export function ScansTab({
     );
   }
 
+  const activeCampaignId = activeCampaign.id;
   const campaignScanItems = scanItems.filter((item) => item.campaignId === activeCampaign.id);
   const reviewQueueItems = campaignScanItems.filter((item) => item.status === "Needs review");
   const importedSupporters = campaignSigners.filter((signer) => signer.source === "scan");
@@ -60,9 +72,99 @@ export function ScansTab({
   const districtCount = new Set(campaignSigners.map((signer) => signer.district).filter(Boolean)).size;
   const blockCount = new Set(campaignSigners.map((signer) => signer.block).filter(Boolean)).size;
   const panchayatCount = new Set(campaignSigners.map((signer) => signer.panchayat).filter(Boolean)).size;
+  const duplicateReviewItems = reviewQueueItems.filter((item) =>
+    campaignSigners.some((signer) => {
+      const samePhone = item.parsedSigner.phone && signer.phone && item.parsedSigner.phone === signer.phone;
+      const sameNameLocation =
+        item.parsedSigner.name &&
+        signer.name &&
+        item.parsedSigner.name.trim().toLowerCase() === signer.name.trim().toLowerCase() &&
+        [item.parsedSigner.state, item.parsedSigner.district, item.parsedSigner.block, item.parsedSigner.panchayat]
+          .join("|")
+          .toLowerCase() ===
+          [signer.state, signer.district, signer.block, signer.panchayat].join("|").toLowerCase();
+      return samePhone || sameNameLocation;
+    })
+  );
+  const missingPhoneReviewItems = reviewQueueItems.filter((item) => !item.parsedSigner.phone.trim());
+  const approvedScanItems = campaignScanItems.filter((item) => item.status === "Approved");
+
+  function batchUpdateReviewItems(status: ScanReviewItem["status"]) {
+    setScanItems((current) =>
+      current.map((item) =>
+        item.campaignId === activeCampaignId && item.status === "Needs review"
+          ? { ...item, status }
+          : item
+      )
+    );
+  }
 
   return (
     <section className="page-stack">
+      <Panel title="Paper-to-Movement Import Wizard" icon={<FileScan />}>
+        <div className="paper-import-hero">
+          <div>
+            <span className="eyebrow">Voiceup v0.6</span>
+            <h2>Digitize paper signature sheets into supporter records.</h2>
+            <p>
+              Upload images for existing OCR review, correct missing fields, detect duplicates, and approve batches into the supporter workflow.
+            </p>
+          </div>
+          <div className="import-summary-card">
+            <span>Import summary</span>
+            <strong>{campaignScanItems.length.toLocaleString()} rows</strong>
+            <small>
+              {approvedScanItems.length} approved - {duplicateReviewItems.length} duplicates - {rejectedScanItems.length} rejected - {missingPhoneReviewItems.length} missing phone
+            </small>
+          </div>
+        </div>
+        <div className="paper-import-grid">
+          <label className="paper-import-option real">
+            <FileScan size={28} />
+            <strong>Image OCR upload</strong>
+            <span>PNG, JPG, WEBP. Uses existing OCR/review queue.</span>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onUploadScan(file);
+              }}
+            />
+          </label>
+          <label className="paper-import-option provider-ready">
+            <FileText size={28} />
+            <strong>PDF sheet upload</strong>
+            <span>Provider-ready. PDF page extraction is not active yet.</span>
+            <input type="file" accept="application/pdf" disabled />
+          </label>
+          <label className="paper-import-option provider-ready">
+            <FileSpreadsheet size={28} />
+            <strong>CSV / Excel import</strong>
+            <span>Provider-ready. Spreadsheet parsing and validation preview will connect later.</span>
+            <input type="file" accept=".csv,.xls,.xlsx" disabled />
+          </label>
+        </div>
+        <div className="paper-import-fields">
+          {[
+            "name",
+            "phone",
+            "email",
+            "state",
+            "district",
+            "block",
+            "panchayat/ward",
+            "village",
+            "note",
+            "source",
+            "volunteer"
+          ].map((field) => (
+            <span key={field}>{field}</span>
+          ))}
+        </div>
+        <p className="helper-text">All fields are optional during review. Missing phone is flagged, not blocked.</p>
+      </Panel>
+
       <Panel title="Offline Field Operations" icon={<ClipboardList />}>
         <div className="field-ops-grid">
           {[
@@ -139,6 +241,85 @@ export function ScansTab({
       </Panel>
 
       <Panel title="OCR/review queue" icon={<SearchCheck />}>
+        <div className="batch-review-toolbar">
+          <div>
+            <span className="eyebrow">Batch review</span>
+            <strong>{reviewQueueItems.length.toLocaleString()} rows waiting</strong>
+          </div>
+          <div className="button-row">
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={reviewQueueItems.length === 0}
+              onClick={() => batchUpdateReviewItems("Approved")}
+            >
+              Mark reviewed
+            </button>
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={reviewQueueItems.length === 0}
+              onClick={() => batchUpdateReviewItems("Rejected")}
+            >
+              Batch reject
+            </button>
+          </div>
+        </div>
+        {reviewQueueItems.length > 0 && (
+          <div className="manual-correction-table table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>State</th>
+                  <th>District</th>
+                  <th>Block</th>
+                  <th>Panchayat/Ward</th>
+                  <th>Village</th>
+                  <th>Note</th>
+                  <th>Source</th>
+                  <th>Volunteer</th>
+                  <th>Duplicate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reviewQueueItems.map((item) => {
+                  const isDuplicate = duplicateReviewItems.some((duplicate) => duplicate.id === item.id);
+                  return (
+                    <tr key={item.id}>
+                      {(["name", "phone", "email", "state", "district", "block", "panchayat"] as const).map((field) => (
+                        <td key={field}>
+                          <input
+                            value={item.parsedSigner[field]}
+                            onChange={(event) => onUpdateScanParsedSigner(item.id, field, event.target.value)}
+                          />
+                        </td>
+                      ))}
+                      <td>
+                        <input
+                          value={item.parsedSigner.address}
+                          onChange={(event) => onUpdateScanParsedSigner(item.id, "address", event.target.value)}
+                          placeholder="Village/locality"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value={item.parsedSigner.comment}
+                          onChange={(event) => onUpdateScanParsedSigner(item.id, "comment", event.target.value)}
+                        />
+                      </td>
+                      <td>paper</td>
+                      <td>Provider-ready</td>
+                      <td>{isDuplicate ? "Possible duplicate" : item.parsedSigner.phone ? "Clear" : "Missing phone"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
         <div className="review-list">
           {reviewQueueItems.length === 0 && <p>No field collection items are waiting for review.</p>}
           {reviewQueueItems.map((item) => (

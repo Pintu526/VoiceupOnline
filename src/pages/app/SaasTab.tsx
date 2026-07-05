@@ -1,4 +1,23 @@
-import { Building2, Image as ImageIcon, MapPin, ShieldCheck, Settings, UsersRound, WalletCards } from "lucide-react";
+import {
+  Bot,
+  Building2,
+  CreditCard,
+  DatabaseBackup,
+  Download,
+  FlaskConical,
+  HardDrive,
+  Image as ImageIcon,
+  LockKeyhole,
+  Mail,
+  MapPin,
+  MessageSquare,
+  PhoneCall,
+  ShieldCheck,
+  Settings,
+  UsersRound,
+  WalletCards
+} from "lucide-react";
+import { useState } from "react";
 import type {
   BillingPlan,
   CommercialPackage,
@@ -62,6 +81,19 @@ const saasTabs = [
   { id: "plans", label: "Plans" }
 ];
 
+type ProviderStatus = "Not configured" | "Test mode" | "Ready" | "Error";
+
+const providerStatuses: ProviderStatus[] = ["Not configured", "Test mode", "Ready", "Error"];
+
+const aiProviderOptions = ["OpenAI", "Gemini", "Claude", "Azure OpenAI", "OpenRouter", "Local LLM"];
+
+const messagingProviderCards = [
+  { name: "SMS", icon: MessageSquare, detail: "Transactional alerts, campaign updates, and consent-aware supporter nudges." },
+  { name: "WhatsApp Business", icon: PhoneCall, detail: "Template messages, supporter updates, and volunteer coordination when provider is connected." },
+  { name: "Email", icon: Mail, detail: "Petition updates, press notes, receipts, and supporter newsletters." },
+  { name: "IVR", icon: PhoneCall, detail: "Voice call campaigns and verification flows. Provider-ready only." }
+];
+
 export function SaasTab({
   saasSection,
   setSaasSection,
@@ -84,6 +116,8 @@ export function SaasTab({
   onApplyCommercialPackage,
   onAuditIntegrationUpdate
 }: SaasTabProps) {
+  const [providerStatusByName, setProviderStatusByName] = useState<Record<string, ProviderStatus>>({});
+  const [providerTestMessage, setProviderTestMessage] = useState("");
   const locationGovernance = getLocationGovernance(organization);
   const governanceValues: LocationWithPin = {
     state: locationGovernance.state,
@@ -104,6 +138,18 @@ export function SaasTab({
         panchayat: values.panchayat
       }
     });
+  }
+
+  function getProviderStatus(providerName: string): ProviderStatus {
+    return providerStatusByName[providerName] ?? "Not configured";
+  }
+
+  function updateProviderStatus(providerName: string, status: ProviderStatus) {
+    setProviderStatusByName((current) => ({ ...current, [providerName]: status }));
+  }
+
+  function testProviderConnection(providerName: string) {
+    setProviderTestMessage(`${providerName} test connection is provider-ready. No external request was sent.`);
   }
 
   return (
@@ -361,6 +407,62 @@ export function SaasTab({
         </Panel>
       )}
 
+      {saasSection === "organization" && (
+        <Panel title="Production safety, privacy, and backup readiness" icon={<LockKeyhole />}>
+          <div className="workspace-grid">
+            <div className="workspace-card">
+              <Download size={22} />
+              <span className="eyebrow">Workspace export</span>
+              <strong>Provider-ready</strong>
+              <p>
+                Backup package UI for campaigns, supporters, scans, authorities, and audit logs. No export job is
+                started from this card.
+              </p>
+            </div>
+            <div className="workspace-card">
+              <DatabaseBackup size={22} />
+              <span className="eyebrow">Recovery posture</span>
+              <strong>{campaigns.length.toLocaleString()} campaigns tracked</strong>
+              <p>
+                Existing data remains in the current workspace state. Automated snapshots require backend provider
+                wiring.
+              </p>
+            </div>
+            <div className="workspace-card">
+              <ShieldCheck size={22} />
+              <span className="eyebrow">Consent coverage</span>
+              <strong>
+                {campaigns.filter((campaign) => campaign.consentText?.trim()).length.toLocaleString()} / {campaigns.length.toLocaleString()}
+              </strong>
+              <p>Campaigns with visible public consent language configured.</p>
+            </div>
+            <div className="workspace-card">
+              <LockKeyhole size={22} />
+              <span className="eyebrow">Privacy settings</span>
+              <strong>UI foundation</strong>
+              <p>
+                Retention rules, data subject requests, and consent audit exports are marked provider-ready until
+                backend workflows exist.
+              </p>
+            </div>
+          </div>
+          <div className="privacy-readiness-list">
+            {[
+              ["Collect explicit public consent", campaigns.some((campaign) => campaign.consentText?.trim())],
+              ["Review communication consent before outreach", true],
+              ["Export/backup workflow connected", false],
+              ["Automated retention policy connected", false]
+            ].map(([label, ready]) => (
+              <div className={ready ? "ready" : ""} key={String(label)}>
+                <ShieldCheck size={18} />
+                <span>{label}</span>
+                <strong>{ready ? "Ready" : "Provider-ready"}</strong>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
+
       {saasSection === "usage" && (
         <Panel title="Subscription controls and usage" icon={<WalletCards />}>
           <div className="usage-grid">
@@ -531,6 +633,136 @@ export function SaasTab({
 
       {saasSection === "integrations" && (
         <Panel title="Production integrations" icon={<Settings />}>
+          <div className="integration-readiness-hero">
+            <div>
+              <span className="eyebrow">Integration readiness layer</span>
+              <h3>Configure providers without enabling real sending by default.</h3>
+              <p>
+                Use this screen to prepare AI, messaging, payment, donation, and storage providers. Test buttons are
+                placeholders and do not call external services.
+              </p>
+            </div>
+            <div className="integration-status-card">
+              <ShieldCheck size={22} />
+              <span>Default mode</span>
+              <strong>Disabled</strong>
+              <small>No SMS, WhatsApp, email, IVR, payment, donation, or AI request is sent from this readiness UI.</small>
+            </div>
+          </div>
+
+          <div className="provider-readiness-section">
+            <div className="provider-section-heading">
+              <Bot size={22} />
+              <div>
+                <h4>AI provider settings</h4>
+                <p>Provider-ready architecture for future OpenAI, Gemini, Claude, Azure OpenAI, OpenRouter, and local LLM use.</p>
+              </div>
+            </div>
+            <div className="provider-card-grid">
+              {aiProviderOptions.map((provider) => (
+                <div className="provider-readiness-card" key={provider}>
+                  <span className="eyebrow">{provider}</span>
+                  <strong>{getProviderStatus(provider)}</strong>
+                  <label>
+                    Provider status
+                    <select
+                      value={getProviderStatus(provider)}
+                      onChange={(e) => updateProviderStatus(provider, e.target.value as ProviderStatus)}
+                    >
+                      {providerStatuses.map((status) => <option key={status}>{status}</option>)}
+                    </select>
+                  </label>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => testProviderConnection(provider)}
+                  >
+                    <FlaskConical size={16} /> Test connection
+                  </button>
+                  <small>API keys must live server-side. No real AI API is connected here.</small>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="provider-readiness-section">
+            <div className="provider-section-heading">
+              <MessageSquare size={22} />
+              <div>
+                <h4>Messaging provider settings</h4>
+                <p>Prepare consent-aware SMS, WhatsApp Business, Email, and IVR without sending messages.</p>
+              </div>
+            </div>
+            <div className="provider-card-grid">
+              {messagingProviderCards.map(({ name, icon: Icon, detail }) => (
+                <div className="provider-readiness-card" key={name}>
+                  <Icon size={22} />
+                  <span className="eyebrow">{name}</span>
+                  <strong>{getProviderStatus(name)}</strong>
+                  <label>
+                    Provider status
+                    <select
+                      value={getProviderStatus(name)}
+                      onChange={(e) => updateProviderStatus(name, e.target.value as ProviderStatus)}
+                    >
+                      {providerStatuses.map((status) => <option key={status}>{status}</option>)}
+                    </select>
+                  </label>
+                  <button className="secondary-button" type="button" onClick={() => testProviderConnection(name)}>
+                    <FlaskConical size={16} /> Test connection
+                  </button>
+                  <small>{detail}</small>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="provider-card-grid">
+            {[
+              {
+                name: "Payment and donation",
+                icon: CreditCard,
+                status: integrations.razorpayKeyId ? "Test mode" : "Not configured",
+                detail: "Razorpay and donation provider setup remains provider-ready unless existing payment logic is connected."
+              },
+              {
+                name: "File storage",
+                icon: HardDrive,
+                status: integrations.storageProvider === "Not configured" ? "Not configured" : "Test mode",
+                detail: "Storage references can be prepared here; secrets and upload providers must stay server-side."
+              },
+              {
+                name: "Compliance guardrails",
+                icon: LockKeyhole,
+                status: "Ready",
+                detail: "Review consent, opt-out, retention, and provider contracts before enabling any outbound workflow."
+              }
+            ].map(({ name, icon: Icon, status, detail }) => (
+              <div className="provider-readiness-card" key={name}>
+                <Icon size={22} />
+                <span className="eyebrow">{name}</span>
+                <strong>{status}</strong>
+                <button className="secondary-button" type="button" onClick={() => testProviderConnection(name)}>
+                  <FlaskConical size={16} /> Test connection
+                </button>
+                <small>{detail}</small>
+              </div>
+            ))}
+          </div>
+
+          {providerTestMessage && <p className="info-message">{providerTestMessage}</p>}
+
+          <div className="consent-compliance-card">
+            <LockKeyhole size={22} />
+            <div>
+              <strong>Consent and compliance reminder</strong>
+              <p>
+                Keep providers disabled until opt-in consent, unsubscribe handling, data retention, and authority to
+                contact supporters are reviewed for each campaign.
+              </p>
+            </div>
+          </div>
+
           <form className="form-grid">
             <Field label="Razorpay key ID">
               <input

@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import {
   BadgeCheck,
   BellRing,
+  CalendarDays,
+  ClipboardList,
   GitBranch,
   HeartPulse,
   Mail,
@@ -13,11 +15,13 @@ import {
   Share2,
   ShieldCheck,
   Sparkles,
+  Target,
+  UploadCloud,
   UserRound,
   UsersRound
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import type { AuthorityRule, Campaign, Signer } from "../../types";
+import type { AuthorityRule, Campaign, ScanReviewItem, Signer } from "../../types";
 import { Panel } from "../../ui/Panel";
 import { MetricCard } from "../../ui/MetricCard";
 
@@ -26,6 +30,7 @@ interface MovementCrmTabProps {
   activeCampaign: Campaign | undefined;
   signers: Signer[];
   campaignSigners: Signer[];
+  scanItems: ScanReviewItem[];
   authorities: AuthorityRule[];
   onOpenAiCopilot: () => void;
 }
@@ -71,6 +76,7 @@ export function MovementCrmTab({
   activeCampaign,
   signers,
   campaignSigners,
+  scanItems,
   authorities,
   onOpenAiCopilot
 }: MovementCrmTabProps) {
@@ -99,6 +105,17 @@ export function MovementCrmTab({
   const districtCoverage = uniqueCount(movementSigners.map((signer) => signer.district));
   const stateCoverage = uniqueCount(movementSigners.map((signer) => signer.state));
   const authorityReady = Boolean(activeCampaign?.selectedAuthorityId || authorities.length > 0);
+  const campaignScanItems = activeCampaign
+    ? scanItems.filter((item) => item.campaignId === activeCampaign.id)
+    : scanItems;
+  const pendingUploads = campaignScanItems.filter((item) => item.status === "Needs review").length;
+  const approvedUploads = campaignScanItems.filter((item) => item.status === "Approved").length;
+  const rejectedUploads = campaignScanItems.filter((item) => item.status === "Rejected").length;
+  const blockCoverage = uniqueCount(movementSigners.map((signer) => signer.block));
+  const panchayatCoverage = uniqueCount(movementSigners.map((signer) => signer.panchayat));
+  const fieldCollectionSupporters = movementSigners.filter(
+    (signer) => signer.source === "scan" || signer.source === "field"
+  ).length;
 
   const healthChecks = [
     {
@@ -147,6 +164,28 @@ export function MovementCrmTab({
     .slice()
     .sort((a, b) => b.campaignsSupported - a.campaignsSupported || Number(b.otpVerified) - Number(a.otpVerified))
     .slice(0, 5);
+  const volunteerReadinessScore = Math.min(
+    100,
+    (movementSigners.length > 0 ? 20 : 0) +
+      Math.min(25, verifiedCount * 2) +
+      Math.min(20, districtCoverage * 5) +
+      Math.min(15, fieldCollectionSupporters * 3) +
+      (communicationReady > 0 ? 20 : 0)
+  );
+  const coordinatorGaps = [
+    ["State Coordinator", stateCoverage > 0, "Own statewide operations"],
+    ["District Coordinator", districtCoverage > 0, "Assign one owner per active district"],
+    ["Block Coordinator", blockCoverage > 0, "Assign for block-level field work"],
+    ["Panchayat Coordinator", panchayatCoverage > 0, "Assign for ward/panchayat mobilization"],
+    ["Ward Coordinator", panchayatCoverage > 0, "Use when ward data is available"]
+  ];
+  const volunteerTasks = [
+    ["Field collection", "Collect 25 signatures from weak localities", "Field lead", activeCampaign ? "Ready to assign" : "Setup needed"],
+    ["Upload tracking", pendingUploads > 0 ? `Review ${pendingUploads} pending upload${pendingUploads === 1 ? "" : "s"}` : "Upload new paper sheets", "Review lead", "Real queue"],
+    ["Supporter verification", "Call or message pending supporters", "Volunteer", "Provider-ready assignment"],
+    ["Authority follow-up", "Prepare office visit or phone follow-up", "Coordinator", authorityReady ? "Ready" : "Needs authority"],
+    ["Communication push", "Share campaign update with reachable supporters", "Digital volunteer", communicationReady ? "Ready" : "Needs contacts"]
+  ];
 
   return (
     <section className="page-stack movement-crm">
@@ -196,6 +235,89 @@ export function MovementCrmTab({
               <small>{state === "real" ? "Real data" : "Provider ready"}</small>
             </div>
           ))}
+        </div>
+      </Panel>
+
+      <Panel title="Volunteer Operations" icon={<ShieldCheck />}>
+        <div className="volunteer-ops-hero">
+          <div>
+            <span className="eyebrow">Field coordinator dashboard</span>
+            <h3>Manage volunteers across state, district, block, panchayat, and ward levels.</h3>
+            <p>
+              Real supporter and field collection data powers readiness, upload tracking, and performance.
+              Assignment, attendance, and volunteer role persistence are provider-ready.
+            </p>
+          </div>
+          <div className="volunteer-readiness-card">
+            <span>Volunteer readiness</span>
+            <strong>{volunteerReadinessScore}/100</strong>
+            <small>{movementSigners.length.toLocaleString()} supporter profiles available</small>
+          </div>
+        </div>
+
+        <div className="volunteer-ops-grid">
+          <div className="volunteer-ops-card">
+            <UsersRound size={20} />
+            <span>Volunteer profiles</span>
+            <strong>{supporterProfiles.length.toLocaleString()}</strong>
+            <small>Real supporter records; role upgrade is provider-ready.</small>
+          </div>
+          <div className="volunteer-ops-card">
+            <Target size={20} />
+            <span>Daily collection target</span>
+            <strong>{Math.max(25, Math.ceil(Math.max(1, movementSigners.length) * 0.12)).toLocaleString()}</strong>
+            <small>Suggested target from current supporter base.</small>
+          </div>
+          <div className="volunteer-ops-card">
+            <UploadCloud size={20} />
+            <span>Upload tracking</span>
+            <strong>{campaignScanItems.length.toLocaleString()}</strong>
+            <small>{pendingUploads} pending, {approvedUploads} approved, {rejectedUploads} rejected.</small>
+          </div>
+          <div className="volunteer-ops-card">
+            <CalendarDays size={20} />
+            <span>Attendance/events</span>
+            <strong>Provider-ready</strong>
+            <small>Meeting and event participation tracking placeholder.</small>
+          </div>
+          <div className="volunteer-ops-card">
+            <ClipboardList size={20} />
+            <span>Field performance</span>
+            <strong>{fieldCollectionSupporters.toLocaleString()}</strong>
+            <small>Scan/field supporters imported for this scope.</small>
+          </div>
+          <div className="volunteer-ops-card">
+            <MapPin size={20} />
+            <span>Coordinator gaps</span>
+            <strong>{coordinatorGaps.filter(([, ready]) => !ready).length}</strong>
+            <small>Gaps based on available location coverage.</small>
+          </div>
+        </div>
+
+        <div className="two-column">
+          <div className="volunteer-task-board">
+            <span className="eyebrow">Task assignment UI</span>
+            {volunteerTasks.map(([task, detail, owner, status]) => (
+              <article className="volunteer-task-card" key={task}>
+                <div>
+                  <strong>{task}</strong>
+                  <p>{detail}</p>
+                  <small>Suggested owner: {owner}</small>
+                </div>
+                <span>{status}</span>
+              </article>
+            ))}
+          </div>
+          <div className="coordinator-gap-board">
+            <span className="eyebrow">Coordinator gap detection</span>
+            {coordinatorGaps.map(([level, ready, detail]) => (
+              <article className={ready ? "coordinator-gap-card ready" : "coordinator-gap-card"} key={String(level)}>
+                <strong>{level}</strong>
+                <small>{detail}</small>
+                <span>{ready ? "Coverage available" : "Setup needed"}</span>
+              </article>
+            ))}
+          </div>
         </div>
       </Panel>
 

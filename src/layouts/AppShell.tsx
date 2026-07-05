@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3,
+  AlertTriangle,
   Command,
   Crosshair,
   FileScan,
@@ -25,9 +26,6 @@ import { CommandPalette } from "../components/CommandPalette";
 import { AppToast } from "../components/AppToast";
 import { DashboardTab } from "../pages/app/DashboardTab";
 import { CampaignsTab } from "../pages/app/CampaignsTab";
-import { ScansTab } from "../pages/app/ScansTab";
-import { ReportsTab } from "../pages/app/ReportsTab";
-import { EngagementTab } from "../pages/app/EngagementTab";
 import { ActivityTab } from "../pages/app/ActivityTab";
 import { SaasTab } from "../pages/app/SaasTab";
 import { IdeasTab } from "../pages/app/IdeasTab";
@@ -48,6 +46,15 @@ const MovementCrmTab = lazy(() =>
 const CommandCenterTab = lazy(() =>
   import("../pages/app/CommandCenterTab").then((module) => ({ default: module.CommandCenterTab }))
 );
+const ScansTab = lazy(() =>
+  import("../pages/app/ScansTab").then((module) => ({ default: module.ScansTab }))
+);
+const ReportsTab = lazy(() =>
+  import("../pages/app/ReportsTab").then((module) => ({ default: module.ReportsTab }))
+);
+const EngagementTab = lazy(() =>
+  import("../pages/app/EngagementTab").then((module) => ({ default: module.EngagementTab }))
+);
 const AiCampaignCopilot = lazy(() => import("../pages/app/AiCampaignCopilot"));
 
 type AiReviewState = Record<string, "accepted" | "rejected" | "editing">;
@@ -61,6 +68,27 @@ function addDays(dateValue: string, days: number) {
 function slugifyCampaignTitle(value: string) {
   const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   return slug || `ai-campaign-${Date.now()}`;
+}
+
+function campaignSnapshot(campaign: Campaign | null | undefined) {
+  return campaign ? JSON.stringify(campaign) : "";
+}
+
+function getErrorDescription(error: unknown) {
+  if (error instanceof Error && error.message) return error.message;
+  return "The action could not be completed. Please retry after checking the campaign fields and connection.";
+}
+
+function ModuleSkeleton({ label }: { label: string }) {
+  return (
+    <div className="module-skeleton" role="status" aria-live="polite">
+      <span className="skeleton-line short" />
+      <span className="skeleton-line" />
+      <span className="skeleton-line" />
+      <span className="skeleton-card" />
+      <strong>{label}</strong>
+    </div>
+  );
 }
 
 interface ToastState {
@@ -300,6 +328,17 @@ export function AppShell({
   const [aiCopilotOpen, setAiCopilotOpen] = useState(false);
   const [aiDraftAppliedFocusKey, setAiDraftAppliedFocusKey] = useState(0);
   const [aiUndoDraft, setAiUndoDraft] = useState<Campaign | null>(null);
+  const [operationNotice, setOperationNotice] = useState<{
+    title: string;
+    description: string;
+    actionLabel?: string;
+    onAction?: () => void;
+  } | null>(null);
+  const savedCampaignSnapshot = campaignFormMode === "edit" ? campaignSnapshot(activeCampaign) : "";
+  const draftCampaignSnapshot = campaignSnapshot(campaignDraft);
+  const hasUnsavedCampaignChanges = Boolean(campaignDraft) && (
+    campaignFormMode === "create" || draftCampaignSnapshot !== savedCampaignSnapshot
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -311,6 +350,60 @@ export function AppShell({
       window.history.replaceState({}, "", nextUrl);
     }
   }, []);
+
+  function requestTabChange(tab: Tab) {
+    if (
+      tab !== activeTab &&
+      activeTab === "campaigns" &&
+      hasUnsavedCampaignChanges &&
+      !window.confirm("You have unsaved campaign changes. Leave without saving?")
+    ) {
+      return;
+    }
+    setOperationNotice(null);
+    setActiveTab(tab);
+  }
+
+  function requestCreateCampaign() {
+    if (
+      activeTab === "campaigns" &&
+      hasUnsavedCampaignChanges &&
+      !window.confirm("You have unsaved campaign changes. Start a new campaign anyway?")
+    ) {
+      return;
+    }
+    setOperationNotice(null);
+    onCreateCampaign();
+  }
+
+  function handleSafeSaveCampaign(event: FormEvent) {
+    setOperationNotice(null);
+    try {
+      onSaveCampaign(event);
+    } catch (error) {
+      event.preventDefault();
+      setOperationNotice({
+        title: "Campaign save did not complete",
+        description: getErrorDescription(error),
+        actionLabel: "Review campaign",
+        onAction: () => requestTabChange("campaigns")
+      });
+    }
+  }
+
+  function handleSafePublishCampaign() {
+    setOperationNotice(null);
+    try {
+      onPublishCampaign();
+    } catch (error) {
+      setOperationNotice({
+        title: "Publish did not complete",
+        description: getErrorDescription(error),
+        actionLabel: "Retry publish",
+        onAction: handleSafePublishCampaign
+      });
+    }
+  }
 
   function applyAiDraftToCampaign(
     aiResult: AiCampaignCopilotResult,
@@ -460,63 +553,63 @@ export function AppShell({
               label="Dashboard"
               tab="dashboard"
               activeTab={activeTab}
-              onClick={setActiveTab}
+              onClick={requestTabChange}
             />
             <NavButton
               icon={<Crosshair />}
               label="Command Center"
               tab="command"
               activeTab={activeTab}
-              onClick={setActiveTab}
+              onClick={requestTabChange}
             />
             <NavButton
               icon={<Megaphone />}
               label="Campaign admin"
               tab="campaigns"
               activeTab={activeTab}
-              onClick={setActiveTab}
+              onClick={requestTabChange}
             />
             <NavButton
               icon={<Globe2 />}
               label="Public signing"
               tab="public"
               activeTab={activeTab}
-              onClick={setActiveTab}
+              onClick={requestTabChange}
             />
             <NavButton
               icon={<UsersRound />}
               label="Movement CRM"
               tab="movement"
               activeTab={activeTab}
-              onClick={setActiveTab}
+              onClick={requestTabChange}
             />
             <NavButton
               icon={<FileScan />}
               label="Field Collection"
               tab="scans"
               activeTab={activeTab}
-              onClick={setActiveTab}
+              onClick={requestTabChange}
             />
             <NavButton
               icon={<FileText />}
               label="Reports"
               tab="reports"
               activeTab={activeTab}
-              onClick={setActiveTab}
+              onClick={requestTabChange}
             />
             <NavButton
               icon={<MessageCircle />}
               label="Engagement"
               tab="engagement"
               activeTab={activeTab}
-              onClick={setActiveTab}
+              onClick={requestTabChange}
             />
             <NavButton
               icon={<ShieldCheck />}
               label="Activity"
               tab="activity"
               activeTab={activeTab}
-              onClick={setActiveTab}
+              onClick={requestTabChange}
             />
             {!isCampaignAdminRoute && (
               <>
@@ -525,14 +618,14 @@ export function AppShell({
                   label="SaaS admin"
                   tab="saas"
                   activeTab={activeTab}
-                  onClick={setActiveTab}
+                  onClick={requestTabChange}
                 />
                 <NavButton
                   icon={<Sparkles />}
                   label="Feature ideas"
                   tab="ideas"
                   activeTab={activeTab}
-                  onClick={setActiveTab}
+                  onClick={requestTabChange}
                 />
               </>
             )}
@@ -569,8 +662,14 @@ export function AppShell({
                 <select
                   value={activeCampaignId}
                   onChange={(e) => {
-                    setCampaignFormMode("edit");
-                    setActiveCampaignId(e.target.value);
+                  if (
+                    hasUnsavedCampaignChanges &&
+                    !window.confirm("You have unsaved campaign changes. Switch campaigns without saving?")
+                  ) {
+                    return;
+                  }
+                  setCampaignFormMode("edit");
+                  setActiveCampaignId(e.target.value);
                   }}
                   disabled={campaigns.length === 0}
                 >
@@ -606,7 +705,7 @@ export function AppShell({
                 <button
                   className="secondary-button"
                   type="button"
-                  onClick={onCreateCampaign}
+                  onClick={requestCreateCampaign}
                 >
                   <Plus size={18} /> New campaign
                 </button>
@@ -649,14 +748,14 @@ export function AppShell({
               authorityMatch={authorityMatch}
               dailyTotals={dailyTotals}
               organization={organization}
-              onCreateCampaign={onCreateCampaign}
-              onOpenSubscription={() => setActiveTab("saas")}
+              onCreateCampaign={requestCreateCampaign}
+              onOpenSubscription={() => requestTabChange("saas")}
               onOpenAiCopilot={() => setAiCopilotOpen(true)}
             />
           )}
 
           {activeTab === "command" && (
-            <Suspense fallback={<div className="empty-state compact-empty">Loading Command Center...</div>}>
+            <Suspense fallback={<ModuleSkeleton label="Loading Command Center" />}>
               <CommandCenterTab
                 activeCampaign={activeCampaign}
                 campaigns={campaigns}
@@ -672,14 +771,29 @@ export function AppShell({
                 districtTotals={districtTotals}
                 blockTotals={blockTotals}
                 panchayatTotals={panchayatTotals}
-                onOpenCampaigns={() => setActiveTab("campaigns")}
-                onOpenFieldCollection={() => setActiveTab("scans")}
-                onOpenEngagement={() => setActiveTab("engagement")}
-                onOpenAuthorities={() => setActiveTab("campaigns")}
-                onOpenSaas={() => setActiveTab("saas")}
-                onOpenMovement={() => setActiveTab("movement")}
+                onOpenCampaigns={() => requestTabChange("campaigns")}
+                onOpenFieldCollection={() => requestTabChange("scans")}
+                onOpenEngagement={() => requestTabChange("engagement")}
+                onOpenAuthorities={() => requestTabChange("campaigns")}
+                onOpenSaas={() => requestTabChange("saas")}
+                onOpenMovement={() => requestTabChange("movement")}
               />
             </Suspense>
+          )}
+
+          {operationNotice && (
+            <div className="operation-safety-banner" role="alert">
+              <AlertTriangle size={20} />
+              <div>
+                <strong>{operationNotice.title}</strong>
+                <p>{operationNotice.description}</p>
+              </div>
+              {operationNotice.actionLabel && operationNotice.onAction && (
+                <button className="secondary-button" type="button" onClick={operationNotice.onAction}>
+                  {operationNotice.actionLabel}
+                </button>
+              )}
+            </div>
           )}
 
           {activeTab === "campaigns" && (
@@ -702,9 +816,9 @@ export function AppShell({
               setAuthorityCsvFile={setAuthorityCsvFile}
               csvUploadMessage={csvUploadMessage}
               setCsvUploadMessage={setCsvUploadMessage}
-              onSaveCampaign={onSaveCampaign}
-              onPublishCampaign={onPublishCampaign}
-              onCreateCampaign={onCreateCampaign}
+              onSaveCampaign={handleSafeSaveCampaign}
+              onPublishCampaign={handleSafePublishCampaign}
+              onCreateCampaign={requestCreateCampaign}
               onCloneCampaign={onCloneCampaign}
               onArchiveCampaign={onArchiveCampaign}
               onOpenAiCopilot={() => setAiCopilotOpen(true)}
@@ -750,7 +864,7 @@ export function AppShell({
                 <button
                   className="primary-button"
                   type="button"
-                  onClick={onCreateCampaign}
+                  onClick={requestCreateCampaign}
                 >
                   <Plus size={18} /> Create campaign
                 </button>
@@ -758,12 +872,13 @@ export function AppShell({
             ))}
 
           {activeTab === "movement" && (
-            <Suspense fallback={<div className="empty-state compact-empty">Loading Movement CRM...</div>}>
+            <Suspense fallback={<ModuleSkeleton label="Loading Movement CRM" />}>
               <MovementCrmTab
                 campaigns={campaigns}
                 activeCampaign={activeCampaign}
                 signers={signers}
                 campaignSigners={campaignSigners}
+                scanItems={scanItems}
                 authorities={authorities}
                 onOpenAiCopilot={() => setAiCopilotOpen(true)}
               />
@@ -771,52 +886,63 @@ export function AppShell({
           )}
 
           {activeTab === "scans" && (
-            <ScansTab
-              activeCampaign={activeCampaign}
-              scanItems={scanItems}
-              campaignSigners={campaignSigners}
-              setScanItems={setScanItems}
-              scanText={scanText}
-              setScanText={setScanText}
-              isScanning={isScanning}
-              scanMessage={scanMessage}
-              onUploadScan={onUploadScan}
-              onCreateManualScanItem={onCreateManualScanItem}
-              onUpdateScanParsedSigner={onUpdateScanParsedSigner}
-              onApproveScan={onApproveScan}
-              onCreateCampaign={onCreateCampaign}
-            />
+            <Suspense fallback={<ModuleSkeleton label="Loading Field Collection" />}>
+              <ScansTab
+                activeCampaign={activeCampaign}
+                scanItems={scanItems}
+                campaignSigners={campaignSigners}
+                setScanItems={setScanItems}
+                scanText={scanText}
+                setScanText={setScanText}
+                isScanning={isScanning}
+                scanMessage={scanMessage}
+                onUploadScan={onUploadScan}
+                onCreateManualScanItem={onCreateManualScanItem}
+                onUpdateScanParsedSigner={onUpdateScanParsedSigner}
+                onApproveScan={onApproveScan}
+                onCreateCampaign={requestCreateCampaign}
+              />
+            </Suspense>
           )}
 
           {activeTab === "reports" && (
-            <ReportsTab
-              activeCampaign={activeCampaign}
-              campaignSigners={campaignSigners}
-              metrics={metrics}
-              authorityMatch={authorityMatch}
-              dailyTotals={dailyTotals}
-              weeklyTotals={weeklyTotals}
-              stateTotals={stateTotals}
-              districtTotals={districtTotals}
-              blockTotals={blockTotals}
-              panchayatTotals={panchayatTotals}
-              onUpdateSignerStatus={onUpdateSignerStatus}
-              onCreateCampaign={onCreateCampaign}
-            />
+            <Suspense fallback={<ModuleSkeleton label="Loading Reports" />}>
+              <ReportsTab
+                activeCampaign={activeCampaign}
+                campaigns={campaigns}
+                signers={signers}
+                scanItems={scanItems}
+                integrations={integrations}
+                campaignSigners={campaignSigners}
+                metrics={metrics}
+                authorityMatch={authorityMatch}
+                dailyTotals={dailyTotals}
+                weeklyTotals={weeklyTotals}
+                stateTotals={stateTotals}
+                districtTotals={districtTotals}
+                blockTotals={blockTotals}
+                panchayatTotals={panchayatTotals}
+                onUpdateSignerStatus={onUpdateSignerStatus}
+                onCreateCampaign={requestCreateCampaign}
+              />
+            </Suspense>
           )}
 
           {activeTab === "engagement" && (
-            <EngagementTab
-              activeCampaign={activeCampaign}
-              organization={organization}
-              campaignSigners={campaignSigners}
-              metrics={metrics}
-              broadcastMessage={broadcastMessage}
-              setBroadcastMessage={setBroadcastMessage}
-              copiedMessage={copiedMessage}
-              onCopyText={onCopyText}
-              onCreateCampaign={onCreateCampaign}
-            />
+            <Suspense fallback={<ModuleSkeleton label="Loading Communication Hub" />}>
+              <EngagementTab
+                activeCampaign={activeCampaign}
+                organization={organization}
+                integrations={integrations}
+                campaignSigners={campaignSigners}
+                metrics={metrics}
+                broadcastMessage={broadcastMessage}
+                setBroadcastMessage={setBroadcastMessage}
+                copiedMessage={copiedMessage}
+                onCopyText={onCopyText}
+                onCreateCampaign={requestCreateCampaign}
+              />
+            </Suspense>
           )}
 
           {activeTab === "activity" && <ActivityTab auditLogs={auditLogs} />}

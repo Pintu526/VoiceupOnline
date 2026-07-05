@@ -1,5 +1,6 @@
+import { useMemo, useState } from "react";
 import { BellRing, Mail, MessageCircle, Send, Share2, Smartphone, Users } from "lucide-react";
-import type { Campaign, Organization, Signer } from "../../types";
+import type { Campaign, IntegrationSettings, Organization, Signer } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
 import { Panel } from "../../ui/Panel";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
@@ -9,6 +10,7 @@ import { whatsAppLink, smsLink } from "../../utils/links";
 interface EngagementTabProps {
   activeCampaign: Campaign | undefined;
   organization: Organization;
+  integrations: IntegrationSettings;
   campaignSigners: Signer[];
   metrics: ReturnType<typeof getCampaignMetrics>;
   broadcastMessage: string;
@@ -21,6 +23,7 @@ interface EngagementTabProps {
 export function EngagementTab({
   activeCampaign,
   organization,
+  integrations,
   campaignSigners,
   metrics,
   broadcastMessage,
@@ -47,6 +50,79 @@ export function EngagementTab({
     metrics
   );
   const effectiveMessage = broadcastMessage || reportMessage;
+  const [selectedSegment, setSelectedSegment] = useState("All supporters");
+  const [selectedTemplate, setSelectedTemplate] = useState("Campaign update");
+  const supporterSegments = useMemo(
+    () => [
+      {
+        label: "All supporters",
+        count: campaignSigners.length,
+        detail: "Every supporter for this campaign"
+      },
+      {
+        label: "Verified supporters",
+        count: campaignSigners.filter((signer) => signer.status === "verified" || signer.otpVerified).length,
+        detail: "Verified or OTP-confirmed supporters"
+      },
+      {
+        label: "Phone reachable",
+        count: campaignSigners.filter((signer) => signer.phone).length,
+        detail: "Eligible for SMS/WhatsApp after consent checks"
+      },
+      {
+        label: "Email reachable",
+        count: campaignSigners.filter((signer) => signer.email).length,
+        detail: "Eligible for email after consent checks"
+      },
+      {
+        label: "Field collection supporters",
+        count: campaignSigners.filter((signer) => signer.source === "scan" || signer.source === "field").length,
+        detail: "Imported from paper/manual collection"
+      },
+      {
+        label: "Pending verification",
+        count: campaignSigners.filter((signer) => signer.status === "pending" && !signer.otpVerified).length,
+        detail: "Needs verification or review"
+      }
+    ],
+    [campaignSigners]
+  );
+  const activeSegment = supporterSegments.find((segment) => segment.label === selectedSegment) ?? supporterSegments[0];
+  const messageTemplates = [
+    {
+      label: "Campaign update",
+      message: reportMessage
+    },
+    {
+      label: "Campaign launch",
+      message: `${activeCampaign.socialShareText || `Support ${activeCampaign.title}`} ${publicUrl}`
+    },
+    {
+      label: "Authority follow-up",
+      message: `Update on ${activeCampaign.title}: we are preparing the supporter petition for authority follow-up. Track and share: ${publicUrl}`
+    },
+    {
+      label: "Volunteer call",
+      message: `We need volunteers for ${activeCampaign.title}. Help with sharing, field collection, and local follow-up: ${publicUrl}`
+    },
+    {
+      label: "Thank-you",
+      message: renderCampaignMessage(activeCampaign.thankYouMessage, campaignForMessages, metrics)
+    },
+    {
+      label: "Field collection reminder",
+      message: `Field team reminder for ${activeCampaign.title}: collect supporter details carefully and route paper sheets for review.`
+    }
+  ];
+  const activeTemplate = messageTemplates.find((template) => template.label === selectedTemplate) ?? messageTemplates[0];
+  const providerSettings = [
+    ["SMS", integrations.smsProvider, integrations.smsSenderId || "Sender ID not set"],
+    ["WhatsApp", integrations.whatsappProvider, integrations.whatsappSenderId || "Sender ID not set"],
+    ["Email", integrations.emailProvider, integrations.emailSender || "Sender email not set"],
+    ["IVR", "Not configured", "Provider-ready"],
+    ["Telegram", "Not configured", "Provider-ready"],
+    ["Push", "Not configured", "Provider-ready"]
+  ];
   const communicationChannels = [
     ["SMS", "Provider ready", Smartphone],
     ["WhatsApp", "Link sharing active / API provider ready", MessageCircle],
@@ -56,6 +132,7 @@ export function EngagementTab({
     ["Social Media", "Share links active", Share2],
     ["Push", "Provider ready", BellRing]
   ] as const;
+  const previewMessage = broadcastMessage || activeTemplate.message;
 
   return (
     <section className="page-stack">
@@ -63,15 +140,40 @@ export function EngagementTab({
         <div className="communication-hub-grid">
           <div className="communication-audience-card">
             <span className="eyebrow">Audience selector</span>
-            <strong>{campaignSigners.length.toLocaleString()} campaign supporters</strong>
-            <p>{campaignSigners.filter((signer) => signer.phone).length.toLocaleString()} phone-ready, {campaignSigners.filter((signer) => signer.email).length.toLocaleString()} email-ready.</p>
+            <strong>{activeSegment.count.toLocaleString()} {activeSegment.label.toLowerCase()}</strong>
+            <p>{activeSegment.detail}</p>
+            <div className="communication-segment-grid">
+              {supporterSegments.map((segment) => (
+                <button
+                  className={selectedSegment === segment.label ? "active" : ""}
+                  key={segment.label}
+                  type="button"
+                  onClick={() => setSelectedSegment(segment.label)}
+                >
+                  <span>{segment.label}</span>
+                  <strong>{segment.count.toLocaleString()}</strong>
+                </button>
+              ))}
+            </div>
             <p className="info-message">Consent-aware sending is provider-ready. Do not send messages without consent verification.</p>
           </div>
           <div className="communication-preview-card">
             <span className="eyebrow">Message preview</span>
-            <p>{effectiveMessage}</p>
+            <label className="field">
+              <span className="label">Template</span>
+              <select value={selectedTemplate} onChange={(event) => setSelectedTemplate(event.target.value)}>
+                {messageTemplates.map((template) => (
+                  <option key={template.label}>{template.label}</option>
+                ))}
+              </select>
+            </label>
+            <textarea
+              rows={5}
+              value={previewMessage}
+              onChange={(event) => setBroadcastMessage(event.target.value)}
+            />
             <div className="button-row">
-              <button className="secondary-button" type="button" onClick={() => onCopyText(effectiveMessage)}>
+              <button className="secondary-button" type="button" onClick={() => onCopyText(previewMessage)}>
                 Copy preview
               </button>
               <button className="secondary-button" type="button" disabled>
@@ -103,9 +205,29 @@ export function EngagementTab({
             </article>
           ))}
         </div>
-        <div className="template-chip-row">
-          {["Campaign launch", "Authority follow-up", "Volunteer call", "Thank-you", "Field collection reminder"].map((template) => (
-            <span key={template}>{template}</span>
+        <div className="communication-library-grid">
+          {messageTemplates.map((template) => (
+            <button
+              className={selectedTemplate === template.label ? "active" : ""}
+              key={template.label}
+              type="button"
+              onClick={() => {
+                setSelectedTemplate(template.label);
+                setBroadcastMessage(template.message);
+              }}
+            >
+              <strong>{template.label}</strong>
+              <span>{template.message}</span>
+            </button>
+          ))}
+        </div>
+        <div className="provider-settings-grid">
+          {providerSettings.map(([channel, provider, detail]) => (
+            <article className="provider-settings-card" key={channel}>
+              <span className="eyebrow">{channel}</span>
+              <strong>{provider === "Not configured" ? "Provider-ready" : provider}</strong>
+              <small>{detail}</small>
+            </article>
           ))}
         </div>
       </Panel>

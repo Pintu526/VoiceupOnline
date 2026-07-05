@@ -494,10 +494,17 @@ export function CampaignsTab({
 
   function confirmArchiveCampaign() {
     if (!campaignDraft) return;
+    const campaignName = campaignDraft.title || "this campaign";
     const confirmed = window.confirm(
-      `Archive "${campaignDraft.title || "this campaign"}"? It will be marked Closed and kept in the workspace.`
+      `Archive "${campaignName}"? It will be marked Closed and kept in the workspace.`
     );
-    if (confirmed) onArchiveCampaign();
+    if (!confirmed) return;
+    const typedConfirmation = window.prompt(
+      `Type ARCHIVE to confirm archiving "${campaignName}".`
+    );
+    if (typedConfirmation === "ARCHIVE") {
+      onArchiveCampaign();
+    }
   }
 
   function applyTemplate(template: CampaignTemplate) {

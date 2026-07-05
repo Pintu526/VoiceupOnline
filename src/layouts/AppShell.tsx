@@ -910,6 +910,7 @@ export function AppShell({
               <ReportsTab
                 activeCampaign={activeCampaign}
                 campaigns={campaigns}
+                organization={organization}
                 signers={signers}
                 scanItems={scanItems}
                 integrations={integrations}

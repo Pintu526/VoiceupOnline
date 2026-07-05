@@ -1,8 +1,9 @@
-import { BarChart3, Download, FileText, MapPin, RadioTower, Users } from "lucide-react";
-import type { AuthorityRule, Campaign, IntegrationSettings, ScanReviewItem, Signer } from "../../types";
+import { useState } from "react";
+import { BarChart3, BookOpen, ClipboardCopy, Download, FileCheck2, FileText, MapPin, Printer, RadioTower, Users } from "lucide-react";
+import type { AuthorityRule, Campaign, IntegrationSettings, Organization, ScanReviewItem, Signer } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
 import { exportCsv } from "../../lib";
-import { exportPdf, exportSignerAppealPdf } from "../../pdfExports";
+import { buildCoverLetterText, exportPdf, exportSignerAppealPdf } from "../../pdfExports";
 import { Panel } from "../../ui/Panel";
 import { ReportBlock } from "../../ui/ReportBlock";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
@@ -10,6 +11,7 @@ import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 interface ReportsTabProps {
   activeCampaign: Campaign | undefined;
   campaigns: Campaign[];
+  organization: Organization;
   signers: Signer[];
   scanItems: ScanReviewItem[];
   integrations: IntegrationSettings;
@@ -29,6 +31,7 @@ interface ReportsTabProps {
 export function ReportsTab({
   activeCampaign,
   campaigns,
+  organization,
   signers,
   scanItems,
   integrations,
@@ -43,6 +46,8 @@ export function ReportsTab({
   onUpdateSignerStatus,
   onCreateCampaign
 }: ReportsTabProps) {
+  const [reportExportMessage, setReportExportMessage] = useState("");
+
   if (!activeCampaign) {
     return (
       <NoCampaignPanel
@@ -52,6 +57,7 @@ export function ReportsTab({
       />
     );
   }
+  const campaign = activeCampaign;
   const locationCoverage =
     Object.keys(stateTotals).length +
     Object.keys(districtTotals).length +
@@ -108,6 +114,26 @@ export function ReportsTab({
       ? `Review ${pendingScans.toLocaleString()} pending field collection rows.`
       : "Field collection queue has no pending review rows."
   ];
+
+  function downloadPetitionDossier() {
+    exportPdf(campaign, campaignSigners, authorityMatch?.authority, {
+      organization,
+      integrations
+    });
+  }
+
+  async function copyCoverLetter() {
+    const text = buildCoverLetterText(campaign, campaignSigners, authorityMatch?.authority, {
+      organization,
+      integrations
+    });
+    try {
+      await navigator.clipboard.writeText(text);
+      setReportExportMessage("Cover letter copied. Paste it into Word, Google Docs, email, or an authority submission portal.");
+    } catch {
+      setReportExportMessage("Cover letter is ready, but clipboard access was blocked by the browser.");
+    }
+  }
 
   return (
     <section className="page-stack">
@@ -336,15 +362,83 @@ export function ReportsTab({
       </Panel>
 
       <Panel title="Reports and exports" icon={<Download />}>
+        <div className="report-suite-hero">
+          <div>
+            <span className="eyebrow">Authority-ready Petition Dossier</span>
+            <h2>Premium report package for submission, print, media, and leadership review.</h2>
+            <p>
+              Built only from existing campaign, supporter, authority, organization, location, field collection,
+              and provider-ready readiness data. Missing values are marked Not configured or Not available.
+            </p>
+          </div>
+          <div className="report-suite-score">
+            <strong>{verifiedCount.toLocaleString()}</strong>
+            <span>verified supporters ready for formal reporting</span>
+          </div>
+        </div>
+        <div className="report-export-grid">
+          {[
+            {
+              title: "Authority-ready Petition Dossier",
+              detail: "Cover page, executive summary, details, dashboard, location summary, register, authority package, letter, certificate, and annexures.",
+              icon: FileCheck2,
+              action: downloadPetitionDossier,
+              button: "Download PDF"
+            },
+            {
+              title: "Supporter Register",
+              detail: "Formal wide-table register with supporter identity, location, status, source, notes, and page numbering inside the dossier.",
+              icon: Users,
+              action: downloadPetitionDossier,
+              button: "Download register"
+            },
+            {
+              title: "Executive Summary",
+              detail: "One-page authority and leadership summary included in the dossier with progress, routing, location, and readiness.",
+              icon: BookOpen,
+              action: downloadPetitionDossier,
+              button: "Download summary"
+            },
+            {
+              title: "Raw Data Export",
+              detail: "CSV remains available for spreadsheet analysis, backup, and custom reporting.",
+              icon: Download,
+              action: () => exportCsv(activeCampaign, campaignSigners),
+              button: "Download CSV"
+            },
+            {
+              title: "Print / PDF",
+              detail: "Use browser print for the current reports page, or use the dossier PDF for authority-ready formatting.",
+              icon: Printer,
+              action: () => window.print(),
+              button: "Print page"
+            },
+            {
+              title: "Copy Cover Letter",
+              detail: "Copy a professional neutral cover letter for Word, email, or an authority portal.",
+              icon: ClipboardCopy,
+              action: copyCoverLetter,
+              button: "Copy letter"
+            }
+          ].map((item) => (
+            <article className="report-export-card" key={item.title}>
+              <item.icon size={22} />
+              <strong>{item.title}</strong>
+              <p>{item.detail}</p>
+              <button className="secondary-button" type="button" onClick={item.action}>
+                {item.button}
+              </button>
+            </article>
+          ))}
+        </div>
+        {reportExportMessage && <p className="success-message">{reportExportMessage}</p>}
         <div className="button-row">
           <button
             className="primary-button"
             type="button"
-            onClick={() =>
-              exportPdf(activeCampaign, campaignSigners, authorityMatch?.authority)
-            }
+            onClick={downloadPetitionDossier}
           >
-            <FileText size={18} /> Download PDF report
+            <FileText size={18} /> Download petition dossier
           </button>
           <button
             className="secondary-button"
@@ -352,6 +446,9 @@ export function ReportsTab({
             onClick={() => exportCsv(activeCampaign, campaignSigners)}
           >
             <Download size={18} /> Download CSV
+          </button>
+          <button className="secondary-button" type="button" onClick={copyCoverLetter}>
+            <ClipboardCopy size={18} /> Copy cover letter
           </button>
         </div>
         <div className="report-grid">

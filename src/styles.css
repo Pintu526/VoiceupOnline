@@ -910,6 +910,79 @@ textarea {
   margin-top: 20px;
 }
 
+.report-suite-hero {
+  align-items: stretch;
+  background: linear-gradient(135deg, #f8fbff 0%, #ffffff 54%, #eef7f3 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.32fr);
+  margin-bottom: 18px;
+  padding: 22px;
+}
+
+.report-suite-hero h2 {
+  font-size: clamp(1.35rem, 2vw, 2rem);
+  line-height: 1.16;
+  margin: 4px 0 8px;
+}
+
+.report-suite-hero p,
+.report-export-card p {
+  color: var(--text-soft);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.report-suite-score,
+.report-export-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-soft);
+}
+
+.report-suite-score {
+  align-content: center;
+  display: grid;
+  gap: 6px;
+  padding: 18px;
+}
+
+.report-suite-score strong {
+  color: var(--accent);
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+}
+
+.report-suite-score span {
+  color: var(--text-soft);
+  font-weight: 750;
+}
+
+.report-export-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 16px;
+}
+
+.report-export-card {
+  align-content: start;
+  display: grid;
+  gap: 11px;
+  padding: 18px;
+}
+
+.report-export-card svg {
+  color: var(--accent);
+}
+
+.report-export-card strong {
+  font-size: 1rem;
+}
+
 .metric-card {
   display: grid;
   align-content: space-between;
@@ -4643,6 +4716,8 @@ td span {
   .field-ops-grid,
   .workspace-grid,
   .authority-2-grid,
+  .report-suite-hero,
+  .report-export-grid,
   .quick-start-hero,
   .quick-start-grid,
   .quick-start-steps,
@@ -4754,6 +4829,8 @@ td span {
   .field-ops-grid,
   .workspace-grid,
   .authority-2-grid,
+  .report-suite-hero,
+  .report-export-grid,
   .quick-start-hero,
   .quick-start-grid,
   .quick-start-steps,

@@ -3,10 +3,17 @@ import { BarChart3, BookOpen, ClipboardCopy, Download, FileCheck2, FileText, Map
 import type { AuthorityRule, Campaign, IntegrationSettings, Organization, ScanReviewItem, Signer } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
 import { exportCsv } from "../../lib";
-import { buildCoverLetterText, exportPdf, exportSignerAppealPdf } from "../../pdfExports";
+import {
+  buildCoverLetterText,
+  exportPdf,
+  exportSignerAppealPdf,
+  reportThemeOptions,
+  type ReportThemeId
+} from "../../pdfExports";
 import { Panel } from "../../ui/Panel";
 import { ReportBlock } from "../../ui/ReportBlock";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
+import { getReferralLeaderboard } from "../../utils/referrals";
 
 interface ReportsTabProps {
   activeCampaign: Campaign | undefined;
@@ -47,6 +54,7 @@ export function ReportsTab({
   onCreateCampaign
 }: ReportsTabProps) {
   const [reportExportMessage, setReportExportMessage] = useState("");
+  const [reportThemeId, setReportThemeId] = useState<ReportThemeId>("government-classic");
 
   if (!activeCampaign) {
     return (
@@ -70,6 +78,8 @@ export function ReportsTab({
   const onlineCount = campaignSigners.filter((signer) => signer.source === "online").length;
   const paperCount = campaignSigners.filter((signer) => signer.source === "scan").length;
   const manualCount = campaignSigners.filter((signer) => signer.source === "field").length;
+  const referredSignatures = campaignSigners.filter((signer) => signer.referredBy || signer.referredByPhoneOrCode).length;
+  const referralLeaders = getReferralLeaderboard(campaignSigners);
   const pendingScans = scanItems.filter((item) => item.campaignId === activeCampaign.id && item.status === "Needs review").length;
   const approvedScans = scanItems.filter((item) => item.campaignId === activeCampaign.id && item.status === "Approved").length;
   const weakDistricts = Object.entries(districtTotals)
@@ -118,14 +128,16 @@ export function ReportsTab({
   function downloadPetitionDossier() {
     exportPdf(campaign, campaignSigners, authorityMatch?.authority, {
       organization,
-      integrations
+      integrations,
+      theme: reportThemeId
     });
   }
 
   async function copyCoverLetter() {
     const text = buildCoverLetterText(campaign, campaignSigners, authorityMatch?.authority, {
       organization,
-      integrations
+      integrations,
+      theme: reportThemeId
     });
     try {
       await navigator.clipboard.writeText(text);
@@ -348,6 +360,7 @@ export function ReportsTab({
             ["Authority response tracking", "Provider-ready", "Response status and follow-up dates need provider workflow"],
             ["Field collection status", `${approvedScans} approved / ${pendingScans} pending`, "Existing scan review data"],
             ["Communication readiness", communicationReady, providerConfigured ? "Provider configured" : "Provider-ready only"],
+            ["Referral growth", referredSignatures, referralLeaders[0] ? `Top referrer: ${referralLeaders[0].label}` : "Provider-ready leaderboard"],
             ["Exportable reports", "Ready", "PDF and CSV exports below use existing functions"],
             ["AI insight cards", "Provider-ready", "No real AI API connected"],
             ["Volunteer productivity", manualCount + paperCount, "Field contribution proxy from source data"]
@@ -374,6 +387,34 @@ export function ReportsTab({
           <div className="report-suite-score">
             <strong>{verifiedCount.toLocaleString()}</strong>
             <span>verified supporters ready for formal reporting</span>
+          </div>
+        </div>
+        <div className="report-theme-panel" aria-label="Signature Edition report theme">
+          <div>
+            <span className="eyebrow">Signature Edition theme</span>
+            <h3>Choose report presentation for this export session.</h3>
+            <p>
+              Theme changes only affect typography, colors, headers, cover styling, spacing, and footer treatment.
+              Report content and calculations remain identical.
+            </p>
+          </div>
+          <div className="report-theme-grid" role="radiogroup" aria-label="Report theme">
+            {reportThemeOptions.map((theme) => (
+              <label
+                className={reportThemeId === theme.id ? "report-theme-card selected" : "report-theme-card"}
+                key={theme.id}
+              >
+                <input
+                  type="radio"
+                  name="report-theme"
+                  value={theme.id}
+                  checked={reportThemeId === theme.id}
+                  onChange={() => setReportThemeId(theme.id)}
+                />
+                <strong>{theme.name}</strong>
+                <small>{theme.description}</small>
+              </label>
+            ))}
           </div>
         </div>
         <div className="report-export-grid">

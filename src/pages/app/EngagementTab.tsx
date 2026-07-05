@@ -1,11 +1,21 @@
 import { useMemo, useState } from "react";
-import { BellRing, Mail, MessageCircle, Send, Share2, Smartphone, Users } from "lucide-react";
+import { BellRing, Copy, Download, Mail, MessageCircle, Printer, QrCode, Send, Share2, Smartphone, Users } from "lucide-react";
 import type { Campaign, IntegrationSettings, Organization, Signer } from "../../types";
 import type { getCampaignMetrics } from "../../lib";
 import { Panel } from "../../ui/Panel";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
+import { ReferralQrPreview } from "../../components/ReferralQrPreview";
 import { getCampaignPublicUrl, renderCampaignMessage } from "../../utils/campaign";
 import { whatsAppLink, smsLink } from "../../utils/links";
+import {
+  REFERRAL_SHARE_POINTS,
+  REFERRAL_SIGNATURE_POINTS,
+  downloadQrPosterSvg,
+  getCampaignReferralUrl,
+  getProfessionalShareMessages,
+  getReferralBadge,
+  getReferralLeaderboard
+} from "../../utils/referrals";
 
 interface EngagementTabProps {
   activeCampaign: Campaign | undefined;
@@ -42,8 +52,9 @@ export function EngagementTab({
     );
   }
 
-  const publicUrl = getCampaignPublicUrl(organization, activeCampaign);
-  const campaignForMessages = { ...activeCampaign, shareUrl: publicUrl };
+  const campaign = activeCampaign;
+  const publicUrl = getCampaignPublicUrl(organization, campaign);
+  const campaignForMessages = { ...campaign, shareUrl: publicUrl };
   const reportMessage = renderCampaignMessage(
     activeCampaign.participantUpdateMessage,
     campaignForMessages,
@@ -55,6 +66,8 @@ export function EngagementTab({
   const [selectedChannels, setSelectedChannels] = useState<string[]>(["WhatsApp", "SMS"]);
   const [scheduledFor, setScheduledFor] = useState("");
   const [deliveryPriority, setDeliveryPriority] = useState("Normal");
+  const [referrerSearch, setReferrerSearch] = useState("");
+  const [sessionShareClicks, setSessionShareClicks] = useState(0);
   const supporterSegments = useMemo(
     () => [
       {
@@ -138,6 +151,18 @@ export function EngagementTab({
   ] as const;
   const previewMessage = broadcastMessage || activeTemplate.message;
   const selectedProviderCount = selectedChannels.length;
+  const campaignReferralCode = `ADMIN-${activeCampaign.slug.toUpperCase().slice(0, 8)}`;
+  const campaignReferralUrl = getCampaignReferralUrl(organization, activeCampaign, campaignReferralCode);
+  const referralShareMessages = getProfessionalShareMessages(activeCampaign, campaignReferralUrl);
+  const referralLeaders = useMemo(() => getReferralLeaderboard(campaignSigners), [campaignSigners]);
+  const referredSignatures = campaignSigners.filter((signer) => signer.referredBy || signer.referredByPhoneOrCode).length;
+  const referralConversionRate = campaignSigners.length
+    ? Math.round((referredSignatures / campaignSigners.length) * 100)
+    : 0;
+  const referralPoints = referredSignatures * REFERRAL_SIGNATURE_POINTS + sessionShareClicks * REFERRAL_SHARE_POINTS;
+  const filteredReferralLeaders = referralLeaders.filter((leader) =>
+    `${leader.label} ${leader.code} ${leader.location}`.toLowerCase().includes(referrerSearch.toLowerCase())
+  );
 
   function toggleChannel(channel: string) {
     setSelectedChannels((current) =>
@@ -145,6 +170,27 @@ export function EngagementTab({
         ? current.filter((item) => item !== channel)
         : [...current, channel]
     );
+  }
+
+  function trackReferralShare() {
+    setSessionShareClicks((current) => current + 1);
+  }
+
+  async function shareReferralNatively() {
+    trackReferralShare();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: campaign.title,
+          text: referralShareMessages.social,
+          url: campaignReferralUrl
+        });
+        return;
+      } catch {
+        // Native share was cancelled or unavailable; fall back to copying.
+      }
+    }
+    onCopyText(campaignReferralUrl);
   }
 
   return (
@@ -285,6 +331,188 @@ export function EngagementTab({
         </div>
       </Panel>
 
+      <Panel title="QR & Referral Dashboard" icon={<QrCode />}>
+        <div className="referral-dashboard-grid">
+          <div className="referral-metric-card">
+            <span>Total referral signatures</span>
+            <strong>{referredSignatures.toLocaleString()}</strong>
+            <small>Real count from existing signer referral fields</small>
+          </div>
+          <div className="referral-metric-card">
+            <span>Share clicks</span>
+            <strong>{sessionShareClicks.toLocaleString()}</strong>
+            <small>Session-only until provider tracking is connected</small>
+          </div>
+          <div className="referral-metric-card">
+            <span>Conversion rate</span>
+            <strong>{referralConversionRate}%</strong>
+            <small>Referral signatures divided by total supporters</small>
+          </div>
+          <div className="referral-metric-card">
+            <span>Referral points</span>
+            <strong>{referralPoints.toLocaleString()}</strong>
+            <small>{getReferralBadge(referralPoints)}</small>
+          </div>
+        </div>
+
+        <div className="qr-sharing-grid">
+          <ReferralQrPreview
+            value={publicUrl}
+            label="Public campaign QR"
+            caption="Public signer URL"
+          />
+          <ReferralQrPreview
+            value={campaignReferralUrl}
+            label="Starter referral QR"
+            caption={`Referral code ${campaignReferralCode}`}
+          />
+          <div className="qr-poster-preview">
+            <span className="eyebrow">Printable QR poster</span>
+            <strong>{activeCampaign.title}</strong>
+            <p>{activeCampaign.description}</p>
+            <code>{campaignReferralUrl}</code>
+            <small>{organization.name || "Voiceup"} · {activeCampaign.category} · Scan to sign</small>
+          </div>
+        </div>
+
+        <div className="campaign-link-row referral-route">
+          <span>Campaign referral URL</span>
+          <code>{campaignReferralUrl}</code>
+          <button className="secondary-button" type="button" onClick={() => onCopyText(campaignReferralUrl)}>
+            <Copy size={16} /> Copy referral link
+          </button>
+        </div>
+
+        <div className="public-share-grid referral-admin-share-grid">
+          <a
+            className="secondary-link-button"
+            href={whatsAppLink("", referralShareMessages.whatsapp)}
+            target="_blank"
+            rel="noreferrer"
+            onClick={trackReferralShare}
+          >
+            WhatsApp
+          </a>
+          <a
+            className="secondary-link-button"
+            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(campaignReferralUrl)}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={trackReferralShare}
+          >
+            Facebook
+          </a>
+          <a
+            className="secondary-link-button"
+            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(referralShareMessages.social)}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={trackReferralShare}
+          >
+            X / Twitter
+          </a>
+          <a
+            className="secondary-link-button"
+            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(campaignReferralUrl)}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={trackReferralShare}
+          >
+            LinkedIn
+          </a>
+          <a
+            className="secondary-link-button"
+            href={`https://t.me/share/url?url=${encodeURIComponent(campaignReferralUrl)}&text=${encodeURIComponent(referralShareMessages.social)}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={trackReferralShare}
+          >
+            Telegram
+          </a>
+          <a
+            className="secondary-link-button"
+            href={`mailto:?subject=${encodeURIComponent(referralShareMessages.emailSubject)}&body=${encodeURIComponent(referralShareMessages.emailBody)}`}
+            onClick={trackReferralShare}
+          >
+            Email
+          </a>
+          <button className="secondary-button" type="button" onClick={shareReferralNatively}>
+            <Share2 size={16} /> Native share
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => {
+              trackReferralShare();
+              downloadQrPosterSvg({
+                campaign: activeCampaign,
+                organizationName: organization.name,
+                url: campaignReferralUrl,
+                referralCode: campaignReferralCode
+              });
+            }}
+          >
+            <Download size={16} /> Download poster
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => {
+              trackReferralShare();
+              window.print();
+            }}
+          >
+            <Printer size={16} /> Print
+          </button>
+        </div>
+
+        <div className="referral-dashboard-grid">
+          <div className="communication-preview-card">
+            <span className="eyebrow">Referral leaderboard</span>
+            <label className="field">
+              <span className="label">Search referrer by safe label or code</span>
+              <input
+                value={referrerSearch}
+                onChange={(event) => setReferrerSearch(event.target.value)}
+                placeholder="Search name, code, or location"
+              />
+            </label>
+            <div className="referral-leaderboard">
+              {filteredReferralLeaders.length > 0 ? (
+                filteredReferralLeaders.slice(0, 6).map((leader) => (
+                  <div key={leader.code}>
+                    <strong>{leader.label}</strong>
+                    <span>{leader.referredSignatures.toLocaleString()} referred signatures · {leader.points} points</span>
+                    <small>{leader.code} · {leader.location}</small>
+                  </div>
+                ))
+              ) : (
+                <p className="info-message">No referred signatures yet. Leaderboard export is provider-ready.</p>
+              )}
+            </div>
+          </div>
+          <div className="communication-preview-card">
+            <span className="eyebrow">Referral intelligence</span>
+            <strong>{referralLeaders[0]?.label ?? "Top referrer not available yet"}</strong>
+            <p>
+              Visits, share-click attribution, downloadable leaderboard export, and location-level referral analytics are
+              provider-ready. Successful referred signatures are counted when signer records include referral metadata.
+            </p>
+            <div className="delivery-status-row">
+              <span>Campaign Starter</span>
+              <span>Community Promoter</span>
+              <span>Top Referrer</span>
+              <span>District Champion</span>
+              <span>Movement Ambassador</span>
+            </div>
+            <p className="info-message">
+              Privacy respected: public views mask phone numbers and do not expose full referrer identity.
+            </p>
+          </div>
+        </div>
+        {copiedMessage && <p className="success-message">{copiedMessage}</p>}
+      </Panel>
+
       <Panel title="Social publishing and participant engagement" icon={<MessageCircle />}>
         <div className="engagement-grid">
           <div className="engagement-card">
@@ -299,10 +527,11 @@ export function EngagementTab({
                 className="secondary-link-button"
                 href={whatsAppLink(
                   "",
-                  `${activeCampaign.socialShareText} ${publicUrl}`
+                  referralShareMessages.whatsapp
                 )}
                 target="_blank"
                 rel="noreferrer"
+                onClick={trackReferralShare}
               >
                 WhatsApp share
               </a>
@@ -311,14 +540,16 @@ export function EngagementTab({
                 href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`}
                 target="_blank"
                 rel="noreferrer"
+                onClick={trackReferralShare}
               >
                 Facebook
               </a>
               <a
                 className="secondary-link-button"
-                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`${activeCampaign.socialShareText} ${publicUrl}`)}`}
+                href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(referralShareMessages.social)}`}
                 target="_blank"
                 rel="noreferrer"
+                onClick={trackReferralShare}
               >
                 X / Twitter
               </a>

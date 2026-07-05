@@ -18,6 +18,8 @@ export function AppToast({ toast, setToast }: AppToastProps) {
         className="toast-root"
         open={toast.open}
         onOpenChange={(open) => setToast((current) => ({ ...current, open }))}
+        role="status"
+        aria-live="polite"
       >
         <Toast.Title>{toast.title}</Toast.Title>
         <Toast.Description>{toast.description}</Toast.Description>

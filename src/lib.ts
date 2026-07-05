@@ -220,7 +220,8 @@ export function makePublicSigner(
     | "address"
     | "postalCode"
     | "comment"
-  >,
+  > &
+    Partial<Pick<Signer, "referralCode" | "referredBy" | "referredByPhoneOrCode" | "referralSource">>,
   signers: Signer[]
 ): Signer {
   const duplicate = detectDuplicate(values, signers);

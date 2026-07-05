@@ -37,7 +37,11 @@ export const blankSigner = {
   panchayat: "",
   address: "",
   postalCode: "",
-  comment: ""
+  comment: "",
+  referralCode: "",
+  referredBy: "",
+  referredByPhoneOrCode: "",
+  referralSource: undefined as "url" | "manual" | undefined
 };
 
 export const blankAdminLogin = {

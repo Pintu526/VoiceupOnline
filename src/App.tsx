@@ -120,6 +120,12 @@ import {
   renderCampaignMessage,
   signerFieldLabel
 } from "./utils/campaign";
+import {
+  createReferralCode,
+  findReferrer,
+  getSupporterReferralCode,
+  normalizeReferralCode
+} from "./utils/referrals";
 
 // Pages
 import { MarketingHomePage } from "./pages/MarketingHomePage";
@@ -665,12 +671,23 @@ function App() {
       restrictedPublicForm.selectedAuthorityId,
       authorities
     );
+    const referralInput = restrictedPublicForm.referredByPhoneOrCode?.trim() ?? "";
+    const referrer = findReferrer(campaignSigners, activeCampaign.id, referralInput);
+    const referredBy = referrer ? getSupporterReferralCode(referrer) : normalizeReferralCode(referralInput);
+    const signerReferralCode = createReferralCode(
+      activeCampaign.id,
+      restrictedPublicForm.phone || restrictedPublicForm.email || restrictedPublicForm.name || `${Date.now()}`
+    );
     const signer = makePublicSigner(
       activeCampaign.id,
       {
         ...restrictedPublicForm,
         selectedAuthorityId: signerAuthority.id,
         selectedAuthorityName: signerAuthority.name,
+        referralCode: signerReferralCode,
+        referredBy,
+        referredByPhoneOrCode: referralInput,
+        referralSource: referralInput ? restrictedPublicForm.referralSource ?? "manual" : undefined,
         comment: `Accepted published appeal to ${signerAuthority.name}: ${activeCampaign.appealContent || activeCampaign.description}`
       },
       campaignSigners
@@ -1140,6 +1157,7 @@ function App() {
           metrics={metrics}
           authority={authorityMatch?.authority}
           authorities={authorities}
+          campaignSigners={campaignSigners}
           publicForm={publicForm}
           setPublicForm={setPublicForm}
           publicMessage={publicMessage}

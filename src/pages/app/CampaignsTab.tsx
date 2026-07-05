@@ -6,11 +6,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Download,
   GitBranch,
   History,
   Image as ImageIcon,
   Landmark,
   Plus,
+  Printer,
   QrCode,
   Rocket,
   Save,
@@ -43,6 +45,7 @@ import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { IndiaLocationFields } from "../../components/IndiaLocationFields";
 import { PasswordField } from "../../ui/PasswordField";
+import { ReferralQrPreview } from "../../components/ReferralQrPreview";
 import { categories } from "../../constants";
 import { createId } from "../../lib";
 import {
@@ -63,6 +66,7 @@ import {
   hasSaasLocks,
   signerFieldLabel
 } from "../../utils/campaign";
+import { downloadQrPosterSvg, getCampaignReferralUrl } from "../../utils/referrals";
 
 interface CampaignsTabProps {
   campaignDraft: Campaign | null;
@@ -479,6 +483,10 @@ export function CampaignsTab({
     ? getCampaignAdminUrl(organization, { slug: draftSlug })
     : "";
   const saasAdminUrl = getSaasAdminPageUrl();
+  const starterReferralCode = hasDraftSlug ? `ADMIN-${draftSlug.toUpperCase().slice(0, 8)}` : "";
+  const starterReferralUrl = hasDraftSlug
+    ? getCampaignReferralUrl(organization, { slug: draftSlug }, starterReferralCode)
+    : "";
 
   async function copyCampaignLink(kind: string, value: string) {
     if (!value) return;
@@ -916,6 +924,71 @@ export function CampaignsTab({
                     </div>
                   </div>
                   {campaignLinkMessage && <p className="success-message">{campaignLinkMessage}</p>}
+                </div>
+                <div className="qr-sharing-center wide">
+                  <div className="campaign-links-header">
+                    <div>
+                      <span className="eyebrow">QR & Sharing Center</span>
+                      <h4>Campaign poster and referral starter link</h4>
+                    </div>
+                    <span className="status-pill">Provider-ready QR</span>
+                  </div>
+                  <div className="qr-sharing-grid">
+                    <ReferralQrPreview
+                      value={publicCampaignUrl || "Slug required"}
+                      label="Campaign public QR"
+                      caption={hasDraftSlug ? "Public signer URL" : "Add a slug to generate this link."}
+                    />
+                    <ReferralQrPreview
+                      value={campaignAdminUrl || "Slug required"}
+                      label="Campaign admin QR"
+                      caption={hasDraftSlug ? "Campaign admin login URL" : "Add a slug to generate this link."}
+                      compact
+                    />
+                    <div className="qr-poster-preview">
+                      <span className="eyebrow">Printable poster</span>
+                      <strong>{campaignDraft.title || "Campaign title"}</strong>
+                      <p>{campaignDraft.description || "Campaign summary appears here for public poster printing."}</p>
+                      <code>{hasDraftSlug ? publicCampaignUrl : "Slug required"}</code>
+                      <small>Scan to sign · {organization.name || "Voiceup"} · {campaignDraft.category}</small>
+                    </div>
+                  </div>
+                  <div className="campaign-link-row referral-route">
+                    <span>Starter referral URL</span>
+                    <code>{hasDraftSlug ? starterReferralUrl : "Slug required"}</code>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      disabled={!hasDraftSlug}
+                      onClick={() => copyCampaignLink("Starter referral URL", starterReferralUrl)}
+                    >
+                      <Copy size={16} /> {copiedCampaignLink === "Starter referral URL" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                  <div className="button-row">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      disabled={!hasDraftSlug}
+                      onClick={() =>
+                        downloadQrPosterSvg({
+                          campaign: campaignDraft,
+                          organizationName: organization.name,
+                          url: publicCampaignUrl,
+                          referralCode: starterReferralCode
+                        })
+                      }
+                    >
+                      <Download size={16} /> Download poster SVG
+                    </button>
+                    <button className="secondary-button" type="button" disabled={!hasDraftSlug} onClick={() => window.print()}>
+                      <Printer size={16} /> Print poster
+                    </button>
+                  </div>
+                  <p className="info-message">
+                    Campaign links are live. QR rendering and poster downloads are provider-ready UI until a production QR
+                    renderer is connected.
+                  </p>
                 </div>
                 <Field label="Campaign admin email">
                   <input

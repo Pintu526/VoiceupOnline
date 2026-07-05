@@ -1,9 +1,12 @@
-import type { FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   CheckCircle2,
   ClipboardList,
   Copy,
+  Download,
   LockKeyhole,
+  Mail,
+  Printer,
   QrCode,
   Share2,
   ShieldCheck,
@@ -15,6 +18,7 @@ import { Panel } from "../ui/Panel";
 import { Field } from "../ui/Field";
 import { DonationCard } from "../components/DonationCard";
 import { IndiaLocationFields } from "../components/IndiaLocationFields";
+import { ReferralQrPreview } from "../components/ReferralQrPreview";
 import { blankSigner } from "../constants";
 import {
   getAppealAuthority,
@@ -27,10 +31,20 @@ import {
   getCampaignPublicUrl,
   getEffectiveSignerLocationRestrictionLevel,
   getLocationRestrictionMessage,
-  getLockedLocationValues,
-  renderCampaignMessage
+  getLockedLocationValues
 } from "../utils/campaign";
 import { whatsAppLink } from "../utils/links";
+import {
+  REFERRAL_SHARE_POINTS,
+  downloadQrPosterSvg,
+  findReferrer,
+  getCampaignReferralUrl,
+  getProfessionalShareMessages,
+  getReferralBadge,
+  getSafeReferrerLabel,
+  getSupporterReferralCode,
+  normalizeReferralCode
+} from "../utils/referrals";
 
 interface PublicCampaignPageProps {
   campaign: Campaign;
@@ -38,6 +52,7 @@ interface PublicCampaignPageProps {
   metrics: ReturnType<typeof getCampaignMetrics>;
   authority?: AuthorityRule;
   authorities: AuthorityRule[];
+  campaignSigners: Signer[];
   publicForm: typeof blankSigner;
   setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;
   publicMessage: string;
@@ -58,6 +73,7 @@ export function PublicCampaignPage({
   metrics,
   authority,
   authorities,
+  campaignSigners,
   publicForm,
   setPublicForm,
   publicMessage,
@@ -87,10 +103,61 @@ export function PublicCampaignPage({
   const requiredFields = campaign.requiredFields ?? [];
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
     requiredFields.includes(field) ? `${label} *` : label;
-  const shareText = encodeURIComponent(campaign.socialShareText || campaign.title);
   const publicUrl = getCampaignPublicUrl(organization, campaign);
-  const shareUrl = encodeURIComponent(publicUrl);
-  const campaignForMessages = { ...campaign, shareUrl: publicUrl };
+  const incomingReferralCode = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return normalizeReferralCode(new URLSearchParams(window.location.search).get("ref") ?? "");
+  }, [campaign.id]);
+  const incomingReferrer = findReferrer(campaignSigners, campaign.id, incomingReferralCode);
+  const personalReferralCode =
+    lastSignedSigner?.campaignId === campaign.id ? getSupporterReferralCode(lastSignedSigner) : "";
+  const personalReferralUrl = personalReferralCode
+    ? getCampaignReferralUrl(organization, campaign, personalReferralCode)
+    : publicUrl;
+  const shareMessages = getProfessionalShareMessages(campaign, personalReferralUrl);
+  const shareUrl = encodeURIComponent(personalReferralUrl);
+  const shareText = encodeURIComponent(shareMessages.social);
+  const [copiedReferral, setCopiedReferral] = useState("");
+  const [shareClicks, setShareClicks] = useState(0);
+
+  useEffect(() => {
+    if (!incomingReferralCode) return;
+    setPublicForm((current) =>
+      current.referredByPhoneOrCode
+        ? current
+        : { ...current, referredByPhoneOrCode: incomingReferralCode, referralSource: "url" }
+    );
+  }, [incomingReferralCode, setPublicForm]);
+
+  async function copyReferralText(label: string, value: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedReferral(`${label} copied.`);
+    } catch {
+      setCopiedReferral("Copy failed. Select and copy the link manually.");
+    }
+  }
+
+  function trackShareClick() {
+    setShareClicks((current) => current + 1);
+  }
+
+  async function shareNatively() {
+    trackShareClick();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: campaign.title,
+          text: shareMessages.social,
+          url: personalReferralUrl
+        });
+        return;
+      } catch {
+        // User cancelled or native share failed; keep the copied fallback available.
+      }
+    }
+    await copyReferralText("Referral link", personalReferralUrl);
+  }
 
   return (
     <section className="public-layout">
@@ -164,6 +231,17 @@ export function PublicCampaignPage({
       <Panel title="Add your signature" icon={<ClipboardList />}>
         <form id="public-sign-form" className="form-stack public-sign-form" onSubmit={onSubmit}>
           <p className="required-note">Fields marked * are required.</p>
+          {incomingReferralCode && (
+            <div className="referral-invite-note">
+              <Share2 size={18} />
+              <div>
+                <strong>
+                  You were invited by {incomingReferrer ? getSafeReferrerLabel(incomingReferrer) : "a campaign supporter"}.
+                </strong>
+                <span>Referral is optional and never affects your ability to sign.</span>
+              </div>
+            </div>
+          )}
           <Field label={signerFieldLabel("Full name", "name")}>
             <input
               aria-label="Full name"
@@ -250,6 +328,21 @@ export function PublicCampaignPage({
               }
             />
           </Field>
+          <Field label="Referred by phone, name, or referral code">
+            <input
+              aria-label="Referred by phone, name, or referral code"
+              placeholder="Optional"
+              value={publicForm.referredByPhoneOrCode ?? ""}
+              onChange={(event) =>
+                setPublicForm({
+                  ...publicForm,
+                  referredByPhoneOrCode: event.target.value,
+                  referralSource: event.target.value.trim() ? "manual" : undefined
+                })
+              }
+            />
+            <small>Optional. Use a referrer phone, name, or code if someone invited you.</small>
+          </Field>
           {restrictionMessage && (
             <div className="public-location-limit" aria-live="polite">
               <span aria-hidden="true">📍</span>
@@ -309,8 +402,34 @@ export function PublicCampaignPage({
           {publicMessage && <p className="success-message">{publicMessage}</p>}
           {lastSignedSigner?.campaignId === campaign.id && (
             <div className="participant-actions">
-              <strong>Share this campaign</strong>
-              <span className="status-pill">Provider Ready</span>
+              <div className="referral-thank-you">
+                <div>
+                  <span className="eyebrow">Thank you for supporting</span>
+                  <strong>{campaign.title}</strong>
+                  <p>Your personal referral link is ready. Share it with friends so the campaign can grow.</p>
+                </div>
+                <div className="referral-score-card">
+                  <span>Session points</span>
+                  <strong>{(shareClicks * REFERRAL_SHARE_POINTS).toLocaleString()}</strong>
+                  <small>{getReferralBadge(shareClicks * REFERRAL_SHARE_POINTS)}</small>
+                </div>
+              </div>
+              <div className="personal-referral-card">
+                <ReferralQrPreview
+                  value={personalReferralUrl}
+                  label="Personal referral QR"
+                  caption={personalReferralCode ? `Referral code ${personalReferralCode}` : "Referral code will appear after signing."}
+                />
+                <div>
+                  <span className="label">Personal referral link</span>
+                  <code>{personalReferralUrl}</code>
+                  <p className="helper-text">
+                    QR rendering, share-click points, and poster export are provider-ready/session-only until a production
+                    referral provider is connected.
+                  </p>
+                </div>
+              </div>
+              {copiedReferral && <p className="success-message">{copiedReferral}</p>}
               <button
                 className="secondary-button"
                 type="button"
@@ -324,9 +443,10 @@ export function PublicCampaignPage({
               <div className="public-share-grid">
                 <a
                   className="secondary-link-button"
-                  href={whatsAppLink("", renderCampaignMessage(campaign.thankYouMessage, campaignForMessages, metrics))}
+                  href={whatsAppLink("", shareMessages.whatsapp)}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={trackShareClick}
                 >
                   WhatsApp
                 </a>
@@ -335,6 +455,7 @@ export function PublicCampaignPage({
                   href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={trackShareClick}
                 >
                   <Share2 size={16} /> Facebook
                 </a>
@@ -343,16 +464,59 @@ export function PublicCampaignPage({
                   href={`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={trackShareClick}
                 >
                   <Share2 size={16} /> Twitter/X
                 </a>
-                <button className="secondary-button" type="button">
+                <a
+                  className="secondary-link-button"
+                  href={`mailto:?subject=${encodeURIComponent(shareMessages.emailSubject)}&body=${encodeURIComponent(shareMessages.emailBody)}`}
+                  onClick={trackShareClick}
+                >
+                  <Mail size={16} /> Email
+                </a>
+                <button className="secondary-button" type="button" onClick={() => copyReferralText("Referral link", personalReferralUrl)}>
                   <Copy size={16} /> Copy Link
                 </button>
+                <button className="secondary-button" type="button" onClick={shareNatively}>
+                  <Share2 size={16} /> Native Share
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => {
+                    trackShareClick();
+                    downloadQrPosterSvg({
+                      campaign,
+                      organizationName: organization?.name ?? "Voiceup",
+                      url: personalReferralUrl,
+                      referralCode: personalReferralCode
+                    });
+                  }}
+                >
+                  <Download size={16} /> Download QR
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => {
+                    trackShareClick();
+                    window.print();
+                  }}
+                >
+                  <Printer size={16} /> Print Poster
+                </button>
                 <span className="secondary-link-button provider-ready-share">
-                  <QrCode size={16} /> QR Code
+                  <QrCode size={16} /> Instagram: copy caption + poster
                 </span>
               </div>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => copyReferralText("Instagram caption", shareMessages.instagramCaption)}
+              >
+                <Copy size={16} /> Copy Instagram Caption
+              </button>
             </div>
           )}
         </form>

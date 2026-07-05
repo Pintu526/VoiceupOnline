@@ -841,6 +841,7 @@ export function AppShell({
                 metrics={metrics}
                 authority={authorityMatch?.authority}
                 authorities={authorities}
+                campaignSigners={campaignSigners}
                 publicForm={publicForm}
                 setPublicForm={setPublicForm}
                 publicMessage={publicMessage}

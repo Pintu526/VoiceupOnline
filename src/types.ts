@@ -115,6 +115,10 @@ export interface Signer {
   source: SignatureSource;
   status: VerificationStatus;
   signedAt: string;
+  referralCode?: string;
+  referredBy?: string;
+  referredByPhoneOrCode?: string;
+  referralSource?: "url" | "manual";
   reviewerNote?: string;
   scanFileName?: string;
   scanFileUrl?: string;

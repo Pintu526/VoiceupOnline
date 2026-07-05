@@ -30,11 +30,14 @@
   --shadow: 0 16px 38px rgba(15, 23, 42, 0.08);
   --shadow-soft: 0 8px 20px rgba(15, 23, 42, 0.08);
   --shadow-subtle: 0 1px 2px rgba(17, 24, 39, 0.06);
+  --shadow-hover: 0 22px 52px rgba(15, 23, 42, 0.12);
   --radius-sm: 8px;
   --radius-md: 10px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --ring: 0 0 0 4px rgba(18, 58, 140, 0.14);
+  --transition-fast: 0.16s ease;
+  --transition-smooth: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 :root[data-theme="dark"] {
@@ -56,6 +59,7 @@
   --glass: rgba(15, 23, 42, 0.62);
   --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
   --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.24);
+  --shadow-hover: 0 26px 72px rgba(0, 0, 0, 0.42);
 }
 
 * {
@@ -72,11 +76,24 @@ body {
   line-height: 1.5;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 button,
 input,
 select,
 textarea {
   font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
 }
 
 a {
@@ -93,7 +110,7 @@ button {
     color 0.18s ease;
 }
 
-*:focus-visible {
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
   outline: none;
   box-shadow: var(--ring);
 }
@@ -751,8 +768,9 @@ textarea {
 
 .skeleton-line,
 .skeleton-card {
-  animation: skeletonPulse 1.25s ease-in-out infinite;
+  animation: skeletonShimmer 1.35s linear infinite;
   background: linear-gradient(90deg, #eef2f7, #f8fafc, #eef2f7);
+  background-size: 220% 100%;
   border-radius: 999px;
   display: block;
   min-height: 14px;
@@ -783,6 +801,15 @@ textarea {
   }
   50% {
     opacity: 1;
+  }
+}
+
+@keyframes skeletonShimmer {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -80% 0;
   }
 }
 
@@ -981,6 +1008,59 @@ textarea {
 
 .report-export-card strong {
   font-size: 1rem;
+}
+
+.report-theme-panel {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: grid;
+  gap: 16px;
+  margin: 0 0 16px;
+  padding: 18px;
+}
+
+.report-theme-panel h3 {
+  margin: 4px 0 6px;
+}
+
+.report-theme-panel p,
+.report-theme-card small {
+  color: var(--text-soft);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.report-theme-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.report-theme-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: grid;
+  gap: 7px;
+  padding: 13px;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.report-theme-card:hover,
+.report-theme-card.selected {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-1px);
+}
+
+.report-theme-card input {
+  height: 16px;
+  margin: 0;
+  width: 16px;
 }
 
 .metric-card {
@@ -4614,6 +4694,452 @@ td span {
   to { transform: rotate(360deg); }
 }
 
+.qr-sharing-center,
+.personal-referral-card,
+.referral-invite-note,
+.referral-thank-you,
+.referral-metric-card,
+.qr-poster-preview {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.qr-sharing-center {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.qr-sharing-grid,
+.referral-dashboard-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.referral-qr-preview {
+  align-items: center;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--primary) 6%, #ffffff), #ffffff);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  padding: 14px;
+}
+
+.referral-qr-preview.compact {
+  align-items: start;
+}
+
+.referral-qr-grid {
+  background: #ffffff;
+  border: 10px solid #ffffff;
+  border-radius: 14px;
+  box-shadow: var(--shadow-subtle);
+  display: grid;
+  gap: 3px;
+  height: 190px;
+  width: 190px;
+}
+
+.referral-qr-preview.compact .referral-qr-grid {
+  height: 146px;
+  width: 146px;
+}
+
+.referral-qr-grid span {
+  background: #ffffff;
+  border-radius: 2px;
+}
+
+.referral-qr-grid span.active {
+  background: var(--primary-dark);
+}
+
+.referral-qr-preview strong {
+  align-items: center;
+  color: var(--primary-dark);
+  display: flex;
+  gap: 7px;
+}
+
+.referral-qr-preview small,
+.qr-poster-preview p,
+.qr-poster-preview small,
+.referral-metric-card small,
+.referral-leaderboard small,
+.referral-invite-note span,
+.referral-thank-you p,
+.personal-referral-card p {
+  color: var(--text-soft);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.qr-poster-preview,
+.referral-metric-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.qr-poster-preview {
+  background:
+    linear-gradient(180deg, #ffffff, color-mix(in srgb, var(--primary) 5%, #ffffff));
+  min-height: 100%;
+}
+
+.qr-poster-preview strong {
+  color: var(--primary-dark);
+  font-size: 1.25rem;
+}
+
+.qr-poster-preview code,
+.personal-referral-card code,
+.campaign-link-row code {
+  overflow-wrap: anywhere;
+}
+
+.referral-invite-note {
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--accent) 8%, #ffffff);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+  color: #14532d;
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+}
+
+.referral-invite-note svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.participant-actions {
+  gap: 14px;
+}
+
+.referral-thank-you {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  padding: 14px;
+}
+
+.referral-thank-you strong {
+  color: var(--primary-dark);
+  display: block;
+  font-size: 1.2rem;
+}
+
+.referral-score-card,
+.referral-metric-card {
+  background: color-mix(in srgb, var(--primary) 6%, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border));
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+}
+
+.referral-score-card strong,
+.referral-metric-card strong {
+  color: var(--primary-dark);
+  font-size: 1.7rem;
+}
+
+.personal-referral-card {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1fr);
+  padding: 14px;
+}
+
+.referral-leaderboard {
+  display: grid;
+  gap: 10px;
+}
+
+.referral-leaderboard > div {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+}
+
+.referral-leaderboard span {
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+.referral-admin-share-grid {
+  margin-top: 12px;
+}
+
+/* Premium experience polish */
+:where(
+  .panel,
+  .metric-card,
+  .campaign-page,
+  .plan-card,
+  .idea-card,
+  .report-block,
+  .template-card,
+  .authority-card,
+  .activity-card,
+  .review-card,
+  .report-theme-card,
+  .import-summary-card,
+  .paper-import-option,
+  .batch-review-toolbar,
+  .authority-2-card,
+  .export-ready-card,
+  .qr-handout-card,
+  .workspace-card,
+  .workspace-management-card,
+  .analytics-command-card,
+  .analytics-progress-card,
+  .field-ops-card,
+  .command-insight-card,
+  .command-risk-card,
+  .communication-preview-card,
+  .provider-card,
+  .volunteer-readiness-card,
+  .volunteer-level-card,
+  .movement-brain-score,
+  .campaign-comparison-card,
+  .referral-metric-card,
+  .qr-poster-preview,
+  .personal-referral-card,
+  .audit-summary-card,
+  .integration-status-card,
+  .quick-start-step,
+  .empty-state
+) {
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-smooth),
+    transform var(--transition-smooth),
+    background var(--transition-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(
+    .panel,
+    .metric-card,
+    .campaign-page,
+    .plan-card,
+    .idea-card,
+    .report-block,
+    .template-card,
+    .authority-card,
+    .activity-card,
+    .review-card,
+    .report-theme-card,
+    .import-summary-card,
+    .paper-import-option,
+    .batch-review-toolbar,
+    .authority-2-card,
+    .export-ready-card,
+    .qr-handout-card,
+    .workspace-card,
+    .workspace-management-card,
+    .analytics-command-card,
+    .analytics-progress-card,
+    .field-ops-card,
+    .command-insight-card,
+    .command-risk-card,
+    .communication-preview-card,
+    .provider-card,
+    .volunteer-readiness-card,
+    .volunteer-level-card,
+    .movement-brain-score,
+    .campaign-comparison-card,
+    .referral-metric-card,
+    .qr-poster-preview,
+    .personal-referral-card,
+    .audit-summary-card,
+    .integration-status-card,
+    .quick-start-step
+  ):hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+}
+
+:where(.primary-button, .secondary-button, .danger-button, .primary-link-button, .secondary-link-button) {
+  line-height: 1.15;
+  min-height: 44px;
+}
+
+:where(.primary-button, .secondary-button, .danger-button, .primary-link-button, .secondary-link-button):active {
+  transform: translateY(0) scale(0.99);
+}
+
+:where(.primary-button, .secondary-button, .danger-button, .primary-link-button, .secondary-link-button):disabled {
+  box-shadow: none;
+  transform: none;
+}
+
+.icon-button,
+.password-toggle {
+  min-height: 40px;
+  min-width: 40px;
+}
+
+.section-tabs button,
+.nav button,
+.campaign-wizard-progress button,
+.communication-segment-grid button,
+.communication-library-grid button {
+  min-height: 42px;
+}
+
+.status-pill {
+  align-items: center;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  gap: 6px;
+}
+
+.toast-root {
+  backdrop-filter: blur(18px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-hover);
+  min-height: 72px;
+  overflow: hidden;
+  padding: 16px 18px 16px 20px;
+  position: relative;
+}
+
+.toast-root::before {
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+  bottom: 0;
+  content: "";
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 4px;
+}
+
+.toast-root [data-radix-toast-title] {
+  line-height: 1.2;
+}
+
+.toast-root [data-radix-toast-description] {
+  line-height: 1.5;
+}
+
+.module-skeleton,
+.app-loading-card {
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+}
+
+.module-skeleton strong,
+.app-loading-card strong {
+  color: var(--primary-dark);
+}
+
+.empty-state {
+  overflow: hidden;
+  position: relative;
+}
+
+.empty-state::before {
+  background: linear-gradient(180deg, var(--primary), var(--accent));
+  border-radius: 999px;
+  content: "";
+  height: 52px;
+  left: 0;
+  position: absolute;
+  top: 24px;
+  width: 4px;
+}
+
+.empty-next-steps span {
+  min-height: 44px;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .empty-next-steps span:hover {
+    background: color-mix(in srgb, var(--primary) 6%, var(--panel-soft));
+    border-color: color-mix(in srgb, var(--primary) 20%, var(--border));
+    transform: translateX(2px);
+  }
+}
+
+.success-message,
+.info-message,
+.error-message,
+.operation-safety-banner {
+  box-shadow: var(--shadow-subtle);
+  line-height: 1.55;
+}
+
+.success-message {
+  border-left: 4px solid var(--success);
+}
+
+.info-message {
+  border-left: 4px solid var(--primary);
+}
+
+.error-message {
+  border-left: 4px solid var(--danger);
+}
+
+.operation-safety-banner {
+  border-left: 4px solid var(--warning);
+}
+
+.table-wrap {
+  background: var(--panel-solid);
+  box-shadow: var(--shadow-subtle);
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap::-webkit-scrollbar {
+  height: 10px;
+}
+
+.table-wrap::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+}
+
+.table-wrap:focus-within {
+  box-shadow: var(--ring);
+}
+
+th {
+  background: color-mix(in srgb, var(--primary) 4%, var(--panel-solid));
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+th,
+td {
+  vertical-align: top;
+}
+
 @media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -4718,6 +5244,11 @@ td span {
   .authority-2-grid,
   .report-suite-hero,
   .report-export-grid,
+  .report-theme-grid,
+  .qr-sharing-grid,
+  .referral-dashboard-grid,
+  .personal-referral-card,
+  .referral-thank-you,
   .quick-start-hero,
   .quick-start-grid,
   .quick-start-steps,
@@ -4831,6 +5362,11 @@ td span {
   .authority-2-grid,
   .report-suite-hero,
   .report-export-grid,
+  .report-theme-grid,
+  .qr-sharing-grid,
+  .referral-dashboard-grid,
+  .personal-referral-card,
+  .referral-thank-you,
   .quick-start-hero,
   .quick-start-grid,
   .quick-start-steps,
@@ -5002,6 +5538,68 @@ td span {
   select,
   textarea {
     font-size: 16px;
+  }
+}
+
+@media (max-width: 720px) {
+  .toast-viewport {
+    bottom: 14px;
+    right: 14px;
+    width: calc(100vw - 28px);
+  }
+
+  .section-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .section-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .section-tabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .button-row > :where(.primary-button, .secondary-button, .danger-button, .primary-link-button, .secondary-link-button),
+  .campaign-wizard-actions > :where(.primary-button, .secondary-button, .danger-button) {
+    width: 100%;
+  }
+
+  .table-wrap {
+    border-radius: var(--radius-sm);
+    margin-inline: -2px;
+  }
+
+  table {
+    min-width: 720px;
+  }
+
+  th,
+  td {
+    padding: 11px 12px;
+  }
+
+  .empty-state {
+    min-height: 180px;
+  }
+
+  .referral-qr-preview {
+    grid-template-columns: 1fr;
+  }
+
+  .referral-qr-grid,
+  .referral-qr-preview.compact .referral-qr-grid {
+    height: min(72vw, 240px);
+    width: min(72vw, 240px);
+  }
+
+  .qr-sharing-center,
+  .personal-referral-card,
+  .referral-thank-you {
+    padding: 12px;
   }
 }
 

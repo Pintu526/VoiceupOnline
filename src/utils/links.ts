@@ -17,6 +17,18 @@ export function getCanonicalBaseUrl(): string {
   return PRODUCTION_BASE_URL;
 }
 
+export function getSaasAdminUrl(): string {
+  return `${getCanonicalBaseUrl()}/admin`;
+}
+
+export function getCampaignAdminUrl(slug: string): string {
+  return `${getCanonicalBaseUrl()}/admin/${slug}`;
+}
+
+export function getPublicCampaignUrl(slug: string): string {
+  return `${getCanonicalBaseUrl()}/c/${slug}`;
+}
+
 export function whatsAppLink(phone: string, message: string): string {
   const normalizedPhone = phone.replace(/\D/g, "");
   const baseUrl = normalizedPhone ? `https://wa.me/${normalizedPhone}` : "https://wa.me/";

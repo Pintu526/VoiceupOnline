@@ -6,7 +6,12 @@ import {
 import type { VoiceupRemoteState } from "../backend";
 import type { Campaign, LocationGovernanceLevel, Organization } from "../types";
 import { getCampaignMetrics } from "../lib";
-import { getCanonicalBaseUrl } from "./links";
+import {
+  getCampaignAdminUrl as getCanonicalCampaignAdminUrl,
+  getCanonicalBaseUrl,
+  getPublicCampaignUrl,
+  getSaasAdminUrl
+} from "./links";
 
 const locationLevelOrder: LocationGovernanceLevel[] = [
   "none",
@@ -23,19 +28,21 @@ export function getCampaignBaseUrl(_organization: Organization): string {
 }
 
 export function getCampaignPublicUrl(
-  organization: Organization | undefined,
+  _organization: Organization | undefined,
   campaign: Pick<Campaign, "slug">
 ): string {
-  const baseUrl = organization ? getCampaignBaseUrl(organization) : getCanonicalBaseUrl();
-  return `${baseUrl}/c/${campaign.slug}`;
+  return getPublicCampaignUrl(campaign.slug);
 }
 
 export function getCampaignAdminUrl(
-  organization: Organization | undefined,
-  _campaign: Pick<Campaign, "slug">
+  _organization: Organization | undefined,
+  campaign: Pick<Campaign, "slug">
 ): string {
-  const baseUrl = organization ? getCampaignBaseUrl(organization) : getCanonicalBaseUrl();
-  return `${baseUrl}/admin`;
+  return getCanonicalCampaignAdminUrl(campaign.slug);
+}
+
+export function getSaasAdminPageUrl(): string {
+  return getSaasAdminUrl();
 }
 
 export function getCampaignGoalValue(campaign: Campaign): number {

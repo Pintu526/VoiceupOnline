@@ -16,7 +16,7 @@ export function ReferralQrPreview({ value, label, caption, compact = false }: Re
     <div className={compact ? "referral-qr-preview compact" : "referral-qr-preview"}>
       <div
         className="referral-qr-grid"
-        aria-label={`${label} QR preview. QR rendering is provider-ready.`}
+        aria-label={`${label} QR preview.`}
         role="img"
         style={{ gridTemplateColumns: `repeat(${size}, 1fr)` }}
       >
@@ -27,7 +27,7 @@ export function ReferralQrPreview({ value, label, caption, compact = false }: Re
       <div>
         <strong><QrCode size={16} /> {label}</strong>
         {caption && <small>{caption}</small>}
-        <span className="status-pill">QR provider-ready</span>
+        <span className="status-pill">QR ready</span>
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import type { CampaignGrowthConfiguration } from "./growth/configuration";
+
 export type SignatureSource = "online" | "scan" | "field";
 
 export type VerificationStatus = "verified" | "pending" | "duplicate" | "rejected";
@@ -11,13 +13,30 @@ export type CampaignCategory =
   | "Housing"
   | "Other";
 
-export type BillingPlan = "Starter" | "Professional" | "Enterprise";
+export type BillingPlan =
+  | "Free Trial"
+  | "Starter"
+  | "Growth"
+  | "Pro Movement"
+  | "Enterprise"
+  | "Professional";
 
 export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled";
+export type BillingCadence =
+  | "monthly"
+  | "quarterly"
+  | "yearly"
+  | "campaign_duration"
+  | "supporter_count"
+  | "feature_based"
+  | "enterprise_quote";
+export type PrepaidWalletMode = "online_payment" | "cash" | "donation" | "manual";
 
 export type AuthorityTargetLevel = "district" | "state" | "country";
 export type AuthoritySelectionMode = "admin_enforced" | "public_choice";
 export type LocationGovernanceLevel = "none" | "state" | "district" | "block" | "panchayat";
+export type CampaignGeographyMode = "india_detailed" | "global";
+export type CampaignScope = "local" | "city" | "state_province" | "national" | "global";
 
 export type UserRole = "platform_owner" | "organization_admin" | "campaign_admin" | "reviewer" | "viewer";
 
@@ -37,7 +56,16 @@ export type AuditAction =
 
 export type SignerRequiredField = keyof Pick<
   Signer,
-  "name" | "email" | "phone" | "address" | "postalCode" | "state" | "district" | "block" | "panchayat"
+  | "name"
+  | "email"
+  | "phone"
+  | "address"
+  | "postalCode"
+  | "country"
+  | "state"
+  | "district"
+  | "block"
+  | "panchayat"
 >;
 
 export interface Campaign {
@@ -50,6 +78,9 @@ export interface Campaign {
   authorityTargetLevel: AuthorityTargetLevel;
   authoritySelectionMode: AuthoritySelectionMode;
   selectedAuthorityId: string;
+  geographyMode?: CampaignGeographyMode;
+  campaignScope?: CampaignScope;
+  country?: string;
   donationEnabled: boolean;
   donationLockedBySaas: boolean;
   donationCaption: string;
@@ -90,6 +121,7 @@ export interface Campaign {
   thankYouMessage: string;
   participantUpdateMessage: string;
   signerLocationRestrictionLevel?: LocationGovernanceLevel;
+  growthConfiguration?: CampaignGrowthConfiguration;
   archivedAt?: string;
   clonedFromCampaignId?: string;
 }
@@ -105,6 +137,7 @@ export interface Signer {
   otpVerified: boolean;
   selectedAuthorityId: string;
   selectedAuthorityName: string;
+  country?: string;
   state: string;
   district: string;
   block: string;
@@ -162,6 +195,16 @@ export interface Organization {
   billingEmail: string;
   seats: number;
   paymentReference: string;
+  billingCadence?: BillingCadence;
+  campaignDurationDays?: number;
+  supporterCountEstimate?: number;
+  enabledFeatureKeys?: string[];
+  prepaidWalletEnabled?: boolean;
+  prepaidWalletMode?: PrepaidWalletMode;
+  signaturePriceInr?: number;
+  signatureWalletBalanceInr?: number;
+  signaturePinPrefix?: string;
+  lastSignaturePin?: string;
   locationGovernance?: {
     state?: string;
     district?: string;
@@ -199,10 +242,22 @@ export interface IntegrationSettings {
 export interface SubscriptionPlan {
   name: BillingPlan;
   price: string;
+  description?: string;
+  monthlyPriceInr: number | null;
+  quarterlyPriceInr?: number | null;
+  yearlyPriceInr?: number | null;
+  campaignDurationPriceInr?: number | null;
+  supporterPriceInr?: number | null;
+  pricePerSignatureInr?: number | null;
   monthlySignatureLimit: number;
   monthlyScanLimit: number;
+  monthlyMessageLimit: number;
   campaignLimit: number | "Unlimited";
+  supporterLimit: number | "Unlimited";
   features: string[];
+  featureKeys: string[];
+  voiceupBranding: boolean;
+  providerReadyIntegrations: boolean;
   recommended?: boolean;
 }
 

@@ -51,7 +51,7 @@ export function groupSignersByWeek(signers: Signer[]) {
 
 export function groupSignersByLocation(
   signers: Signer[],
-  level: "state" | "district" | "block" | "panchayat"
+  level: "country" | "state" | "district" | "block" | "panchayat"
 ) {
   return signers.reduce<Record<string, number>>((accumulator, signer) => {
     const label = signer[level]?.trim() || "Not captured";
@@ -127,10 +127,11 @@ export function parseSignerFromText(text: string) {
     otpVerified: false,
     selectedAuthorityId: "",
     selectedAuthorityName: "",
+    country: valueFor(["country", "nation"]),
     state: valueFor(["state"]),
-    district: valueFor(["district"]),
-    block: valueFor(["block", "taluk", "tehsil"]),
-    panchayat: valueFor(["panchayat", "gram panchayat", "ward", "village"]),
+    district: valueFor(["district", "city"]),
+    block: valueFor(["block", "taluk", "tehsil", "county", "area"]),
+    panchayat: valueFor(["panchayat", "gram panchayat", "ward", "village", "locality"]),
     address: valueFor(["address", "location"]),
     postalCode: valueFor(["postal code", "postcode", "pin", "zip"]),
     comment: valueFor(["comment", "message", "reason"]) || "Imported from scanned hard copy."
@@ -154,6 +155,24 @@ export function createScanReviewItem(
 }
 
 export function exportCsv(campaign: Campaign, signers: Signer[]) {
+  const isGlobalMode =
+    campaign.geographyMode === "global" ||
+    Boolean(campaign.country && campaign.country.trim().toLowerCase() !== "india");
+  const labels = isGlobalMode
+    ? {
+        state: "State / Province / Region",
+        district: "City / District",
+        block: "Area / County",
+        panchayat: "Locality / Ward",
+        postalCode: "Postal / ZIP Code"
+      }
+    : {
+        state: "State",
+        district: "District",
+        block: "Block",
+        panchayat: "Gram Panchayat / Ward",
+        postalCode: "PIN Code"
+      };
   const rows = [
     [
       "Campaign",
@@ -164,12 +183,13 @@ export function exportCsv(campaign: Campaign, signers: Signer[]) {
       "Telegram",
       "OTP Verified",
       "Selected Authority",
-      "State",
-      "District",
-      "Block",
-      "Gram Panchayat / Ward",
+      ...(isGlobalMode ? ["Country"] : []),
+      labels.state,
+      labels.district,
+      labels.block,
+      labels.panchayat,
       "Address",
-      "PIN Code",
+      labels.postalCode,
       "Source",
       "Status",
       "Signed At",
@@ -184,6 +204,7 @@ export function exportCsv(campaign: Campaign, signers: Signer[]) {
       signer.telegramHandle,
       signer.otpVerified ? "Yes" : "No",
       signer.selectedAuthorityName,
+      ...(isGlobalMode ? [signer.country ?? ""] : []),
       signer.state,
       signer.district,
       signer.block,
@@ -213,6 +234,7 @@ export function makePublicSigner(
     | "otpVerified"
     | "selectedAuthorityId"
     | "selectedAuthorityName"
+    | "country"
     | "state"
     | "district"
     | "block"
@@ -240,7 +262,7 @@ function normalizePhone(phone: string) {
   return phone.replace(/[^0-9]/g, "");
 }
 
-function escapeCsvValue(value: string | number) {
+function escapeCsvValue(value: string | number | undefined) {
   const stringValue = String(value ?? "");
   if (/[",\n]/.test(stringValue)) {
     return `"${stringValue.replace(/"/g, '""')}"`;

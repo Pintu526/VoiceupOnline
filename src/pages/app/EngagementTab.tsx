@@ -5,6 +5,7 @@ import type { getCampaignMetrics } from "../../lib";
 import { Panel } from "../../ui/Panel";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { ReferralQrPreview } from "../../components/ReferralQrPreview";
+import { getConfiguredGrowthShareMessages } from "../../growth/configuration";
 import { getCampaignPublicUrl, renderCampaignMessage } from "../../utils/campaign";
 import { whatsAppLink, smsLink } from "../../utils/links";
 import {
@@ -12,7 +13,6 @@ import {
   REFERRAL_SIGNATURE_POINTS,
   downloadQrPosterSvg,
   getCampaignReferralUrl,
-  getProfessionalShareMessages,
   getReferralBadge,
   getReferralLeaderboard
 } from "../../utils/referrals";
@@ -27,7 +27,6 @@ interface EngagementTabProps {
   setBroadcastMessage: React.Dispatch<React.SetStateAction<string>>;
   copiedMessage: string;
   onCopyText: (text: string) => void;
-  onCreateCampaign: () => void;
 }
 
 export function EngagementTab({
@@ -39,15 +38,13 @@ export function EngagementTab({
   broadcastMessage,
   setBroadcastMessage,
   copiedMessage,
-  onCopyText,
-  onCreateCampaign
+  onCopyText
 }: EngagementTabProps) {
   if (!activeCampaign) {
     return (
       <NoCampaignPanel
         title="Engagement tools need a campaign"
         description="Create and publish a campaign before sending WhatsApp, SMS, or social updates."
-        onCreateCampaign={onCreateCampaign}
       />
     );
   }
@@ -135,25 +132,29 @@ export function EngagementTab({
     ["SMS", integrations.smsProvider, integrations.smsSenderId || "Sender ID not set"],
     ["WhatsApp", integrations.whatsappProvider, integrations.whatsappSenderId || "Sender ID not set"],
     ["Email", integrations.emailProvider, integrations.emailSender || "Sender email not set"],
-    ["IVR", "Not configured", "Provider-ready"],
-    ["Telegram", "Not configured", "Provider-ready"],
-    ["Social Media", "Manual share", "Provider-ready for scheduling/publishing APIs"],
-    ["Push", "Not configured", "Provider-ready"]
+    ["IVR", "Not configured", "Available after setup"],
+    ["Telegram", "Not configured", "Available after setup"],
+    ["Social Media", "Manual share", "Scheduling available after setup"],
+    ["Push", "Not configured", "Available after setup"]
   ];
   const communicationChannels = [
-    ["SMS", "Provider ready", Smartphone],
-    ["WhatsApp", "Link sharing active / API provider ready", MessageCircle],
-    ["Email", "Provider ready", Mail],
-    ["IVR", "Provider ready", BellRing],
-    ["Telegram", "Provider ready", Send],
+    ["SMS", "Setup needed", Smartphone],
+    ["WhatsApp", "Link sharing active / API setup needed", MessageCircle],
+    ["Email", "Setup needed", Mail],
+    ["IVR", "Setup needed", BellRing],
+    ["Telegram", "Setup needed", Send],
     ["Social Media", "Share links active", Share2],
-    ["Push", "Provider ready", BellRing]
+    ["Push", "Setup needed", BellRing]
   ] as const;
   const previewMessage = broadcastMessage || activeTemplate.message;
   const selectedProviderCount = selectedChannels.length;
   const campaignReferralCode = `ADMIN-${activeCampaign.slug.toUpperCase().slice(0, 8)}`;
   const campaignReferralUrl = getCampaignReferralUrl(organization, activeCampaign, campaignReferralCode);
-  const referralShareMessages = getProfessionalShareMessages(activeCampaign, campaignReferralUrl);
+  const referralShareMessages = getConfiguredGrowthShareMessages({
+    campaign: activeCampaign,
+    organization,
+    referralLink: campaignReferralUrl
+  });
   const referralLeaders = useMemo(() => getReferralLeaderboard(campaignSigners), [campaignSigners]);
   const referredSignatures = campaignSigners.filter((signer) => signer.referredBy || signer.referredByPhoneOrCode).length;
   const referralConversionRate = campaignSigners.length
@@ -214,7 +215,7 @@ export function EngagementTab({
                 </button>
               ))}
             </div>
-            <p className="info-message">Consent-aware sending is provider-ready. Do not send messages without consent verification.</p>
+            <p className="info-message">Consent-aware sending becomes available after setup. Do not send messages without consent verification.</p>
           </div>
           <div className="communication-preview-card">
             <span className="eyebrow">Message preview</span>
@@ -236,7 +237,7 @@ export function EngagementTab({
                 Copy preview
               </button>
               <button className="secondary-button" type="button" disabled>
-                Schedule provider-ready
+                Schedule after setup
               </button>
             </div>
           </div>
@@ -295,7 +296,7 @@ export function EngagementTab({
                   checked={selectedChannels.includes(label)}
                   onChange={() => toggleChannel(label)}
                 />
-                Include in provider-ready plan
+                Include in setup plan
               </label>
               <p>Template library, scheduling, configuration, and delivery history foundations are UI-only.</p>
             </article>
@@ -324,7 +325,7 @@ export function EngagementTab({
           {providerSettings.map(([channel, provider, detail]) => (
             <article className="provider-settings-card" key={channel}>
               <span className="eyebrow">{channel}</span>
-              <strong>{provider === "Not configured" ? "Provider-ready" : provider}</strong>
+              <strong>{provider === "Not configured" ? "Setup needed" : provider}</strong>
               <small>{detail}</small>
             </article>
           ))}
@@ -487,7 +488,7 @@ export function EngagementTab({
                   </div>
                 ))
               ) : (
-                <p className="info-message">No referred signatures yet. Leaderboard export is provider-ready.</p>
+                <p className="info-message">No referred signatures yet. Leaderboard export appears after referrals are recorded.</p>
               )}
             </div>
           </div>
@@ -496,7 +497,7 @@ export function EngagementTab({
             <strong>{referralLeaders[0]?.label ?? "Top referrer not available yet"}</strong>
             <p>
               Visits, share-click attribution, downloadable leaderboard export, and location-level referral analytics are
-              provider-ready. Successful referred signatures are counted when signer records include referral metadata.
+              available after setup. Successful referred signatures are counted when signer records include referral metadata.
             </p>
             <div className="delivery-status-row">
               <span>Campaign Starter</span>
@@ -623,7 +624,7 @@ export function EngagementTab({
           </div>
         )}
         <p className="info-message">
-          Production bulk delivery should connect WhatsApp Business API and an Indian SMS provider
+          Production bulk delivery should connect WhatsApp Business API and a regional SMS provider
           such as MSG91, Gupshup, Twilio, or Airtel IQ.
         </p>
       </Panel>

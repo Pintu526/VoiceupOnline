@@ -35,6 +35,12 @@ interface DashboardTabProps {
   onCreateCampaign: () => void;
   onOpenSubscription: () => void;
   onOpenAiCopilot: () => void;
+  onOpenCampaignAdmin: () => void;
+  onOpenPublicCampaign: () => void;
+  onOpenReports: () => void;
+  createCampaignBlockReason?: string;
+  canUseAiCopilot: boolean;
+  onUpgradePlan: () => void;
 }
 
 const organizationTypes = [
@@ -196,9 +202,16 @@ export function DashboardTab({
   organization,
   onCreateCampaign,
   onOpenSubscription,
-  onOpenAiCopilot
+  onOpenAiCopilot,
+  onOpenCampaignAdmin,
+  onOpenPublicCampaign,
+  onOpenReports,
+  createCampaignBlockReason = "",
+  canUseAiCopilot,
+  onUpgradePlan
 }: DashboardTabProps) {
   const displayCampaign = activeCampaign ?? PLACEHOLDER_CAMPAIGN;
+  const isTrialWorkspace = organization.plan === "Free Trial";
   const [quickStartDismissed, setQuickStartDismissed] = useState(false);
   const [selectedOrgType, setSelectedOrgType] = useState(organizationTypes[0].label);
   const selectedOrgRecommendation = useMemo(
@@ -236,7 +249,7 @@ export function DashboardTab({
       ready: metrics.total > 0
     },
     {
-      label: "Communication provider-ready",
+      label: "Communication setup",
       ready: Boolean(activeCampaign?.socialShareText || activeCampaign?.thankYouMessage)
     }
   ];
@@ -258,6 +271,38 @@ export function DashboardTab({
     !activeCampaign?.heroImage ? "Add a campaign image to improve public page trust." : "",
     !activeCampaign?.socialShareText ? "Prepare WhatsApp/social copy for faster distribution." : ""
   ].filter(Boolean);
+  const trialActionCards = [
+    {
+      label: "Campaign",
+      detail: activeCampaign ? "Edit campaign details" : "Create your first campaign",
+      icon: Megaphone,
+      action: activeCampaign ? onOpenCampaignAdmin : onCreateCampaign
+    },
+    {
+      label: "Share",
+      detail: activeCampaign?.shareUrl ? "Open public signing page" : "Create a campaign to get a share link",
+      icon: Send,
+      action: activeCampaign ? onOpenPublicCampaign : onCreateCampaign
+    },
+    {
+      label: "Analytics",
+      detail: `${metrics.total.toLocaleString()} total supporters`,
+      icon: SearchCheck,
+      action: onOpenReports
+    },
+    {
+      label: "Supporters",
+      detail: `${metrics.verified.toLocaleString()} verified signatures`,
+      icon: Users,
+      action: onOpenReports
+    },
+    {
+      label: "Upgrade",
+      detail: "Unlock more campaigns and growth tools",
+      icon: Globe2,
+      action: onUpgradePlan
+    }
+  ];
 
   return (
     <section className="page-stack">
@@ -266,22 +311,70 @@ export function DashboardTab({
         metrics={metrics}
         authority={authorityMatch?.authority}
       />
+      {isTrialWorkspace && (
+        <Panel title="Free Trial Focus" icon={<CheckCircle2 />}>
+          <div className="quick-start-panel">
+            <div className="quick-start-hero">
+              <div>
+                <span className="eyebrow">Create and publish your campaign in 60 seconds</span>
+                <h2>Start with the essentials, then upgrade when the campaign needs more power.</h2>
+                <p>
+                  Your trial workspace keeps the first campaign simple: edit the campaign, share the public link,
+                  watch supporters, review analytics, and upgrade when you are ready.
+                </p>
+              </div>
+              <div className="quick-start-score">
+                <span>Trial plan</span>
+                <strong>1</strong>
+                <small>campaign included</small>
+              </div>
+            </div>
+            <div className="quick-start-steps">
+              {trialActionCards.map(({ label, detail, icon: Icon, action }) => (
+                <button className="quick-start-step" key={label} type="button" onClick={action}>
+                  <Icon size={18} />
+                  <span>{label}</span>
+                  <strong>{detail}</strong>
+                </button>
+              ))}
+            </div>
+            {activeCampaign?.shareUrl && (
+              <div className="button-row">
+                <a className="primary-link-button" href={activeCampaign.shareUrl} target="_blank" rel="noreferrer">
+                  <Send size={18} /> Open share link
+                </a>
+                <button className="secondary-button" type="button" onClick={onOpenCampaignAdmin}>
+                  <Megaphone size={18} /> Edit campaign
+                </button>
+              </div>
+            )}
+          </div>
+        </Panel>
+      )}
+      {!isTrialWorkspace && (
       <div className="ai-entry-strip">
         <div>
           <span className="eyebrow">AI Campaign Copilot</span>
           <strong>Turn one sentence into a professional campaign draft.</strong>
         </div>
-        <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
-          <Sparkles size={18} /> Create with AI
-        </button>
+        {createCampaignBlockReason || !canUseAiCopilot ? (
+          <button className="primary-button" type="button" onClick={onUpgradePlan}>
+            <Globe2 size={18} /> Upgrade Plan
+          </button>
+        ) : (
+          <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
+            <Sparkles size={18} /> Create with AI
+          </button>
+        )}
       </div>
+      )}
 
       {showQuickStart && (
         <Panel title="Quick Start" icon={<Sparkles />}>
           <div className="quick-start-panel">
             <div className="quick-start-hero">
               <div>
-                <span className="eyebrow">Launch in under 10 minutes</span>
+                <span className="eyebrow">Create and publish your campaign in 60 seconds</span>
                 <h2>Set up your workspace and first campaign with guided steps.</h2>
                 <p>
                   Follow the checklist, pick your organization type, draft a campaign, then review
@@ -350,17 +443,27 @@ export function DashboardTab({
             </div>
 
             <div className="quick-start-actions">
-              <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
-                <Sparkles size={18} /> Create with AI
-              </button>
-              <button className="secondary-button" type="button" onClick={onCreateCampaign}>
-                <Megaphone size={18} /> Create demo campaign draft
-              </button>
+              {createCampaignBlockReason ? (
+                <button className="primary-button" type="button" onClick={onUpgradePlan}>
+                  <Globe2 size={18} /> Upgrade Plan
+                </button>
+              ) : (
+                <>
+                  {canUseAiCopilot && (
+                    <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
+                      <Sparkles size={18} /> Create with AI
+                    </button>
+                  )}
+                  <button className="secondary-button" type="button" onClick={onCreateCampaign}>
+                    <Megaphone size={18} /> Create campaign
+                  </button>
+                </>
+              )}
               <button className="secondary-button" type="button" onClick={onOpenSubscription}>
                 <Globe2 size={18} /> Configure workspace
               </button>
               <span className="helper-text">
-                “Create demo campaign draft” uses the existing create campaign action and does not publish.
+                Create campaign opens the existing campaign setup flow for review before saving.
               </span>
             </div>
           </div>
@@ -394,23 +497,24 @@ export function DashboardTab({
         />
       </div>
 
-      <Panel title="AI Movement Brain" icon={<Sparkles />}>
+      {!isTrialWorkspace && (
+      <Panel title="Campaign suggestions" icon={<Sparkles />}>
         <div className="movement-brain-panel">
           <div className="movement-brain-score">
-            <span className="eyebrow">Provider-ready insight layer</span>
+            <span className="eyebrow">Campaign health</span>
             <strong>{movementBrainScore}/100</strong>
-            <small>Mock recommendations using existing campaign, signer, and authority data.</small>
+            <small>Suggestions based on current campaign, signer, and authority data.</small>
           </div>
           <div className="movement-brain-grid">
             <div>
               <span>Campaign health</span>
-              <strong>{movementBrainScore >= 70 ? "Demo ready" : "Needs attention"}</strong>
+              <strong>{movementBrainScore >= 70 ? "Share ready" : "Needs attention"}</strong>
               <p>{activeCampaign?.title ?? "Create a campaign to unlock movement insights."}</p>
             </div>
             <div>
               <span>Low-participation locations</span>
               <strong>{Object.keys(dailyTotals).length ? "Monitor daily trend" : "No trend yet"}</strong>
-              <p>Location-level AI recommendations are provider-ready until richer activity data is connected.</p>
+              <p>Location-level suggestions improve as more supporter activity is collected.</p>
             </div>
             <div>
               <span>Authority follow-up</span>
@@ -420,24 +524,28 @@ export function DashboardTab({
             <div>
               <span>What should we do next?</span>
               <strong>{lowParticipationHints[0] ?? "Keep momentum"}</strong>
-              <p>Assistant UI is mock/provider-ready and does not call an AI API.</p>
+              <p>Use these suggestions to improve sharing, authority routing, and campaign readiness.</p>
             </div>
           </div>
           <div className="quality-suggestions">
             {lowParticipationHints.map((hint) => <p key={hint}>{hint}</p>)}
-            {lowParticipationHints.length === 0 && <p>Campaign looks ready for a customer demo workflow.</p>}
+            {lowParticipationHints.length === 0 && <p>Campaign looks ready for sharing.</p>}
           </div>
         </div>
       </Panel>
+      )}
 
       {!activeCampaign && (
         <EmptyWorkspace
           organization={organization}
           onCreateCampaign={onCreateCampaign}
           onOpenSubscription={onOpenSubscription}
+          createCampaignBlockReason={createCampaignBlockReason}
+          onUpgradePlan={onUpgradePlan}
         />
       )}
 
+      {!isTrialWorkspace && (
       <Panel title="Contextual help" icon={<SearchCheck />}>
         <div className="help-panel-grid">
           {helpPanels.map(([title, text]) => (
@@ -448,6 +556,7 @@ export function DashboardTab({
           ))}
         </div>
       </Panel>
+      )}
 
       <div className="two-column dashboard-insights">
         <Panel title="Daily campaign status" icon={<CalendarDays />}>
@@ -463,7 +572,7 @@ export function DashboardTab({
                 <div style={{ width: `${authorityMatch.score}%` }} />
               </div>
               <small>
-                {authorityMatch.score}% routing confidence by category, location, and PIN code.
+                {authorityMatch.score}% routing confidence by category, location, and postal/PIN code.
               </small>
             </div>
           ) : (

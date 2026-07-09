@@ -169,8 +169,8 @@ export function AiCampaignCopilot({
       next.draft.summary = `"${generatedIdea}" affects daily life and deserves urgent public attention. Add your voice for accountable action.`;
       next.draft.fullDescription = `Every unresolved public issue has a human cost. This campaign for "${generatedIdea}" brings citizens together respectfully but firmly to request visible action, written accountability, and regular updates.`;
     } else if (instruction.includes("odia")) {
-      next.draft.subtitle = `Odia translation provider-ready for "${generatedIdea}".`;
-      next.advisor = ["Odia translation is marked provider-ready until a real AI provider is connected.", ...next.advisor];
+      next.draft.subtitle = `Odia translation can be added for "${generatedIdea}" after language setup.`;
+      next.advisor = ["Odia translation is available after language setup.", ...next.advisor];
     } else if (instruction.includes("municipal commissioner")) {
       next.draft.suggestedAuthority = "Municipal Commissioner";
       next.advisor = [`Authority focus updated to Municipal Commissioner for "${generatedIdea}".`, ...next.advisor];
@@ -237,7 +237,7 @@ export function AiCampaignCopilot({
           <div>
             <span className="eyebrow">AI Campaign Copilot</span>
             <h2>Create a professional campaign draft from one sentence</h2>
-            <p>Provider-ready architecture. Current generation uses the local mock provider only.</p>
+            <p>Draft assistance is available in this workspace. Connected AI providers can be configured later.</p>
           </div>
           <button className="icon-button" type="button" aria-label="Close AI Copilot" onClick={onClose}>
             <X size={18} />
@@ -252,7 +252,7 @@ export function AiCampaignCopilot({
               <p>
                 {result
                   ? `Working from: "${generatedIdea}"`
-                  : "Write one sentence. The mock provider will draft a campaign locally."}
+                  : "Write one sentence and Voiceup will draft a campaign locally."}
               </p>
             </div>
             <Field label="Campaign idea">
@@ -269,7 +269,7 @@ export function AiCampaignCopilot({
                 <option>Hindi</option>
                 <option>Odia</option>
               </select>
-              <small>Hindi and Odia are provider-ready placeholders until a real model is connected.</small>
+              <small>Hindi and Odia drafts are available after language setup.</small>
             </Field>
             <div className="button-row">
               <button className="primary-button" type="button" disabled={isGenerating} onClick={generate}>
@@ -296,7 +296,7 @@ export function AiCampaignCopilot({
                 </div>
               ))}
             </div>
-            <div className="provider-ready-list">
+            <div className="available-after-setup-list">
               <span className="eyebrow">Future providers</span>
               {futureAiProviders.map((provider) => (
                 <span key={provider}>{provider}</span>
@@ -492,7 +492,7 @@ export function AiCampaignCopilot({
                 </div>
 
                 <div className="ai-language-panel">
-                  <span className="eyebrow">Provider-ready languages</span>
+                  <span className="eyebrow">Language options</span>
                   <div>
                     {(["English", "Hindi", "Odia"] as AiLanguage[]).map((item) => (
                       <button
@@ -502,7 +502,7 @@ export function AiCampaignCopilot({
                         onClick={() => setLanguage(item)}
                       >
                         {item}
-                        <small>{item === "English" ? "Mock output active" : "Provider-ready"}</small>
+                        <small>{item === "English" ? "Draft output active" : "Available after setup"}</small>
                       </button>
                     ))}
                   </div>
@@ -534,7 +534,7 @@ export function AiCampaignCopilot({
                     <ClipboardList size={18} /> Save AI draft
                   </button>
                   <button className="secondary-button" type="button">
-                    <Languages size={18} /> Multi-language provider ready
+                    <Languages size={18} /> Multi-language setup
                   </button>
                   <button className="secondary-button" type="button" disabled={!canUndoAiApply} onClick={onUndoAiApply}>
                     Undo AI apply

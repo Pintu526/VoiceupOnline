@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Sparkles,
   Sun,
+  TrendingUp,
   UsersRound,
   WalletCards
 } from "lucide-react";
@@ -39,9 +40,16 @@ import { blankSigner } from "../constants";
 import type { AiCampaignCopilotResult } from "../ai/types";
 import { createId } from "../lib";
 import { getCampaignAdminUrl, getCampaignPublicUrl } from "../utils/campaign";
+import { getCreateCampaignBlockReason, isFeatureIncludedInPlan } from "../utils/subscription";
+import { GROWTH_FEATURE_FLAGS } from "../growth/constants";
+import type { GrowthRuntimeState, GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
+import type { SupporterGrowthPortalModel } from "../growth/tree";
 
 const MovementCrmTab = lazy(() =>
   import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
+);
+const GrowthDashboardTab = lazy(() =>
+  import("../pages/app/GrowthDashboardTab").then((module) => ({ default: module.GrowthDashboardTab }))
 );
 const CommandCenterTab = lazy(() =>
   import("../pages/app/CommandCenterTab").then((module) => ({ default: module.CommandCenterTab }))
@@ -121,9 +129,12 @@ interface AppShellProps {
   setCampaignFormMode: React.Dispatch<React.SetStateAction<"create" | "edit">>;
   isCampaignAdminRoute: boolean;
   isAppRoute: boolean;
+  canAccessPlatformAdmin: boolean;
 
   // Core state
   signers: Signer[];
+  growthRuntime: GrowthRuntimeState;
+  setGrowthRuntime: React.Dispatch<React.SetStateAction<GrowthRuntimeState>>;
   authorities: AuthorityRule[];
   setAuthorities: React.Dispatch<React.SetStateAction<AuthorityRule[]>>;
   organization: Organization;
@@ -160,6 +171,8 @@ interface AppShellProps {
   setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;
   publicMessage: string;
   lastSignedSigner: Signer | null;
+  growthSnapshot?: GrowthSupporterSnapshot;
+  growthPortal?: SupporterGrowthPortalModel;
   otpInput: string;
   setOtpInput: React.Dispatch<React.SetStateAction<string>>;
   otpMessage: string;
@@ -198,6 +211,7 @@ interface AppShellProps {
   onSubmitPublicSignature: (event: FormEvent) => void;
   onSendOtp: () => void;
   onVerifyOtp: () => void;
+  onGrowthShare: (share: GrowthShareContext) => void;
   onUploadScan: (file: File) => void;
   onCreateManualScanItem: () => void;
   onUpdateScanParsedSigner: (
@@ -247,7 +261,10 @@ export function AppShell({
   setCampaignFormMode,
   isCampaignAdminRoute,
   isAppRoute,
+  canAccessPlatformAdmin,
   signers,
+  growthRuntime,
+  setGrowthRuntime,
   authorities,
   setAuthorities,
   organization,
@@ -276,6 +293,8 @@ export function AppShell({
   setPublicForm,
   publicMessage,
   lastSignedSigner,
+  growthSnapshot,
+  growthPortal,
   otpInput,
   setOtpInput,
   otpMessage,
@@ -302,6 +321,7 @@ export function AppShell({
   onSubmitPublicSignature,
   onSendOtp,
   onVerifyOtp,
+  onGrowthShare,
   onUploadScan,
   onCreateManualScanItem,
   onUpdateScanParsedSigner,
@@ -334,24 +354,96 @@ export function AppShell({
     actionLabel?: string;
     onAction?: () => void;
   } | null>(null);
+  const campaignSelectionValue = campaignFormMode === "create" ? "new-draft" : activeCampaignId;
   const savedCampaignSnapshot = campaignFormMode === "edit" ? campaignSnapshot(activeCampaign) : "";
   const draftCampaignSnapshot = campaignSnapshot(campaignDraft);
   const hasUnsavedCampaignChanges = Boolean(campaignDraft) && (
     campaignFormMode === "create" || draftCampaignSnapshot !== savedCampaignSnapshot
   );
+  const campaignCreationBlockReason = getCreateCampaignBlockReason(organization, campaigns);
+  const campaignCreationLocked = Boolean(campaignCreationBlockReason);
+  const canShowWorkspaceCreateActions = !isCampaignAdminRoute && activeTab === "dashboard";
+  const enabledFeatureKeys = new Set(organization.enabledFeatureKeys ?? []);
+  const hasWorkspaceFeature = (featureKey: string) =>
+    canAccessPlatformAdmin ||
+    isFeatureIncludedInPlan(organization.plan, featureKey) ||
+    enabledFeatureKeys.has(featureKey);
+  const canUseGrowthEngine =
+    hasWorkspaceFeature(GROWTH_FEATURE_FLAGS.growthEngine) ||
+    enabledFeatureKeys.has(GROWTH_FEATURE_FLAGS.legacyMovementCrm);
+  const canUseReports = hasWorkspaceFeature("basic_reports") || hasWorkspaceFeature("advanced_reports");
+  const canUseAiCopilot = hasWorkspaceFeature("ai_copilot");
+
+  function getLockedTabMessage(tab: Tab): string {
+    const messages: Partial<Record<Tab, string>> = {
+      command: "Command Center is available on Pro Movement or Enterprise plans.",
+      public: "Public signing is not enabled on the current plan.",
+      movement: "Movement CRM is available on Pro Movement or Enterprise plans.",
+      growth: "Campaign Growth Engine is available on Pro Movement or Enterprise plans.",
+      scans: "Field Collection is available on Growth, Pro Movement, or Enterprise plans.",
+      reports: "Reports are not enabled on the current plan.",
+      engagement: "Communication Hub is available on Growth, Pro Movement, or Enterprise plans.",
+      activity: "Activity and role audit views require an Enterprise roles plan.",
+      saas: "SaaS administration requires platform admin authentication.",
+      ideas: "Feature ideas require platform admin authentication."
+    };
+    return messages[tab] ?? "Upgrade the workspace plan to use this feature.";
+  }
+
+  function canAccessWorkspaceTab(tab: Tab): boolean {
+    if (canAccessPlatformAdmin) return true;
+    if (tab === "dashboard" || tab === "campaigns") return true;
+    if (tab === "public") return hasWorkspaceFeature("public_signing");
+    if (tab === "reports") return canUseReports;
+    if (tab === "command") return hasWorkspaceFeature("command_center");
+    if (tab === "movement") return hasWorkspaceFeature("movement_crm");
+    if (tab === "growth") return canUseGrowthEngine;
+    if (tab === "scans") return hasWorkspaceFeature("field_collection");
+    if (tab === "engagement") return hasWorkspaceFeature("communication_hub");
+    if (tab === "activity") return hasWorkspaceFeature("roles");
+    if (tab === "saas" || tab === "ideas") return false;
+    return false;
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("ai") === "1") {
-      setAiCopilotOpen(true);
+      if (!canUseAiCopilot) {
+        setOperationNotice({
+          title: "Upgrade plan required",
+          description: "AI Copilot is available on Growth, Pro Movement, or Enterprise plans."
+        });
+      } else if (campaignCreationBlockReason) {
+        setOperationNotice({
+          title: "Upgrade plan required",
+          description: campaignCreationBlockReason
+        });
+      } else {
+        setAiCopilotOpen(true);
+      }
       params.delete("ai");
       const nextQuery = params.toString();
       const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
       window.history.replaceState({}, "", nextUrl);
     }
-  }, []);
+  }, [campaignCreationBlockReason, canUseAiCopilot]);
 
   function requestTabChange(tab: Tab) {
+    if ((tab === "saas" || tab === "ideas") && !canAccessPlatformAdmin) {
+      setOperationNotice({
+        title: "Platform admin access required",
+        description: "SaaS billing, packages, integrations, and global platform controls require platform admin authentication."
+      });
+      return;
+    }
+    if (!canAccessWorkspaceTab(tab)) {
+      setOperationNotice({
+        title: "Upgrade plan required",
+        description: getLockedTabMessage(tab)
+      });
+      setActiveTab("dashboard");
+      return;
+    }
     if (
       tab !== activeTab &&
       activeTab === "campaigns" &&
@@ -364,7 +456,50 @@ export function AppShell({
     setActiveTab(tab);
   }
 
+  useEffect(() => {
+    if (!canAccessWorkspaceTab(activeTab)) {
+      setOperationNotice({
+        title: "Upgrade plan required",
+        description: getLockedTabMessage(activeTab)
+      });
+      setActiveTab("dashboard");
+    }
+  }, [activeTab, canAccessPlatformAdmin, organization.enabledFeatureKeys, organization.plan, setActiveTab]);
+
+  function requestUpgradePlan() {
+    if (canAccessPlatformAdmin) {
+      requestTabChange("saas");
+      return;
+    }
+    setOperationNotice({
+      title: "Upgrade plan required",
+      description:
+        campaignCreationBlockReason ||
+        "Upgrade the workspace plan before creating another campaign."
+    });
+  }
+
+  function requestAiCampaignCreation() {
+    if (!canUseAiCopilot) {
+      setOperationNotice({
+        title: "Upgrade plan required",
+        description: "AI Copilot is available on Growth, Pro Movement, or Enterprise plans."
+      });
+      return;
+    }
+    if (campaignCreationLocked) {
+      requestUpgradePlan();
+      return;
+    }
+    setOperationNotice(null);
+    setAiCopilotOpen(true);
+  }
+
   function requestCreateCampaign() {
+    if (campaignCreationLocked) {
+      requestUpgradePlan();
+      return;
+    }
     if (
       activeTab === "campaigns" &&
       hasUnsavedCampaignChanges &&
@@ -543,8 +678,8 @@ export function AppShell({
               <Megaphone size={24} />
             </div>
             <div>
-              <strong>Voiceup Bharat</strong>
-              <span>Indian Campaign SaaS</span>
+              <strong>Voiceup Global</strong>
+              <span>Public Campaign SaaS</span>
             </div>
           </div>
           <nav className="nav">
@@ -555,13 +690,15 @@ export function AppShell({
               activeTab={activeTab}
               onClick={requestTabChange}
             />
-            <NavButton
-              icon={<Crosshair />}
-              label="Command Center"
-              tab="command"
-              activeTab={activeTab}
-              onClick={requestTabChange}
-            />
+            {hasWorkspaceFeature("command_center") && (
+              <NavButton
+                icon={<Crosshair />}
+                label="Command Center"
+                tab="command"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
             <NavButton
               icon={<Megaphone />}
               label="Campaign admin"
@@ -569,49 +706,70 @@ export function AppShell({
               activeTab={activeTab}
               onClick={requestTabChange}
             />
-            <NavButton
-              icon={<Globe2 />}
-              label="Public signing"
-              tab="public"
-              activeTab={activeTab}
-              onClick={requestTabChange}
-            />
-            <NavButton
-              icon={<UsersRound />}
-              label="Movement CRM"
-              tab="movement"
-              activeTab={activeTab}
-              onClick={requestTabChange}
-            />
-            <NavButton
-              icon={<FileScan />}
-              label="Field Collection"
-              tab="scans"
-              activeTab={activeTab}
-              onClick={requestTabChange}
-            />
-            <NavButton
-              icon={<FileText />}
-              label="Reports"
-              tab="reports"
-              activeTab={activeTab}
-              onClick={requestTabChange}
-            />
-            <NavButton
-              icon={<MessageCircle />}
-              label="Engagement"
-              tab="engagement"
-              activeTab={activeTab}
-              onClick={requestTabChange}
-            />
-            <NavButton
-              icon={<ShieldCheck />}
-              label="Activity"
-              tab="activity"
-              activeTab={activeTab}
-              onClick={requestTabChange}
-            />
-            {!isCampaignAdminRoute && (
+            {hasWorkspaceFeature("public_signing") && (
+              <NavButton
+                icon={<Globe2 />}
+                label="Public signing"
+                tab="public"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {hasWorkspaceFeature("movement_crm") && (
+              <NavButton
+                icon={<UsersRound />}
+                label="Movement CRM"
+                tab="movement"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {canUseGrowthEngine && (
+              <NavButton
+                icon={<TrendingUp />}
+                label="Growth Engine"
+                tab="growth"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {hasWorkspaceFeature("field_collection") && (
+              <NavButton
+                icon={<FileScan />}
+                label="Field Collection"
+                tab="scans"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {canUseReports && (
+              <NavButton
+                icon={<FileText />}
+                label="Reports"
+                tab="reports"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {hasWorkspaceFeature("communication_hub") && (
+              <NavButton
+                icon={<MessageCircle />}
+                label="Engagement"
+                tab="engagement"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {hasWorkspaceFeature("roles") && (
+              <NavButton
+                icon={<ShieldCheck />}
+                label="Activity"
+                tab="activity"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {!isCampaignAdminRoute && canAccessPlatformAdmin && (
               <>
                 <NavButton
                   icon={<WalletCards />}
@@ -660,19 +818,25 @@ export function AppShell({
                 </strong>
               ) : (
                 <select
-                  value={activeCampaignId}
+                  value={campaignSelectionValue}
                   onChange={(e) => {
-                  if (
-                    hasUnsavedCampaignChanges &&
-                    !window.confirm("You have unsaved campaign changes. Switch campaigns without saving?")
-                  ) {
-                    return;
-                  }
-                  setCampaignFormMode("edit");
-                  setActiveCampaignId(e.target.value);
+                    if (
+                      hasUnsavedCampaignChanges &&
+                      !window.confirm("You have unsaved campaign changes. Switch campaigns without saving?")
+                    ) {
+                      return;
+                    }
+                    if (e.target.value === "new-draft") {
+                      return;
+                    }
+                    setCampaignFormMode("edit");
+                    setActiveCampaignId(e.target.value);
                   }}
                   disabled={campaigns.length === 0}
                 >
+                  {campaignFormMode === "create" && (
+                    <option value="new-draft">New unsaved campaign</option>
+                  )}
                   {campaigns.length === 0 ? (
                     <option>No campaign yet</option>
                   ) : (
@@ -695,20 +859,35 @@ export function AppShell({
               </button>
             ) : (
               <div className="button-row">
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => setAiCopilotOpen(true)}
-                >
-                  <Sparkles size={18} /> Create with AI
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={requestCreateCampaign}
-                >
-                  <Plus size={18} /> New campaign
-                </button>
+                {canShowWorkspaceCreateActions &&
+                  (campaignCreationLocked ? (
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={requestUpgradePlan}
+                    >
+                      <WalletCards size={18} /> Upgrade Plan
+                    </button>
+                  ) : (
+                    <>
+                      {canUseAiCopilot && (
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={requestAiCampaignCreation}
+                        >
+                          <Sparkles size={18} /> Create with AI
+                        </button>
+                      )}
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={requestCreateCampaign}
+                      >
+                        <Plus size={18} /> New campaign
+                      </button>
+                    </>
+                  ))}
                 <button
                   className="secondary-button icon-button"
                   type="button"
@@ -749,12 +928,18 @@ export function AppShell({
               dailyTotals={dailyTotals}
               organization={organization}
               onCreateCampaign={requestCreateCampaign}
-              onOpenSubscription={() => requestTabChange("saas")}
-              onOpenAiCopilot={() => setAiCopilotOpen(true)}
+              onOpenSubscription={requestUpgradePlan}
+              onOpenAiCopilot={requestAiCampaignCreation}
+              onOpenCampaignAdmin={() => requestTabChange("campaigns")}
+              onOpenPublicCampaign={() => requestTabChange("public")}
+              onOpenReports={() => requestTabChange("reports")}
+              createCampaignBlockReason={campaignCreationBlockReason}
+              canUseAiCopilot={canUseAiCopilot}
+              onUpgradePlan={requestUpgradePlan}
             />
           )}
 
-          {activeTab === "command" && (
+          {activeTab === "command" && hasWorkspaceFeature("command_center") && (
             <Suspense fallback={<ModuleSkeleton label="Loading Command Center" />}>
               <CommandCenterTab
                 activeCampaign={activeCampaign}
@@ -777,6 +962,7 @@ export function AppShell({
                 onOpenAuthorities={() => requestTabChange("campaigns")}
                 onOpenSaas={() => requestTabChange("saas")}
                 onOpenMovement={() => requestTabChange("movement")}
+                canAccessPlatformAdmin={canAccessPlatformAdmin}
               />
             </Suspense>
           )}
@@ -818,10 +1004,9 @@ export function AppShell({
               setCsvUploadMessage={setCsvUploadMessage}
               onSaveCampaign={handleSafeSaveCampaign}
               onPublishCampaign={handleSafePublishCampaign}
-              onCreateCampaign={requestCreateCampaign}
               onCloneCampaign={onCloneCampaign}
               onArchiveCampaign={onArchiveCampaign}
-              onOpenAiCopilot={() => setAiCopilotOpen(true)}
+              onOpenAiCopilot={requestAiCampaignCreation}
               aiDraftAppliedFocusKey={aiDraftAppliedFocusKey}
               onAddAuthorityRule={onAddAuthorityRule}
               onAddAdminLocationOption={onAddAdminLocationOption}
@@ -834,6 +1019,7 @@ export function AppShell({
           )}
 
           {activeTab === "public" &&
+            hasWorkspaceFeature("public_signing") &&
             (activeCampaign ? (
               <PublicCampaignPage
                 campaign={activeCampaign}
@@ -846,11 +1032,14 @@ export function AppShell({
                 setPublicForm={setPublicForm}
                 publicMessage={publicMessage}
                 lastSignedSigner={lastSignedSigner}
+                growthSnapshot={growthSnapshot}
+                growthPortal={growthPortal}
                 otpInput={otpInput}
                 setOtpInput={setOtpInput}
                 otpMessage={otpMessage}
                 onSendOtp={onSendOtp}
                 onVerifyOtp={onVerifyOtp}
+                onGrowthShare={onGrowthShare}
                 locationOverrides={locationOverrides}
                 locationDeletions={locationDeletions}
                 onSubmit={onSubmitPublicSignature}
@@ -862,17 +1051,10 @@ export function AppShell({
                 <p>
                   Create and publish a campaign before collecting signatures from the public page.
                 </p>
-                <button
-                  className="primary-button"
-                  type="button"
-                  onClick={requestCreateCampaign}
-                >
-                  <Plus size={18} /> Create campaign
-                </button>
               </div>
             ))}
 
-          {activeTab === "movement" && (
+          {activeTab === "movement" && hasWorkspaceFeature("movement_crm") && (
             <Suspense fallback={<ModuleSkeleton label="Loading Movement CRM" />}>
               <MovementCrmTab
                 campaigns={campaigns}
@@ -881,12 +1063,25 @@ export function AppShell({
                 campaignSigners={campaignSigners}
                 scanItems={scanItems}
                 authorities={authorities}
-                onOpenAiCopilot={() => setAiCopilotOpen(true)}
               />
             </Suspense>
           )}
 
-          {activeTab === "scans" && (
+          {activeTab === "growth" && canUseGrowthEngine && (
+            <Suspense fallback={<ModuleSkeleton label="Loading Growth Engine" />}>
+              <GrowthDashboardTab
+                campaigns={campaigns}
+                activeCampaign={activeCampaign}
+                organization={organization}
+                signers={signers}
+                campaignSigners={campaignSigners}
+                growthRuntime={growthRuntime}
+                onGrowthRuntimeChange={setGrowthRuntime}
+              />
+            </Suspense>
+          )}
+
+          {activeTab === "scans" && hasWorkspaceFeature("field_collection") && (
             <Suspense fallback={<ModuleSkeleton label="Loading Field Collection" />}>
               <ScansTab
                 activeCampaign={activeCampaign}
@@ -901,12 +1096,11 @@ export function AppShell({
                 onCreateManualScanItem={onCreateManualScanItem}
                 onUpdateScanParsedSigner={onUpdateScanParsedSigner}
                 onApproveScan={onApproveScan}
-                onCreateCampaign={requestCreateCampaign}
               />
             </Suspense>
           )}
 
-          {activeTab === "reports" && (
+          {activeTab === "reports" && canUseReports && (
             <Suspense fallback={<ModuleSkeleton label="Loading Reports" />}>
               <ReportsTab
                 activeCampaign={activeCampaign}
@@ -925,12 +1119,11 @@ export function AppShell({
                 blockTotals={blockTotals}
                 panchayatTotals={panchayatTotals}
                 onUpdateSignerStatus={onUpdateSignerStatus}
-                onCreateCampaign={requestCreateCampaign}
               />
             </Suspense>
           )}
 
-          {activeTab === "engagement" && (
+          {activeTab === "engagement" && hasWorkspaceFeature("communication_hub") && (
             <Suspense fallback={<ModuleSkeleton label="Loading Communication Hub" />}>
               <EngagementTab
                 activeCampaign={activeCampaign}
@@ -942,14 +1135,13 @@ export function AppShell({
                 setBroadcastMessage={setBroadcastMessage}
                 copiedMessage={copiedMessage}
                 onCopyText={onCopyText}
-                onCreateCampaign={requestCreateCampaign}
               />
             </Suspense>
           )}
 
-          {activeTab === "activity" && <ActivityTab auditLogs={auditLogs} />}
+          {activeTab === "activity" && hasWorkspaceFeature("roles") && <ActivityTab auditLogs={auditLogs} />}
 
-          {activeTab === "saas" && (
+          {activeTab === "saas" && canAccessPlatformAdmin && (
             <SaasTab
               saasSection={saasSection}
               setSaasSection={setSaasSection}
@@ -974,7 +1166,7 @@ export function AppShell({
             />
           )}
 
-          {activeTab === "ideas" && <IdeasTab />}
+          {activeTab === "ideas" && canAccessPlatformAdmin && <IdeasTab />}
         </motion.main>
       </div>
       {aiCopilotOpen && (

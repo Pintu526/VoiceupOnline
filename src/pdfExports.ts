@@ -10,6 +10,9 @@ import {
   getCampaignAdminUrl,
   getCampaignGoalValue,
   getCampaignPublicUrl,
+  formatLocationForCampaign,
+  getCampaignGeographyMode,
+  getCampaignLocationLabels,
   getLocationGovernance,
   getLocationRestrictionMessage
 } from "./utils/campaign";
@@ -249,6 +252,7 @@ export function exportSignerAppealPdf(campaign: Campaign, signer: Signer, author
   const authorityName = authority?.name ?? "Selected authority";
   const authorityPosition = authority?.position || authority?.department || "";
   const authorityAddress = authority?.address || "Address not configured";
+  const locationLabels = getCampaignLocationLabels(campaign);
 
   doc.setFontSize(18);
   doc.text("Individual Campaign Appeal", 14, 20);
@@ -260,8 +264,8 @@ export function exportSignerAppealPdf(campaign: Campaign, signer: Signer, author
   doc.text(`Telegram: ${signer.telegramHandle || "Not provided"}`, 14, 68);
   doc.text(`OTP verified: ${signer.otpVerified ? "Yes" : "No"}`, 14, 76);
   doc.text(`Selected authority: ${signer.selectedAuthorityName || authorityName}`, 14, 84);
-  doc.text(`Location: ${[signer.panchayat, signer.block, signer.district, signer.state].filter(Boolean).join(", ")}`, 14, 92);
-  doc.text(`PIN: ${signer.postalCode}`, 14, 100);
+  doc.text(`Location: ${formatLocationForCampaign(campaign, signer)}`, 14, 92);
+  doc.text(`${locationLabels.postalCode}: ${signer.postalCode}`, 14, 100);
 
   doc.text("To", 14, 116);
   doc.text(authorityName, 14, 124);
@@ -434,6 +438,8 @@ function drawCoverPage(doc: jsPDF, context: ReportContext) {
 
 function drawExecutiveSummary(doc: jsPDF, context: ReportContext) {
   const { campaign, metrics } = context;
+  const locationLabels = getCampaignLocationLabels(campaign);
+  const isGlobalMode = getCampaignGeographyMode(campaign) === "global";
   drawPageTitle(doc, "Executive Summary", "One-page overview for authority, media, and leadership review.");
 
   drawMetricRow(doc, 14, 32, [
@@ -449,7 +455,12 @@ function drawExecutiveSummary(doc: jsPDF, context: ReportContext) {
     ["Current Status", `${campaign.status}; ${metrics.verified.toLocaleString()} verified supporters toward ${getCampaignGoalValue(campaign).toLocaleString()} target (${metrics.progress}%).`],
     ["Authority", context.authority ? `${context.authority.name}, ${context.authority.position || context.authority.department}` : "Not configured"],
     ["Supporters", `${metrics.total.toLocaleString()} total records; ${metrics.pending.toLocaleString()} pending; ${metrics.duplicates.toLocaleString()} duplicate/review records.`],
-    ["Coverage", `${Object.keys(context.stateTotals).length} state(s), ${Object.keys(context.districtTotals).length} district(s), ${Object.keys(context.blockTotals).length} block(s), ${Object.keys(context.panchayatTotals).length} panchayat/ward bucket(s).`],
+    [
+      "Coverage",
+      isGlobalMode
+        ? `${Object.keys(context.stateTotals).length} ${locationLabels.state} bucket(s), ${Object.keys(context.districtTotals).length} ${locationLabels.district} bucket(s), ${Object.keys(context.panchayatTotals).length} ${locationLabels.panchayat} bucket(s).`
+        : `${Object.keys(context.stateTotals).length} state(s), ${Object.keys(context.districtTotals).length} district(s), ${Object.keys(context.blockTotals).length} block(s), ${Object.keys(context.panchayatTotals).length} panchayat/ward bucket(s).`
+    ],
     ["Health Score", `${context.healthScore}/100 based on content, authority, location, target, image, and supporter readiness.`],
     ["Communication Readiness", getCommunicationReadiness(context)],
     ["Volunteer Readiness", `${context.fieldReadyCount.toLocaleString()} paper/scanned/manual supporter record(s).`],
@@ -523,12 +534,16 @@ function drawStatisticsDashboard(doc: jsPDF, context: ReportContext) {
 }
 
 function drawLocationSummary(doc: jsPDF, context: ReportContext) {
+  const locationLabels = getCampaignLocationLabels(context.campaign);
+  const isGlobalMode = getCampaignGeographyMode(context.campaign) === "global";
   drawPageTitle(doc, "Location Summary", "Grouped participation by available geography fields.");
   let y = 30;
-  y = writeLocationTable(doc, "State", context.stateTotals, context.metrics.total, y);
-  y = writeLocationTable(doc, "District", context.districtTotals, context.metrics.total, y + 8);
-  y = writeLocationTable(doc, "Block", context.blockTotals, context.metrics.total, y + 8);
-  y = writeLocationTable(doc, "Panchayat / Ward", context.panchayatTotals, context.metrics.total, y + 8);
+  y = writeLocationTable(doc, locationLabels.state, context.stateTotals, context.metrics.total, y);
+  y = writeLocationTable(doc, locationLabels.district, context.districtTotals, context.metrics.total, y + 8);
+  if (!isGlobalMode) {
+    y = writeLocationTable(doc, locationLabels.block, context.blockTotals, context.metrics.total, y + 8);
+  }
+  y = writeLocationTable(doc, locationLabels.panchayat, context.panchayatTotals, context.metrics.total, y + 8);
   writeLocationTable(doc, "Village", context.villageTotals, context.metrics.total, y + 8);
 }
 
@@ -589,6 +604,8 @@ function drawAuthoritySubmissionChecklist(doc: jsPDF, context: ReportContext) {
 }
 
 function drawSupporterRegister(doc: jsPDF, context: ReportContext) {
+  const locationLabels = getCampaignLocationLabels(context.campaign);
+  const isGlobalMode = getCampaignGeographyMode(context.campaign) === "global";
   drawPageTitle(doc, "Supporter Register", "Formal printable support register from existing supporter records.");
 
   const columns: TableColumn<Signer>[] = [
@@ -596,10 +613,11 @@ function drawSupporterRegister(doc: jsPDF, context: ReportContext) {
     { label: "Name", width: 22, value: (signer) => safe(signer.name) },
     { label: "Phone", width: 18, value: (signer) => safe(signer.phone) },
     { label: "Email", width: 24, value: (signer) => safe(signer.email) },
-    { label: "State", width: 15, value: (signer) => safe(signer.state) },
-    { label: "District", width: 17, value: (signer) => safe(signer.district) },
-    { label: "Block", width: 17, value: (signer) => safe(signer.block) },
-    { label: "Panchayat/Ward", width: 21, value: (signer) => safe(signer.panchayat) },
+    ...(isGlobalMode ? [{ label: "Country", width: 16, value: (signer: Signer) => safe(signer.country) }] : []),
+    { label: locationLabels.state, width: 18, value: (signer) => safe(signer.state) },
+    { label: locationLabels.district, width: 19, value: (signer) => safe(signer.district) },
+    ...(!isGlobalMode ? [{ label: locationLabels.block, width: 17, value: (signer: Signer) => safe(signer.block) }] : []),
+    { label: locationLabels.panchayat, width: 21, value: (signer) => safe(signer.panchayat) },
     { label: "Village", width: 15, value: () => "Not available" },
     { label: "Occupation", width: 17, value: () => "Not available" },
     { label: "Date", width: 17, value: (signer) => formatDate(signer.signedAt) },

@@ -14,7 +14,6 @@ import {
   Send,
   Share2,
   ShieldCheck,
-  Sparkles,
   Smartphone,
   Target,
   UploadCloud,
@@ -34,7 +33,6 @@ interface MovementCrmTabProps {
   campaignSigners: Signer[];
   scanItems: ScanReviewItem[];
   authorities: AuthorityRule[];
-  onOpenAiCopilot: () => void;
 }
 
 const volunteerLevels = [
@@ -51,12 +49,12 @@ const volunteerLevels = [
 ];
 
 const engagementChannels: Array<[string, string, LucideIcon]> = [
-  ["WhatsApp", "Provider ready", MessageCircle],
-  ["SMS", "Provider ready", Phone],
-  ["Email", "Provider ready", Mail],
-  ["IVR", "Provider ready", BellRing],
-  ["Social media", "Provider ready", Share2],
-  ["Push notification", "Provider ready", Send]
+  ["WhatsApp", "Setup needed", MessageCircle],
+  ["SMS", "Setup needed", Phone],
+  ["Email", "Setup needed", Mail],
+  ["IVR", "Setup needed", BellRing],
+  ["Social media", "Setup needed", Share2],
+  ["Push notification", "Setup needed", Send]
 ];
 
 function uniqueCount(values: string[]) {
@@ -79,8 +77,7 @@ export function MovementCrmTab({
   signers,
   campaignSigners,
   scanItems,
-  authorities,
-  onOpenAiCopilot
+  authorities
 }: MovementCrmTabProps) {
   const [selectedProfileId, setSelectedProfileId] = useState("");
   const [selectedVolunteerLevel, setSelectedVolunteerLevel] = useState("Volunteer");
@@ -156,11 +153,11 @@ export function MovementCrmTab({
     ["By district", districtCoverage, "Real signer district values"],
     ["By campaign", uniqueCount(movementSigners.map((signer) => signer.campaignId)), "Real campaign support"],
     ["By category", uniqueCount(campaigns.map((campaign) => campaign.category)), "Real campaign categories"],
-    ["Volunteers", 0, "Provider-ready role upgrade"],
+    ["Volunteers", 0, "Role upgrade available after setup"],
     ["New supporters", newSupporters, "Signed in the last 7 days"],
     ["Most active", supporterProfiles.filter((profile) => profile.campaignsSupported > 1).length, "Multiple campaign support by phone"],
     ["Inactive", inactiveSupporters, "No activity in 30+ days"],
-    ["Communication-consented", 0, "Provider-ready consent ledger"]
+    ["Communication-consented", 0, "Consent ledger available after setup"]
   ];
 
   const topReferrers = supporterProfiles.slice(0, 3);
@@ -201,7 +198,7 @@ export function MovementCrmTab({
   const volunteerTasks = [
     ["Field collection", "Collect 25 signatures from weak localities", "Field lead", activeCampaign ? "Ready to assign" : "Setup needed"],
     ["Upload tracking", pendingUploads > 0 ? `Review ${pendingUploads} pending upload${pendingUploads === 1 ? "" : "s"}` : "Upload new paper sheets", "Review lead", "Real queue"],
-    ["Supporter verification", "Call or message pending supporters", "Volunteer", "Provider-ready assignment"],
+    ["Supporter verification", "Call or message pending supporters", "Volunteer", "Assignment available after setup"],
     ["Authority follow-up", "Prepare office visit or phone follow-up", "Coordinator", authorityReady ? "Ready" : "Needs authority"],
     ["Communication push", "Share campaign update with reachable supporters", "Digital volunteer", communicationReady ? "Ready" : "Needs contacts"]
   ];
@@ -217,9 +214,6 @@ export function MovementCrmTab({
               Connect supporters, volunteers, campaigns, authorities, communications, referrals,
               documents, events, and donations from one operating surface.
             </p>
-            <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
-              <Sparkles size={18} /> Create with AI
-            </button>
           </div>
           <div className="movement-health">
             <span>Movement Health</span>
@@ -232,7 +226,7 @@ export function MovementCrmTab({
           <MetricCard icon={<UsersRound />} label="Supporters" value={movementSigners.length} detail="Real signer records" />
           <MetricCard icon={<BadgeCheck />} label="Verified" value={verifiedCount} detail="Verified or OTP-confirmed" />
           <MetricCard icon={<MapPin />} label="Districts" value={districtCoverage} detail="Real location coverage" />
-          <MetricCard icon={<GitBranch />} label="Referrals" value={0} detail="Provider-ready tracking" />
+          <MetricCard icon={<GitBranch />} label="Referrals" value={0} detail="Tracking appears after referrals" />
         </div>
       </Panel>
 
@@ -251,7 +245,7 @@ export function MovementCrmTab({
             <div className={state === "real" ? "movement-node real" : "movement-node"} key={label}>
               <span>{label}</span>
               <strong>{value}</strong>
-              <small>{state === "real" ? "Real data" : "Provider ready"}</small>
+              <small>{state === "real" ? "Real data" : "Setup needed"}</small>
             </div>
           ))}
         </div>
@@ -264,7 +258,7 @@ export function MovementCrmTab({
             <h3>Manage volunteers across state, district, block, panchayat, and ward levels.</h3>
             <p>
               Real supporter and field collection data powers readiness, upload tracking, and performance.
-              Assignment, attendance, and volunteer role persistence are provider-ready.
+              Assignment, attendance, and volunteer role persistence are available after setup.
             </p>
           </div>
           <div className="volunteer-readiness-card">
@@ -279,7 +273,7 @@ export function MovementCrmTab({
             <UsersRound size={20} />
             <span>Volunteer profiles</span>
             <strong>{supporterProfiles.length.toLocaleString()}</strong>
-            <small>Real supporter records; role upgrade is provider-ready.</small>
+            <small>Real supporter records; role upgrade is available after setup.</small>
           </div>
           <div className="volunteer-ops-card">
             <Target size={20} />
@@ -296,7 +290,7 @@ export function MovementCrmTab({
           <div className="volunteer-ops-card">
             <CalendarDays size={20} />
             <span>Attendance/events</span>
-            <strong>Provider-ready</strong>
+            <strong>Setup needed</strong>
             <small>Meeting and event participation tracking placeholder.</small>
           </div>
           <div className="volunteer-ops-card">
@@ -381,7 +375,7 @@ export function MovementCrmTab({
           </div>
           <div className="mobile-volunteer-card">
             <span>Attendance</span>
-            <strong>Provider-ready</strong>
+            <strong>Setup needed</strong>
             <small>Event check-in and shift tracking placeholder</small>
           </div>
         </div>
@@ -422,13 +416,13 @@ export function MovementCrmTab({
                 </div>
                 <div className="profile-grid">
                   <span>Location</span><strong>{profile.location || "Not captured"}</strong>
-                  <span>Occupation</span><strong>Provider ready</strong>
-                  <span>Organization</span><strong>Provider ready</strong>
+                  <span>Occupation</span><strong>Setup needed</strong>
+                  <span>Organization</span><strong>Setup needed</strong>
                   <span>Campaigns supported</span><strong>{profile.campaignsSupported}</strong>
                   <span>Volunteer level</span><strong>{profile.volunteerLevel}</strong>
-                  <span>Communication consent</span><strong>Provider ready</strong>
-                  <span>Referral count</span><strong>Provider ready</strong>
-                  <span>Donation status</span><strong>Provider ready</strong>
+                  <span>Communication consent</span><strong>Setup needed</strong>
+                  <span>Referral count</span><strong>Setup needed</strong>
+                  <span>Donation status</span><strong>Setup needed</strong>
                 </div>
                 <div className="template-chip-row">
                   {profile.tags.map((tag) => <span key={tag}>{tag}</span>)}
@@ -454,8 +448,8 @@ export function MovementCrmTab({
                 <span>Location</span><strong>{selectedProfile.location || "Not captured"}</strong>
                 <span>Volunteer level</span><strong>{selectedProfile.volunteerLevel}</strong>
                 <span>Tags</span><strong>{selectedProfile.tags.join(", ")}</strong>
-                <span>Journey</span><strong>Signed campaign {"->"} Provider-ready volunteer path</strong>
-                <span>Referral tree</span><strong>Provider-ready placeholder</strong>
+                <span>Journey</span><strong>Signed campaign {"->"} volunteer path after setup</strong>
+                <span>Referral tree</span><strong>Appears after referrals</strong>
                 <span>Consent readiness</span><strong>{selectedProfile.phone || selectedProfile.email ? "Contact field available" : "Needs contact"}</strong>
               </div>
             </aside>
@@ -481,7 +475,7 @@ export function MovementCrmTab({
             ].map((item) => (
               <div className="timeline-item" key={item}>
                 <span>{item}</span>
-                <strong>Provider-ready milestone</strong>
+                <strong>Setup milestone</strong>
                 <small>Will appear as real activity after tracking is implemented.</small>
               </div>
             ))}
@@ -511,7 +505,7 @@ export function MovementCrmTab({
                 <span key={filter}>{filter}</span>
               ))}
             </div>
-            <p className="helper-text">Saved segment persistence and automation are provider-ready.</p>
+            <p className="helper-text">Saved segment persistence and automation are available after setup.</p>
           </div>
           <div className="segment-grid">
             {segments.map(([label, value, detail]) => (
@@ -553,7 +547,7 @@ export function MovementCrmTab({
               </div>
             ))}
           </div>
-          <p className="helper-text">Volunteer score and referral-based ranking are provider-ready.</p>
+          <p className="helper-text">Volunteer score and referral-based ranking appear after setup.</p>
         </Panel>
 
         <Panel title="Referral Network" icon={<Share2 />}>
@@ -561,7 +555,7 @@ export function MovementCrmTab({
             {topReferrers.map((profile, index) => (
               <div className="referral-node" key={profile.id}>
                 <strong>{index + 1}. {profile.name || "Supporter"}</strong>
-                <small>Referral count provider-ready</small>
+                <small>Referral count appears after sharing</small>
               </div>
             ))}
             <p className="helper-text">
@@ -574,8 +568,8 @@ export function MovementCrmTab({
           <div className="campaign-integration-grid">
             <div><span>Existing supporters</span><strong>{campaignSigners.length.toLocaleString()}</strong></div>
             <div><span>Potential audience</span><strong>{signers.length.toLocaleString()}</strong></div>
-            <div><span>Nearby volunteers</span><strong>Provider ready</strong></div>
-            <div><span>Suggested coordinators</span><strong>Provider ready</strong></div>
+            <div><span>Nearby volunteers</span><strong>Setup needed</strong></div>
+            <div><span>Suggested coordinators</span><strong>Setup needed</strong></div>
             <div><span>Authority readiness</span><strong>{authorityReady ? "Ready" : "Needs route"}</strong></div>
             <div><span>Communication readiness</span><strong>{communicationReady.toLocaleString()} reachable</strong></div>
           </div>

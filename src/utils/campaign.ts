@@ -4,7 +4,13 @@ import {
   initialIntegrationSettings
 } from "../data";
 import type { VoiceupRemoteState } from "../backend";
-import type { Campaign, LocationGovernanceLevel, Organization } from "../types";
+import type {
+  Campaign,
+  CampaignGeographyMode,
+  CampaignScope,
+  LocationGovernanceLevel,
+  Organization
+} from "../types";
 import { getCampaignMetrics } from "../lib";
 import {
   getCampaignAdminUrl as getCanonicalCampaignAdminUrl,
@@ -22,6 +28,34 @@ const locationLevelOrder: LocationGovernanceLevel[] = [
 ];
 
 type LocationFields = Pick<Campaign, "state" | "district" | "block" | "panchayat">;
+type CountryLocationFields = Partial<Pick<Campaign, "country">> & Partial<LocationFields>;
+
+export interface CampaignLocationLabels {
+  country: string;
+  state: string;
+  district: string;
+  block: string;
+  panchayat: string;
+  postalCode: string;
+}
+
+const indiaLocationLabels: CampaignLocationLabels = {
+  country: "Country",
+  state: "State",
+  district: "District",
+  block: "Block / Tehsil / Taluk",
+  panchayat: "Gram Panchayat / Ward",
+  postalCode: "PIN code"
+};
+
+const globalLocationLabels: CampaignLocationLabels = {
+  country: "Country",
+  state: "State / Province / Region",
+  district: "City / District",
+  block: "Area / County",
+  panchayat: "Locality / Ward",
+  postalCode: "Postal / ZIP code"
+};
 
 export function getCampaignBaseUrl(_organization: Organization): string {
   return getCanonicalBaseUrl();
@@ -47,6 +81,51 @@ export function getSaasAdminPageUrl(): string {
 
 export function getCampaignGoalValue(campaign: Campaign): number {
   return campaign.maxSignersAllowed > 0 ? campaign.maxSignersAllowed : campaign.goal;
+}
+
+export function getCampaignGeographyMode(
+  campaign: Pick<Campaign, "geographyMode" | "country"> | undefined
+): CampaignGeographyMode {
+  if (campaign?.geographyMode) return campaign.geographyMode;
+  return campaign?.country && campaign.country.trim().toLowerCase() !== "india"
+    ? "global"
+    : "india_detailed";
+}
+
+export function isGlobalCampaign(
+  campaign: Pick<Campaign, "geographyMode" | "country"> | undefined
+): boolean {
+  return getCampaignGeographyMode(campaign) === "global";
+}
+
+export function getCampaignScope(
+  campaign: Pick<Campaign, "campaignScope"> | undefined
+): CampaignScope {
+  return campaign?.campaignScope ?? "local";
+}
+
+export function getCampaignScopeLabel(scope: CampaignScope): string {
+  if (scope === "local") return "Local campaign";
+  if (scope === "city") return "City campaign";
+  if (scope === "state_province") return "State / Province campaign";
+  if (scope === "national") return "National campaign";
+  return "Global campaign";
+}
+
+export function getCampaignLocationLabels(
+  campaign: Pick<Campaign, "geographyMode" | "country"> | undefined
+): CampaignLocationLabels {
+  return isGlobalCampaign(campaign) ? globalLocationLabels : indiaLocationLabels;
+}
+
+export function formatLocationForCampaign(
+  campaign: Pick<Campaign, "geographyMode" | "country"> | undefined,
+  values: CountryLocationFields
+): string {
+  const parts = isGlobalCampaign(campaign)
+    ? [values.panchayat, values.block, values.district, values.state, values.country]
+    : [values.panchayat, values.block, values.district, values.state];
+  return parts.filter(Boolean).join(", ");
 }
 
 export function hasSaasLocks(campaign: Campaign): boolean {
@@ -81,6 +160,7 @@ export function getEffectiveSignerLocationRestrictionLevel(
   organization?: Organization
 ): LocationGovernanceLevel {
   const campaignLevel = getConfiguredLocationLockLevel(campaign, getSignerLocationRestrictionLevel(campaign));
+  if (isGlobalCampaign(campaign)) return campaignLevel;
   const governance = organization ? getLocationGovernance(organization) : undefined;
   const governanceLevel = governance
     ? getConfiguredLocationLockLevel(governance, governance.lockLevel)
@@ -126,27 +206,40 @@ export function applyLocationGovernanceToCampaign(
   campaign: Campaign,
   organization: Organization
 ): Campaign {
+  if (isGlobalCampaign(campaign)) return campaign;
   const governance = getLocationGovernance(organization);
   const lockedValues = getLockedLocationValues(governance, governance.lockLevel);
   return { ...campaign, ...lockedValues };
 }
 
-export function applySignerLocationRestriction<T extends Partial<LocationFields>>(
+export function applySignerLocationRestriction<T extends CountryLocationFields>(
   campaign: Campaign,
   signerValues: T,
   organization?: Organization
 ): T {
   const restrictionLevel = getEffectiveSignerLocationRestrictionLevel(campaign, organization);
   const lockedValues = getLockedLocationValues(campaign, restrictionLevel);
-  return { ...signerValues, ...lockedValues };
+  const lockedCountry =
+    isGlobalCampaign(campaign) && getCampaignScope(campaign) !== "global" && campaign.country?.trim()
+      ? { country: campaign.country }
+      : {};
+  return { ...signerValues, ...lockedCountry, ...lockedValues };
 }
 
 export function isWithinLocationRestriction(
   campaign: Campaign,
-  values: Partial<LocationFields>,
+  values: CountryLocationFields,
   organization?: Organization
 ): boolean {
   const restrictionLevel = getEffectiveSignerLocationRestrictionLevel(campaign, organization);
+  const lockedCountry =
+    isGlobalCampaign(campaign) && getCampaignScope(campaign) !== "global" && campaign.country?.trim()
+      ? campaign.country
+      : "";
+  if (lockedCountry) {
+    const country = values.country ?? "";
+    if (country.trim().toLowerCase() !== lockedCountry.trim().toLowerCase()) return false;
+  }
   if (restrictionLevel === "none") return true;
   const restrictedValues = getLockedLocationValues(campaign, restrictionLevel);
   return Object.entries(restrictedValues).every(
@@ -159,17 +252,25 @@ export function isWithinLocationRestriction(
 export function getLocationRestrictionMessage(campaign: Campaign, organization?: Organization): string {
   const restrictionLevel = getEffectiveSignerLocationRestrictionLevel(campaign, organization);
   const values = getLockedLocationValues(campaign, restrictionLevel);
-  const location = [values.panchayat, values.block, values.district, values.state]
-    .filter(Boolean)
-    .join(", ");
+  const location = formatLocationForCampaign(campaign, {
+    ...values,
+    country:
+      isGlobalCampaign(campaign) && getCampaignScope(campaign) !== "global"
+        ? campaign.country
+        : ""
+  });
   return location ? `This campaign is restricted to ${location}.` : "";
 }
 
-export function getLocationLevelLabel(level: LocationGovernanceLevel): string {
-  if (level === "state") return "State";
-  if (level === "district") return "District";
-  if (level === "block") return "Block";
-  if (level === "panchayat") return "Panchayat/Ward";
+export function getLocationLevelLabel(
+  level: LocationGovernanceLevel,
+  campaign?: Pick<Campaign, "geographyMode" | "country">
+): string {
+  const labels = getCampaignLocationLabels(campaign);
+  if (level === "state") return labels.state;
+  if (level === "district") return labels.district;
+  if (level === "block") return labels.block;
+  if (level === "panchayat") return labels.panchayat;
   return "None";
 }
 
@@ -212,17 +313,22 @@ export function createRemoteState(state: VoiceupRemoteState): VoiceupRemoteState
   };
 }
 
-export function signerFieldLabel(field: string): string {
+export function signerFieldLabel(
+  field: string,
+  campaign?: Pick<Campaign, "geographyMode" | "country">
+): string {
+  const locationLabels = getCampaignLocationLabels(campaign);
   const labels: Record<string, string> = {
     name: "Name",
     email: "Email",
     phone: "Phone",
-    state: "State",
-    district: "District",
-    block: "Block / Tehsil / Taluk",
-    panchayat: "Gram Panchayat / Ward",
+    country: locationLabels.country,
+    state: locationLabels.state,
+    district: locationLabels.district,
+    block: locationLabels.block,
+    panchayat: locationLabels.panchayat,
     address: "Street address / house details",
-    postalCode: "PIN code",
+    postalCode: locationLabels.postalCode,
     comment: "Comment"
   };
   return labels[field] ?? field;

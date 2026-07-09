@@ -3,6 +3,11 @@ export function getPublicCampaignSlug(): string {
   return window.location.pathname.match(/^\/c\/([^/]+)\/?$/)?.[1] ?? "";
 }
 
+export function getSupporterPortalCode(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.pathname.match(/^\/r\/([^/]+)\/?$/)?.[1] ?? "";
+}
+
 export function getCampaignAdminSlug(): string {
   if (typeof window === "undefined") return "";
   return window.location.pathname.match(/^\/admin\/([^/]+)\/?$/)?.[1] ?? "";
@@ -36,4 +41,9 @@ export function getIsLandingPageRoute(): boolean {
   if (typeof window === "undefined") return false;
   const pathname = window.location.pathname;
   return pathname === "/" || pathname === "";
+}
+
+export function getIsStartRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.pathname === "/start" || window.location.pathname === "/start/";
 }

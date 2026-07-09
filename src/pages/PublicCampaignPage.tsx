@@ -2,23 +2,23 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
   CheckCircle2,
   ClipboardList,
-  Copy,
-  Download,
   LockKeyhole,
-  Mail,
-  Printer,
   QrCode,
   Share2,
-  ShieldCheck,
+  ShieldCheck
 } from "lucide-react";
 import type { AuthorityRule, Campaign, Organization, Signer, SignerRequiredField } from "../types";
+import { getConfiguredGrowthShareMessages } from "../growth/configuration";
+import type { GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
+import type { SupporterGrowthPortalModel } from "../growth/tree";
+import { ViralPostSignExperience } from "../growth/supporter";
 import type { LocationDeletions, LocationOverrides } from "../geography";
 import type { getCampaignMetrics } from "../lib";
 import { Panel } from "../ui/Panel";
 import { Field } from "../ui/Field";
 import { DonationCard } from "../components/DonationCard";
 import { IndiaLocationFields } from "../components/IndiaLocationFields";
-import { ReferralQrPreview } from "../components/ReferralQrPreview";
+import { GlobalLocationFields } from "../components/GlobalLocationFields";
 import { blankSigner } from "../constants";
 import {
   getAppealAuthority,
@@ -27,20 +27,20 @@ import {
 } from "../utils/authority";
 import {
   applySignerLocationRestriction,
+  formatLocationForCampaign,
   getCampaignGoalValue,
+  getCampaignGeographyMode,
+  getCampaignLocationLabels,
   getCampaignPublicUrl,
+  getCampaignScope,
   getEffectiveSignerLocationRestrictionLevel,
   getLocationRestrictionMessage,
   getLockedLocationValues
 } from "../utils/campaign";
-import { whatsAppLink } from "../utils/links";
 import {
-  REFERRAL_SHARE_POINTS,
   downloadQrPosterSvg,
   findReferrer,
   getCampaignReferralUrl,
-  getProfessionalShareMessages,
-  getReferralBadge,
   getSafeReferrerLabel,
   getSupporterReferralCode,
   normalizeReferralCode
@@ -57,6 +57,8 @@ interface PublicCampaignPageProps {
   setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;
   publicMessage: string;
   lastSignedSigner: Signer | null;
+  growthSnapshot?: GrowthSupporterSnapshot;
+  growthPortal?: SupporterGrowthPortalModel;
   otpInput: string;
   setOtpInput: React.Dispatch<React.SetStateAction<string>>;
   otpMessage: string;
@@ -64,6 +66,7 @@ interface PublicCampaignPageProps {
   onVerifyOtp: () => void;
   locationOverrides: LocationOverrides;
   locationDeletions: LocationDeletions;
+  onGrowthShare?: (share: GrowthShareContext) => void;
   onSubmit: (event: FormEvent) => void;
 }
 
@@ -78,6 +81,8 @@ export function PublicCampaignPage({
   setPublicForm,
   publicMessage,
   lastSignedSigner,
+  growthSnapshot,
+  growthPortal,
   otpInput,
   setOtpInput,
   otpMessage,
@@ -85,21 +90,29 @@ export function PublicCampaignPage({
   onVerifyOtp,
   locationOverrides,
   locationDeletions,
+  onGrowthShare,
   onSubmit
 }: PublicCampaignPageProps) {
   const publicAuthorityOptions = getPublicAuthorityOptions(campaign, authorities);
   const resolvedAuthority = authority ?? getAppealAuthority(campaign);
+  const isGlobalMode = getCampaignGeographyMode(campaign) === "global";
+  const locationLabels = getCampaignLocationLabels(campaign);
   const signerRestrictionLevel = getEffectiveSignerLocationRestrictionLevel(campaign, organization);
   const restrictedPublicForm = applySignerLocationRestriction(campaign, publicForm, organization);
+  const publicLocationForm =
+    isGlobalMode && getCampaignScope(campaign) !== "global" && campaign.country && !restrictedPublicForm.country
+      ? { ...restrictedPublicForm, country: campaign.country }
+      : restrictedPublicForm;
   const restrictionMessage = getLocationRestrictionMessage(campaign, organization);
-  const lockedLocation = getLockedLocationValues(campaign, signerRestrictionLevel);
-  const lockedLocationParts = [
-    lockedLocation.state,
-    lockedLocation.district,
-    lockedLocation.block,
-    lockedLocation.panchayat
-  ].filter(Boolean);
-  const districtParticipation = campaign.district || restrictedPublicForm.district || "Not captured yet";
+  const lockedLocation = {
+    ...(isGlobalMode && getCampaignScope(campaign) !== "global" && campaign.country
+      ? { country: campaign.country }
+      : {}),
+    ...getLockedLocationValues(campaign, signerRestrictionLevel)
+  };
+  const lockedLocationParts = formatLocationForCampaign(campaign, lockedLocation).split(", ").filter(Boolean);
+  const participationLabel = isGlobalMode ? `${locationLabels.district} participation` : "District participation";
+  const locationParticipation = campaign.district || restrictedPublicForm.district || "Not captured yet";
   const requiredFields = campaign.requiredFields ?? [];
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
     requiredFields.includes(field) ? `${label} *` : label;
@@ -114,11 +127,48 @@ export function PublicCampaignPage({
   const personalReferralUrl = personalReferralCode
     ? getCampaignReferralUrl(organization, campaign, personalReferralCode)
     : publicUrl;
-  const shareMessages = getProfessionalShareMessages(campaign, personalReferralUrl);
-  const shareUrl = encodeURIComponent(personalReferralUrl);
-  const shareText = encodeURIComponent(shareMessages.social);
+  const shareMessages = getConfiguredGrowthShareMessages({
+    campaign,
+    organization,
+    signer: lastSignedSigner,
+    referralLink: personalReferralUrl,
+    walletCredits: growthPortal?.wallet.balance.walletCredits ?? growthSnapshot?.lifetimeGrowth,
+    recognitionLevel: growthSnapshot?.currentRecognitionLevelName ?? growthPortal?.tree.currentRecognition,
+    campaignProgress: metrics.progress,
+    supporterCount: metrics.total,
+    verifiedSupporters: metrics.verified
+  });
   const [copiedReferral, setCopiedReferral] = useState("");
   const [shareClicks, setShareClicks] = useState(0);
+  const isRequired = (field: SignerRequiredField) => requiredFields.includes(field);
+  const locationRequired = requiredFields.some((field) =>
+    ["country", "state", "district", "block", "panchayat", "postalCode"].includes(field)
+  );
+  const locationFields = isGlobalMode ? (
+    <GlobalLocationFields
+      idPrefix="public-signer-location"
+      values={publicLocationForm}
+      onChange={(values) =>
+        setPublicForm(applySignerLocationRestriction(campaign, { ...publicForm, ...values }, organization))
+      }
+      allowedLocation={lockedLocation}
+      hiddenLockedLevel={signerRestrictionLevel}
+      requiredFields={requiredFields}
+    />
+  ) : (
+    <IndiaLocationFields
+      idPrefix="public-signer-location"
+      values={restrictedPublicForm}
+      onChange={(values) =>
+        setPublicForm(applySignerLocationRestriction(campaign, { ...publicForm, ...values }, organization))
+      }
+      locationOverrides={locationOverrides}
+      locationDeletions={locationDeletions}
+      allowedLocation={lockedLocation}
+      hiddenLockedLevel={signerRestrictionLevel}
+      requiredFields={requiredFields}
+    />
+  );
 
   useEffect(() => {
     if (!incomingReferralCode) return;
@@ -129,21 +179,27 @@ export function PublicCampaignPage({
     );
   }, [incomingReferralCode, setPublicForm]);
 
-  async function copyReferralText(label: string, value: string) {
+  async function copyReferralText(
+    label: string,
+    value: string,
+    channel: GrowthShareContext["channel"] = "copy"
+  ) {
     try {
       await navigator.clipboard.writeText(value);
       setCopiedReferral(`${label} copied.`);
+      onGrowthShare?.({ channel, url: value });
     } catch {
       setCopiedReferral("Copy failed. Select and copy the link manually.");
     }
   }
 
-  function trackShareClick() {
+  function trackShareClick(channel: GrowthShareContext["channel"]) {
     setShareClicks((current) => current + 1);
+    onGrowthShare?.({ channel, url: personalReferralUrl });
   }
 
   async function shareNatively() {
-    trackShareClick();
+    trackShareClick("native");
     if (navigator.share) {
       try {
         await navigator.share({
@@ -209,8 +265,8 @@ export function PublicCampaignPage({
             <strong>{metrics.verified.toLocaleString()}</strong>
           </div>
           <div>
-            <span>District participation</span>
-            <strong>{districtParticipation}</strong>
+            <span>{participationLabel}</span>
+            <strong>{locationParticipation}</strong>
           </div>
         </div>
         {campaign.donationEnabled && <DonationCard campaign={campaign} compact />}
@@ -250,15 +306,17 @@ export function PublicCampaignPage({
               onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
             />
           </Field>
-          <Field label={signerFieldLabel("Email", "email")}>
-            <input
-              aria-label="Email"
-              placeholder="Email"
-              type="email"
-              value={publicForm.email}
-              onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
-            />
-          </Field>
+          {isRequired("email") && (
+            <Field label={signerFieldLabel("Email", "email")}>
+              <input
+                aria-label="Email"
+                placeholder="Email"
+                type="email"
+                value={publicForm.email}
+                onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
+              />
+            </Field>
+          )}
           <Field label={signerFieldLabel("Phone", "phone")}>
             <input
               aria-label="Phone"
@@ -291,6 +349,9 @@ export function PublicCampaignPage({
             </Field>
           )}
           <div className="otp-box">
+            <p className="helper-text">
+              OTP helps prevent spam, duplicate signatures, and misuse of campaign support.
+            </p>
             <div className="button-row">
               <button className="secondary-button" type="button" onClick={onSendOtp}>
                 Send OTP
@@ -308,44 +369,9 @@ export function PublicCampaignPage({
             {publicForm.otpVerified && <span className="status-pill">Phone verified</span>}
             {otpMessage && <p className="info-message">{otpMessage}</p>}
           </div>
-          <Field label="WhatsApp number">
-            <input
-              aria-label="WhatsApp number"
-              placeholder="If different from phone"
-              value={publicForm.whatsappNumber}
-              onChange={(event) =>
-                setPublicForm({ ...publicForm, whatsappNumber: event.target.value })
-              }
-            />
-          </Field>
-          <Field label="Telegram handle or number">
-            <input
-              aria-label="Telegram handle or number"
-              placeholder="@handle or number"
-              value={publicForm.telegramHandle}
-              onChange={(event) =>
-                setPublicForm({ ...publicForm, telegramHandle: event.target.value })
-              }
-            />
-          </Field>
-          <Field label="Referred by phone, name, or referral code">
-            <input
-              aria-label="Referred by phone, name, or referral code"
-              placeholder="Optional"
-              value={publicForm.referredByPhoneOrCode ?? ""}
-              onChange={(event) =>
-                setPublicForm({
-                  ...publicForm,
-                  referredByPhoneOrCode: event.target.value,
-                  referralSource: event.target.value.trim() ? "manual" : undefined
-                })
-              }
-            />
-            <small>Optional. Use a referrer phone, name, or code if someone invited you.</small>
-          </Field>
-          {restrictionMessage && (
+          {(restrictionMessage || locationRequired) && (
             <div className="public-location-limit" aria-live="polite">
-              <span aria-hidden="true">📍</span>
+              <span aria-hidden="true">Location</span>
               <div>
                 <strong>This campaign is limited to</strong>
                 {lockedLocationParts.length > 0 ? (
@@ -360,26 +386,77 @@ export function PublicCampaignPage({
               </div>
             </div>
           )}
-          <IndiaLocationFields
-            idPrefix="public-signer-location"
-            values={restrictedPublicForm}
-            onChange={(values) =>
-              setPublicForm(applySignerLocationRestriction(campaign, { ...publicForm, ...values }, organization))
-            }
-            locationOverrides={locationOverrides}
-            locationDeletions={locationDeletions}
-            allowedLocation={lockedLocation}
-            hiddenLockedLevel={signerRestrictionLevel}
-            requiredFields={requiredFields}
-          />
-          <Field label={signerFieldLabel("Address", "address")}>
-            <input
-              aria-label="Address"
-              placeholder="House, street, locality"
-              value={publicForm.address}
-              onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
-            />
-          </Field>
+          {(restrictionMessage || locationRequired) && locationFields}
+          {isRequired("address") && (
+            <Field label={signerFieldLabel("Address", "address")}>
+              <input
+                aria-label="Address"
+                placeholder="House, street, locality"
+                value={publicForm.address}
+                onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
+              />
+            </Field>
+          )}
+          <details className="optional-details">
+            <summary>Additional Details (Optional)</summary>
+            {!isRequired("email") && (
+              <Field label="Email">
+                <input
+                  aria-label="Email"
+                  placeholder="Email"
+                  type="email"
+                  value={publicForm.email}
+                  onChange={(event) => setPublicForm({ ...publicForm, email: event.target.value })}
+                />
+              </Field>
+            )}
+            <Field label="WhatsApp number">
+              <input
+                aria-label="WhatsApp number"
+                placeholder="If different from phone"
+                value={publicForm.whatsappNumber}
+                onChange={(event) =>
+                  setPublicForm({ ...publicForm, whatsappNumber: event.target.value })
+                }
+              />
+            </Field>
+            <Field label="Telegram handle or number">
+              <input
+                aria-label="Telegram handle or number"
+                placeholder="@handle or number"
+                value={publicForm.telegramHandle}
+                onChange={(event) =>
+                  setPublicForm({ ...publicForm, telegramHandle: event.target.value })
+                }
+              />
+            </Field>
+            <Field label="Referred by phone, name, or referral code">
+              <input
+                aria-label="Referred by phone, name, or referral code"
+                placeholder="Optional"
+                value={publicForm.referredByPhoneOrCode ?? ""}
+                onChange={(event) =>
+                  setPublicForm({
+                    ...publicForm,
+                    referredByPhoneOrCode: event.target.value,
+                    referralSource: event.target.value.trim() ? "manual" : undefined
+                  })
+                }
+              />
+              <small>Use a referrer phone, name, or code if someone invited you.</small>
+            </Field>
+            {!restrictionMessage && !locationRequired && locationFields}
+            {!isRequired("address") && (
+              <Field label="Address">
+                <input
+                  aria-label="Address"
+                  placeholder="House, street, locality"
+                  value={publicForm.address}
+                  onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
+                />
+              </Field>
+            )}
+          </details>
           <div className="trust-section" aria-label="Trust and privacy">
             <span><ShieldCheck size={18} /> Privacy respected</span>
             <span><LockKeyhole size={18} /> Signature stored securely</span>
@@ -396,128 +473,48 @@ export function PublicCampaignPage({
           <button className="primary-button" type="submit">
             <CheckCircle2 size={18} /> Sign campaign
           </button>
-          <a className="mobile-sticky-sign" href="#public-sign-form">
-            <CheckCircle2 size={18} /> Sign campaign
-          </a>
+          {lastSignedSigner?.campaignId !== campaign.id && (
+            <a className="mobile-sticky-sign" href="#public-sign-form">
+              <CheckCircle2 size={18} /> Sign campaign
+            </a>
+          )}
           {publicMessage && <p className="success-message">{publicMessage}</p>}
           {lastSignedSigner?.campaignId === campaign.id && (
-            <div className="participant-actions">
-              <div className="referral-thank-you">
-                <div>
-                  <span className="eyebrow">Thank you for supporting</span>
-                  <strong>{campaign.title}</strong>
-                  <p>Your personal referral link is ready. Share it with friends so the campaign can grow.</p>
-                </div>
-                <div className="referral-score-card">
-                  <span>Session points</span>
-                  <strong>{(shareClicks * REFERRAL_SHARE_POINTS).toLocaleString()}</strong>
-                  <small>{getReferralBadge(shareClicks * REFERRAL_SHARE_POINTS)}</small>
-                </div>
-              </div>
-              <div className="personal-referral-card">
-                <ReferralQrPreview
-                  value={personalReferralUrl}
-                  label="Personal referral QR"
-                  caption={personalReferralCode ? `Referral code ${personalReferralCode}` : "Referral code will appear after signing."}
-                />
-                <div>
-                  <span className="label">Personal referral link</span>
-                  <code>{personalReferralUrl}</code>
-                  <p className="helper-text">
-                    QR rendering, share-click points, and poster export are provider-ready/session-only until a production
-                    referral provider is connected.
-                  </p>
-                </div>
-              </div>
-              {copiedReferral && <p className="success-message">{copiedReferral}</p>}
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={async () => {
-                  const { exportSignerAppealPdf } = await import("../pdfExports");
-                  exportSignerAppealPdf(campaign, lastSignedSigner, resolvedAuthority);
-                }}
-              >
-                Download signed appeal PDF
-              </button>
-              <div className="public-share-grid">
-                <a
-                  className="secondary-link-button"
-                  href={whatsAppLink("", shareMessages.whatsapp)}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={trackShareClick}
-                >
-                  WhatsApp
-                </a>
-                <a
-                  className="secondary-link-button"
-                  href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={trackShareClick}
-                >
-                  <Share2 size={16} /> Facebook
-                </a>
-                <a
-                  className="secondary-link-button"
-                  href={`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={trackShareClick}
-                >
-                  <Share2 size={16} /> Twitter/X
-                </a>
-                <a
-                  className="secondary-link-button"
-                  href={`mailto:?subject=${encodeURIComponent(shareMessages.emailSubject)}&body=${encodeURIComponent(shareMessages.emailBody)}`}
-                  onClick={trackShareClick}
-                >
-                  <Mail size={16} /> Email
-                </a>
-                <button className="secondary-button" type="button" onClick={() => copyReferralText("Referral link", personalReferralUrl)}>
-                  <Copy size={16} /> Copy Link
-                </button>
-                <button className="secondary-button" type="button" onClick={shareNatively}>
-                  <Share2 size={16} /> Native Share
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => {
-                    trackShareClick();
-                    downloadQrPosterSvg({
-                      campaign,
-                      organizationName: organization?.name ?? "Voiceup",
-                      url: personalReferralUrl,
-                      referralCode: personalReferralCode
-                    });
-                  }}
-                >
-                  <Download size={16} /> Download QR
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => {
-                    trackShareClick();
-                    window.print();
-                  }}
-                >
-                  <Printer size={16} /> Print Poster
-                </button>
-                <span className="secondary-link-button provider-ready-share">
-                  <QrCode size={16} /> Instagram: copy caption + poster
-                </span>
-              </div>
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => copyReferralText("Instagram caption", shareMessages.instagramCaption)}
-              >
-                <Copy size={16} /> Copy Instagram Caption
-              </button>
-            </div>
+            <ViralPostSignExperience
+              campaign={campaign}
+              organization={organization}
+              signer={lastSignedSigner}
+              campaignSigners={campaignSigners}
+              metrics={metrics}
+              growthSnapshot={growthSnapshot}
+              growthPortal={growthPortal}
+              personalReferralUrl={personalReferralUrl}
+              personalReferralCode={personalReferralCode}
+              shareMessages={shareMessages}
+              shareClicks={shareClicks}
+              copiedReferral={copiedReferral}
+              publicMessage={publicMessage}
+              onTrackShareClick={trackShareClick}
+              onCopyReferralText={copyReferralText}
+              onShareNatively={shareNatively}
+              onDownloadQrPoster={() => {
+                trackShareClick("qr");
+                downloadQrPosterSvg({
+                  campaign,
+                  organizationName: organization?.name ?? "Voiceup",
+                  url: personalReferralUrl,
+                  referralCode: personalReferralCode
+                });
+              }}
+              onPrintPoster={() => {
+                trackShareClick("poster");
+                window.print();
+              }}
+              onDownloadAppealPdf={async () => {
+                const { exportSignerAppealPdf } = await import("../pdfExports");
+                exportSignerAppealPdf(campaign, lastSignedSigner, resolvedAuthority);
+              }}
+            />
           )}
         </form>
       </Panel>
@@ -525,7 +522,7 @@ export function PublicCampaignPage({
   );
 }
 
-export function PublicCampaignNotFound() {
+export function PublicCampaignNotFound({ onRetry }: { onRetry?: () => void }) {
   return (
     <main className="public-only-shell">
       <section className="empty-state public-not-found">
@@ -536,6 +533,18 @@ export function PublicCampaignNotFound() {
           again. The public signing page shows only campaign content when a published campaign is
           available.
         </p>
+        <div className="button-row">
+          <button
+            className="primary-button"
+            type="button"
+            onClick={onRetry ?? (() => window.location.reload())}
+          >
+            Retry loading campaign
+          </button>
+          <a className="secondary-link-button" href="/">
+            Go to Voiceup
+          </a>
+        </div>
       </section>
     </main>
   );

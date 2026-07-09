@@ -14,6 +14,10 @@ import { Panel } from "../../ui/Panel";
 import { ReportBlock } from "../../ui/ReportBlock";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { getReferralLeaderboard } from "../../utils/referrals";
+import {
+  getCampaignGeographyMode,
+  getCampaignLocationLabels
+} from "../../utils/campaign";
 
 interface ReportsTabProps {
   activeCampaign: Campaign | undefined;
@@ -32,7 +36,6 @@ interface ReportsTabProps {
   blockTotals: Record<string, number>;
   panchayatTotals: Record<string, number>;
   onUpdateSignerStatus: (signerId: string, status: Signer["status"]) => void;
-  onCreateCampaign: () => void;
 }
 
 export function ReportsTab({
@@ -50,8 +53,7 @@ export function ReportsTab({
   districtTotals,
   blockTotals,
   panchayatTotals,
-  onUpdateSignerStatus,
-  onCreateCampaign
+  onUpdateSignerStatus
 }: ReportsTabProps) {
   const [reportExportMessage, setReportExportMessage] = useState("");
   const [reportThemeId, setReportThemeId] = useState<ReportThemeId>("government-classic");
@@ -61,11 +63,12 @@ export function ReportsTab({
       <NoCampaignPanel
         title="Reports will appear after campaign setup"
         description="Create a campaign and collect signatures before downloading PDF or CSV reports."
-        onCreateCampaign={onCreateCampaign}
       />
     );
   }
   const campaign = activeCampaign;
+  const isGlobalMode = getCampaignGeographyMode(campaign) === "global";
+  const locationLabels = getCampaignLocationLabels(campaign);
   const locationCoverage =
     Object.keys(stateTotals).length +
     Object.keys(districtTotals).length +
@@ -110,10 +113,19 @@ export function ReportsTab({
     .filter(([, count]) => count <= Math.max(1, Math.floor(campaignSigners.length * 0.05)))
     .sort((a, b) => a[1] - b[1])
     .slice(0, 5);
+  const topLocalAreas = isGlobalMode
+    ? Object.entries(panchayatTotals).sort((a, b) => b[1] - a[1]).slice(0, 5)
+    : topBlocks;
+  const weakLocalAreas = isGlobalMode
+    ? Object.entries(panchayatTotals)
+        .filter(([, count]) => count <= Math.max(1, Math.floor(campaignSigners.length * 0.05)))
+        .sort((a, b) => a[1] - b[1])
+        .slice(0, 5)
+    : weakBlocks;
   const aiInsights = [
     weakDistricts.length > 0
       ? `Prioritize ${weakDistricts[0][0]} for field collection and volunteer outreach.`
-      : "District coverage looks balanced or needs more district data.",
+      : `${locationLabels.district} coverage looks balanced or needs more location data.`,
     authorityMatch
       ? `Authority route is ready with ${authorityMatch.score}% confidence.`
       : "Add or confirm an authority before large-scale outreach.",
@@ -149,11 +161,11 @@ export function ReportsTab({
 
   return (
     <section className="page-stack">
-      <Panel title="National Command Center 2.0" icon={<RadioTower />}>
+      <Panel title="Location Governance Command Center" icon={<RadioTower />}>
         <div className="national-command-hero">
           <div>
             <span className="eyebrow">Leadership visibility</span>
-            <h2>India, state, and district campaign performance.</h2>
+            <h2>{isGlobalMode ? "Global and regional campaign performance." : "India, state, and district campaign performance."}</h2>
             <p>
               Built from existing campaigns, supporters, field collection, authority routing, and communication readiness.
             </p>
@@ -167,9 +179,13 @@ export function ReportsTab({
         <div className="analytics-command-grid">
           {[
             ["Campaigns", campaigns.length, "All workspace campaigns"],
-            ["India coverage", Object.keys(stateTotals).length, "States with supporters"],
-            ["District coverage", Object.keys(districtTotals).length, "Districts with supporters"],
-            ["Weak districts", weakDistricts.length, "Low participation districts"],
+            [
+              isGlobalMode ? "Regional coverage" : "India coverage",
+              Object.keys(stateTotals).length,
+              `${locationLabels.state}s with supporters`
+            ],
+            [`${locationLabels.district} coverage`, Object.keys(districtTotals).length, `${locationLabels.district}s with supporters`],
+            [`Weak ${locationLabels.district}s`, weakDistricts.length, `Low participation ${locationLabels.district.toLowerCase()}s`],
             ["Online collection", onlineCount, "Selected campaign online supporters"],
             ["Paper collection", paperCount, "Selected campaign scan supporters"],
             ["Manual collection", manualCount, "Selected campaign field supporters"],
@@ -184,12 +200,12 @@ export function ReportsTab({
         </div>
       </Panel>
 
-      <Panel title="State, District, and Block Progress" icon={<MapPin />}>
+      <Panel title={`${locationLabels.state}, ${locationLabels.district}, and ${isGlobalMode ? locationLabels.panchayat : locationLabels.block} Progress`} icon={<MapPin />}>
         <div className="analytics-progress-grid">
           <div className="analytics-progress-card">
-            <span className="eyebrow">Top states</span>
+            <span className="eyebrow">Top {locationLabels.state.toLowerCase()}s</span>
             <div className="ranked-list">
-              {topStates.length === 0 && <p className="helper-text">State data appears after supporters provide location.</p>}
+              {topStates.length === 0 && <p className="helper-text">{locationLabels.state} data appears after supporters provide location.</p>}
               {topStates.map(([state, count]) => (
                 <div key={state}>
                   <span>{state}</span>
@@ -202,9 +218,9 @@ export function ReportsTab({
             </div>
           </div>
           <div className="analytics-progress-card">
-            <span className="eyebrow">Top districts</span>
+            <span className="eyebrow">Top {locationLabels.district.toLowerCase()}s</span>
             <div className="ranked-list">
-              {topDistricts.length === 0 && <p className="helper-text">District progress appears after district data is available.</p>}
+              {topDistricts.length === 0 && <p className="helper-text">{locationLabels.district} progress appears after location data is available.</p>}
               {topDistricts.map(([district, count]) => (
                 <div key={district}>
                   <span>{district}</span>
@@ -217,25 +233,29 @@ export function ReportsTab({
             </div>
           </div>
           <div className="analytics-progress-card">
-            <span className="eyebrow">Top blocks</span>
+            <span className="eyebrow">Top {isGlobalMode ? locationLabels.panchayat.toLowerCase() : locationLabels.block.toLowerCase()}s</span>
             <div className="ranked-list">
-              {topBlocks.length === 0 && <p className="helper-text">Block progress appears after block data is available.</p>}
-              {topBlocks.map(([block, count]) => (
+              {topLocalAreas.length === 0 && (
+                <p className="helper-text">
+                  {isGlobalMode ? locationLabels.panchayat : locationLabels.block} progress appears after location data is available.
+                </p>
+              )}
+              {topLocalAreas.map(([block, count]) => (
                 <div key={block}>
                   <span>{block}</span>
                   <strong>{count.toLocaleString()}</strong>
                   <div className="progress">
-                    <div style={{ width: `${Math.min(100, (count / Math.max(...Object.values(blockTotals), 1)) * 100)}%` }} />
+                    <div style={{ width: `${Math.min(100, (count / Math.max(...Object.values(isGlobalMode ? panchayatTotals : blockTotals), 1)) * 100)}%` }} />
                   </div>
                 </div>
               ))}
             </div>
           </div>
           <div className="analytics-progress-card">
-            <span className="eyebrow">Weak blocks</span>
+            <span className="eyebrow">Weak {isGlobalMode ? locationLabels.panchayat.toLowerCase() : locationLabels.block.toLowerCase()}s</span>
             <div className="ranked-list weak">
-              {weakBlocks.length === 0 && <p className="helper-text">Weak block insight appears after block-level data is available.</p>}
-              {weakBlocks.map(([block, count]) => (
+              {weakLocalAreas.length === 0 && <p className="helper-text">Weak location insight appears after location-level data is available.</p>}
+              {weakLocalAreas.map(([block, count]) => (
                 <div key={block}>
                   <span>{block}</span>
                   <strong>{count.toLocaleString()}</strong>
@@ -265,7 +285,7 @@ export function ReportsTab({
           ))}
           <div className="analytics-progress-card ai-ready">
             <span className="eyebrow">AI insight cards</span>
-            <strong>Provider-ready</strong>
+            <strong>Available after setup</strong>
             {aiInsights.map((insight) => <small key={insight}>{insight}</small>)}
           </div>
         </div>
@@ -276,12 +296,18 @@ export function ReportsTab({
           {[
             ["National overview", campaignSigners.length, "Real campaign signer records"],
             ["Verified supporters", verifiedCount, "OTP verified or approved"],
-            ["Location coverage", locationCoverage, "State/district/block/panchayat buckets"],
+            [
+              "Location coverage",
+              locationCoverage,
+              isGlobalMode
+                ? "Country/state-or-region/city/locality buckets"
+                : "State/district/block/panchayat buckets"
+            ],
             ["Authority readiness", authorityReady, authorityMatch ? `${authorityMatch.score}% confidence` : "No match"],
             ["Field collection status", campaignSigners.filter((signer) => signer.source === "scan").length, "Imported scan supporters"],
             ["Communication readiness", communicationReady, "Phone or email available"],
             ["Volunteer productivity", manualCount + paperCount, "Field/manual contribution proxy"],
-            ["AI insight cards", "Provider ready", "Mock recommendations only"]
+            ["AI insight cards", "Available after setup", "Insights improve as campaign activity grows"]
           ].map(([label, value, detail]) => (
             <div className="analytics-command-card" key={String(label)}>
               <span>{label}</span>
@@ -299,7 +325,12 @@ export function ReportsTab({
           <div className="export-ready-card">
             <MapPin size={22} />
             <strong>Distribution insight</strong>
-            <p>Use the existing location reports below to compare state, district, block, and panchayat coverage.</p>
+            <p>
+              Use the existing location reports below to compare{" "}
+              {isGlobalMode
+                ? "country, state/province, city/district, and locality coverage"
+                : "state, district, block, and panchayat coverage"}.
+            </p>
           </div>
         </div>
       </Panel>
@@ -320,9 +351,9 @@ export function ReportsTab({
           </div>
         </Panel>
 
-        <Panel title="Weak District Detection" icon={<MapPin />}>
+        <Panel title={`Weak ${locationLabels.district} Detection`} icon={<MapPin />}>
           <div className="growth-trend-list weak">
-            {weakDistricts.length === 0 && <p className="helper-text">Weak district insight appears after district data is available.</p>}
+            {weakDistricts.length === 0 && <p className="helper-text">Weak location insight appears after location data is available.</p>}
             {weakDistricts.map(([district, count]) => (
               <div key={district}>
                 <span>{district}</span>
@@ -331,7 +362,7 @@ export function ReportsTab({
               </div>
             ))}
           </div>
-          <span className="eyebrow">Top districts</span>
+          <span className="eyebrow">Top {locationLabels.district.toLowerCase()}s</span>
           <div className="template-chip-row">
             {topDistricts.map(([district, count]) => <span key={district}>{district}: {count}</span>)}
           </div>
@@ -357,12 +388,12 @@ export function ReportsTab({
       <Panel title="Leadership Readiness" icon={<RadioTower />}>
         <div className="analytics-command-grid">
           {[
-            ["Authority response tracking", "Provider-ready", "Response status and follow-up dates need provider workflow"],
+            ["Authority response tracking", "Available after setup", "Response status and follow-up dates need workflow setup"],
             ["Field collection status", `${approvedScans} approved / ${pendingScans} pending`, "Existing scan review data"],
-            ["Communication readiness", communicationReady, providerConfigured ? "Provider configured" : "Provider-ready only"],
-            ["Referral growth", referredSignatures, referralLeaders[0] ? `Top referrer: ${referralLeaders[0].label}` : "Provider-ready leaderboard"],
+            ["Communication readiness", communicationReady, providerConfigured ? "Provider configured" : "Setup needed"],
+            ["Referral growth", referredSignatures, referralLeaders[0] ? `Top referrer: ${referralLeaders[0].label}` : "Leaderboard appears after referrals"],
             ["Exportable reports", "Ready", "PDF and CSV exports below use existing functions"],
-            ["AI insight cards", "Provider-ready", "No real AI API connected"],
+            ["AI insight cards", "Available after setup", "Insights improve as campaign activity grows"],
             ["Volunteer productivity", manualCount + paperCount, "Field contribution proxy from source data"]
           ].map(([label, value, detail]) => (
             <div className="analytics-command-card" key={String(label)}>
@@ -381,7 +412,7 @@ export function ReportsTab({
             <h2>Premium report package for submission, print, media, and leadership review.</h2>
             <p>
               Built only from existing campaign, supporter, authority, organization, location, field collection,
-              and provider-ready readiness data. Missing values are marked Not configured or Not available.
+              and configured readiness data. Missing values are marked Not configured or Not available.
             </p>
           </div>
           <div className="report-suite-score">
@@ -495,10 +526,10 @@ export function ReportsTab({
         <div className="report-grid">
           <ReportBlock title="Daily status" data={dailyTotals} />
           <ReportBlock title="Weekly status" data={weeklyTotals} />
-          <ReportBlock title="State-wise count" data={stateTotals} />
-          <ReportBlock title="District-wise count" data={districtTotals} />
-          <ReportBlock title="Block-wise count" data={blockTotals} />
-          <ReportBlock title="Panchayat / ward count" data={panchayatTotals} />
+          <ReportBlock title={`${locationLabels.state} count`} data={stateTotals} />
+          <ReportBlock title={`${locationLabels.district} count`} data={districtTotals} />
+          {!isGlobalMode && <ReportBlock title={`${locationLabels.block} count`} data={blockTotals} />}
+          <ReportBlock title={`${locationLabels.panchayat} count`} data={panchayatTotals} />
         </div>
       </Panel>
 
@@ -514,10 +545,11 @@ export function ReportsTab({
                   <th>Phone</th>
                   <th>Alt contacts</th>
                   <th>OTP</th>
-                  <th>State</th>
-                  <th>District</th>
-                  <th>Block</th>
-                  <th>Panchayat / Ward</th>
+                  {isGlobalMode && <th>Country</th>}
+                  <th>{locationLabels.state}</th>
+                  <th>{locationLabels.district}</th>
+                  {!isGlobalMode && <th>{locationLabels.block}</th>}
+                  <th>{locationLabels.panchayat}</th>
                   <th>Source</th>
                   <th>Status</th>
                   <th>Signed at</th>
@@ -538,9 +570,10 @@ export function ReportsTab({
                       <span>TG: {signer.telegramHandle || "-"}</span>
                     </td>
                     <td>{signer.otpVerified ? "Verified" : "Not verified"}</td>
+                    {isGlobalMode && <td>{signer.country || "Not captured"}</td>}
                     <td>{signer.state || "Not captured"}</td>
                     <td>{signer.district || "Not captured"}</td>
-                    <td>{signer.block || "Not captured"}</td>
+                    {!isGlobalMode && <td>{signer.block || "Not captured"}</td>}
                     <td>{signer.panchayat || "Not captured"}</td>
                     <td>{signer.source}</td>
                     <td>

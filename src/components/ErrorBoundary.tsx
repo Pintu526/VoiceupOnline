@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportError } from "../monitoring";
 
 interface Props {
   children: ReactNode;
@@ -19,7 +20,10 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error("[Voiceup] Unhandled render error:", error, info.componentStack);
+    reportError(error, {
+      source: "react-error-boundary",
+      componentStack: info.componentStack
+    });
   }
 
   render() {

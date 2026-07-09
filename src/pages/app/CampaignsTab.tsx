@@ -28,6 +28,8 @@ import type {
   AuditLogEntry,
   Campaign,
   CampaignCategory,
+  CampaignGeographyMode,
+  CampaignScope,
   LocationGovernanceLevel,
   Organization,
   SignerRequiredField
@@ -44,8 +46,10 @@ import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { IndiaLocationFields } from "../../components/IndiaLocationFields";
+import { GlobalLocationFields } from "../../components/GlobalLocationFields";
 import { PasswordField } from "../../ui/PasswordField";
 import { ReferralQrPreview } from "../../components/ReferralQrPreview";
+import { GrowthConfigurationStudio } from "../../growth/components/GrowthConfigurationStudio";
 import { categories } from "../../constants";
 import { createId } from "../../lib";
 import {
@@ -55,15 +59,21 @@ import {
 } from "../../utils/authority";
 import {
   getCampaignAdminUrl,
+  getCampaignGeographyMode,
   getCampaignGoalValue,
+  getCampaignLocationLabels,
   getCampaignPublicUrl,
+  getCampaignScope,
+  getCampaignScopeLabel,
   getConfiguredLocationLockLevel,
+  formatLocationForCampaign,
   getLocationGovernance,
   getLocationLevelLabel,
   getLockedLocationValues,
   getSignerLocationRestrictionLevel,
   getSaasAdminPageUrl,
   hasSaasLocks,
+  isGlobalCampaign,
   signerFieldLabel
 } from "../../utils/campaign";
 import { downloadQrPosterSvg, getCampaignReferralUrl } from "../../utils/referrals";
@@ -89,7 +99,6 @@ interface CampaignsTabProps {
   setCsvUploadMessage: React.Dispatch<React.SetStateAction<string>>;
   onSaveCampaign: (event: FormEvent) => void;
   onPublishCampaign: () => void;
-  onCreateCampaign: () => void;
   onCloneCampaign: () => void;
   onArchiveCampaign: () => void;
   onOpenAiCopilot: () => void;
@@ -113,8 +122,8 @@ const wizardSteps = [
     helper: "Shape the title, story, target, dates, and campaign admin access."
   },
   {
-    title: "Location",
-    helper: "Confirm governance limits, public signer restrictions, and local context."
+    title: "Location Governance",
+    helper: "Choose geography mode, campaign reach, signer restrictions, and local context."
   },
   {
     title: "Authorities",
@@ -127,6 +136,10 @@ const wizardSteps = [
   {
     title: "Media",
     helper: "Polish the banner, focus point, donation media, and campaign sharing assets."
+  },
+  {
+    title: "Growth Configuration",
+    helper: "Configure recognition, credits, referral sharing, rewards, and Growth Engine rules for this campaign."
   },
   {
     title: "Review",
@@ -152,6 +165,35 @@ function slugifyCampaignTitle(value: string) {
 function campaignSnapshot(campaign: Campaign | null | undefined) {
   if (!campaign) return "";
   return JSON.stringify(campaign);
+}
+
+const campaignScopeOptions: CampaignScope[] = [
+  "local",
+  "city",
+  "state_province",
+  "national",
+  "global"
+];
+
+function isCampaignLocationReady(campaign: Campaign) {
+  if (!isGlobalCampaign(campaign)) return Boolean(campaign.state && campaign.district);
+  const scope = getCampaignScope(campaign);
+  if (scope === "global") return true;
+  if (scope === "national") return Boolean(campaign.country);
+  if (scope === "state_province") return Boolean(campaign.country && campaign.state);
+  if (scope === "city") return Boolean(campaign.country && campaign.state && campaign.district);
+  return Boolean(campaign.country && campaign.state && campaign.district && campaign.panchayat);
+}
+
+function getCampaignLocationReadinessSuggestion(campaign: Campaign) {
+  if (!isGlobalCampaign(campaign)) return "Select at least state and district.";
+  const labels = getCampaignLocationLabels(campaign);
+  const scope = getCampaignScope(campaign);
+  if (scope === "global") return "Global campaigns do not require a fixed location.";
+  if (scope === "national") return `Add ${labels.country.toLowerCase()}.`;
+  if (scope === "state_province") return `Add ${labels.country.toLowerCase()} and ${labels.state.toLowerCase()}.`;
+  if (scope === "city") return `Add ${labels.country.toLowerCase()}, ${labels.state.toLowerCase()}, and ${labels.district.toLowerCase()}.`;
+  return `Add ${labels.country.toLowerCase()}, ${labels.state.toLowerCase()}, ${labels.district.toLowerCase()}, and ${labels.panchayat.toLowerCase()}.`;
 }
 
 function getCampaignQuality(
@@ -182,8 +224,8 @@ function getCampaignQuality(
     },
     {
       label: "Location",
-      ready: Boolean(campaign.state && campaign.district),
-      suggestion: "Select at least state and district."
+      ready: isCampaignLocationReady(campaign),
+      suggestion: getCampaignLocationReadinessSuggestion(campaign)
     },
     {
       label: "Goal",
@@ -230,7 +272,6 @@ export function CampaignsTab({
   setCsvUploadMessage,
   onSaveCampaign,
   onPublishCampaign,
-  onCreateCampaign,
   onCloneCampaign,
   onArchiveCampaign,
   onOpenAiCopilot,
@@ -265,12 +306,21 @@ export function CampaignsTab({
   const [secondaryAuthorityIds, setSecondaryAuthorityIds] = useState<string[]>([]);
   const [ccAuthorityIds, setCcAuthorityIds] = useState<string[]>([]);
   const [copiedCampaignLink, setCopiedCampaignLink] = useState("");
+  const canUseCampaignCreationTools = campaignFormMode === "create" && !isCampaignAdminRoute;
   const [campaignLinkMessage, setCampaignLinkMessage] = useState("");
+  const [creationMode, setCreationMode] = useState<"manual" | "template" | "ai">("manual");
   const savedSnapshot = campaignFormMode === "edit" ? campaignSnapshot(activeCampaign) : "";
   const draftSnapshot = campaignSnapshot(campaignDraft);
   const hasUnsavedChanges = Boolean(campaignDraft) && (
     campaignFormMode === "create" || draftSnapshot !== savedSnapshot
   );
+
+  useEffect(() => {
+    if (campaignFormMode === "create") {
+      setCreationMode("manual");
+      setActiveStep(0);
+    }
+  }, [campaignFormMode]);
 
   useEffect(() => {
     if (aiDraftAppliedFocusKey > 0) {
@@ -326,6 +376,7 @@ export function CampaignsTab({
     locationGovernance,
     locationGovernance.lockLevel
   );
+  const orgSetupIncomplete = !organization.name || !organization.ownerEmail;
   const governedLocationValues = getLockedLocationValues(
     locationGovernance,
     configuredGovernanceLockLevel
@@ -333,6 +384,24 @@ export function CampaignsTab({
   const effectiveCampaignDraft = campaignDraft
     ? { ...campaignDraft, ...governedLocationValues }
     : null;
+  const campaignGeographyMode = getCampaignGeographyMode(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
+  const isGlobalMode = campaignGeographyMode === "global";
+  const locationLabels = getCampaignLocationLabels(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
+  const campaignScope = getCampaignScope(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
+  const signerRestrictionOptions: [LocationGovernanceLevel, string][] = isGlobalMode
+    ? [
+        ["none", "No public location restriction"],
+        ["state", `Restrict public signing to campaign ${locationLabels.state}`],
+        ["district", `Restrict public signing to campaign ${locationLabels.district}`],
+        ["panchayat", `Restrict public signing to campaign ${locationLabels.panchayat}`]
+      ]
+    : [
+        ["none", "No public location restriction"],
+        ["state", `Restrict public signing to campaign ${locationLabels.state}`],
+        ["district", `Restrict public signing to campaign ${locationLabels.district}`],
+        ["block", `Restrict public signing to campaign ${locationLabels.block}`],
+        ["panchayat", `Restrict public signing to campaign ${locationLabels.panchayat}`]
+      ];
   const selectedAuthority = effectiveCampaignDraft
     ? formatAuthorityDisplay(getAppealAuthority(effectiveCampaignDraft, authorities))
     : "";
@@ -419,8 +488,12 @@ export function CampaignsTab({
   const recentAuthorities = recentAuthorityIds
     .map((id) => authorityDirectory.find((entry) => entry.id === id))
     .filter((entry): entry is AuthorityDirectoryEntry => Boolean(entry));
-  const authorityEscalationChain = ["Ward", "Panchayat", "Block", "District", "State", "National"];
-  const politicalHierarchy = ["Ward Member", "Sarpanch", "Councillor", "MLA", "MP", "Minister"];
+  const authorityEscalationChain = isGlobalMode
+    ? ["Local", "City", "State / Province", "National", "Global"]
+    : ["Ward", "Panchayat", "Block", "District", "State", "National"];
+  const politicalHierarchy = isGlobalMode
+    ? ["Community Lead", "City Official", "Regional Representative", "National Office", "International Partner"]
+    : ["Ward Member", "Sarpanch", "Councillor", "MLA", "MP", "Minister"];
   const departmentMapping = selectedTemplate
     ? `${selectedTemplate.suggestedCategory} -> ${
         authorityRecommendations[0]?.department ?? "Responsible department"
@@ -446,12 +519,13 @@ export function CampaignsTab({
           detail: campaignDraft.title || "Campaign name is empty"
         },
         {
-          label: "Location routing",
-          ready: Boolean(effectiveCampaignDraft?.state && effectiveCampaignDraft?.district),
+          label: "Location Governance",
+          ready: effectiveCampaignDraft ? isCampaignLocationReady(effectiveCampaignDraft) : false,
           detail:
-            [effectiveCampaignDraft?.state, effectiveCampaignDraft?.district, effectiveCampaignDraft?.block]
-              .filter(Boolean)
-              .join(", ") || "State and district are empty"
+            effectiveCampaignDraft
+              ? formatLocationForCampaign(effectiveCampaignDraft, effectiveCampaignDraft) ||
+                getCampaignLocationReadinessSuggestion(effectiveCampaignDraft)
+              : "Location Governance is empty"
         },
         {
           label: "Authority routing",
@@ -487,6 +561,9 @@ export function CampaignsTab({
   const starterReferralUrl = hasDraftSlug
     ? getCampaignReferralUrl(organization, { slug: draftSlug }, starterReferralCode)
     : "";
+  const requiredSignerFieldOptions: SignerRequiredField[] = isGlobalMode
+    ? ["name", "email", "phone", "country", "state", "district", "panchayat", "address", "postalCode"]
+    : ["name", "email", "phone", "state", "district", "block", "panchayat", "address", "postalCode"];
 
   async function copyCampaignLink(kind: string, value: string) {
     if (!value) return;
@@ -583,6 +660,41 @@ export function CampaignsTab({
     });
   }
 
+  function updateCampaignGeographyMode(mode: CampaignGeographyMode) {
+    if (!campaignDraft) return;
+    const nextCountry =
+      mode === "india_detailed"
+        ? "India"
+        : campaignDraft.country?.trim().toLowerCase() === "india"
+          ? ""
+          : campaignDraft.country ?? "";
+    setCampaignDraft({
+      ...campaignDraft,
+      geographyMode: mode,
+      country: nextCountry,
+      block: mode === "global" ? "" : campaignDraft.block,
+      campaignScope: campaignDraft.campaignScope ?? (mode === "global" ? "city" : "local"),
+      signerLocationRestrictionLevel:
+        mode === "global" && campaignDraft.signerLocationRestrictionLevel === "block"
+          ? "district"
+          : campaignDraft.signerLocationRestrictionLevel
+    });
+  }
+
+  function updateCampaignScope(scope: CampaignScope) {
+    if (!campaignDraft) return;
+    setCampaignDraft({
+      ...campaignDraft,
+      campaignScope: scope,
+      authorityTargetLevel:
+        scope === "national" || scope === "global"
+          ? "country"
+          : scope === "state_province"
+            ? "state"
+            : campaignDraft.authorityTargetLevel
+    });
+  }
+
   function toggleAuthorityList(
     entryId: string,
     setter: React.Dispatch<React.SetStateAction<string[]>>
@@ -596,7 +708,18 @@ export function CampaignsTab({
 
   return (
     <section className="page-stack">
-      <Panel title="Campaign configuration" icon={<Settings />}>
+      <Panel
+        title={campaignFormMode === "create" ? "Create new campaign" : "Campaign configuration"}
+        icon={<Settings />}
+      >
+        {orgSetupIncomplete && campaignFormMode === "create" && (
+          <div className="info-message wide">
+            <strong>Organization setup is incomplete.</strong>
+            <span>
+              You can still create a campaign draft here. Complete your workspace details later in SaaS admin.
+            </span>
+          </div>
+        )}
         {campaignDraft ? (
           <form className="campaign-wizard" onSubmit={onSaveCampaign}>
             <div className="campaign-wizard-progress" aria-label="Campaign setup progress">
@@ -621,9 +744,11 @@ export function CampaignsTab({
                   <h3>{wizardSteps[activeStep].title}</h3>
                   <p>{wizardSteps[activeStep].helper}</p>
                 </div>
-                <button className="secondary-button" type="button" onClick={onOpenAiCopilot}>
-                  <Sparkles size={18} /> Create with AI
-                </button>
+                {canUseCampaignCreationTools && (
+                  <button className="secondary-button" type="button" onClick={onOpenAiCopilot}>
+                    <Sparkles size={18} /> Create with AI
+                  </button>
+                )}
               </div>
               <div className="progress">
                 <div style={{ width: `${progress}%` }} />
@@ -646,109 +771,250 @@ export function CampaignsTab({
 
             {activeStep === 0 && (
               <div className="campaign-wizard-step template-library">
-                <div className="template-toolbar">
-                  <Field label="Search templates">
-                    <div className="input-with-icon">
-                      <Search size={18} />
-                      <input
-                        value={templateSearch}
-                        onChange={(e) => setTemplateSearch(e.target.value)}
-                        placeholder="Search by topic, authority, or tag"
-                      />
-                    </div>
-                  </Field>
-                  <Field label="Category filter">
-                    <select value={templateCategory} onChange={(e) => setTemplateCategory(e.target.value)}>
-                      {templateCategories.map((category) => (
-                        <option key={category}>{category}</option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-
-                {(favoriteTemplates.length > 0 || recentTemplates.length > 0) && (
-                  <div className="template-quick-lanes">
-                    {favoriteTemplates.length > 0 && (
-                      <div>
-                        <span className="eyebrow">Favorites</span>
-                        <div className="template-chip-row">
-                          {favoriteTemplates.map((template) => (
-                            <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
-                              {template.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {recentTemplates.length > 0 && (
-                      <div>
-                        <span className="eyebrow">Recent</span>
-                        <div className="template-chip-row">
-                          {recentTemplates.map((template) => (
-                            <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
-                              {template.name}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                {canUseCampaignCreationTools && (
+                  <div className="creation-mode-toolbar">
+                    <button
+                      className={creationMode === "manual" ? "selected" : "secondary-button"}
+                      type="button"
+                      onClick={() => setCreationMode("manual")}
+                    >
+                      Manual campaign
+                    </button>
+                    <button
+                      className={creationMode === "template" ? "selected" : "secondary-button"}
+                      type="button"
+                      onClick={() => setCreationMode("template")}
+                    >
+                      Start from template
+                    </button>
+                    <button
+                      className={creationMode === "ai" ? "selected" : "secondary-button"}
+                      type="button"
+                      onClick={() => setCreationMode("ai")}
+                    >
+                      Create with AI
+                    </button>
                   </div>
                 )}
 
-                <div className="template-grid">
-                  {templates.length === 0 &&
-                    Array.from({ length: 6 }).map((_, index) => (
-                      <div className="template-card loading-card" key={`template-loading-${index}`} aria-hidden="true">
-                        <span className="skeleton-line short" />
-                        <span className="skeleton-line" />
-                        <span className="skeleton-line" />
+                {!canUseCampaignCreationTools || creationMode === "manual" ? (
+                  <div className="manual-campaign-entry">
+                    <div className="form-grid">
+                      <Field label="Location Governance">
+                        <select
+                          value={campaignGeographyMode}
+                          onChange={(e) => updateCampaignGeographyMode(e.target.value as CampaignGeographyMode)}
+                        >
+                          <option value="global">Global mode</option>
+                          <option value="india_detailed">India detailed mode</option>
+                        </select>
+                      </Field>
+                      <Field label="Campaign reach">
+                        <select
+                          value={campaignScope}
+                          onChange={(e) => updateCampaignScope(e.target.value as CampaignScope)}
+                        >
+                          {campaignScopeOptions.map((scope) => (
+                            <option key={scope} value={scope}>
+                              {getCampaignScopeLabel(scope)}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      {isGlobalMode && (
+                        <Field label={locationLabels.country}>
+                          <input
+                            value={campaignDraft?.country ?? ""}
+                            onChange={(e) => setCampaignDraft({ ...campaignDraft!, country: e.target.value })}
+                            placeholder={locationLabels.country}
+                          />
+                        </Field>
+                      )}
+                    </div>
+                    <Field label="Campaign title">
+                      <input
+                        value={campaignDraft?.title ?? ""}
+                        onChange={(e) => setCampaignDraft({ ...campaignDraft!, title: e.target.value })}
+                        placeholder="Enter campaign title"
+                      />
+                    </Field>
+                    <Field label="Campaign slug">
+                      <input
+                        value={campaignDraft?.slug ?? ""}
+                        onChange={(e) => setCampaignDraft({ ...campaignDraft!, slug: e.target.value })}
+                        placeholder="Enter campaign slug"
+                      />
+                    </Field>
+                    <Field label="Summary">
+                      <textarea
+                        value={campaignDraft?.description ?? ""}
+                        onChange={(e) => setCampaignDraft({ ...campaignDraft!, description: e.target.value })}
+                        placeholder="Enter a short campaign summary"
+                      />
+                    </Field>
+                    <Field label="Description">
+                      <textarea
+                        value={campaignDraft?.appealContent ?? ""}
+                        onChange={(e) => setCampaignDraft({ ...campaignDraft!, appealContent: e.target.value })}
+                        placeholder="Enter campaign description and public appeal"
+                      />
+                    </Field>
+                    <div className="form-grid">
+                      <Field label={locationLabels.state}>
+                        <input
+                          value={campaignDraft?.state ?? ""}
+                          onChange={(e) => setCampaignDraft({ ...campaignDraft!, state: e.target.value })}
+                          placeholder={locationLabels.state}
+                        />
+                      </Field>
+                      <Field label={locationLabels.district}>
+                        <input
+                          value={campaignDraft?.district ?? ""}
+                          onChange={(e) => setCampaignDraft({ ...campaignDraft!, district: e.target.value })}
+                          placeholder={locationLabels.district}
+                        />
+                      </Field>
+                      {isGlobalMode && (
+                        <Field label={locationLabels.panchayat}>
+                          <input
+                            value={campaignDraft?.panchayat ?? ""}
+                            onChange={(e) => setCampaignDraft({ ...campaignDraft!, panchayat: e.target.value })}
+                            placeholder={locationLabels.panchayat}
+                          />
+                        </Field>
+                      )}
+                      <Field label="Authority">
+                        <select
+                          value={campaignDraft?.selectedAuthorityId ?? ""}
+                          onChange={(e) => setCampaignDraft({ ...campaignDraft!, selectedAuthorityId: e.target.value })}
+                        >
+                          <option value="">Select authority</option>
+                          {authorities.map((authority) => (
+                            <option key={authority.id} value={authority.id}>
+                              {authority.name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    </div>
+                  </div>
+                ) : creationMode === "template" ? (
+                  <>
+                    <div className="template-toolbar">
+                      <Field label="Search templates">
+                        <div className="input-with-icon">
+                          <Search size={18} />
+                          <input
+                            value={templateSearch}
+                            onChange={(e) => setTemplateSearch(e.target.value)}
+                            placeholder="Search by topic, authority, or tag"
+                          />
+                        </div>
+                      </Field>
+                      <Field label="Category filter">
+                        <select value={templateCategory} onChange={(e) => setTemplateCategory(e.target.value)}>
+                          {templateCategories.map((category) => (
+                            <option key={category}>{category}</option>
+                          ))}
+                        </select>
+                      </Field>
+                    </div>
+
+                    {(favoriteTemplates.length > 0 || recentTemplates.length > 0) && (
+                      <div className="template-quick-lanes">
+                        {favoriteTemplates.length > 0 && (
+                          <div>
+                            <span className="eyebrow">Favorites</span>
+                            <div className="template-chip-row">
+                              {favoriteTemplates.map((template) => (
+                                <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
+                                  {template.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {recentTemplates.length > 0 && (
+                          <div>
+                            <span className="eyebrow">Recent</span>
+                            <div className="template-chip-row">
+                              {recentTemplates.map((template) => (
+                                <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
+                                  {template.name}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  {filteredTemplates.map((template) => {
-                    const isFavorite = favoriteTemplateIds.includes(template.id);
-                    const isSelected = selectedTemplateId === template.id;
-                    return (
-                      <article className={isSelected ? "template-card selected" : "template-card"} key={template.id}>
-                        <div className="template-card-header">
-                          <span className="template-icon" aria-hidden="true">{template.icon}</span>
-                          <button
-                            className={isFavorite ? "icon-button active" : "icon-button"}
-                            type="button"
-                            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                            onClick={() =>
-                              setFavoriteTemplateIds((current) =>
-                                isFavorite
-                                  ? current.filter((id) => id !== template.id)
-                                  : [...current, template.id]
-                              )
-                            }
-                          >
-                            <Star size={17} />
-                          </button>
-                        </div>
-                        <span className="eyebrow">{template.categoryGroup}</span>
-                        <h4>{template.name}</h4>
-                        <p>{template.preview}</p>
-                        <div className="template-meta">
-                          <span>{template.suggestedTarget.toLocaleString()} supporters</span>
-                          <span>{template.suggestedDurationDays} days</span>
-                          <span>{template.suggestedCategory}</span>
-                        </div>
-                        <details>
-                          <summary>Preview details</summary>
-                          <p>{template.summary}</p>
-                          <small>{template.suggestedBannerStyle}</small>
-                        </details>
-                        <button className="primary-button" type="button" onClick={() => applyTemplate(template)}>
-                          Use template
-                        </button>
-                      </article>
-                    );
-                  })}
-                </div>
-                {templates.length === 0 && <p className="helper-text">Loading campaign templates...</p>}
-                {templates.length > 0 && filteredTemplates.length === 0 && (
-                  <p className="helper-text">No templates match this search.</p>
+                    )}
+
+                    <div className="template-grid">
+                      {templates.length === 0 &&
+                        Array.from({ length: 6 }).map((_, index) => (
+                          <div className="template-card loading-card" key={`template-loading-${index}`} aria-hidden="true">
+                            <span className="skeleton-line short" />
+                            <span className="skeleton-line" />
+                            <span className="skeleton-line" />
+                          </div>
+                        ))}
+                      {filteredTemplates.map((template) => {
+                        const isFavorite = favoriteTemplateIds.includes(template.id);
+                        const isSelected = selectedTemplateId === template.id;
+                        return (
+                          <article className={isSelected ? "template-card selected" : "template-card"} key={template.id}>
+                            <div className="template-card-header">
+                              <span className="template-icon" aria-hidden="true">{template.icon}</span>
+                              <button
+                                className={isFavorite ? "icon-button active" : "icon-button"}
+                                type="button"
+                                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                                onClick={() =>
+                                  setFavoriteTemplateIds((current) =>
+                                    isFavorite
+                                      ? current.filter((id) => id !== template.id)
+                                      : [...current, template.id]
+                                  )
+                                }
+                              >
+                                <Star size={17} />
+                              </button>
+                            </div>
+                            <span className="eyebrow">{template.categoryGroup}</span>
+                            <h4>{template.name}</h4>
+                            <p>{template.preview}</p>
+                            <div className="template-meta">
+                              <span>{template.suggestedTarget.toLocaleString()} supporters</span>
+                              <span>{template.suggestedDurationDays} days</span>
+                              <span>{template.suggestedCategory}</span>
+                            </div>
+                            <details>
+                              <summary>Preview details</summary>
+                              <p>{template.summary}</p>
+                              <small>{template.suggestedBannerStyle}</small>
+                            </details>
+                            <button className="primary-button" type="button" onClick={() => applyTemplate(template)}>
+                              Use template
+                            </button>
+                          </article>
+                        );
+                      })}
+                    </div>
+                    {templates.length === 0 && <p className="helper-text">Loading campaign templates...</p>}
+                    {templates.length > 0 && filteredTemplates.length === 0 && (
+                      <p className="helper-text">No templates match this search.</p>
+                    )}
+                  </>
+                ) : (
+                  <div className="campaign-ai-callout">
+                    <p>
+                      AI campaign creation helps you generate a polished campaign with title, description, and
+                      suggested appeal content in a few clicks.
+                    </p>
+                    <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
+                      <Sparkles size={18} /> Open AI campaign builder
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -838,7 +1104,7 @@ export function CampaignsTab({
                     <small>SaaS admin limit: {campaignDraft.maxSignersAllowed.toLocaleString()} signers</small>
                   )}
                 </Field>
-                <Field label="Location">
+                <Field label="Location display label">
                   <input
                     value={campaignDraft.location}
                     onChange={(e) => setCampaignDraft({ ...campaignDraft, location: e.target.value })}
@@ -931,7 +1197,7 @@ export function CampaignsTab({
                       <span className="eyebrow">QR & Sharing Center</span>
                       <h4>Campaign poster and referral starter link</h4>
                     </div>
-                    <span className="status-pill">Provider-ready QR</span>
+                    <span className="status-pill">QR ready</span>
                   </div>
                   <div className="qr-sharing-grid">
                     <ReferralQrPreview
@@ -986,8 +1252,7 @@ export function CampaignsTab({
                     </button>
                   </div>
                   <p className="info-message">
-                    Campaign links are live. QR rendering and poster downloads are provider-ready UI until a production QR
-                    renderer is connected.
+                    Campaign links are live. QR and poster downloads are ready for sharing.
                   </p>
                 </div>
                 <Field label="Campaign admin email">
@@ -1017,13 +1282,39 @@ export function CampaignsTab({
 
             {activeStep === 2 && effectiveCampaignDraft && (
               <div className="form-grid campaign-wizard-step">
-                {locationGovernance.lockLevel !== "none" && (
+                <div className="wide location-mode-panel">
+                  <span className="eyebrow">Location Governance</span>
+                  <div className="form-grid">
+                    <Field label="Geography mode">
+                      <select
+                        value={campaignGeographyMode}
+                        onChange={(e) => updateCampaignGeographyMode(e.target.value as CampaignGeographyMode)}
+                      >
+                        <option value="global">Global mode</option>
+                        <option value="india_detailed">India detailed mode</option>
+                      </select>
+                    </Field>
+                    <Field label="Campaign reach">
+                      <select
+                        value={campaignScope}
+                        onChange={(e) => updateCampaignScope(e.target.value as CampaignScope)}
+                      >
+                        {campaignScopeOptions.map((scope) => (
+                          <option key={scope} value={scope}>
+                            {getCampaignScopeLabel(scope)}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                </div>
+                {!isGlobalMode && locationGovernance.lockLevel !== "none" && (
                   <div className="info-message wide geography-lock-summary">
                     <strong>
-                      SaaS geography lock: {getLocationLevelLabel(locationGovernance.lockLevel)}
+                      Location Governance lock: {getLocationLevelLabel(locationGovernance.lockLevel)}
                     </strong>
                     <span>
-                      Campaign configuration is limited to{" "}
+                      India detailed campaign configuration is limited to{" "}
                       {[locationGovernance.panchayat, locationGovernance.block, locationGovernance.district, locationGovernance.state]
                         .filter(Boolean)
                         .join(", ")}
@@ -1031,33 +1322,34 @@ export function CampaignsTab({
                     </span>
                   </div>
                 )}
-                <IndiaLocationFields
-                  idPrefix="campaign-location"
-                  values={effectiveCampaignDraft}
-                  onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values })}
-                  locationOverrides={locationOverrides}
-                  locationDeletions={locationDeletions}
-                  allowedLocation={configuredGovernanceLockLevel === "none" ? undefined : governedLocationValues}
-                  lockedLevel={isCampaignAdminRoute ? configuredGovernanceLockLevel : "none"}
-                  allowInlineAdd
-                  onAddLocation={onAddAdminLocationOption}
-                  onRemoveLocation={onRemoveAdminLocationOption}
-                />
+                {isGlobalMode ? (
+                  <GlobalLocationFields
+                    idPrefix="campaign-global-location"
+                    values={effectiveCampaignDraft}
+                    onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values, block: "" })}
+                    lockedLevel="none"
+                  />
+                ) : (
+                  <IndiaLocationFields
+                    idPrefix="campaign-location"
+                    values={effectiveCampaignDraft}
+                    onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values })}
+                    locationOverrides={locationOverrides}
+                    locationDeletions={locationDeletions}
+                    allowedLocation={configuredGovernanceLockLevel === "none" ? undefined : governedLocationValues}
+                    lockedLevel={isCampaignAdminRoute ? configuredGovernanceLockLevel : "none"}
+                    allowInlineAdd
+                    onAddLocation={onAddAdminLocationOption}
+                    onRemoveLocation={onRemoveAdminLocationOption}
+                  />
+                )}
 
                 <div className="wide signer-restriction-panel">
-                  <span className="eyebrow">Public signer locality restriction</span>
+                  <span className="eyebrow">Public signer location restriction</span>
                   <p className="helper-text">
-                    Further restrict public signatures to the campaign locality for a local cause.
+                    Further restrict public signatures to the selected campaign geography for a local cause.
                   </p>
-                  {(
-                    [
-                      ["none", "No public locality restriction"],
-                      ["state", "Restrict public signing to campaign State"],
-                      ["district", "Restrict public signing to campaign District"],
-                      ["block", "Restrict public signing to campaign Block"],
-                      ["panchayat", "Restrict public signing to campaign Panchayat/Ward"]
-                    ] as [LocationGovernanceLevel, string][]
-                  ).map(([level, label]) => (
+                  {signerRestrictionOptions.map(([level, label]) => (
                     <label className="check-row" key={level}>
                       <input
                         type="radio"
@@ -1086,7 +1378,7 @@ export function CampaignsTab({
                       <span className="eyebrow">Authority Intelligence</span>
                       <h4>Recommended routing for this campaign</h4>
                       <p className="helper-text">
-                        Recommendations are generated from the selected template and campaign geography.
+                        Recommendations are generated from the selected template and Location Governance.
                         Select an uploaded authority when available, or use a recommendation as a routing hint.
                       </p>
                     </div>
@@ -1184,18 +1476,18 @@ export function CampaignsTab({
                         ))}
                       </select>
                     </Field>
-                    <Field label="State">
+                    <Field label={locationLabels.state}>
                       <input
                         value={authorityStateFilter}
                         onChange={(e) => setAuthorityStateFilter(e.target.value)}
-                        placeholder={effectiveCampaignDraft.state || "Any state"}
+                        placeholder={effectiveCampaignDraft.state || `Any ${locationLabels.state.toLowerCase()}`}
                       />
                     </Field>
-                    <Field label="District">
+                    <Field label={locationLabels.district}>
                       <input
                         value={authorityDistrictFilter}
                         onChange={(e) => setAuthorityDistrictFilter(e.target.value)}
-                        placeholder={effectiveCampaignDraft.district || "Any district"}
+                        placeholder={effectiveCampaignDraft.district || `Any ${locationLabels.district.toLowerCase()}`}
                       />
                     </Field>
                   </div>
@@ -1310,9 +1602,9 @@ export function CampaignsTab({
                       })
                     }
                   >
-                    <option value="district">District level - District Collector</option>
-                    <option value="state">State level - Chief Minister</option>
-                    <option value="country">Country level - Prime Minister of India</option>
+                    <option value="district">{locationLabels.district} level authority</option>
+                    <option value="state">{locationLabels.state} level authority</option>
+                    <option value="country">National authority</option>
                   </select>
                 </Field>
                 <Field label="Authority selection mode">
@@ -1367,7 +1659,7 @@ export function CampaignsTab({
                     <div>
                       <span className="label">Secondary Authorities</span>
                       <strong>{secondaryAuthorityIds.length}</strong>
-                      <small>Provider ready for future email, WhatsApp, SMS, IVR, PDF, and API dispatch.</small>
+                      <small>Ready to use when email, WhatsApp, SMS, IVR, PDF, and API dispatch are configured.</small>
                     </div>
                     <div>
                       <span className="label">CC Authorities</span>
@@ -1436,12 +1728,12 @@ export function CampaignsTab({
                     </button>
                   </div>
                   <span className="helper-text">
-                    Location CSV: state,district,block,panchayat,pin. Authority CSV:
+                    Location CSV: country,state,district,block,panchayat,pin/postalCode. Authority CSV:
                     level,state,district,position,name,address,email,phone.
                   </span>
                   {authorityCsvFile && (
                     <div className="csv-review-panel wide">
-                      <span className="eyebrow">Authority CSV preview - provider ready</span>
+                      <span className="eyebrow">Authority CSV preview</span>
                       <div className="campaign-review-summary">
                         <div>
                           <span className="label">File</span>
@@ -1620,19 +1912,7 @@ export function CampaignsTab({
                   <span className="helper-text">
                     Select the signer details that must be required. Unselected fields remain optional on the public form.
                   </span>
-                  {(
-                    [
-                      "name",
-                      "email",
-                      "phone",
-                      "state",
-                      "district",
-                      "block",
-                      "panchayat",
-                      "address",
-                      "postalCode"
-                    ] as Campaign["requiredFields"]
-                  ).map((field) => (
+                  {requiredSignerFieldOptions.map((field) => (
                     <label key={field} className="check-row">
                       <input
                         type="checkbox"
@@ -1649,7 +1929,7 @@ export function CampaignsTab({
                           });
                         }}
                       />
-                      {signerFieldLabel(field)}
+                      {signerFieldLabel(field, campaignDraft)}
                     </label>
                   ))}
                 </div>
@@ -1831,7 +2111,13 @@ export function CampaignsTab({
               </div>
             )}
 
-            {activeStep === 6 && (
+            {activeStep === 6 && campaignDraft && (
+              <div className="campaign-wizard-step">
+                <GrowthConfigurationStudio campaign={campaignDraft} onChange={setCampaignDraft} />
+              </div>
+            )}
+
+            {activeStep === 7 && (
               <div className="form-grid campaign-wizard-step">
                 <div className="wide campaign-review-panel">
                   <div>
@@ -1891,7 +2177,11 @@ export function CampaignsTab({
                       <div className="hierarchy-chain">
                         {authorityEscalationChain.map((level) => <span key={level}>{level}</span>)}
                       </div>
-                      <small>Government hierarchy: Ward {"->"} Panchayat {"->"} Block {"->"} District {"->"} State {"->"} National</small>
+                      <small>
+                        {isGlobalMode
+                          ? "Governance path: Local -> City -> State/Province -> National -> Global"
+                          : "Government hierarchy: Ward -> Panchayat -> Block -> District -> State -> National"}
+                      </small>
                     </div>
                     <div className="authority-2-card">
                       <span className="eyebrow">Political hierarchy</span>
@@ -1913,7 +2203,7 @@ export function CampaignsTab({
                     <div className="authority-2-card">
                       <span className="eyebrow">CSV validation preview</span>
                       <strong>{authorityCsvFile ? authorityCsvFile.name : "No CSV selected"}</strong>
-                      <small>{csvUploadMessage || "Upload preview is UI/provider-ready; existing upload handler remains unchanged."}</small>
+                      <small>{csvUploadMessage || "Upload preview is available; existing upload handling remains unchanged."}</small>
                     </div>
                     <div className="authority-2-card">
                       <span className="eyebrow">Duplicate detection</span>
@@ -2070,7 +2360,7 @@ export function CampaignsTab({
               </div>
             )}
 
-            {activeStep === 7 && (
+            {activeStep === 8 && (
               <div className="form-grid campaign-wizard-step">
                 <div className="wide publish-preview">
                   <div>
@@ -2112,27 +2402,17 @@ export function CampaignsTab({
               <button className="primary-button" type="submit">
                 <Save size={18} /> {campaignFormMode === "create" ? "Create new campaign" : "Update campaign"}
               </button>
-              <button className="secondary-button" type="button" onClick={onPublishCampaign}>
-                <Rocket size={18} /> Publish current campaign
-              </button>
-              <button className="secondary-button" type="button" onClick={onCloneCampaign}>
-                <GitBranch size={18} /> Clone campaign
-              </button>
-              <button
-                className="danger-button"
-                type="button"
-                disabled={campaignFormMode === "create"}
-                onClick={confirmArchiveCampaign}
-              >
-                <Archive size={18} /> Archive campaign
-              </button>
+              {campaignFormMode === "create" && (
+                <button className="secondary-button" type="button" onClick={onPublishCampaign}>
+                  <Rocket size={18} /> Publish current campaign
+                </button>
+              )}
             </div>
           </form>
         ) : (
           <NoCampaignPanel
-            title="Create the first Indian campaign"
-            description="This workspace is clean and has no sample data. Start by creating a real campaign for an NGO, RWA, association, union, or campaign agency."
-            onCreateCampaign={onCreateCampaign}
+            title="Create the first campaign"
+            description="This workspace is clean and has no sample data. Start by creating a real campaign for an NGO, community group, association, union, or campaign agency."
           />
         )}
       </Panel>

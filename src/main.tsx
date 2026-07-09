@@ -2,7 +2,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
+import { initMonitoring } from "./monitoring";
 import "./styles.css";
+
+initMonitoring();
 
 const rootElement = document.getElementById("root");
 

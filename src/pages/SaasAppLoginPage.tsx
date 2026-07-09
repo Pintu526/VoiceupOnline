@@ -2,9 +2,9 @@ import type { FormEvent } from "react";
 import { Building2, CheckCircle2, LockKeyhole, Megaphone, ShieldCheck } from "lucide-react";
 import { PasswordField } from "../ui/PasswordField";
 import { blankAppLogin } from "../constants";
-import { areAppAdminCredentialsConfigured } from "../utils/auth";
 
 interface SaasAppLoginPageProps {
+  mode?: "platform" | "workspace";
   appLogin: typeof blankAppLogin;
   setAppLogin: React.Dispatch<React.SetStateAction<typeof blankAppLogin>>;
   message: string;
@@ -12,12 +12,13 @@ interface SaasAppLoginPageProps {
 }
 
 export function SaasAppLoginPage({
+  mode = "platform",
   appLogin,
   setAppLogin,
   message,
   onSubmit
 }: SaasAppLoginPageProps) {
-  const adminCredentialsConfigured = areAppAdminCredentialsConfigured();
+  const isWorkspaceMode = mode === "workspace";
 
   return (
     <main className="login-shell">
@@ -28,17 +29,24 @@ export function SaasAppLoginPage({
               <Megaphone size={24} />
             </div>
             <div>
-              <strong>Voiceup Bharat</strong>
+              <strong>Voiceup Global</strong>
               <span>Enterprise campaign operations</span>
             </div>
           </div>
 
           <div className="login-copy">
-            <span className="eyebrow">Protected SaaS workspace</span>
-            <h1 id="saas-login-title">Manage organizations with enterprise-grade control.</h1>
+            <span className="eyebrow">
+              {isWorkspaceMode ? "Protected customer workspace" : "Protected platform administration"}
+            </span>
+            <h1 id="saas-login-title">
+              {isWorkspaceMode
+                ? "Restore your campaign workspace after mobile verification."
+                : "Manage organizations with enterprise-grade control."}
+            </h1>
             <p>
-              Access subscription controls, integrations, campaign operations, and production
-              workspace settings from a focused admin console.
+              {isWorkspaceMode
+                ? "Customer workspace access is created by the public onboarding OTP flow. Platform credentials can also access this workspace for support."
+                : "Access subscription controls, integrations, campaign operations, and production workspace settings from a focused admin console."}
             </p>
           </div>
 
@@ -56,7 +64,7 @@ export function SaasAppLoginPage({
             <div>
               <CheckCircle2 size={18} />
               <span>Operations</span>
-              <strong>Demo-ready</strong>
+              <strong>Production-ready</strong>
             </div>
           </div>
         </div>
@@ -67,10 +75,18 @@ export function SaasAppLoginPage({
               <LockKeyhole size={20} />
             </span>
             <div>
-              <span className="eyebrow">SaaS admin access</span>
-              <h2>Sign in to workspace</h2>
+              <span className="eyebrow">
+                {isWorkspaceMode ? "Customer workspace access" : "SaaS admin access"}
+              </span>
+              <h2>{isWorkspaceMode ? "Verify or use support credentials" : "Sign in to workspace"}</h2>
             </div>
           </div>
+
+          {isWorkspaceMode && (
+            <a className="primary-link-button" href="/start">
+              Verify mobile and restore workspace
+            </a>
+          )}
 
           <form className="form-stack login-form" onSubmit={onSubmit}>
             <label className="field" htmlFor="saas-admin-email">
@@ -97,26 +113,23 @@ export function SaasAppLoginPage({
               />
             </label>
           <div className="login-role-note">
-            <strong>Login role: SaaS / Platform Admin</strong>
+            <strong>
+              Login role: {isWorkspaceMode ? "Customer Workspace or Platform Support" : "SaaS / Platform Admin"}
+            </strong>
             <span>
-              Use this only for platform owner tasks such as subscriptions, packages, global
-              campaign controls, and integrations.
+              {isWorkspaceMode
+                ? "Visitors create customer workspace access from /start. Platform credentials are reserved for support and production operations."
+                : "Use this only for platform owner tasks such as subscriptions, packages, global campaign controls, and integrations."}
             </span>
           </div>
-          {!adminCredentialsConfigured && (
-            <p className="error-message">
-              SaaS admin login is disabled until VITE_VOICEUP_APP_ADMIN_EMAIL and
-              VITE_VOICEUP_APP_ADMIN_PASSCODE are configured.
-            </p>
-          )}
           <button className="primary-button" type="submit">
-            Login to SaaS admin
+            {isWorkspaceMode ? "Login with platform support credentials" : "Login to SaaS admin"}
           </button>
           {message && <p className="info-message">{message}</p>}
           <p className="helper-text">
-            Configure production credentials with Vercel environment variables
-            VITE_VOICEUP_APP_ADMIN_EMAIL and VITE_VOICEUP_APP_ADMIN_PASSCODE. For real production,
-            replace this with Supabase Auth.
+            {isWorkspaceMode
+              ? "Customer sessions are restored through mobile OTP. Platform support access requires an authenticated server-side role."
+              : "Platform administration requires Supabase Auth plus a server-side platform_owner role."}
           </p>
           </form>
         </div>

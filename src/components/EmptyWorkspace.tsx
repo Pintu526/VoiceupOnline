@@ -5,12 +5,16 @@ interface EmptyWorkspaceProps {
   organization: Organization;
   onCreateCampaign: () => void;
   onOpenSubscription: () => void;
+  createCampaignBlockReason?: string;
+  onUpgradePlan: () => void;
 }
 
 export function EmptyWorkspace({
   organization,
   onCreateCampaign,
-  onOpenSubscription
+  onOpenSubscription,
+  createCampaignBlockReason = "",
+  onUpgradePlan
 }: EmptyWorkspaceProps) {
   return (
     <div className="empty-state">
@@ -44,16 +48,22 @@ export function EmptyWorkspace({
           <Plus size={18} />
           <strong>3. Create campaign</strong>
           <span>
-            Start from AI, a template, or a blank campaign draft. Save only after review.
+            Create and publish your campaign in 60 seconds, then edit details when needed.
           </span>
         </div>
       </div>
       <div className="button-row">
-        <button className="primary-button" type="button" onClick={onCreateCampaign}>
-          <Plus size={18} /> Create first campaign
-        </button>
+        {createCampaignBlockReason ? (
+          <button className="primary-button" type="button" onClick={onUpgradePlan}>
+            <WalletCards size={18} /> Upgrade Plan
+          </button>
+        ) : (
+          <button className="primary-button" type="button" onClick={onCreateCampaign}>
+            <Plus size={18} /> Create campaign
+          </button>
+        )}
         <button className="secondary-button" type="button" onClick={onOpenSubscription}>
-          <WalletCards size={18} /> Configure subscription
+          <WalletCards size={18} /> View upgrade options
         </button>
       </div>
     </div>

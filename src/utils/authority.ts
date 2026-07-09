@@ -3,6 +3,7 @@ import type {
   AuthorityTargetLevel,
   Campaign
 } from "../types";
+import { getCampaignGeographyMode, getCampaignLocationLabels } from "./campaign";
 
 export function getAppealAuthority(
   campaign: Campaign,
@@ -17,22 +18,25 @@ export function getAppealAuthority(
   if (matchingUploadedAuthority) return matchingUploadedAuthority;
 
   const level = campaign.authorityTargetLevel ?? "district";
+  const isIndiaDetailed = getCampaignGeographyMode(campaign) === "india_detailed";
+  const locationLabels = getCampaignLocationLabels(campaign);
 
   if (level === "country") {
+    const country = campaign.country?.trim() || (isIndiaDetailed ? "India" : "selected country");
     return {
-      id: "authority-prime-minister-india",
-      name: "Prime Minister of India",
-      department: "Government of India",
-      position: "Prime Minister",
+      id: isIndiaDetailed ? "authority-prime-minister-india" : `authority-national-${country.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      name: isIndiaDetailed ? "Prime Minister of India" : `National authority for ${country}`,
+      department: isIndiaDetailed ? "Government of India" : "National Government",
+      position: isIndiaDetailed ? "Prime Minister" : "National Authority",
       level: "country",
       state: "",
       district: "",
-      address: "Prime Minister's Office, South Block, New Delhi",
+      address: isIndiaDetailed ? "Prime Minister's Office, South Block, New Delhi" : "National authority office",
       phone: "",
       category: "Any",
-      locationKeyword: "india",
+      locationKeyword: country,
       postalPrefix: "",
-      email: "pmopg@gov.in",
+      email: isIndiaDetailed ? "pmopg@gov.in" : "Configure national authority contact",
       submissionMethod: "Portal",
       confidence: 100
     };
@@ -40,12 +44,16 @@ export function getAppealAuthority(
 
   if (level === "state") {
     return {
-      id: `authority-chief-minister-${campaign.state || "state"}`,
-      name: campaign.state
-        ? `Chief Minister of ${campaign.state}`
-        : "Chief Minister of the selected state",
-      department: "State Government",
-      position: "Chief Minister",
+      id: `authority-region-${campaign.state || "state"}`,
+      name: isIndiaDetailed
+        ? campaign.state
+          ? `Chief Minister of ${campaign.state}`
+          : "Chief Minister of the selected state"
+        : campaign.state
+          ? `${locationLabels.state} authority for ${campaign.state}`
+          : `${locationLabels.state} authority`,
+      department: isIndiaDetailed ? "State Government" : "Regional Government",
+      position: isIndiaDetailed ? "Chief Minister" : "Regional Authority",
       level: "state",
       state: campaign.state,
       district: "",
@@ -61,21 +69,25 @@ export function getAppealAuthority(
   }
 
   return {
-    id: `authority-district-collector-${campaign.district || "district"}`,
-    name: campaign.district
-      ? `District Collector, ${campaign.district}`
-      : "District Collector of the selected district",
-    department: "District Administration",
-    position: "District Collector",
+    id: `authority-location-${campaign.district || "district"}`,
+    name: isIndiaDetailed
+      ? campaign.district
+        ? `District Collector, ${campaign.district}`
+        : "District Collector of the selected district"
+      : campaign.district
+        ? `${locationLabels.district} authority for ${campaign.district}`
+        : `${locationLabels.district} authority`,
+    department: isIndiaDetailed ? "District Administration" : "Local Administration",
+    position: isIndiaDetailed ? "District Collector" : "Local Authority",
     level: "district",
     state: campaign.state,
     district: campaign.district,
-    address: "District Collector Office",
+    address: isIndiaDetailed ? "District Collector Office" : "Local authority office",
     phone: "",
     category: "Any",
     locationKeyword: campaign.district,
     postalPrefix: campaign.postalCode.slice(0, 3),
-    email: "Configure official district collector contact",
+    email: isIndiaDetailed ? "Configure official district collector contact" : "Configure local authority contact",
     submissionMethod: "Email",
     confidence: 100
   };

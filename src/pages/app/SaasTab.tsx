@@ -19,11 +19,13 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type {
+  BillingCadence,
   BillingPlan,
   CommercialPackage,
   IntegrationSettings,
   LocationGovernanceLevel,
-  Organization
+  Organization,
+  PrepaidWalletMode
 } from "../../types";
 import type { Campaign, ScanReviewItem, Signer } from "../../types";
 import type { LocationDeletions, LocationOverrides, LocationWithPin } from "../../geography";
@@ -35,6 +37,9 @@ import { UsageCard } from "../../ui/UsageCard";
 import { PlanCard } from "../../ui/PlanCard";
 import { SectionTabs } from "../../ui/SectionTabs";
 import {
+  calculateSubscriptionEstimate,
+  createProviderReadySignaturePin,
+  formatInr,
   formatPlanLimit,
   getActiveCampaignCount,
   getEffectiveMessageLimit,
@@ -42,9 +47,13 @@ import {
   getEffectiveSignatureLimit,
   getMonthlyScanCount,
   getMonthlySignerCount,
+  getSignatureWalletCapacity,
   getSubscriptionBlockReason,
   getSubscriptionPlan,
-  getSubscriptionStatusDetail
+  getSubscriptionStatusDetail,
+  getTrialCountdownLabel,
+  isFeatureIncludedInPlan,
+  pricingFeatureCatalog
 } from "../../utils/subscription";
 import { getLocationGovernance, getLocationLevelLabel } from "../../utils/campaign";
 
@@ -78,7 +87,7 @@ const saasTabs = [
   { id: "usage", label: "Usage & subscription" },
   { id: "packages", label: "Recharge packages" },
   { id: "integrations", label: "Integrations" },
-  { id: "plans", label: "Plans" }
+  { id: "plans", label: "Pricing" }
 ];
 
 type ProviderStatus = "Not configured" | "Test mode" | "Ready" | "Error";
@@ -91,7 +100,34 @@ const messagingProviderCards = [
   { name: "SMS", icon: MessageSquare, detail: "Transactional alerts, campaign updates, and consent-aware supporter nudges." },
   { name: "WhatsApp Business", icon: PhoneCall, detail: "Template messages, supporter updates, and volunteer coordination when provider is connected." },
   { name: "Email", icon: Mail, detail: "Petition updates, press notes, receipts, and supporter newsletters." },
-  { name: "IVR", icon: PhoneCall, detail: "Voice call campaigns and verification flows. Provider-ready only." }
+  { name: "IVR", icon: PhoneCall, detail: "Voice call campaigns and verification flows. Available after setup." }
+];
+
+const paymentProviderCards = [
+  { name: "Razorpay", detail: "India payment gateway readiness for cards, UPI, netbanking, and wallets." },
+  { name: "Stripe", detail: "Global cards, subscriptions, invoice references, and hosted checkout readiness." },
+  { name: "PayU", detail: "India checkout readiness for UPI, cards, netbanking, and wallet methods." },
+  { name: "UPI", detail: "Manual or provider-backed UPI collection references for prepaid wallet top-ups." },
+  { name: "Cards", detail: "Credit and debit card checkout method placeholder." },
+  { name: "NetBanking", detail: "Bank redirect method placeholder for supported payment providers." },
+  { name: "Wallets", detail: "Digital wallet method placeholder and prepaid signature balance reference." }
+];
+
+const billingCadenceOptions: Array<{ value: BillingCadence; label: string }> = [
+  { value: "monthly", label: "Monthly" },
+  { value: "quarterly", label: "Quarterly" },
+  { value: "yearly", label: "Yearly" },
+  { value: "campaign_duration", label: "Campaign duration based" },
+  { value: "supporter_count", label: "Supporter count based" },
+  { value: "feature_based", label: "Feature based" },
+  { value: "enterprise_quote", label: "Custom enterprise quote" }
+];
+
+const prepaidWalletModes: Array<{ value: PrepaidWalletMode; label: string }> = [
+  { value: "online_payment", label: "Online payment" },
+  { value: "cash", label: "Cash collection" },
+  { value: "donation", label: "Donation credit" },
+  { value: "manual", label: "Manual admin credit" }
 ];
 
 export function SaasTab({
@@ -126,6 +162,14 @@ export function SaasTab({
     panchayat: locationGovernance.panchayat,
     postalCode: ""
   };
+  const currentPlan = getSubscriptionPlan(organization.plan);
+  const pricingEstimate = calculateSubscriptionEstimate(organization);
+  const enabledFeatureKeys = new Set(organization.enabledFeatureKeys ?? []);
+  const walletCapacity = getSignatureWalletCapacity(organization);
+  const activeMonthlySigners = getMonthlySignerCount(signers);
+  const invoiceReference =
+    organization.paymentReference ||
+    `${organization.id.toUpperCase()}-${new Date().toISOString().slice(0, 7)}`;
 
   function updateLocationGovernance(values: LocationWithPin) {
     setOrganization({
@@ -149,7 +193,24 @@ export function SaasTab({
   }
 
   function testProviderConnection(providerName: string) {
-    setProviderTestMessage(`${providerName} test connection is provider-ready. No external request was sent.`);
+    setProviderTestMessage(`${providerName} connection check is ready to configure. No external request was sent.`);
+  }
+
+  function updateFeatureAddOn(featureKey: string, enabled: boolean) {
+    const next = new Set(organization.enabledFeatureKeys ?? []);
+    if (enabled) next.add(featureKey);
+    else next.delete(featureKey);
+    setOrganization({
+      ...organization,
+      enabledFeatureKeys: Array.from(next)
+    });
+  }
+
+  function generateSignatureWalletPin() {
+    setOrganization({
+      ...organization,
+      lastSignaturePin: createProviderReadySignaturePin(organization.signaturePinPrefix ?? "VUP")
+    });
   }
 
   return (
@@ -192,11 +253,11 @@ export function SaasTab({
             </Field>
             <Field label="Subscription plan">
               <select
-                value={organization.plan}
+                value={currentPlan.name}
                 onChange={(e) => onSelectSubscriptionPlan(e.target.value as BillingPlan)}
               >
                 {subscriptionPlans.map((plan) => (
-                  <option key={plan.name}>{plan.name}</option>
+                  <option key={plan.name} value={plan.name}>{plan.name}</option>
                 ))}
               </select>
             </Field>
@@ -307,7 +368,7 @@ export function SaasTab({
       )}
 
       {saasSection === "organization" && (
-        <Panel title="Geography governance" icon={<MapPin />}>
+        <Panel title="Location Governance" icon={<MapPin />}>
           <div className="form-grid">
             <IndiaLocationFields
               idPrefix="saas-location-governance"
@@ -337,7 +398,7 @@ export function SaasTab({
               </select>
             </Field>
             <div className="info-message wide geography-governance-summary">
-              <strong>Campaign geography lock: {getLocationLevelLabel(locationGovernance.lockLevel)}</strong>
+              <strong>Location Governance lock: {getLocationLevelLabel(locationGovernance.lockLevel)}</strong>
               <span>
                 Campaign admins can only configure campaigns inside the selected geography when
                 a lock level is active.
@@ -360,12 +421,12 @@ export function SaasTab({
               <ImageIcon size={22} />
               <span className="eyebrow">Branding settings</span>
               <strong>{organization.customBranding ? "Custom branding enabled" : "Default Voiceup branding"}</strong>
-              <p>Logo/banner preview and asset library are provider-ready UI foundations.</p>
+              <p>Logo/banner preview and asset library are ready to configure.</p>
             </div>
             <div className="workspace-card">
               <UsersRound size={22} />
               <span className="eyebrow">Roles and permissions</span>
-              <strong>Provider-ready</strong>
+              <strong>Available after setup</strong>
               <p>Platform owner, organization admin, campaign admin, reviewer, and viewer roles.</p>
             </div>
             <div className="workspace-card">
@@ -435,7 +496,7 @@ export function SaasTab({
               <div className="workspace-banner-preview">
                 <span>{organization.customBranding ? "Custom branding enabled" : "Voiceup default banner"}</span>
               </div>
-              <p>Logo upload, banner asset library, and brand color controls are provider-ready.</p>
+              <p>Logo upload, banner asset library, and brand color controls are ready to configure.</p>
             </article>
             <article className="workspace-management-card">
               <UsersRound size={22} />
@@ -451,7 +512,7 @@ export function SaasTab({
             <article className="workspace-management-card">
               <ShieldCheck size={22} />
               <span className="eyebrow">Roles and permissions</span>
-              <strong>Provider-ready matrix</strong>
+              <strong>Setup matrix</strong>
               <p>Platform owner, organization admin, campaign admin, reviewer, viewer, and field volunteer roles.</p>
               <div className="workspace-chip-row">
                 <span>Create</span>
@@ -495,7 +556,7 @@ export function SaasTab({
             <div className="workspace-card">
               <Download size={22} />
               <span className="eyebrow">Workspace export</span>
-              <strong>Provider-ready</strong>
+              <strong>Available after setup</strong>
               <p>
                 Backup package UI for campaigns, supporters, scans, authorities, and audit logs. No export job is
                 started from this card.
@@ -523,7 +584,7 @@ export function SaasTab({
               <span className="eyebrow">Privacy settings</span>
               <strong>UI foundation</strong>
               <p>
-                Retention rules, data subject requests, and consent audit exports are marked provider-ready until
+                Retention rules, data subject requests, and consent audit exports are available after
                 backend workflows exist.
               </p>
             </div>
@@ -538,7 +599,7 @@ export function SaasTab({
               <div className={ready ? "ready" : ""} key={String(label)}>
                 <ShieldCheck size={18} />
                 <span>{label}</span>
-                <strong>{ready ? "Ready" : "Provider-ready"}</strong>
+                <strong>{ready ? "Ready" : "Available after setup"}</strong>
               </div>
             ))}
           </div>
@@ -555,7 +616,7 @@ export function SaasTab({
             />
             <UsageCard
               label="Active campaigns"
-              value={`${getActiveCampaignCount(campaigns)} / ${formatPlanLimit(getSubscriptionPlan(organization.plan).campaignLimit)}`}
+              value={`${getActiveCampaignCount(campaigns)} / ${formatPlanLimit(currentPlan.campaignLimit)}`}
               detail="Published or paused campaigns counted against plan limit"
             />
             <UsageCard
@@ -573,6 +634,33 @@ export function SaasTab({
               value={`${0} / ${getEffectiveMessageLimit(organization).toLocaleString()}`}
               detail={`Base ${(organization.monthlyMessageLimit ?? 0).toLocaleString()} + extra ${(organization.bonusMessageCredits ?? 0).toLocaleString()}`}
             />
+          </div>
+          <div className="subscription-status-grid">
+            <div className="subscription-status-card">
+              <ShieldCheck size={22} />
+              <span className="eyebrow">Current plan</span>
+              <strong>{currentPlan.name}</strong>
+              <p>{currentPlan.description ?? "Plan details are ready for billing configuration."}</p>
+              <small>{organization.subscriptionStatus === "Trial" ? getTrialCountdownLabel(organization) : getSubscriptionStatusDetail(organization)}</small>
+            </div>
+            <div className="subscription-status-card">
+              <WalletCards size={22} />
+              <span className="eyebrow">Prepaid signature wallet</span>
+              <strong>{walletCapacity.toLocaleString()} sign capacity</strong>
+              <p>
+                {organization.prepaidWalletEnabled
+                  ? `${formatInr(organization.signatureWalletBalanceInr ?? 0)} balance at ${formatInr(organization.signaturePriceInr ?? currentPlan.pricePerSignatureInr ?? 1)} per sign.`
+                  : "Wallet pricing is disabled until an admin enables it."}
+              </p>
+              <small>No signer charge is processed from this UI.</small>
+            </div>
+            <div className="subscription-status-card">
+              <CreditCard size={22} />
+              <span className="eyebrow">Invoice placeholder</span>
+              <strong>{invoiceReference}</strong>
+              <p>{pricingEstimate.label}</p>
+              <small>Draft invoice only. Provider checkout is not active.</small>
+            </div>
           </div>
           <div className="form-grid">
             <Field label="Extra signature credits">
@@ -710,6 +798,87 @@ export function SaasTab({
             Use these for manual UPI/bank payment operations now. After payment is received, click
             Grant package credits. Later this can connect to Razorpay webhooks automatically.
           </p>
+          <div className="wallet-config-panel">
+            <div>
+              <span className="eyebrow">Prepaid signature wallet</span>
+              <h3>Configurable price per one sign</h3>
+              <p>
+                Configure a prepaid balance and unique PIN reference for online payment, cash, or donation credit.
+                This is accounting setup UI only.
+              </p>
+            </div>
+            <div className="form-grid">
+              <label className="check-row wide">
+                <input
+                  type="checkbox"
+                  checked={organization.prepaidWalletEnabled ?? false}
+                  onChange={(e) =>
+                    setOrganization({ ...organization, prepaidWalletEnabled: e.target.checked })
+                  }
+                />
+                Enable prepaid signature wallet for this organization
+              </label>
+              <Field label="Collection mode">
+                <select
+                  value={organization.prepaidWalletMode ?? "online_payment"}
+                  onChange={(e) =>
+                    setOrganization({
+                      ...organization,
+                      prepaidWalletMode: e.target.value as PrepaidWalletMode
+                    })
+                  }
+                >
+                  {prepaidWalletModes.map((mode) => (
+                    <option key={mode.value} value={mode.value}>{mode.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Price per one sign">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={organization.signaturePriceInr ?? currentPlan.pricePerSignatureInr ?? 1}
+                  onChange={(e) =>
+                    setOrganization({ ...organization, signaturePriceInr: Number(e.target.value) })
+                  }
+                />
+              </Field>
+              <Field label="Wallet balance">
+                <input
+                  type="number"
+                  min="0"
+                  value={organization.signatureWalletBalanceInr ?? 0}
+                  onChange={(e) =>
+                    setOrganization({ ...organization, signatureWalletBalanceInr: Number(e.target.value) })
+                  }
+                />
+              </Field>
+              <Field label="PIN prefix">
+                <input
+                  value={organization.signaturePinPrefix ?? "VUP"}
+                  onChange={(e) =>
+                    setOrganization({ ...organization, signaturePinPrefix: e.target.value })
+                  }
+                />
+              </Field>
+            </div>
+            <div className="wallet-summary-grid">
+              <div>
+                <span className="eyebrow">Estimated signs</span>
+                <strong>{walletCapacity.toLocaleString()}</strong>
+                <small>Balance divided by configured per-sign price.</small>
+              </div>
+              <div>
+                <span className="eyebrow">Last generated PIN</span>
+                <strong>{organization.lastSignaturePin ?? "Not generated"}</strong>
+                <small>Use after verified online payment, cash receipt, or donation credit.</small>
+              </div>
+              <button className="secondary-button" type="button" onClick={generateSignatureWalletPin}>
+                Generate PIN reference
+              </button>
+            </div>
+          </div>
         </Panel>
       )}
 
@@ -737,7 +906,7 @@ export function SaasTab({
               <Bot size={22} />
               <div>
                 <h4>AI provider settings</h4>
-                <p>Provider-ready architecture for future OpenAI, Gemini, Claude, Azure OpenAI, OpenRouter, and local LLM use.</p>
+                <p>AI settings are ready for future OpenAI, Gemini, Claude, Azure OpenAI, OpenRouter, and local LLM use.</p>
               </div>
             </div>
             <div className="provider-card-grid">
@@ -799,13 +968,49 @@ export function SaasTab({
             </div>
           </div>
 
+          <div className="provider-readiness-section">
+            <div className="provider-section-heading">
+              <CreditCard size={22} />
+              <div>
+                <h4>Payment setup cards</h4>
+                <p>Prepare checkout methods for subscriptions, invoices, donations, and prepaid signature wallet top-ups.</p>
+              </div>
+            </div>
+            <div className="provider-card-grid">
+              {paymentProviderCards.map((provider) => (
+                <div className="provider-readiness-card" key={provider.name}>
+                  <CreditCard size={22} />
+                  <span className="eyebrow">{provider.name}</span>
+                  <strong>{getProviderStatus(provider.name)}</strong>
+                  <label>
+                    Provider status
+                    <select
+                      value={getProviderStatus(provider.name)}
+                      onChange={(e) => updateProviderStatus(provider.name, e.target.value as ProviderStatus)}
+                    >
+                      {providerStatuses.map((status) => <option key={status}>{status}</option>)}
+                    </select>
+                  </label>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => testProviderConnection(provider.name)}
+                  >
+                    <FlaskConical size={16} /> Test connection
+                  </button>
+                  <small>{provider.detail} No real payment request is sent.</small>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="provider-card-grid">
             {[
               {
                 name: "Payment and donation",
                 icon: CreditCard,
                 status: integrations.razorpayKeyId ? "Test mode" : "Not configured",
-                detail: "Razorpay and donation provider setup remains provider-ready unless existing payment logic is connected."
+                detail: "Razorpay and donation provider setup remains configuration-only unless existing payment logic is connected."
               },
               {
                 name: "File storage",
@@ -1001,24 +1206,181 @@ export function SaasTab({
       )}
 
       {saasSection === "plans" && (
-        <div className="plan-grid">
-          {subscriptionPlans.map((plan) => (
-            <PlanCard
-              key={plan.name}
-              title={plan.name}
-              price={plan.price}
-              features={[
-                `${plan.campaignLimit} campaign${plan.campaignLimit === 1 ? "" : "s"}`,
-                `${plan.monthlySignatureLimit.toLocaleString()} signatures/month`,
-                `${plan.monthlyScanLimit.toLocaleString()} scans/month`,
-                ...plan.features
-              ]}
-              highlighted={organization.plan === plan.name}
-              actionLabel={organization.plan === plan.name ? "Selected" : `Select ${plan.name}`}
-              onSelect={() => onSelectSubscriptionPlan(plan.name)}
-            />
-          ))}
-        </div>
+        <>
+          <Panel title="Dynamic price calculator" icon={<CreditCard />}>
+            <div className="pricing-calculator-grid">
+              <div className="pricing-controls">
+                <div className="form-grid">
+                  <Field label="Plan">
+                    <select
+                      value={currentPlan.name}
+                      onChange={(e) => onSelectSubscriptionPlan(e.target.value as BillingPlan)}
+                    >
+                      {subscriptionPlans.map((plan) => (
+                        <option key={plan.name} value={plan.name}>{plan.name}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Pricing model">
+                    <select
+                      value={organization.billingCadence ?? "monthly"}
+                      onChange={(e) =>
+                        setOrganization({
+                          ...organization,
+                          billingCadence: e.target.value as BillingCadence
+                        })
+                      }
+                    >
+                      {billingCadenceOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Campaign duration days">
+                    <input
+                      type="number"
+                      min="1"
+                      value={organization.campaignDurationDays ?? 30}
+                      onChange={(e) =>
+                        setOrganization({ ...organization, campaignDurationDays: Number(e.target.value) })
+                      }
+                    />
+                  </Field>
+                  <Field label="Supporter estimate">
+                    <input
+                      type="number"
+                      min="0"
+                      value={organization.supporterCountEstimate ?? currentPlan.monthlySignatureLimit}
+                      onChange={(e) =>
+                        setOrganization({ ...organization, supporterCountEstimate: Number(e.target.value) })
+                      }
+                    />
+                  </Field>
+                </div>
+                <div className="pricing-feature-grid">
+                  {pricingFeatureCatalog.map((feature) => {
+                    const included = isFeatureIncludedInPlan(currentPlan.name, feature.key);
+                    return (
+                      <label className={included ? "pricing-feature-toggle included" : "pricing-feature-toggle"} key={feature.key}>
+                        <input
+                          type="checkbox"
+                          checked={included || enabledFeatureKeys.has(feature.key)}
+                          disabled={included}
+                          onChange={(e) => updateFeatureAddOn(feature.key, e.target.checked)}
+                        />
+                        <span>
+                          <strong>{feature.label}</strong>
+                          <small>
+                            {included
+                              ? `Included in ${currentPlan.name}`
+                              : `${formatInr(feature.addOnPriceInr)} add-on or upgrade to ${feature.includedFrom}`}
+                          </small>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="pricing-estimate-card">
+                <span className="eyebrow">Estimated quote</span>
+                <strong>{pricingEstimate.label}</strong>
+                <p>{pricingEstimate.cadenceLabel} pricing for {currentPlan.name}</p>
+                <ul>
+                  {pricingEstimate.lineItems.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+                <div className="button-row">
+                  <button className="primary-button" type="button" onClick={onActivateSubscriptionManually}>
+                    Mark subscription ready
+                  </button>
+                  <button className="secondary-button" type="button" onClick={() => testProviderConnection("Checkout")}>
+                    Configure checkout
+                  </button>
+                </div>
+                <small>No checkout, charge, webhook, or payment provider request is executed here.</small>
+              </div>
+            </div>
+          </Panel>
+
+          <div className="plan-grid pricing-plan-grid">
+            {subscriptionPlans.map((plan) => (
+              <PlanCard
+                key={plan.name}
+                title={plan.name}
+                price={plan.price}
+                features={[
+                  `${formatPlanLimit(plan.campaignLimit)} campaign${plan.campaignLimit === 1 ? "" : "s"}`,
+                  `${formatPlanLimit(plan.supporterLimit)} supporter limit`,
+                  `${plan.monthlySignatureLimit.toLocaleString()} signatures/month`,
+                  `${plan.monthlyMessageLimit.toLocaleString()} messages/month`,
+                  plan.voiceupBranding ? "Voiceup branding" : "Custom branding available",
+                  plan.providerReadyIntegrations ? "Integrations available" : "Upgrade for integrations",
+                  ...plan.features
+                ]}
+                highlighted={currentPlan.name === plan.name}
+                actionLabel={currentPlan.name === plan.name ? "Selected" : `Select ${plan.name}`}
+                onSelect={() => onSelectSubscriptionPlan(plan.name)}
+              />
+            ))}
+          </div>
+
+          <Panel title="Plan comparison table" icon={<DatabaseBackup />}>
+            <div className="pricing-table-wrap">
+              <table className="pricing-comparison-table">
+                <thead>
+                  <tr>
+                    <th>Plan</th>
+                    <th>Monthly</th>
+                    <th>Quarterly</th>
+                    <th>Yearly</th>
+                    <th>Campaigns</th>
+                    <th>Supporters</th>
+                    <th>Setup status</th>
+                    <th>Best for</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subscriptionPlans.map((plan) => (
+                    <tr key={plan.name}>
+                      <td><strong>{plan.name}</strong></td>
+                      <td>{plan.monthlyPriceInr === null ? "Quote" : formatInr(plan.monthlyPriceInr)}</td>
+                      <td>{plan.quarterlyPriceInr === null ? "Quote" : formatInr(plan.quarterlyPriceInr ?? plan.monthlyPriceInr ?? 0)}</td>
+                      <td>{plan.yearlyPriceInr === null ? "Quote" : formatInr(plan.yearlyPriceInr ?? plan.monthlyPriceInr ?? 0)}</td>
+                      <td>{formatPlanLimit(plan.campaignLimit)}</td>
+                      <td>{formatPlanLimit(plan.supporterLimit)}</td>
+                      <td>{plan.providerReadyIntegrations ? "Enabled" : "Disabled"}</td>
+                      <td>{plan.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+
+          <Panel title="Feature gates and upgrade prompts" icon={<LockKeyhole />}>
+            <div className="feature-gate-grid">
+              {pricingFeatureCatalog.map((feature) => {
+                const included = isFeatureIncludedInPlan(currentPlan.name, feature.key);
+                return (
+                  <article className={included ? "feature-gate-card unlocked" : "feature-gate-card"} key={feature.key}>
+                    <div>
+                      {included ? <ShieldCheck size={20} /> : <LockKeyhole size={20} />}
+                      <span className="eyebrow">{included ? "Included" : "Upgrade prompt"}</span>
+                    </div>
+                    <strong>{feature.label}</strong>
+                    <p>{feature.description}</p>
+                    <small>
+                      {included
+                        ? `Available on ${currentPlan.name}`
+                        : `Upgrade to ${feature.includedFrom} or add for ${formatInr(feature.addOnPriceInr)}.`}
+                    </small>
+                  </article>
+                );
+              })}
+            </div>
+          </Panel>
+        </>
       )}
     </section>
   );

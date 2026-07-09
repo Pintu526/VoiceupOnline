@@ -6,6 +6,7 @@ export type Tab =
   | "campaigns"
   | "public"
   | "movement"
+  | "growth"
   | "scans"
   | "reports"
   | "engagement"

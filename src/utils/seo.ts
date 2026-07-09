@@ -10,15 +10,15 @@ export function updateSeoMetadata(
 
   const title =
     isPublicCampaignRoute && campaign
-      ? `${campaign.title} | Voiceup Bharat`
-      : "Voiceup Bharat";
+      ? `${campaign.title} | Voiceup Global`
+      : "Voiceup Global";
 
   const description =
     isPublicCampaignRoute && campaign
       ? campaign.description || campaign.appealContent
       : legalPage
-        ? `${legalPage} | Voiceup Bharat`
-        : "Voiceup Bharat helps Indian organizations create public campaigns, collect support, and engage participants.";
+        ? `${legalPage} | Voiceup Global`
+        : "Voiceup Global helps organizations create public campaigns, collect support, reach authorities, and engage participants.";
 
   document.title = title;
   setMetaTag("description", description ?? "");

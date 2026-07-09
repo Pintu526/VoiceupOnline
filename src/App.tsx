@@ -1,25 +1,31 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import * as Toast from "@radix-ui/react-toast";
-import { LandingPage } from "./components/LandingPage";
 import {
   initialAuthorities,
   initialCampaigns,
   initialCommercialPackages,
   initialIntegrationSettings,
   initialOrganization,
-  initialSigners,
-  subscriptionPlans
+  initialSigners
 } from "./data";
 import {
+  clearCustomerSessionToken,
+  createTrialWorkspace,
+  getAuthContext,
   isBackendConfigured,
   isSupabaseAuthAvailable,
   isSupabaseStorageAvailable,
+  loadPublicCampaign,
   loadRemoteState,
+  requestOtp,
   saveRemoteState,
   signInWithSupabase,
   signOutSupabase,
-  uploadFileToStorage
+  submitPublicSignatureSecure,
+  uploadFileToStorage,
+  verifyOtp as verifyServerOtp
 } from "./backend";
+import type { PublicCampaignPayload } from "./backend";
 import {
   createId,
   createScanReviewItem,
@@ -68,9 +74,11 @@ import {
   getCampaignAdminSlug,
   getIsAppRoute,
   getIsLandingPageRoute,
+  getIsStartRoute,
   getIsSaasAdminRoute,
   getLegalPage,
-  getPublicCampaignSlug
+  getPublicCampaignSlug,
+  getSupporterPortalCode
 } from "./utils/routing";
 import { updateSeoMetadata } from "./utils/seo";
 import {
@@ -78,12 +86,7 @@ import {
   getCampaignAdminEmail,
   getCampaignAdminPasscode,
   getCurrentActorEmail,
-  areAppAdminCredentialsConfigured,
-  getAppAdminEmail,
-  getAppAdminPasscode,
-  readAppAuth,
   readAuthenticatedAdminSlugs,
-  writeAppAuth,
   writeAuthenticatedAdminSlugs
 } from "./utils/auth";
 import { fileToDataUrl } from "./utils/files";
@@ -105,7 +108,8 @@ import {
   getPublishCampaignBlockReason,
   getSigningBlockReason,
   getSubscriptionBlockReason,
-  getSubscriptionPlan
+  getSubscriptionPlan,
+  isFeatureIncludedInPlan
 } from "./utils/subscription";
 import {
   applyLocationGovernanceToCampaign,
@@ -126,9 +130,31 @@ import {
   getSupporterReferralCode,
   normalizeReferralCode
 } from "./utils/referrals";
+import { GROWTH_FEATURE_FLAGS } from "./growth/constants";
+import {
+  appendGrowthLifecycleEventIntent,
+  applyGrowthLifecycleEvent,
+  createEmptyGrowthRuntimeState,
+  getSupporterGrowthPortal,
+  getSupporterGrowthSnapshot,
+  type GrowthRuntimeState,
+  type GrowthShareContext
+} from "./growth/lifecycle";
+import { GrowthEventPriority, GrowthEventType } from "./growth/events";
+import {
+  resolveSupporterGrowthPortal,
+  SupporterGrowthPortalLoading,
+  SupporterGrowthPortalNotFound,
+  SupporterGrowthPortalPage
+} from "./growth/supporter";
+import { applyRewardRuntimeAction, type RewardRuntimeAction } from "./growth/rewards/rewardRuntimeService";
 
 // Pages
 import { MarketingHomePage } from "./pages/MarketingHomePage";
+import type {
+  OnboardingCompletionPayload,
+  OnboardingCompletionResult
+} from "./pages/OnboardingWizard";
 import { LegalPage } from "./pages/LegalPage";
 import { SaasAppLoginPage } from "./pages/SaasAppLoginPage";
 import {
@@ -146,13 +172,87 @@ import { AppShell } from "./layouts/AppShell";
 
 // ─── Route detection (computed once, outside component) ──────────────────────
 const publicCampaignSlug = getPublicCampaignSlug();
+const supporterPortalCode = getSupporterPortalCode();
 const adminCampaignSlug = getCampaignAdminSlug();
 const isAppRoute = getIsAppRoute();
 const isSaasAdminRoute = getIsSaasAdminRoute();
 const legalPage = getLegalPage();
 const isLandingPageRoute = getIsLandingPageRoute();
+const isStartRoute = getIsStartRoute();
 const isPublicCampaignRoute = Boolean(publicCampaignSlug);
+const isSupporterPortalRoute = Boolean(supporterPortalCode);
 const isCampaignAdminRoute = Boolean(adminCampaignSlug);
+
+function slugifyOnboardingValue(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64);
+}
+
+function createUniqueOnboardingSlug(payload: OnboardingCompletionPayload, campaigns: Campaign[]): string {
+  const base =
+    slugifyOnboardingValue(payload.campaignName) ||
+    slugifyOnboardingValue(payload.campaignGoal) ||
+    "voice-campaign";
+  const existingSlugs = new Set(campaigns.map((campaign) => campaign.slug));
+  let slug = base;
+  let suffix = 2;
+  while (existingSlugs.has(slug)) {
+    slug = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return slug;
+}
+
+function toTitleCase(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function buildOnboardingTitle(payload: OnboardingCompletionPayload): string {
+  const name = payload.campaignName.trim();
+  return name ? toTitleCase(name) : "New Voiceup Campaign";
+}
+
+function inferOnboardingGoal(goalText: string): number {
+  const numberMatch = goalText.replace(/,/g, "").match(/\d{2,}/);
+  if (!numberMatch) return 100;
+  const parsed = Number(numberMatch[0]);
+  if (!Number.isFinite(parsed)) return 100;
+  return Math.min(Math.max(parsed, 25), 1000000);
+}
+
+function inferOnboardingCategory(text: string): Campaign["category"] {
+  const normalized = text.toLowerCase();
+  if (/cow|forest|tree|river|water|pollution|climate|animal|environment/.test(normalized)) return "Environment";
+  if (/school|student|college|education|teacher/.test(normalized)) return "Education";
+  if (/blood|health|hospital|doctor|medicine|clinic/.test(normalized)) return "Health";
+  if (/road|bus|train|traffic|transport|metro/.test(normalized)) return "Transport";
+  if (/house|housing|rent|slum|apartment/.test(normalized)) return "Housing";
+  return "Civic";
+}
+
+function buildOnboardingDescription(payload: OnboardingCompletionPayload): string {
+  const goal = payload.campaignGoal.trim();
+  const business = payload.businessName.trim();
+  const country = payload.country.trim();
+  return `${business} is launching a public campaign in ${country} to ${goal.charAt(0).toLowerCase()}${goal.slice(1)} Add your voice and help build visible support.`;
+}
+
+function buildOnboardingAppeal(payload: OnboardingCompletionPayload, campaignTitle: string): string {
+  return `I support "${campaignTitle}" and request the relevant authority, community leaders, and stakeholders to take timely action. ${payload.campaignGoal.trim()}`;
+}
+
+function addDaysIso(days: number): string {
+  return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+}
 
 function App() {
   // ─── Persistent state ────────────────────────────────────────────────────
@@ -180,6 +280,10 @@ function App() {
     `${storagePrefix}-audit-logs`,
     []
   );
+  const [growthRuntime, setGrowthRuntime] = usePersistentState<GrowthRuntimeState>(
+    `${storagePrefix}-growth-runtime`,
+    createEmptyGrowthRuntimeState()
+  );
   const [integrations, setIntegrations] = usePersistentState<IntegrationSettings>(
     `${storagePrefix}-integrations`,
     initialIntegrationSettings
@@ -199,8 +303,8 @@ function App() {
 
   // ─── UI state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "command" | "campaigns" | "public" | "movement" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
-  >(isSaasAdminRoute ? "saas" : "dashboard");
+    "dashboard" | "command" | "campaigns" | "public" | "movement" | "growth" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
+  >("dashboard");
   const [theme, setTheme] = usePersistentState<"light" | "dark">(`${storagePrefix}-theme`, "light");
   const [commandOpen, setCommandOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
@@ -210,10 +314,11 @@ function App() {
   const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">("edit");
   const [publicForm, setPublicForm] = useState(blankSigner);
   const [publicMessage, setPublicMessage] = useState("");
-  const [otpCode, setOtpCode] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const [otpMessage, setOtpMessage] = useState("");
   const [lastSignedSigner, setLastSignedSigner] = useState<Signer | null>(null);
+  const [publicCampaignPayload, setPublicCampaignPayload] = useState<PublicCampaignPayload | null>(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(isStartRoute);
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [copiedMessage, setCopiedMessage] = useState("");
   const [locationCsvFile, setLocationCsvFile] = useState<File | null>(null);
@@ -233,7 +338,9 @@ function App() {
   const [adminLoginMessage, setAdminLoginMessage] = useState("");
   const [appLogin, setAppLogin] = useState(blankAppLogin);
   const [appLoginMessage, setAppLoginMessage] = useState("");
-  const [isAppAuthenticated, setIsAppAuthenticated] = useState(() => readAppAuth());
+  const [authContextLoading, setAuthContextLoading] = useState(isBackendConfigured);
+  const [isPlatformAdminAuthenticated, setIsPlatformAdminAuthenticated] = useState(false);
+  const [isCustomerWorkspaceAuthenticated, setIsCustomerWorkspaceAuthenticated] = useState(false);
   const [saasSection, setSaasSection] = useState<
     "organization" | "usage" | "packages" | "integrations" | "plans"
   >("organization");
@@ -242,22 +349,78 @@ function App() {
   >(() => readAuthenticatedAdminSlugs());
 
   // ─── Derived / memoised ──────────────────────────────────────────────────
-  const activeCampaign = useMemo(
-    () =>
-      publicCampaignSlug
-        ? campaigns.find((c) => c.slug === publicCampaignSlug)
-        : adminCampaignSlug
-          ? campaigns.find((c) => c.slug === adminCampaignSlug)
-          : campaigns.find((c) => c.id === activeCampaignId) ?? campaigns[0],
-    [activeCampaignId, campaigns]
-  );
+  const activeCampaign = useMemo(() => {
+    if (publicCampaignSlug) {
+      return publicCampaignPayload?.campaign.slug === publicCampaignSlug
+        ? publicCampaignPayload.campaign
+        : campaigns.find((c) => c.slug === publicCampaignSlug);
+    }
+    if (adminCampaignSlug) {
+      return campaigns.find((c) => c.slug === adminCampaignSlug);
+    }
+    if (campaignFormMode === "create" && campaignDraft) {
+      return campaignDraft;
+    }
+    return campaigns.find((c) => c.id === activeCampaignId) ?? campaigns[0];
+  }, [activeCampaignId, campaignDraft, campaignFormMode, campaigns, publicCampaignPayload]);
   const campaignSigners = useMemo(
-    () => (activeCampaign ? getCampaignSigners(activeCampaign.id, signers) : []),
-    [activeCampaign, signers]
+    () => {
+      if (!activeCampaign) return [];
+      if (isPublicCampaignRoute) {
+        return lastSignedSigner?.campaignId === activeCampaign.id ? [lastSignedSigner] : [];
+      }
+      return getCampaignSigners(activeCampaign.id, signers);
+    },
+    [activeCampaign, lastSignedSigner, signers]
+  );
+  const lastSignedGrowthSnapshot = useMemo(
+    () =>
+      lastSignedSigner
+        ? getSupporterGrowthSnapshot(growthRuntime, lastSignedSigner.campaignId, lastSignedSigner.id)
+        : undefined,
+    [growthRuntime, lastSignedSigner]
+  );
+  const lastSignedGrowthPortal = useMemo(
+    () => (lastSignedSigner ? getSupporterGrowthPortal(growthRuntime, lastSignedSigner.id) : undefined),
+    [growthRuntime, lastSignedSigner]
+  );
+  const supporterPortalResult = useMemo(
+    () =>
+      supporterPortalCode
+        ? resolveSupporterGrowthPortal({
+            supporterCode: supporterPortalCode,
+            campaigns,
+            signers,
+            organization,
+            runtime: growthRuntime,
+            baseUrl: typeof window === "undefined" ? "https://voiceup.live" : window.location.origin
+          })
+        : undefined,
+    [campaigns, growthRuntime, organization, signers, supporterPortalCode]
+  );
+
+  function handleSupporterRewardAction(action: RewardRuntimeAction) {
+    setGrowthRuntime((current) => {
+      const campaign = campaigns.find((item) => item.id === action.campaignId);
+      if (!campaign) return current;
+      return applyRewardRuntimeAction({ runtime: current, campaign, action }).runtime;
+    });
+  }
+  const canAccessPlatformAdmin = isPlatformAdminAuthenticated;
+  const canAccessCustomerWorkspace = isCustomerWorkspaceAuthenticated || isPlatformAdminAuthenticated;
+  const campaignCreationBlockReason = getCreateCampaignBlockReason(
+    organization,
+    campaigns,
+    isBackendConfigured
   );
   const metrics = useMemo(
-    () => (activeCampaign ? getCampaignMetrics(activeCampaign, signers) : emptyMetrics),
-    [activeCampaign, signers]
+    () =>
+      isPublicCampaignRoute && publicCampaignPayload?.metrics
+        ? publicCampaignPayload.metrics
+        : activeCampaign
+          ? getCampaignMetrics(activeCampaign, signers)
+          : emptyMetrics,
+    [activeCampaign, publicCampaignPayload, signers]
   );
   const authorityMatch = useMemo(
     () =>
@@ -286,20 +449,64 @@ function App() {
   );
 
   const commandItems = useMemo(() => {
+    const enabledFeatureKeys = new Set(organization.enabledFeatureKeys ?? []);
+    const hasFeature = (featureKey: string) =>
+      canAccessPlatformAdmin ||
+      isFeatureIncludedInPlan(organization.plan, featureKey) ||
+      enabledFeatureKeys.has(featureKey);
+    const canUseGrowthEngine =
+      hasFeature(GROWTH_FEATURE_FLAGS.growthEngine) ||
+      enabledFeatureKeys.has(GROWTH_FEATURE_FLAGS.legacyMovementCrm);
+    const hasReports = hasFeature("basic_reports") || hasFeature("advanced_reports");
     const campaignAdminItems = [
       { label: "Dashboard", detail: "Open campaign overview", action: () => setActiveTab("dashboard") },
       { label: "Campaign admin", detail: "Edit campaign settings", action: () => setActiveTab("campaigns") },
-      { label: "Public signing", detail: "Preview signup page", action: () => setActiveTab("public") },
-      { label: "Movement CRM", detail: "Open supporter and volunteer graph", action: () => setActiveTab("movement") },
-      { label: "Reports", detail: "Open analytics and exports", action: () => setActiveTab("reports") },
-      { label: "Engagement", detail: "Message participants", action: () => setActiveTab("engagement") },
-      { label: "Activity", detail: "Review admin activity", action: () => setActiveTab("activity") }
+      ...(hasFeature("public_signing")
+        ? [{ label: "Public signing", detail: "Preview signup page", action: () => setActiveTab("public" as const) }]
+        : []),
+      ...(hasReports
+        ? [{ label: "Reports", detail: "Open analytics and exports", action: () => setActiveTab("reports" as const) }]
+        : []),
+      ...(hasFeature("command_center")
+        ? [{ label: "Command Center", detail: "Open movement operations", action: () => setActiveTab("command" as const) }]
+        : []),
+      ...(hasFeature("movement_crm")
+        ? [{ label: "Movement CRM", detail: "Open supporter and volunteer graph", action: () => setActiveTab("movement" as const) }]
+        : []),
+      ...(canUseGrowthEngine
+        ? [{ label: "Growth Engine", detail: "Open campaign growth dashboard", action: () => setActiveTab("growth" as const) }]
+        : []),
+      ...(hasFeature("field_collection")
+        ? [{ label: "Field Collection", detail: "Open scan and field collection", action: () => setActiveTab("scans" as const) }]
+        : []),
+      ...(hasFeature("communication_hub")
+        ? [{ label: "Engagement", detail: "Message participants", action: () => setActiveTab("engagement" as const) }]
+        : []),
+      ...(hasFeature("roles")
+        ? [{ label: "Activity", detail: "Review admin activity", action: () => setActiveTab("activity" as const) }]
+        : [])
     ];
     if (isCampaignAdminRoute) return campaignAdminItems;
     return [
       ...campaignAdminItems,
-      { label: "SaaS admin", detail: "Subscription and integrations", action: () => setActiveTab("saas") },
-      { label: "Create campaign", detail: "Start a new campaign", action: createCampaign },
+      ...(canAccessPlatformAdmin
+        ? [{ label: "SaaS admin", detail: "Subscription and integrations", action: () => setActiveTab("saas" as const) }]
+        : []),
+      ...(campaignCreationBlockReason
+        ? [
+            {
+              label: "Upgrade Plan",
+              detail: campaignCreationBlockReason,
+              action: () => {
+                if (canAccessPlatformAdmin) {
+                  setActiveTab("saas");
+                } else {
+                  setBackendMessage(campaignCreationBlockReason);
+                }
+              }
+            }
+          ]
+        : [{ label: "Create campaign", detail: "Start a new campaign", action: createCampaign }]),
       ...campaigns.map((campaign) => ({
         label: campaign.title,
         detail: `Open ${campaign.status} campaign`,
@@ -310,7 +517,14 @@ function App() {
         }
       }))
     ];
-  }, [campaigns, isCampaignAdminRoute]);
+  }, [
+    campaignCreationBlockReason,
+    campaigns,
+    canAccessPlatformAdmin,
+    isCampaignAdminRoute,
+    organization.enabledFeatureKeys,
+    organization.plan
+  ]);
 
   const filteredCommandItems = commandItems.filter((item) =>
     `${item.label} ${item.detail}`.toLowerCase().includes(globalSearch.toLowerCase())
@@ -333,6 +547,34 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!isBackendConfigured) {
+      setAuthContextLoading(false);
+      return;
+    }
+    let isCancelled = false;
+
+    async function validateSession() {
+      try {
+        const context = await getAuthContext();
+        if (isCancelled) return;
+        setIsPlatformAdminAuthenticated(Boolean(context.platformAdmin));
+        setIsCustomerWorkspaceAuthenticated(Boolean(context.workspaceMember || context.customerWorkspace));
+      } catch {
+        if (isCancelled) return;
+        setIsPlatformAdminAuthenticated(false);
+        setIsCustomerWorkspaceAuthenticated(false);
+      } finally {
+        if (!isCancelled) setAuthContextLoading(false);
+      }
+    }
+
+    void validateSession();
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     updateSeoMetadata(activeCampaign, legalPage, isPublicCampaignRoute);
   }, [activeCampaign]);
 
@@ -348,6 +590,26 @@ function App() {
 
     async function loadSharedState() {
       try {
+        if (isPublicCampaignRoute && publicCampaignSlug) {
+          const publicCampaign = await loadPublicCampaign(publicCampaignSlug);
+          if (isCancelled) return;
+          setPublicCampaignPayload(publicCampaign);
+          if (publicCampaign) {
+            setCampaigns([publicCampaign.campaign]);
+            setSigners([]);
+            setAuthorities(publicCampaign.authorities ?? []);
+            if (publicCampaign.organization) setOrganization(publicCampaign.organization);
+            setActiveCampaignId(publicCampaign.campaign.id);
+            setCampaignFormMode("edit");
+            setBackendMessage("Published campaign loaded.");
+          } else {
+            setCampaigns([]);
+            setSigners([]);
+            setBackendMessage("Campaign link was not found or is not published.");
+          }
+          return;
+        }
+
         const remoteState = await loadRemoteState();
         if (isCancelled) return;
 
@@ -408,7 +670,7 @@ function App() {
   ]);
 
   useEffect(() => {
-    if (!isBackendConfigured || !remoteStateLoaded) return;
+    if (!isBackendConfigured || !remoteStateLoaded || isPublicCampaignRoute) return;
     const timeoutId = window.setTimeout(() => {
       const state = createRemoteState({
         campaigns, signers, authorities, organization, scanItems,
@@ -456,6 +718,271 @@ function App() {
   }, [adminCampaignSlug, campaigns]);
 
   // ─── Business logic handlers ──────────────────────────────────────────────
+  async function completeOnboardingCampaign(
+    payload: OnboardingCompletionPayload
+  ): Promise<OnboardingCompletionResult> {
+    if (isBackendConfigured) {
+      const response = await createTrialWorkspace(payload);
+      setOrganization(response.state.organization);
+      setCampaigns(response.state.campaigns ?? []);
+      setSigners(response.state.signers ?? []);
+      setAuthorities(response.state.authorities ?? initialAuthorities);
+      setScanItems(response.state.scanItems ?? []);
+      setLocationOverrides(response.state.locationOverrides ?? {});
+      setLocationDeletions(response.state.locationDeletions ?? emptyLocationDeletions);
+      setAuditLogs(response.state.auditLogs ?? []);
+      setIntegrations(response.state.integrations ?? initialIntegrationSettings);
+      setCommercialPackages(response.state.commercialPackages ?? initialCommercialPackages);
+      setCampaignDraft(response.result.campaign);
+      setCampaignFormMode("edit");
+      setActiveCampaignId(response.result.campaign.id);
+      setIsCustomerWorkspaceAuthenticated(true);
+      setBackendMessage(
+        response.result.restored
+          ? `Restored trial workspace for ${response.result.campaign.title}.`
+          : `Created trial campaign "${response.result.campaign.title}" in secure workspace.`
+      );
+      return response.result;
+    }
+
+    const restoredCampaign = payload.returningSession
+      ? campaigns.find(
+          (campaign) =>
+            campaign.id === payload.returningSession?.campaignId ||
+            campaign.slug === payload.returningSession?.slug
+        )
+      : undefined;
+
+    if (restoredCampaign && payload.returningSession) {
+      const returningSession = payload.returningSession;
+      const restoredOrganization = organization.trialEndsAt
+        ? organization
+        : { ...organization, trialEndsAt: getTomorrowDate(), subscriptionStatus: "Trial" as const };
+      const restoredWithUrls = {
+        ...restoredCampaign,
+        shareUrl: getCampaignPublicUrl(restoredOrganization, restoredCampaign),
+        adminUrl: getCampaignAdminUrl(restoredOrganization, restoredCampaign)
+      };
+      setOrganization(restoredOrganization);
+      setCampaigns((current) =>
+        current.map((campaign) =>
+          campaign.id === restoredWithUrls.id ? restoredWithUrls : campaign
+        )
+      );
+      setCampaignDraft(restoredWithUrls);
+      setCampaignFormMode("edit");
+      setActiveCampaignId(restoredWithUrls.id);
+      setIsCustomerWorkspaceAuthenticated(true);
+      setBackendMessage(`Restored trial workspace for ${restoredWithUrls.title}.`);
+      const restoreLog: AuditLogEntry = {
+        id: createId("audit"),
+        action: "auth.login",
+        actor: payload.email || payload.mobileNumber,
+        campaignId: restoredWithUrls.id,
+        description: `Restored passwordless trial workspace for "${restoredWithUrls.title}"`,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          userId: returningSession.userId,
+          tenantId: returningSession.tenantId,
+          workspaceId: returningSession.workspaceId,
+          source: payload.tracking.utmSource || "direct",
+          deviceId: payload.tracking.deviceId
+        }
+      };
+      setAuditLogs((current) => [restoreLog, ...current].slice(0, 500));
+
+      return {
+        campaign: restoredWithUrls,
+        organization: restoredOrganization,
+        userId: returningSession.userId,
+        tenantId: returningSession.tenantId,
+        workspaceId: returningSession.workspaceId,
+        shareUrl: restoredWithUrls.shareUrl,
+        shortUrl: restoredWithUrls.shareUrl,
+        qrValue: restoredWithUrls.shareUrl,
+        trialEndsAt: restoredOrganization.trialEndsAt,
+        restored: true
+      };
+    }
+
+    const blockReason = getCreateCampaignBlockReason(organization, campaigns, isBackendConfigured);
+    if (blockReason) {
+      throw new Error(blockReason);
+    }
+
+    const trialPlan = getSubscriptionPlan("Free Trial");
+    const campaignTitle = buildOnboardingTitle(payload);
+    const slug = createUniqueOnboardingSlug(payload, campaigns);
+    const campaignId = createId("cmp");
+    const userId = createId("guest");
+    const tenantId = createId("tenant");
+    const workspaceId = createId("workspace");
+    const goal = inferOnboardingGoal(payload.campaignGoal);
+    const campaignLimit =
+      trialPlan.supporterLimit === "Unlimited" ? goal : Math.min(goal, trialPlan.supporterLimit);
+    const nextOrganization: Organization = {
+      ...organization,
+      id: tenantId,
+      name: payload.businessName.trim(),
+      plan: trialPlan.name,
+      subscriptionStatus: "Trial",
+      trialEndsAt: getTomorrowDate(),
+      monthlySignatureLimit: trialPlan.monthlySignatureLimit,
+      monthlyScanLimit: trialPlan.monthlyScanLimit,
+      monthlyMessageLimit: trialPlan.monthlyMessageLimit,
+      bonusSignatureCredits: 0,
+      bonusScanCredits: 0,
+      bonusMessageCredits: 0,
+      customBranding: false,
+      ownerEmail: payload.email.trim(),
+      billingEmail: payload.email.trim(),
+      seats: 1,
+      paymentReference: "",
+      billingCadence: "monthly",
+      campaignDurationDays: 30,
+      supporterCountEstimate: campaignLimit,
+      enabledFeatureKeys: trialPlan.featureKeys,
+      prepaidWalletEnabled: false,
+      prepaidWalletMode: "online_payment",
+      signaturePriceInr: trialPlan.pricePerSignatureInr ?? 0,
+      signatureWalletBalanceInr: 0,
+      signaturePinPrefix: "VUP"
+    };
+
+    const campaignShell: Campaign = {
+      id: campaignId,
+      title: campaignTitle,
+      slug,
+      category: inferOnboardingCategory(`${payload.campaignName} ${payload.campaignGoal}`),
+      description: buildOnboardingDescription(payload),
+      appealContent: buildOnboardingAppeal(payload, campaignTitle),
+      authorityTargetLevel: "country",
+      authoritySelectionMode: "admin_enforced",
+      selectedAuthorityId: "",
+      geographyMode: "global",
+      campaignScope: payload.country === "Other" ? "global" : "national",
+      country: payload.country,
+      donationEnabled: false,
+      donationLockedBySaas: false,
+      donationCaption: "Support this campaign with a voluntary contribution.",
+      donationUpiId: "",
+      donationQrImage: "",
+      donationPaymentDetails: "",
+      donationAllowOneTime: true,
+      donationAllowRecurring: false,
+      state: "",
+      district: "",
+      block: "",
+      panchayat: "",
+      location: payload.country,
+      postalCode: "",
+      startDate: new Date().toISOString().slice(0, 10),
+      endDate: addDaysIso(30),
+      goal,
+      status: "Published",
+      consentText: "I consent to this organization storing my details and using them only for this campaign.",
+      requiredFields: ["name", "phone"],
+      requiredFieldsLockedBySaas: false,
+      authorityLockedBySaas: false,
+      publishingLockedBySaas: false,
+      goalLockedBySaas: false,
+      datesLockedBySaas: false,
+      maxSignersAllowed: campaignLimit,
+      maxScansAllowed: trialPlan.monthlyScanLimit,
+      shareUrl: getCampaignPublicUrl(nextOrganization, { slug }),
+      adminUrl: getCampaignAdminUrl(nextOrganization, { slug }),
+      adminEmail: payload.email.trim(),
+      adminPasscode: createAdminPasscode(),
+      qrLabel: "VOICEUP-GLOBAL-TRIAL",
+      heroImage: "",
+      heroImagePosition: "center center",
+      heroImageZoom: 120,
+      campaignVideoUrl: "",
+      socialShareText: `Add your voice to ${campaignTitle}.`,
+      thankYouMessage: `Thank you for signing ${campaignTitle}. Share this campaign: {{url}}`,
+      participantUpdateMessage:
+        `{{campaign}} update: {{verified}} verified supporters have joined. Share this campaign: {{url}}`,
+      signerLocationRestrictionLevel: "none"
+    };
+    const publishedCampaign = applyLocationGovernanceToCampaign(campaignShell, nextOrganization);
+    const onboardingLogs: AuditLogEntry[] = [
+      {
+        id: createId("audit"),
+        action: "campaign.created",
+        actor: payload.email || payload.mobileNumber,
+        campaignId: publishedCampaign.id,
+        description: `Created public onboarding campaign "${publishedCampaign.title}"`,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          userId,
+          tenantId,
+          workspaceId,
+          source: payload.tracking.utmSource || "direct",
+          medium: payload.tracking.utmMedium,
+          campaign: payload.tracking.utmCampaign,
+          referralCode: payload.tracking.referralCode,
+          deviceId: payload.tracking.deviceId,
+          language: payload.language,
+          country: payload.country
+        }
+      },
+      {
+        id: createId("audit"),
+        action: "campaign.published",
+        actor: payload.email || payload.mobileNumber,
+        campaignId: publishedCampaign.id,
+        description: `Published campaign from 60-second onboarding`,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          shareUrl: publishedCampaign.shareUrl,
+          trialEndsAt: nextOrganization.trialEndsAt,
+          smsWelcomePrepared: true,
+          whatsappWelcomePrepared: true,
+          emailWelcomePrepared: true
+        }
+      },
+      {
+        id: createId("audit"),
+        action: "integration.updated",
+        actor: "system",
+        campaignId: publishedCampaign.id,
+        description: "Queued welcome email, WhatsApp, SMS, trial explanation, premium education, and next steps",
+        createdAt: new Date().toISOString(),
+        metadata: {
+          communicationSetupPrepared: true,
+          analyticsEvents: payload.analyticsEvents.length,
+          landingPath: payload.tracking.landingPath
+        }
+      }
+    ];
+
+    setOrganization(nextOrganization);
+    setCampaigns((current) => [...current, publishedCampaign]);
+    setCampaignDraft(publishedCampaign);
+    setCampaignFormMode("edit");
+    setActiveCampaignId(publishedCampaign.id);
+    setIsCustomerWorkspaceAuthenticated(true);
+    setAuditLogs((current) => [...onboardingLogs, ...current].slice(0, 500));
+    setBackendMessage(
+      isBackendConfigured
+        ? `Created trial campaign "${publishedCampaign.title}". Syncing to shared database...`
+        : `Created trial campaign "${publishedCampaign.title}" in local preview mode.`
+    );
+
+    return {
+      campaign: publishedCampaign,
+      organization: nextOrganization,
+      userId,
+      tenantId,
+      workspaceId,
+      shareUrl: publishedCampaign.shareUrl,
+      shortUrl: publishedCampaign.shareUrl,
+      qrValue: publishedCampaign.shareUrl,
+      trialEndsAt: nextOrganization.trialEndsAt,
+      restored: false
+    };
+  }
+
   function saveCampaign(event: FormEvent) {
     event.preventDefault();
     if (!campaignDraft) return;
@@ -466,6 +993,12 @@ function App() {
     };
     const governedCampaignDraft = applyLocationGovernanceToCampaign(draftWithSlugUrls, organization);
     const isExistingCampaign = campaigns.some((campaign) => campaign.id === governedCampaignDraft.id);
+    if (campaignFormMode === "create" || !isExistingCampaign) {
+      const blockReason = getCreateCampaignBlockReason(organization, campaigns, isBackendConfigured);
+      if (blockReason) {
+        throw new Error(blockReason);
+      }
+    }
     setCampaigns((current) => {
       if (campaignFormMode === "create" || !isExistingCampaign) {
         return [...current, governedCampaignDraft];
@@ -483,10 +1016,10 @@ function App() {
   }
 
   function createCampaign() {
-    const blockReason = getCreateCampaignBlockReason(organization, campaigns);
+    const blockReason = getCreateCampaignBlockReason(organization, campaigns, isBackendConfigured);
     if (blockReason) {
       setBackendMessage(blockReason);
-      setActiveTab("saas");
+      setActiveTab(canAccessPlatformAdmin ? "saas" : "dashboard");
       return;
     }
     const slug = `new-campaign-${Date.now()}`;
@@ -501,6 +1034,9 @@ function App() {
       authorityTargetLevel: "district",
       authoritySelectionMode: "admin_enforced",
       selectedAuthorityId: "",
+      geographyMode: "global",
+      campaignScope: "city",
+      country: "",
       donationEnabled: false,
       donationLockedBySaas: false,
       donationCaption: "Support this campaign with a voluntary contribution.",
@@ -520,7 +1056,7 @@ function App() {
       goal: 1000,
       status: "Draft",
       consentText:
-        "I consent to this organization storing my details and using them only for this campaign submission in India.",
+        "I consent to this organization storing my details and using them only for this campaign submission.",
       requiredFields: ["name", "phone"],
       requiredFieldsLockedBySaas: false,
       authorityLockedBySaas: false,
@@ -533,7 +1069,7 @@ function App() {
       adminUrl: getCampaignAdminUrl(organization, { slug }),
       adminEmail: organization.ownerEmail || organization.billingEmail || "",
       adminPasscode: createAdminPasscode(),
-      qrLabel: "VOICEUP-INDIA-CAMPAIGN",
+      qrLabel: "VOICEUP-GLOBAL-CAMPAIGN",
       heroImage: "",
       heroImagePosition: "center center",
       heroImageZoom: 120,
@@ -599,13 +1135,15 @@ function App() {
   function publishCampaign() {
     if (!campaignDraft) return;
     if (campaignDraft.publishingLockedBySaas && isCampaignAdminRoute) {
-      setBackendMessage("Publishing is locked by SaaS admin for this campaign.");
+      setBackendMessage("Publishing is locked for this campaign.");
       return;
     }
     const blockReason = getPublishCampaignBlockReason(campaignDraft, organization, campaigns);
     if (blockReason) {
       setBackendMessage(blockReason);
-      setActiveTab("saas");
+      if (canAccessPlatformAdmin) {
+        setActiveTab("saas");
+      }
       return;
     }
     if (organization.subscriptionStatus === "Trial" && !organization.trialEndsAt) {
@@ -630,7 +1168,7 @@ function App() {
     addAuditLog("campaign.published", `Published campaign "${publishedCampaign.title}"`, publishedCampaign.id);
   }
 
-  function submitPublicSignature(event: FormEvent) {
+  async function submitPublicSignature(event: FormEvent) {
     event.preventDefault();
     if (!activeCampaign) {
       setPublicMessage("Create and publish a campaign before collecting signatures.");
@@ -651,6 +1189,10 @@ function App() {
     }
     if (!publicForm.otpVerified) {
       setPublicMessage("Please verify your phone number with OTP before signing.");
+      return;
+    }
+    if (isBackendConfigured && !publicForm.otpVerificationToken) {
+      setPublicMessage("Please verify your phone number again before signing.");
       return;
     }
     const restrictedPublicForm = applySignerLocationRestriction(activeCampaign, publicForm, organization);
@@ -678,6 +1220,39 @@ function App() {
       activeCampaign.id,
       restrictedPublicForm.phone || restrictedPublicForm.email || restrictedPublicForm.name || `${Date.now()}`
     );
+    if (isBackendConfigured) {
+      try {
+        const result = await submitPublicSignatureSecure(activeCampaign.slug, {
+          ...restrictedPublicForm,
+          selectedAuthorityId: signerAuthority.id,
+          selectedAuthorityName: signerAuthority.name,
+          referralCode: signerReferralCode,
+          referredBy,
+          referredByPhoneOrCode: referralInput,
+          referralSource: referralInput ? restrictedPublicForm.referralSource ?? "manual" : undefined
+        });
+        setPublicForm(blankSigner);
+        setOtpInput("");
+        setOtpMessage("");
+        setLastSignedSigner(result.signer);
+        if (result.signer.status !== "duplicate") {
+          recordGrowthLifecycle(
+            result.signer.referredBy || result.signer.referredByPhoneOrCode ? "referral_signed" : "supporter_signed",
+            result.signer,
+            [result.signer, ...campaignSigners.filter((signer) => signer.id !== result.signer.id)]
+          );
+        }
+        setPublicCampaignPayload((current) =>
+          current?.campaign.id === activeCampaign.id
+            ? { ...current, metrics: result.metrics }
+            : current
+        );
+        setPublicMessage(result.message);
+      } catch (error) {
+        setPublicMessage(error instanceof Error ? error.message : "Signature submission failed. Please retry.");
+      }
+      return;
+    }
     const signer = makePublicSigner(
       activeCampaign.id,
       {
@@ -692,7 +1267,15 @@ function App() {
       },
       campaignSigners
     );
-    setSigners((current) => [signer, ...current]);
+    const nextSigners = [signer, ...signers.filter((item) => item.id !== signer.id)];
+    setSigners(nextSigners);
+    if (signer.status !== "duplicate") {
+      recordGrowthLifecycle(
+        signer.referredBy || signer.referredByPhoneOrCode ? "referral_signed" : "supporter_signed",
+        signer,
+        nextSigners
+      );
+    }
     addAuditLog("campaign.signed", `${signer.name} signed "${activeCampaign.title}"`, activeCampaign.id);
     setPublicForm(blankSigner);
     setLastSignedSigner(signer);
@@ -703,21 +1286,62 @@ function App() {
     );
   }
 
-  function sendOtp() {
+  async function sendOtp() {
     if (!publicForm.phone.trim()) { setOtpMessage("Enter phone number before requesting OTP."); return; }
-    const nextOtp = String(Math.floor(100000 + Math.random() * 900000));
-    setOtpCode(nextOtp);
-    setPublicForm({ ...publicForm, otpVerified: false });
-    setOtpMessage(
-      `OTP generated: ${nextOtp}. For production, connect SMS/WhatsApp provider to send this automatically.`
-    );
+    if (!activeCampaign) { setOtpMessage("Campaign is not ready for verification."); return; }
+    if (!isBackendConfigured) {
+      setOtpMessage("Secure OTP requires Supabase Edge Functions to be configured.");
+      return;
+    }
+    try {
+      const result = await requestOtp(publicForm.phone, "public-signing", { slug: activeCampaign.slug });
+      setPublicForm({
+        ...publicForm,
+        otpVerified: false,
+        otpChallengeId: result.challengeId,
+        otpVerificationToken: ""
+      });
+      setOtpInput("");
+      setOtpMessage("Verification code sent. Enter the OTP to continue.");
+      recordGrowthEventIntent(GrowthEventType.OtpRequested, activeCampaign.id, {
+        duplicateKey: `${activeCampaign.id}:otp-requested:${result.challengeId}`,
+        phoneCaptured: true,
+        challengeId: result.challengeId
+      });
+    } catch (error) {
+      setOtpMessage(error instanceof Error ? error.message : "Unable to send OTP. Please retry.");
+    }
   }
 
-  function verifyOtp() {
-    if (!otpCode) { setOtpMessage("Generate OTP first."); return; }
-    if (otpInput.trim() !== otpCode) { setOtpMessage("Invalid OTP."); return; }
-    setPublicForm({ ...publicForm, otpVerified: true });
-    setOtpMessage("Phone number verified.");
+  async function verifyOtp() {
+    if (!activeCampaign) { setOtpMessage("Campaign is not ready for verification."); return; }
+    if (!publicForm.otpChallengeId) { setOtpMessage("Send OTP first."); return; }
+    if (!isBackendConfigured) {
+      setOtpMessage("Secure OTP requires Supabase Edge Functions to be configured.");
+      return;
+    }
+    try {
+      const result = await verifyServerOtp(
+        publicForm.otpChallengeId,
+        publicForm.phone,
+        otpInput.trim(),
+        "public-signing",
+        { slug: activeCampaign.slug }
+      );
+      setPublicForm({
+        ...publicForm,
+        otpVerified: true,
+        otpVerificationToken: result.verificationToken
+      });
+      setOtpMessage("Phone number verified.");
+      recordGrowthEventIntent(GrowthEventType.OtpVerified, activeCampaign.id, {
+        duplicateKey: `${activeCampaign.id}:otp-verified:${publicForm.otpChallengeId}`,
+        phoneCaptured: true,
+        challengeId: publicForm.otpChallengeId
+      });
+    } catch (error) {
+      setOtpMessage(error instanceof Error ? error.message : "Invalid OTP.");
+    }
   }
 
   async function uploadScan(file: File) {
@@ -730,7 +1354,7 @@ function App() {
       return;
     }
     if (getMonthlyScanCount(scanItems) >= getEffectiveScanLimit(organization)) {
-      setScanMessage("This organization has reached available scan credits. Upgrade or recharge from SaaS admin.");
+      setScanMessage("This organization has reached available scan credits. Upgrade or recharge the workspace plan.");
       return;
     }
     setIsScanning(true);
@@ -786,7 +1410,11 @@ function App() {
       scanFileUrl: scan.fileUrl,
       reviewerNote: duplicate ? `Possible duplicate of ${duplicate.name}` : "Imported from scanned hard copy."
     };
-    setSigners((current) => [signer, ...current]);
+    const nextSigners = [signer, ...signers.filter((item) => item.id !== signer.id)];
+    setSigners(nextSigners);
+    if (signer.status !== "duplicate") {
+      recordGrowthLifecycle("supporter_signed", signer, nextSigners);
+    }
     addAuditLog("scan.approved", `Approved scanned signer "${signer.name}"`, activeCampaign.id);
     setScanItems((current) =>
       current.map((item) => (item.id === scan.id ? { ...item, status: "Approved" } : item))
@@ -794,9 +1422,17 @@ function App() {
   }
 
   function updateSignerStatus(signerId: string, status: Signer["status"]) {
-    setSigners((current) =>
-      current.map((s) => (s.id === signerId ? { ...s, status } : s))
-    );
+    const previousSigner = signers.find((signer) => signer.id === signerId);
+    const nextSigner = previousSigner ? { ...previousSigner, status } : undefined;
+    const nextSigners = signers.map((s) => (s.id === signerId ? { ...s, status } : s));
+    setSigners(nextSigners);
+    if (nextSigner && status === "verified" && previousSigner?.status !== "verified") {
+      recordGrowthLifecycle(
+        nextSigner.referredBy || nextSigner.referredByPhoneOrCode ? "referral_verified" : "supporter_verified",
+        nextSigner,
+        nextSigners
+      );
+    }
     addAuditLog("signer.status_updated", `Updated signer status to ${status}`, activeCampaign?.id);
   }
 
@@ -830,6 +1466,7 @@ function App() {
       let addedCount = 0;
       rows.forEach((row) => {
         const values: LocationWithPin = {
+          country: getCsvValue(row, "country"),
           state: getCsvValue(row, "state"),
           district: getCsvValue(row, "district"),
           block: getCsvValue(row, "block", "tehsil", "taluk"),
@@ -952,8 +1589,7 @@ function App() {
   }
 
   function selectSubscriptionPlan(planName: BillingPlan) {
-    const plan = subscriptionPlans.find((p) => p.name === planName);
-    if (!plan) return;
+    const plan = getSubscriptionPlan(planName);
     setOrganization((current) => ({
       ...current,
       plan: plan.name,
@@ -961,13 +1597,34 @@ function App() {
       monthlyScanLimit: plan.monthlyScanLimit,
       monthlyMessageLimit: getDefaultMessageLimit(plan.name),
       subscriptionStatus:
-        current.subscriptionStatus === "Cancelled" ? "Trial" : current.subscriptionStatus,
-      customBranding: plan.name !== "Starter" ? current.customBranding : false
+        plan.name === "Free Trial"
+          ? "Trial"
+          : current.subscriptionStatus === "Cancelled"
+            ? "Trial"
+            : current.subscriptionStatus,
+      customBranding:
+        plan.name === "Pro Movement" || plan.name === "Enterprise"
+          ? current.customBranding
+          : false,
+      billingCadence: current.billingCadence ?? "monthly",
+      campaignDurationDays: current.campaignDurationDays ?? 30,
+      supporterCountEstimate: current.supporterCountEstimate ?? plan.monthlySignatureLimit,
+      signaturePriceInr: current.signaturePriceInr ?? plan.pricePerSignatureInr ?? 1
     }));
   }
 
   function startOneDayTrial() {
-    setOrganization({ ...organization, subscriptionStatus: "Trial", trialEndsAt: getTomorrowDate() });
+    const trialPlan = getSubscriptionPlan("Free Trial");
+    setOrganization({
+      ...organization,
+      plan: trialPlan.name,
+      subscriptionStatus: "Trial",
+      trialEndsAt: getTomorrowDate(),
+      monthlySignatureLimit: trialPlan.monthlySignatureLimit,
+      monthlyScanLimit: trialPlan.monthlyScanLimit,
+      monthlyMessageLimit: trialPlan.monthlyMessageLimit,
+      customBranding: false
+    });
     addAuditLog("integration.updated", "Started one-day free publishing trial");
   }
 
@@ -1002,7 +1659,7 @@ function App() {
     });
     addAuditLog(
       "integration.updated",
-      `Granted package "${pkg.name}" (₹${pkg.priceInr}) with ${pkg.signatureCredits} signatures, ${pkg.scanCredits} scans, ${pkg.messageCredits} messages`
+      `Granted package "${pkg.name}" (INR ${pkg.priceInr}) with ${pkg.signatureCredits} signatures, ${pkg.scanCredits} scans, ${pkg.messageCredits} messages`
     );
   }
 
@@ -1071,6 +1728,70 @@ function App() {
     window.setTimeout(() => setToast({ open: true, title, description }), 20);
   }
 
+  function getGrowthBaseUrl() {
+    return typeof window === "undefined" ? "https://voiceup.live" : window.location.origin;
+  }
+
+  function recordGrowthLifecycle(
+    kind:
+      | "supporter_signed"
+      | "otp_verified"
+      | "supporter_verified"
+      | "share_completed"
+      | "referral_signed"
+      | "referral_verified"
+      | "volunteer_joined"
+      | "event_attended"
+      | "points_earned"
+      | "recognition_reached",
+    signer: Signer,
+    nextSigners: Signer[],
+    share?: GrowthShareContext
+  ) {
+    const campaign = campaigns.find((item) => item.id === signer.campaignId) ?? activeCampaign;
+    if (!campaign) return;
+    const growthConfiguration = campaign.growthConfiguration;
+    setGrowthRuntime((current) =>
+      applyGrowthLifecycleEvent(current, {
+        kind,
+        signer,
+        signers: nextSigners,
+        campaignSlug: campaign.slug,
+        baseUrl: getGrowthBaseUrl(),
+        occurredAt: new Date().toISOString(),
+        share,
+        configuration: growthConfiguration?.operatingSystem,
+        contribution: growthConfiguration?.contribution,
+        achievements: growthConfiguration?.achievements,
+        leaderboardFilters: growthConfiguration?.leaderboard.enabled ? growthConfiguration.leaderboard.filters : undefined,
+        rewards: growthConfiguration?.rewards
+      }).state
+    );
+  }
+
+  function recordGrowthEventIntent(
+    type: GrowthEventType,
+    campaignId: string,
+    metadata: Record<string, string | number | boolean | null | undefined>
+  ) {
+    setGrowthRuntime((current) =>
+      appendGrowthLifecycleEventIntent(current, {
+        type,
+        priority: GrowthEventPriority.Normal,
+        context: { campaignId },
+        metadata
+      })
+    );
+  }
+
+  function recordPublicShareGrowth(share: GrowthShareContext) {
+    if (!lastSignedSigner || !activeCampaign || lastSignedSigner.campaignId !== activeCampaign.id) return;
+    const nextSigners = signers.some((signer) => signer.id === lastSignedSigner.id)
+      ? signers
+      : [lastSignedSigner, ...signers];
+    recordGrowthLifecycle("share_completed", lastSignedSigner, nextSigners, share);
+  }
+
   function submitCampaignAdminLogin(event: FormEvent) {
     event.preventDefault();
     if (!activeCampaign) return;
@@ -1104,51 +1825,113 @@ function App() {
 
   async function submitAppLogin(event: FormEvent) {
     event.preventDefault();
-    if (isSupabaseAuthAvailable) {
-      try {
-        const user = await signInWithSupabase(appLogin.email, appLogin.passcode);
-        setIsAppAuthenticated(true);
-        writeAppAuth(true);
-        setAppLogin(blankAppLogin);
-        setAppLoginMessage("");
-        addAuditLog("auth.login", `SaaS admin logged in with Supabase Auth: ${user.email ?? appLogin.email}`);
-        return;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Unable to login with Supabase Auth";
-        setAppLoginMessage(`Supabase Auth login failed: ${errorMessage}. Please verify your email and password.`);
+    if (!isSupabaseAuthAvailable) {
+      setAppLoginMessage("Platform administration requires Supabase Auth and server-side role validation.");
+      return;
+    }
+    try {
+      const user = await signInWithSupabase(appLogin.email, appLogin.passcode);
+      const context = await getAuthContext();
+      if (!context.platformAdmin) {
+        await signOutSupabase();
+        setIsPlatformAdminAuthenticated(false);
+        setAppLoginMessage("This account is authenticated but does not have Platform Admin permissions.");
         return;
       }
+      setIsPlatformAdminAuthenticated(true);
+      setIsCustomerWorkspaceAuthenticated(Boolean(context.workspaceMember || context.customerWorkspace));
+      setActiveTab("dashboard");
+      setAppLogin(blankAppLogin);
+      setAppLoginMessage("");
+      addAuditLog("auth.login", `SaaS admin logged in with Supabase Auth: ${user.email ?? appLogin.email}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unable to login with Supabase Auth";
+      setAppLoginMessage(`Supabase Auth login failed: ${errorMessage}. Please verify your email and password.`);
     }
-    if (!areAppAdminCredentialsConfigured()) {
-      setAppLoginMessage(
-        "SaaS admin login is disabled because VITE_VOICEUP_APP_ADMIN_EMAIL and VITE_VOICEUP_APP_ADMIN_PASSCODE are not configured."
-      );
-      return;
-    }
-    const expectedEmail = getAppAdminEmail();
-    const expectedPasscode = getAppAdminPasscode();
-    const emailMatches = appLogin.email.trim().toLowerCase() === expectedEmail.trim().toLowerCase();
-    const passcodeMatches = appLogin.passcode.trim() === expectedPasscode.trim();
-    if (!emailMatches || !passcodeMatches) {
-      setAppLoginMessage("Invalid SaaS admin email or passcode.");
-      return;
-    }
-    setIsAppAuthenticated(true);
-    writeAppAuth(true);
-    setAppLogin(blankAppLogin);
-    setAppLoginMessage("");
-    addAuditLog("auth.login", `SaaS admin logged in with MVP passcode: ${appLogin.email}`);
   }
 
   async function logoutAppAdmin() {
+    if (isSaasAdminRoute) {
+      if (isSupabaseAuthAvailable) await signOutSupabase();
+      clearCustomerSessionToken();
+      setIsPlatformAdminAuthenticated(false);
+      window.location.assign("/");
+      return;
+    }
     if (isSupabaseAuthAvailable) await signOutSupabase();
-    setIsAppAuthenticated(false);
-    writeAppAuth(false);
+    clearCustomerSessionToken();
+    setIsCustomerWorkspaceAuthenticated(false);
+    setIsPlatformAdminAuthenticated(false);
+    setCampaigns(initialCampaigns);
+    setSigners(initialSigners);
+    setAuthorities(initialAuthorities);
+    setOrganization(initialOrganization);
+    setScanItems([]);
+    setAuditLogs([]);
+    setIntegrations(initialIntegrationSettings);
+    setCommercialPackages(initialCommercialPackages);
+    setLocationOverrides({});
+    setLocationDeletions(emptyLocationDeletions);
+    setActiveCampaignId(initialCampaigns[0]?.id ?? "");
+    setCampaignDraft(initialCampaigns[0] ?? null);
+    setCampaignFormMode("edit");
+    setPublicForm(blankSigner);
+    setPublicMessage("");
+    setLastSignedSigner(null);
+    setBackendMessage("");
+    setCommandOpen(false);
+    setGlobalSearch("");
+    const preservedRecoveryValues = new Map<string, string>();
+    ["voiceup-onboarding-session-v1", "voiceup-device-id"].forEach((key) => {
+      const value = window.localStorage.getItem(key);
+      if (value) preservedRecoveryValues.set(key, value);
+    });
+    window.localStorage.clear();
+    preservedRecoveryValues.forEach((value, key) => window.localStorage.setItem(key, value));
+    window.sessionStorage.clear();
+    window.location.assign("/");
   }
 
+  const marketingHome = (
+    <MarketingHomePage
+      theme={theme}
+      setTheme={setTheme}
+      onboardingOpen={onboardingOpen}
+      onOpenOnboarding={() => setOnboardingOpen(true)}
+      onCloseOnboarding={() => setOnboardingOpen(false)}
+      onCompleteOnboarding={completeOnboardingCampaign}
+    />
+  );
+  const workspaceRestoreHome = (
+    <MarketingHomePage
+      theme={theme}
+      setTheme={setTheme}
+      onboardingOpen
+      onOpenOnboarding={() => setOnboardingOpen(true)}
+      onCloseOnboarding={() => window.location.assign("/")}
+      onCompleteOnboarding={completeOnboardingCampaign}
+    />
+  );
+
   // ─── Route rendering ──────────────────────────────────────────────────────
+  if (isSupporterPortalRoute) {
+    if (backendLoading || (isBackendConfigured && !remoteStateLoaded)) {
+      return <SupporterGrowthPortalLoading />;
+    }
+    return supporterPortalResult?.status === "ready" && supporterPortalResult.portal ? (
+      <SupporterGrowthPortalPage portal={supporterPortalResult.portal} onRewardAction={handleSupporterRewardAction} />
+    ) : (
+      <SupporterGrowthPortalNotFound
+        message={supporterPortalResult?.message}
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
+
   if (isPublicCampaignRoute) {
-    if (backendLoading) return <PublicCampaignLoading message={backendMessage} />;
+    if (backendLoading || (isBackendConfigured && !remoteStateLoaded)) {
+      return <PublicCampaignLoading message={backendMessage} />;
+    }
     return activeCampaign ? (
       <div className="public-only-shell">
         <PublicCampaignPage
@@ -1162,18 +1945,21 @@ function App() {
           setPublicForm={setPublicForm}
           publicMessage={publicMessage}
           lastSignedSigner={lastSignedSigner}
+          growthSnapshot={lastSignedGrowthSnapshot}
+          growthPortal={lastSignedGrowthPortal}
           otpInput={otpInput}
           setOtpInput={setOtpInput}
           otpMessage={otpMessage}
           onSendOtp={sendOtp}
           onVerifyOtp={verifyOtp}
+          onGrowthShare={recordPublicShareGrowth}
           locationOverrides={locationOverrides}
           locationDeletions={locationDeletions}
           onSubmit={submitPublicSignature}
         />
       </div>
     ) : (
-      <PublicCampaignNotFound />
+      <PublicCampaignNotFound onRetry={() => window.location.reload()} />
     );
   }
 
@@ -1194,11 +1980,11 @@ function App() {
   }
 
   if (legalPage) return <LegalPage page={legalPage} />;
-  if (isLandingPageRoute) return <LandingPage onGetStarted={() => (window.location.href = "/app")} />;
-  if (!isAppRoute && !isSaasAdminRoute && !isCampaignAdminRoute) {
-    return <MarketingHomePage theme={theme} setTheme={setTheme} />;
+  if (isLandingPageRoute || isStartRoute) return marketingHome;
+  if (!isAppRoute && !isSaasAdminRoute && !isCampaignAdminRoute && !isSupporterPortalRoute) {
+    return marketingHome;
   }
-  if ((isAppRoute || isSaasAdminRoute) && backendLoading) {
+  if ((isAppRoute || isSaasAdminRoute) && (backendLoading || authContextLoading)) {
     return (
       <main className="app-loading-screen">
         <div className="app-loading-card">
@@ -1210,15 +1996,20 @@ function App() {
     );
   }
 
-  if ((isAppRoute || isSaasAdminRoute) && !isAppAuthenticated) {
+  if (isSaasAdminRoute && !canAccessPlatformAdmin) {
     return (
       <SaasAppLoginPage
+        mode="platform"
         appLogin={appLogin}
         setAppLogin={setAppLogin}
         message={appLoginMessage}
         onSubmit={submitAppLogin}
       />
     );
+  }
+
+  if (isAppRoute && !canAccessCustomerWorkspace) {
+    return workspaceRestoreHome;
   }
 
   return (
@@ -1244,7 +2035,10 @@ function App() {
         setCampaignFormMode={setCampaignFormMode}
         isCampaignAdminRoute={isCampaignAdminRoute}
         isAppRoute={isAppRoute || isSaasAdminRoute}
+        canAccessPlatformAdmin={canAccessPlatformAdmin}
         signers={signers}
+        growthRuntime={growthRuntime}
+        setGrowthRuntime={setGrowthRuntime}
         authorities={authorities}
         setAuthorities={setAuthorities}
         organization={organization}
@@ -1273,6 +2067,8 @@ function App() {
         setPublicForm={setPublicForm}
         publicMessage={publicMessage}
         lastSignedSigner={lastSignedSigner}
+        growthSnapshot={lastSignedGrowthSnapshot}
+        growthPortal={lastSignedGrowthPortal}
         otpInput={otpInput}
         setOtpInput={setOtpInput}
         otpMessage={otpMessage}
@@ -1299,6 +2095,7 @@ function App() {
         onSubmitPublicSignature={submitPublicSignature}
         onSendOtp={sendOtp}
         onVerifyOtp={verifyOtp}
+        onGrowthShare={recordPublicShareGrowth}
         onUploadScan={uploadScan}
         onCreateManualScanItem={createManualScanItem}
         onUpdateScanParsedSigner={updateScanParsedSigner}

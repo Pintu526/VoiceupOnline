@@ -33,7 +33,6 @@ interface ScansTabProps {
     value: string
   ) => void;
   onApproveScan: (scan: ScanReviewItem) => void;
-  onCreateCampaign: () => void;
 }
 
 export function ScansTab({
@@ -48,15 +47,13 @@ export function ScansTab({
   onUploadScan,
   onCreateManualScanItem,
   onUpdateScanParsedSigner,
-  onApproveScan,
-  onCreateCampaign
+  onApproveScan
 }: ScansTabProps) {
   if (!activeCampaign) {
     return (
       <NoCampaignPanel
         title="No campaign for scans"
         description="Create a campaign before importing hard-copy signatures or OCR scan batches."
-        onCreateCampaign={onCreateCampaign}
       />
     );
   }
@@ -136,16 +133,16 @@ export function ScansTab({
               }}
             />
           </label>
-          <label className="paper-import-option provider-ready">
+          <label className="paper-import-option available-after-setup">
             <FileText size={28} />
             <strong>PDF sheet upload</strong>
-            <span>Provider-ready. PDF page extraction is not active yet.</span>
+            <span>Available after document import setup.</span>
             <input type="file" accept="application/pdf" disabled />
           </label>
-          <label className="paper-import-option provider-ready">
+          <label className="paper-import-option available-after-setup">
             <FileSpreadsheet size={28} />
             <strong>CSV / Excel import</strong>
-            <span>Provider-ready. Spreadsheet parsing and validation preview will connect later.</span>
+            <span>Available after spreadsheet import setup.</span>
             <input type="file" accept=".csv,.xls,.xlsx" disabled />
           </label>
         </div>
@@ -176,7 +173,7 @@ export function ScansTab({
             ["Manual supporter entry", reviewQueueItems.length, "Ready for approval"],
             ["Batch review and approval", reviewQueueItems.length, "Use existing review queue"],
             ["Duplicate detection", duplicateOrRejectedSigners.length, "Real signer status flags"],
-            ["Volunteer attribution", "Provider ready", "Future field team ownership"],
+            ["Volunteer attribution", "Setup needed", "Future field team ownership"],
             ["District tracking", districtCount, "Real signer location data"],
             ["Block tracking", blockCount, "Real signer location data"],
             ["Panchayat tracking", panchayatCount, "Real signer location data"],
@@ -193,7 +190,7 @@ export function ScansTab({
           <QrCode size={42} />
           <div>
             <strong>QR code handout section</strong>
-            <p>Use the campaign public link QR on posters and field sheets. Printable handout generation is provider-ready.</p>
+            <p>Use the campaign public link QR on posters and field sheets. Printable handouts are available from the campaign assets.</p>
           </div>
         </div>
       </Panel>
@@ -315,7 +312,7 @@ export function ScansTab({
                         />
                       </td>
                       <td>paper</td>
-                      <td>Provider-ready</td>
+                      <td>Setup needed</td>
                       <td>{isDuplicate ? "Possible duplicate" : item.parsedSigner.phone ? "Clear" : "Missing phone"}</td>
                     </tr>
                   );

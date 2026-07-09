@@ -6,6 +6,7 @@ export interface LocationValues {
 }
 
 export interface LocationWithPin extends LocationValues {
+  country?: string;
   postalCode: string;
 }
 

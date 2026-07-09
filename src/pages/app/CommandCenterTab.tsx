@@ -48,6 +48,7 @@ interface CommandCenterTabProps {
   onOpenAuthorities: () => void;
   onOpenSaas: () => void;
   onOpenMovement: () => void;
+  canAccessPlatformAdmin: boolean;
 }
 
 type ActionPriority = "P0" | "P1" | "P2";
@@ -102,7 +103,8 @@ export function CommandCenterTab({
   onOpenEngagement,
   onOpenAuthorities,
   onOpenSaas,
-  onOpenMovement
+  onOpenMovement,
+  canAccessPlatformAdmin
 }: CommandCenterTabProps) {
   const [missionGenerated, setMissionGenerated] = useState(false);
   const campaignScanItems = activeCampaign
@@ -201,7 +203,7 @@ export function CommandCenterTab({
           action: onOpenFieldCollection
         },
         {
-          show: !governanceConfigured,
+          show: canAccessPlatformAdmin && !governanceConfigured,
           priority: "P2" as ActionPriority,
           title: "Missing location governance",
           reason: "SaaS geography lock is not configured.",
@@ -212,7 +214,7 @@ export function CommandCenterTab({
           show: !communicationProviderReady,
           priority: "P2" as ActionPriority,
           title: "Communication provider not configured",
-          reason: "Bulk delivery remains provider-ready until a provider is configured.",
+          reason: "Bulk delivery is available after a messaging provider is configured.",
           owner: "Workspace admin",
           action: onOpenEngagement,
           providerReady: true
@@ -229,6 +231,7 @@ export function CommandCenterTab({
     [
       activeCampaign,
       authorityReady,
+      canAccessPlatformAdmin,
       communicationProviderReady,
       governanceConfigured,
       metrics.total,
@@ -281,7 +284,7 @@ export function CommandCenterTab({
           <CommandMetric label="Verified supporters" value={verifiedSupporters} detail={`${metrics.total ? Math.round((verifiedSupporters / Math.max(metrics.total, 1)) * 100) : 0}% verification`} />
           <CommandMetric label="Field pending" value={pendingScans} detail="Scan/review queue" />
           <CommandMetric label="Authority readiness" value={authorityReady ? "Ready" : "Setup needed"} detail={authorityMatch ? `${authorityMatch.score}% match` : `${authorities.length} authority rules`} />
-          <CommandMetric label="Communication" value={reachableSupporters} detail={communicationProviderReady ? "Provider configured" : "Provider-ready only"} />
+          <CommandMetric label="Communication" value={reachableSupporters} detail={communicationProviderReady ? "Provider configured" : "Setup needed"} />
           <CommandMetric label="Movement health" value={`${movementHealthScore}/100`} detail="Deterministic operations score" />
           <CommandMetric label="Campaign risk" value={riskLevel} detail="Based on weak operational signals" />
         </div>
@@ -334,7 +337,7 @@ export function CommandCenterTab({
                   <p>{task.reason}</p>
                   <small>Owner: {task.owner}</small>
                 </div>
-                {task.providerReady && <em>Provider-ready</em>}
+                {task.providerReady && <em>Setup needed</em>}
                 <button className="secondary-button" type="button" onClick={task.action}>
                   Open
                 </button>
@@ -349,7 +352,7 @@ export function CommandCenterTab({
           <div className="brain-card">
             <span className="eyebrow">What should we do next?</span>
             <strong>{recommendedActions[0]}</strong>
-            <p>Provider-ready AI UI using deterministic insights from current app state.</p>
+            <p>Suggestions are based on current campaign activity and supporter data.</p>
           </div>
           <div className="mission-list">
             {recommendedActions.map((action, index) => (
@@ -392,7 +395,7 @@ export function CommandCenterTab({
         <Panel title="Volunteer War Room" icon={<UsersRound />}>
           <div className="command-insight-grid">
             <div><span>Volunteer readiness</span><strong>{metrics.total > 25 ? "Ready to recruit" : "Setup needed"}</strong></div>
-            <div><span>Top volunteer</span><strong>Provider-ready</strong></div>
+            <div><span>Top volunteer</span><strong>Setup needed</strong></div>
             <div><span>Field upload status</span><strong>{pendingScans ? `${pendingScans} pending` : "Clear"}</strong></div>
             <div><span>District gaps</span><strong>{Object.keys(districtTotals).length ? "Review coverage" : "Setup needed"}</strong></div>
           </div>
@@ -413,9 +416,9 @@ export function CommandCenterTab({
               ["Suggested authorities", authorityReady ? `${authorities.length} available` : "Setup needed"],
               ["Petition ready", petitionReady ? "Ready" : "Needs campaign copy"],
               ["Export-ready", petitionReady ? "PDF/CSV available in Reports" : "Setup needed"],
-              ["Email-ready", integrations.emailProvider === "Not configured" ? "Provider-ready" : integrations.emailProvider],
-              ["Follow-up due", "Provider-ready"],
-              ["Response status", "Provider-ready"]
+              ["Email-ready", integrations.emailProvider === "Not configured" ? "Setup needed" : integrations.emailProvider],
+              ["Follow-up due", "Setup needed"],
+              ["Response status", "Setup needed"]
             ].map(([label, value]) => (
               <div key={label}>
                 <span>{label}</span>
@@ -430,10 +433,10 @@ export function CommandCenterTab({
         <div className="command-metric-grid">
           <CommandMetric label="Reachable supporters" value={reachableSupporters} detail="Phone or email available" />
           <CommandMetric label="Audience count" value={campaignSigners.length} detail="Selected campaign supporters" />
-          <CommandMetric label="WhatsApp" value={integrations.whatsappProvider === "Not configured" ? "Provider-ready" : integrations.whatsappProvider} detail="No bulk send from this screen" />
-          <CommandMetric label="SMS" value={integrations.smsProvider === "Not configured" ? "Provider-ready" : integrations.smsProvider} detail="No send action" />
-          <CommandMetric label="Email" value={integrations.emailProvider === "Not configured" ? "Provider-ready" : integrations.emailProvider} detail="No send action" />
-          <CommandMetric label="IVR" value="Provider-ready" detail="Future voice provider" />
+          <CommandMetric label="WhatsApp" value={integrations.whatsappProvider === "Not configured" ? "Setup needed" : integrations.whatsappProvider} detail="No bulk send from this screen" />
+          <CommandMetric label="SMS" value={integrations.smsProvider === "Not configured" ? "Setup needed" : integrations.smsProvider} detail="No send action" />
+          <CommandMetric label="Email" value={integrations.emailProvider === "Not configured" ? "Setup needed" : integrations.emailProvider} detail="No send action" />
+          <CommandMetric label="IVR" value="Available after setup" detail="Future voice provider" />
         </div>
         <div className="brain-card">
           <span className="eyebrow">Consent reminder</span>

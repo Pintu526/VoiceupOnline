@@ -29,8 +29,11 @@ export const blankSigner = {
   whatsappNumber: "",
   telegramHandle: "",
   otpVerified: false,
+  otpChallengeId: "",
+  otpVerificationToken: "",
   selectedAuthorityId: "",
   selectedAuthorityName: "",
+  country: "",
   state: "",
   district: "",
   block: "",
@@ -57,6 +60,7 @@ export const blankAppLogin = {
 export const blankScanTemplate = `Name:
 Email:
 Phone:
+Country:
 State:
 District:
 Block:

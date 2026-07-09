@@ -129,7 +129,7 @@ export function SaasAppLoginPage({
           <p className="helper-text">
             {isWorkspaceMode
               ? "Customer sessions are restored through mobile OTP. Platform support access requires an authenticated server-side role."
-              : "Platform administration requires Supabase Auth plus a server-side platform_owner role."}
+              : "Platform administration requires Supabase Auth plus a server-side platform_owner role, or the configured fallback admin credentials."}
           </p>
           </form>
         </div>

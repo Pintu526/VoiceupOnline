@@ -82,11 +82,16 @@ import {
 } from "./utils/routing";
 import { updateSeoMetadata } from "./utils/seo";
 import {
+  clearPlatformAdminSession,
   createAdminPasscode,
   getCampaignAdminEmail,
   getCampaignAdminPasscode,
   getCurrentActorEmail,
+  hasConfiguredPlatformAdminFallback,
+  hasRestoredPlatformAdminSession,
+  matchesConfiguredPlatformAdminCredentials,
   readAuthenticatedAdminSlugs,
+  writePlatformAdminSession,
   writeAuthenticatedAdminSlugs
 } from "./utils/auth";
 import { fileToDataUrl } from "./utils/files";
@@ -252,6 +257,23 @@ function buildOnboardingAppeal(payload: OnboardingCompletionPayload, campaignTit
 
 function addDaysIso(days: number): string {
   return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
+}
+
+function describeSupabaseAuthError(errorMessage: string): string {
+  const normalized = errorMessage.toLowerCase();
+  if (normalized.includes("invalid login credentials") || normalized.includes("invalid credentials")) {
+    return "Wrong email or password.";
+  }
+  if (normalized.includes("user not found") || normalized.includes("email not found")) {
+    return "Unknown user.";
+  }
+  if (normalized.includes("email not confirmed")) {
+    return "Email address is not confirmed.";
+  }
+  if (normalized.includes("network") || normalized.includes("fetch") || normalized.includes("failed to fetch")) {
+    return "Supabase is unavailable or unreachable.";
+  }
+  return errorMessage;
 }
 
 function App() {
@@ -548,6 +570,8 @@ function App() {
 
   useEffect(() => {
     if (!isBackendConfigured) {
+      const restored = hasRestoredPlatformAdminSession();
+      setIsPlatformAdminAuthenticated(restored);
       setAuthContextLoading(false);
       return;
     }
@@ -557,11 +581,13 @@ function App() {
       try {
         const context = await getAuthContext();
         if (isCancelled) return;
-        setIsPlatformAdminAuthenticated(Boolean(context.platformAdmin));
+        const restored = hasRestoredPlatformAdminSession();
+        setIsPlatformAdminAuthenticated(Boolean(context.platformAdmin || restored));
         setIsCustomerWorkspaceAuthenticated(Boolean(context.workspaceMember || context.customerWorkspace));
       } catch {
         if (isCancelled) return;
-        setIsPlatformAdminAuthenticated(false);
+        const restored = hasRestoredPlatformAdminSession();
+        setIsPlatformAdminAuthenticated(restored);
         setIsCustomerWorkspaceAuthenticated(false);
       } finally {
         if (!isCancelled) setAuthContextLoading(false);
@@ -1825,40 +1851,108 @@ function App() {
 
   async function submitAppLogin(event: FormEvent) {
     event.preventDefault();
-    if (!isSupabaseAuthAvailable) {
-      setAppLoginMessage("Platform administration requires Supabase Auth and server-side role validation.");
+    const email = appLogin.email.trim();
+    const passcode = appLogin.passcode.trim();
+    const hasFallbackCredentials = hasConfiguredPlatformAdminFallback();
+
+    if (!isSupabaseAuthAvailable && !hasFallbackCredentials) {
+      setAppLoginMessage(
+        "Platform administration is not configured. Set Supabase env vars or VITE_VOICEUP_APP_ADMIN_EMAIL and VITE_VOICEUP_APP_ADMIN_PASSCODE."
+      );
       return;
     }
-    try {
-      const user = await signInWithSupabase(appLogin.email, appLogin.passcode);
-      const context = await getAuthContext();
-      if (!context.platformAdmin) {
+
+    let supabaseUser = null;
+    let authFailureMessage = "";
+
+    if (isSupabaseAuthAvailable) {
+      try {
+        supabaseUser = await signInWithSupabase(email, passcode);
+      } catch (error) {
+        authFailureMessage = error instanceof Error ? error.message : "Unable to login with Supabase Auth";
+      }
+    }
+
+    if (supabaseUser) {
+      try {
+        const context = await getAuthContext();
+        if (context.platformAdmin) {
+          clearPlatformAdminSession();
+          setIsPlatformAdminAuthenticated(true);
+          setIsCustomerWorkspaceAuthenticated(Boolean(context.workspaceMember || context.customerWorkspace));
+          setActiveTab("dashboard");
+          setAppLogin(blankAppLogin);
+          setAppLoginMessage("");
+          addAuditLog("auth.login", `SaaS admin logged in with Supabase Auth: ${supabaseUser.email ?? email}`);
+          return;
+        }
+
         await signOutSupabase();
+        if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
+          writePlatformAdminSession(email);
+          setIsPlatformAdminAuthenticated(true);
+          setIsCustomerWorkspaceAuthenticated(Boolean(context.workspaceMember || context.customerWorkspace));
+          setActiveTab("dashboard");
+          setAppLogin(blankAppLogin);
+          setAppLoginMessage("");
+          addAuditLog("auth.login", `SaaS admin logged in with configured fallback credentials: ${email}`);
+          return;
+        }
+
         setIsPlatformAdminAuthenticated(false);
-        setAppLoginMessage("This account is authenticated but does not have Platform Admin permissions.");
+        setAppLoginMessage(
+          context.role
+            ? `Authenticated Supabase user has ${context.role} access, not platform_owner.`
+            : "Authenticated Supabase user does not have a platform_owner membership row."
+        );
+        return;
+      } catch (error) {
+        await signOutSupabase();
+        if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
+          writePlatformAdminSession(email);
+          setIsPlatformAdminAuthenticated(true);
+          setIsCustomerWorkspaceAuthenticated(false);
+          setActiveTab("dashboard");
+          setAppLogin(blankAppLogin);
+          setAppLoginMessage("");
+          addAuditLog("auth.login", `SaaS admin logged in with configured fallback credentials: ${email}`);
+          return;
+        }
+        const roleMessage = error instanceof Error ? error.message : "Unable to verify platform role";
+        setAppLoginMessage(`Supabase Auth login succeeded, but role verification failed: ${roleMessage}.`);
         return;
       }
+    }
+
+    if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
+      writePlatformAdminSession(email);
       setIsPlatformAdminAuthenticated(true);
-      setIsCustomerWorkspaceAuthenticated(Boolean(context.workspaceMember || context.customerWorkspace));
+      setIsCustomerWorkspaceAuthenticated(false);
       setActiveTab("dashboard");
       setAppLogin(blankAppLogin);
       setAppLoginMessage("");
-      addAuditLog("auth.login", `SaaS admin logged in with Supabase Auth: ${user.email ?? appLogin.email}`);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unable to login with Supabase Auth";
-      setAppLoginMessage(`Supabase Auth login failed: ${errorMessage}. Please verify your email and password.`);
+      addAuditLog("auth.login", `SaaS admin logged in with configured fallback credentials: ${email}`);
+      return;
     }
+
+    setAppLoginMessage(
+      hasFallbackCredentials
+        ? `Supabase Auth login failed: ${describeSupabaseAuthError(authFailureMessage || "Unable to login with Supabase Auth")}. The configured fallback admin credentials did not match.`
+        : `Supabase Auth login failed: ${describeSupabaseAuthError(authFailureMessage || "Unable to login with Supabase Auth")}. Verify the Supabase admin account or configure VITE_VOICEUP_APP_ADMIN_EMAIL and VITE_VOICEUP_APP_ADMIN_PASSCODE.`
+    );
   }
 
   async function logoutAppAdmin() {
     if (isSaasAdminRoute) {
       if (isSupabaseAuthAvailable) await signOutSupabase();
+      clearPlatformAdminSession();
       clearCustomerSessionToken();
       setIsPlatformAdminAuthenticated(false);
       window.location.assign("/");
       return;
     }
     if (isSupabaseAuthAvailable) await signOutSupabase();
+    clearPlatformAdminSession();
     clearCustomerSessionToken();
     setIsCustomerWorkspaceAuthenticated(false);
     setIsPlatformAdminAuthenticated(false);

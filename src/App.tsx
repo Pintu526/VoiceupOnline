@@ -1313,7 +1313,7 @@ function App() {
     setOtpCode(nextOtp);
     setPublicForm({ ...publicForm, otpVerified: false });
     setOtpMessage(
-      `OTP generated: ${nextOtp}. For production, connect SMS/WhatsApp provider to send this automatically.`
+      `OTP : ${nextOtp}.`
     );
   }
 

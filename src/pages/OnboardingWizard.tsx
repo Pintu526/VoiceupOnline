@@ -36,6 +36,7 @@ const OTP_RESEND_SECONDS = 30;
 const OTP_RATE_WINDOW_MS = 10 * 60 * 1000;
 const OTP_MAX_SENDS_PER_WINDOW = 4;
 const OTP_MAX_VERIFY_ATTEMPTS = 5;
+const isDevelopmentOtpMode = import.meta.env.VITE_DEV_MODE === "true";
 
 export interface OnboardingDraft {
   campaignName: string;
@@ -432,6 +433,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
   const [otpVerificationToken, setOtpVerificationToken] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const [otpMessage, setOtpMessage] = useState("");
+  const [developmentOtpCode, setDevelopmentOtpCode] = useState("");
   const [otpAttempts, setOtpAttempts] = useState(0);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -530,10 +532,12 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
       setOtpVerificationToken("");
       setOtpInput("");
       setOtpAttempts(0);
+      setDevelopmentOtpCode(isDevelopmentOtpMode && result.otp ? result.otp : "");
       setResendSeconds(result.resendAfterSeconds || OTP_RESEND_SECONDS);
-      setOtpMessage(`Verification code sent to ${maskPhone(draft.mobileNumber)}. Enter the code to continue.`);
+      setOtpMessage(result.message || `Verification code sent to ${maskPhone(draft.mobileNumber)}. Enter the code to continue.`);
       trackEvent("otp_requested", { mobile: maskPhone(draft.mobileNumber), secureOtp: true });
     } catch (error) {
+      setDevelopmentOtpCode("");
       setOtpMessage(error instanceof Error ? error.message : "Unable to send OTP. Please retry.");
       trackEvent("otp_request_failed", { mobile: maskPhone(draft.mobileNumber) });
     } finally {
@@ -553,6 +557,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
     try {
       const result = await verifyServerOtp(otpChallengeId, draft.mobileNumber, otpInput.trim(), "onboarding");
       setOtpVerificationToken(result.verificationToken);
+      setDevelopmentOtpCode("");
       setOtpMessage("Mobile verified. Creating your campaign now...");
       trackEvent("otp_verified", { mobile: maskPhone(draft.mobileNumber) });
       await beginProvisioning(result.verificationToken);
@@ -857,6 +862,16 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                     {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : otpChallengeId ? "Resend OTP" : "Send OTP"}
                   </button>
                 </div>
+
+                {isDevelopmentOtpMode && developmentOtpCode && (
+                  <div>
+                    <span className="status-pill">Development Mode</span>
+                    <p className="info-message">
+                      Development OTP
+                      <strong>{developmentOtpCode}</strong>
+                    </p>
+                  </div>
+                )}
 
                 <label className="field">
                   <span className="label">Enter OTP</span>

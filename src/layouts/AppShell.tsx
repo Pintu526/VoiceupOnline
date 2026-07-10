@@ -176,6 +176,8 @@ interface AppShellProps {
   otpInput: string;
   setOtpInput: React.Dispatch<React.SetStateAction<string>>;
   otpMessage: string;
+  developmentOtpCode: string;
+  isDevelopmentOtpMode: boolean;
 
   // Scan
   scanText: string;
@@ -298,6 +300,8 @@ export function AppShell({
   otpInput,
   setOtpInput,
   otpMessage,
+  developmentOtpCode,
+  isDevelopmentOtpMode,
   scanText,
   setScanText,
   isScanning,
@@ -1037,6 +1041,8 @@ export function AppShell({
                 otpInput={otpInput}
                 setOtpInput={setOtpInput}
                 otpMessage={otpMessage}
+                developmentOtpCode={developmentOtpCode}
+                isDevelopmentOtpMode={isDevelopmentOtpMode}
                 onSendOtp={onSendOtp}
                 onVerifyOtp={onVerifyOtp}
                 onGrowthShare={onGrowthShare}

@@ -187,6 +187,7 @@ const isStartRoute = getIsStartRoute();
 const isPublicCampaignRoute = Boolean(publicCampaignSlug);
 const isSupporterPortalRoute = Boolean(supporterPortalCode);
 const isCampaignAdminRoute = Boolean(adminCampaignSlug);
+const isDevelopmentOtpMode = import.meta.env.VITE_DEV_MODE === "true";
 
 function slugifyOnboardingValue(value: string): string {
   return value
@@ -338,6 +339,7 @@ function App() {
   const [publicMessage, setPublicMessage] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const [otpMessage, setOtpMessage] = useState("");
+  const [developmentOtpCode, setDevelopmentOtpCode] = useState("");
   const [lastSignedSigner, setLastSignedSigner] = useState<Signer | null>(null);
   const [publicCampaignPayload, setPublicCampaignPayload] = useState<PublicCampaignPayload | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(isStartRoute);
@@ -1260,6 +1262,7 @@ function App() {
         setPublicForm(blankSigner);
         setOtpInput("");
         setOtpMessage("");
+        setDevelopmentOtpCode("");
         setLastSignedSigner(result.signer);
         if (result.signer.status !== "duplicate") {
           recordGrowthLifecycle(
@@ -1328,13 +1331,15 @@ function App() {
         otpVerificationToken: ""
       });
       setOtpInput("");
-      setOtpMessage("Verification code sent. Enter the OTP to continue.");
+      setOtpMessage(result.message || "Verification code sent. Enter the OTP to continue.");
+      setDevelopmentOtpCode(isDevelopmentOtpMode && result.otp ? result.otp : "");
       recordGrowthEventIntent(GrowthEventType.OtpRequested, activeCampaign.id, {
         duplicateKey: `${activeCampaign.id}:otp-requested:${result.challengeId}`,
         phoneCaptured: true,
         challengeId: result.challengeId
       });
     } catch (error) {
+      setDevelopmentOtpCode("");
       setOtpMessage(error instanceof Error ? error.message : "Unable to send OTP. Please retry.");
     }
   }
@@ -1359,6 +1364,7 @@ function App() {
         otpVerified: true,
         otpVerificationToken: result.verificationToken
       });
+      setDevelopmentOtpCode("");
       setOtpMessage("Phone number verified.");
       recordGrowthEventIntent(GrowthEventType.OtpVerified, activeCampaign.id, {
         duplicateKey: `${activeCampaign.id}:otp-verified:${publicForm.otpChallengeId}`,
@@ -2044,6 +2050,8 @@ function App() {
           otpInput={otpInput}
           setOtpInput={setOtpInput}
           otpMessage={otpMessage}
+          developmentOtpCode={developmentOtpCode}
+          isDevelopmentOtpMode={isDevelopmentOtpMode}
           onSendOtp={sendOtp}
           onVerifyOtp={verifyOtp}
           onGrowthShare={recordPublicShareGrowth}
@@ -2166,6 +2174,8 @@ function App() {
         otpInput={otpInput}
         setOtpInput={setOtpInput}
         otpMessage={otpMessage}
+        developmentOtpCode={developmentOtpCode}
+        isDevelopmentOtpMode={isDevelopmentOtpMode}
         scanText={scanText}
         setScanText={setScanText}
         isScanning={isScanning}

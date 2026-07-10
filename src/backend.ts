@@ -50,6 +50,7 @@ export interface PublicCampaignPayload {
 
 export interface OtpRequestResult {
   challengeId: string;
+  otp?: string;
   resendAfterSeconds: number;
   message: string;
 }

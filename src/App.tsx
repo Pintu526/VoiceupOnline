@@ -17,11 +17,13 @@ import {
   isSupabaseStorageAvailable,
   loadPublicCampaign,
   loadRemoteState,
+  requestOtp,
   saveRemoteState,
   signInWithSupabase,
   signOutSupabase,
   submitPublicSignatureSecure,
-  uploadFileToStorage
+  uploadFileToStorage,
+  verifyOtp as verifyServerOtp
 } from "./backend";
 import type { PublicCampaignPayload } from "./backend";
 import {
@@ -185,6 +187,7 @@ const isStartRoute = getIsStartRoute();
 const isPublicCampaignRoute = Boolean(publicCampaignSlug);
 const isSupporterPortalRoute = Boolean(supporterPortalCode);
 const isCampaignAdminRoute = Boolean(adminCampaignSlug);
+const isDevelopmentOtpMode = import.meta.env.VITE_DEV_MODE === "true";
 
 function slugifyOnboardingValue(value: string): string {
   return value
@@ -334,9 +337,9 @@ function App() {
   const [campaignFormMode, setCampaignFormMode] = useState<"create" | "edit">("edit");
   const [publicForm, setPublicForm] = useState(blankSigner);
   const [publicMessage, setPublicMessage] = useState("");
-  const [otpCode, setOtpCode] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const [otpMessage, setOtpMessage] = useState("");
+  const [developmentOtpCode, setDevelopmentOtpCode] = useState("");
   const [lastSignedSigner, setLastSignedSigner] = useState<Signer | null>(null);
   const [publicCampaignPayload, setPublicCampaignPayload] = useState<PublicCampaignPayload | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(isStartRoute);
@@ -1216,6 +1219,10 @@ function App() {
       setPublicMessage("Please verify your phone number with OTP before signing.");
       return;
     }
+    if (isBackendConfigured && !publicForm.otpVerificationToken) {
+      setPublicMessage("Please verify your phone number again before signing.");
+      return;
+    }
     const restrictedPublicForm = applySignerLocationRestriction(activeCampaign, publicForm, organization);
     if (!isWithinLocationRestriction(activeCampaign, restrictedPublicForm, organization)) {
       setPublicMessage("Your selected location is outside this campaign's restricted signing area.");
@@ -1255,6 +1262,7 @@ function App() {
         setPublicForm(blankSigner);
         setOtpInput("");
         setOtpMessage("");
+        setDevelopmentOtpCode("");
         setLastSignedSigner(result.signer);
         if (result.signer.status !== "duplicate") {
           recordGrowthLifecycle(
@@ -1307,21 +1315,65 @@ function App() {
     );
   }
 
-  function sendOtp() {
+  async function sendOtp() {
     if (!publicForm.phone.trim()) { setOtpMessage("Enter phone number before requesting OTP."); return; }
-    const nextOtp = String(Math.floor(100000 + Math.random() * 900000));
-    setOtpCode(nextOtp);
-    setPublicForm({ ...publicForm, otpVerified: false });
-    setOtpMessage(
-      `OTP generated: ${nextOtp}. For production, connect SMS/WhatsApp provider to send this automatically.`
-    );
+    if (!activeCampaign) { setOtpMessage("Campaign is not ready for verification."); return; }
+    if (!isBackendConfigured) {
+      setOtpMessage("Secure OTP requires Supabase Edge Functions to be configured.");
+      return;
+    }
+    try {
+      const result = await requestOtp(publicForm.phone, "public-signing", { slug: activeCampaign.slug });
+      setPublicForm({
+        ...publicForm,
+        otpVerified: false,
+        otpChallengeId: result.challengeId,
+        otpVerificationToken: ""
+      });
+      setOtpInput("");
+      setOtpMessage(result.message || "Verification code sent. Enter the OTP to continue.");
+      setDevelopmentOtpCode(isDevelopmentOtpMode && result.otp ? result.otp : "");
+      recordGrowthEventIntent(GrowthEventType.OtpRequested, activeCampaign.id, {
+        duplicateKey: `${activeCampaign.id}:otp-requested:${result.challengeId}`,
+        phoneCaptured: true,
+        challengeId: result.challengeId
+      });
+    } catch (error) {
+      setDevelopmentOtpCode("");
+      setOtpMessage(error instanceof Error ? error.message : "Unable to send OTP. Please retry.");
+    }
   }
 
-  function verifyOtp() {
-    if (!otpCode) { setOtpMessage("Generate OTP first."); return; }
-    if (otpInput.trim() !== otpCode) { setOtpMessage("Invalid OTP."); return; }
-    setPublicForm({ ...publicForm, otpVerified: true });
-    setOtpMessage("Phone number verified.");
+  async function verifyOtp() {
+    if (!activeCampaign) { setOtpMessage("Campaign is not ready for verification."); return; }
+    if (!publicForm.otpChallengeId) { setOtpMessage("Send OTP first."); return; }
+    if (!isBackendConfigured) {
+      setOtpMessage("Secure OTP requires Supabase Edge Functions to be configured.");
+      return;
+    }
+    try {
+      const result = await verifyServerOtp(
+        publicForm.otpChallengeId,
+        publicForm.phone,
+        otpInput.trim(),
+        "public-signing",
+        { slug: activeCampaign.slug }
+      );
+      setPublicForm({
+        ...publicForm,
+        otpVerified: true,
+        otpVerificationToken: result.verificationToken
+      });
+      setDevelopmentOtpCode("");
+      setOtpMessage("Phone number verified.");
+      recordGrowthEventIntent(GrowthEventType.OtpVerified, activeCampaign.id, {
+        duplicateKey: `${activeCampaign.id}:otp-verified:${publicForm.otpChallengeId}`,
+        phoneCaptured: true,
+        challengeId: publicForm.otpChallengeId
+      });
+    } catch (error) {
+      setOtpMessage(error instanceof Error ? error.message : "Invalid OTP.");
+    }
   }
 
   async function uploadScan(file: File) {
@@ -1998,6 +2050,8 @@ function App() {
           otpInput={otpInput}
           setOtpInput={setOtpInput}
           otpMessage={otpMessage}
+          developmentOtpCode={developmentOtpCode}
+          isDevelopmentOtpMode={isDevelopmentOtpMode}
           onSendOtp={sendOtp}
           onVerifyOtp={verifyOtp}
           onGrowthShare={recordPublicShareGrowth}
@@ -2120,6 +2174,8 @@ function App() {
         otpInput={otpInput}
         setOtpInput={setOtpInput}
         otpMessage={otpMessage}
+        developmentOtpCode={developmentOtpCode}
+        isDevelopmentOtpMode={isDevelopmentOtpMode}
         scanText={scanText}
         setScanText={setScanText}
         isScanning={isScanning}

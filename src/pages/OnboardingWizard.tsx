@@ -521,7 +521,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
       setOtpAttempts(0);
       setResendSeconds(OTP_RESEND_SECONDS);
       setOtpMessage(
-        `OTP generated: ${nextOtp}. For production, connect SMS/WhatsApp provider to send this automatically.`
+        `OTP: ${nextOtp}`
       );
       trackEvent("otp_requested", { mobile: maskPhone(draft.mobileNumber), secureOtp: true });
     } catch (error) {

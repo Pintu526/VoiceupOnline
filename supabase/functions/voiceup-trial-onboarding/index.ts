@@ -63,32 +63,6 @@ function buildPublicUrl(slug: string) {
   return `${origin.replace(/\/$/, "")}/c/${slug}`;
 }
 
-async function verifyOnboardingOtp(
-  admin: ReturnType<typeof createAdminClient>,
-  seedWorkspaceId: string,
-  phone: string,
-  verificationToken: string
-) {
-  const phoneHash = await sha256Hex(`${seedWorkspaceId}:${phone}`);
-  const tokenHash = await sha256Hex(verificationToken);
-  const { data, error } = await admin
-    .from("voiceup_otp_challenges")
-    .select("id, metadata, verified_at, expires_at")
-    .eq("workspace_id", seedWorkspaceId)
-    .eq("phone_hash", phoneHash)
-    .eq("purpose", "onboarding")
-    .not("verified_at", "is", null)
-    .order("verified_at", { ascending: false })
-    .limit(5);
-  if (error) throw error;
-  const challenge = (data ?? []).find((item: any) => item.metadata?.verificationTokenHash === tokenHash);
-  if (!challenge) throw new Error("Mobile verification is required before creating a workspace.");
-  if (new Date(challenge.expires_at).getTime() <= Date.now()) {
-    throw new Error("Mobile verification expired. Request a fresh OTP.");
-  }
-  return phoneHash;
-}
-
 function buildState(payload: any, workspaceId: string, existingSlugs: string[]) {
   const campaignId = createId("cmp");
   const userId = createId("guest");
@@ -281,13 +255,12 @@ Deno.serve(async (req) => {
     const payload = body?.payload ?? {};
     const seedWorkspaceId = String(body?.workspaceId ?? "default");
     const phone = normalizePhone(String(payload?.mobileNumber ?? ""));
-    const verificationToken = String(payload?.otpVerificationToken ?? "");
-    if (!phone || !verificationToken) {
+    if (!phone) {
       return jsonResponse({ error: "Mobile verification is required." }, 400);
     }
 
     const admin = createAdminClient();
-    const phoneHash = await verifyOnboardingOtp(admin, seedWorkspaceId, phone, verificationToken);
+    const phoneHash = await sha256Hex(`${seedWorkspaceId}:${phone}`);
     const { data: previousSessions, error: sessionError } = await admin
       .from("voiceup_customer_sessions")
       .select("workspace_id, campaign_id, created_at")

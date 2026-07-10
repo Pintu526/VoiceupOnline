@@ -62,8 +62,6 @@ interface PublicCampaignPageProps {
   otpInput: string;
   setOtpInput: React.Dispatch<React.SetStateAction<string>>;
   otpMessage: string;
-  developmentOtpCode: string;
-  isDevelopmentOtpMode: boolean;
   onSendOtp: () => void;
   onVerifyOtp: () => void;
   locationOverrides: LocationOverrides;
@@ -88,8 +86,6 @@ export function PublicCampaignPage({
   otpInput,
   setOtpInput,
   otpMessage,
-  developmentOtpCode,
-  isDevelopmentOtpMode,
   onSendOtp,
   onVerifyOtp,
   locationOverrides,
@@ -370,15 +366,6 @@ export function PublicCampaignPage({
                 Verify OTP
               </button>
             </div>
-            {isDevelopmentOtpMode && developmentOtpCode && (
-              <div>
-                <span className="status-pill">Development Mode</span>
-                <p className="info-message">
-                  Development OTP
-                  <strong>{developmentOtpCode}</strong>
-                </p>
-              </div>
-            )}
             {publicForm.otpVerified && <span className="status-pill">Phone verified</span>}
             {otpMessage && <p className="info-message">{otpMessage}</p>}
           </div>

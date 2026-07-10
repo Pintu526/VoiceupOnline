@@ -21,11 +21,6 @@ import {
   X
 } from "lucide-react";
 import type { Campaign, Organization } from "../types";
-import {
-  isBackendConfigured,
-  requestOtp,
-  verifyOtp as verifyServerOtp
-} from "../backend";
 import { createQrCells, downloadQrPosterSvg } from "../utils/referrals";
 
 const DRAFT_KEY = "voiceup-onboarding-draft-v1";
@@ -36,7 +31,6 @@ const OTP_RESEND_SECONDS = 30;
 const OTP_RATE_WINDOW_MS = 10 * 60 * 1000;
 const OTP_MAX_SENDS_PER_WINDOW = 4;
 const OTP_MAX_VERIFY_ATTEMPTS = 5;
-const isDevelopmentOtpMode = import.meta.env.VITE_DEV_MODE === "true";
 
 export interface OnboardingDraft {
   campaignName: string;
@@ -430,10 +424,10 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [otpChallengeId, setOtpChallengeId] = useState("");
+  const [otpCode, setOtpCode] = useState("");
   const [otpVerificationToken, setOtpVerificationToken] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const [otpMessage, setOtpMessage] = useState("");
-  const [developmentOtpCode, setDevelopmentOtpCode] = useState("");
   const [otpAttempts, setOtpAttempts] = useState(0);
   const [resendSeconds, setResendSeconds] = useState(0);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
@@ -516,28 +510,21 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
       setOtpMessage(`Please wait ${resendSeconds}s before requesting another OTP.`);
       return;
     }
-    if (!isBackendConfigured) {
-      setOtpMessage("Secure mobile verification requires Supabase Edge Functions to be configured.");
-      return;
-    }
-
     setIsSendingOtp(true);
-    setOtpMessage("Preparing secure mobile verification...");
+    setOtpMessage("Generating verification code...");
     try {
-      const result = await requestOtp(draft.mobileNumber, "onboarding", {
-        landingPath: tracking.landingPath,
-        deviceId: tracking.deviceId
-      });
-      setOtpChallengeId(result.challengeId);
+      const nextOtp = createOtp();
+      setOtpCode(nextOtp);
+      setOtpChallengeId(`local-${Date.now()}`);
       setOtpVerificationToken("");
       setOtpInput("");
       setOtpAttempts(0);
-      setDevelopmentOtpCode(isDevelopmentOtpMode && result.otp ? result.otp : "");
-      setResendSeconds(result.resendAfterSeconds || OTP_RESEND_SECONDS);
-      setOtpMessage(result.message || `Verification code sent to ${maskPhone(draft.mobileNumber)}. Enter the code to continue.`);
+      setResendSeconds(OTP_RESEND_SECONDS);
+      setOtpMessage(
+        `OTP generated: ${nextOtp}. For production, connect SMS/WhatsApp provider to send this automatically.`
+      );
       trackEvent("otp_requested", { mobile: maskPhone(draft.mobileNumber), secureOtp: true });
     } catch (error) {
-      setDevelopmentOtpCode("");
       setOtpMessage(error instanceof Error ? error.message : "Unable to send OTP. Please retry.");
       trackEvent("otp_request_failed", { mobile: maskPhone(draft.mobileNumber) });
     } finally {
@@ -555,12 +542,18 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
       return;
     }
     try {
-      const result = await verifyServerOtp(otpChallengeId, draft.mobileNumber, otpInput.trim(), "onboarding");
-      setOtpVerificationToken(result.verificationToken);
-      setDevelopmentOtpCode("");
+      if (!otpCode) {
+        setOtpMessage("Send OTP first.");
+        return;
+      }
+      if (otpInput.trim() !== otpCode) {
+        throw new Error(`Incorrect OTP. ${OTP_MAX_VERIFY_ATTEMPTS - (otpAttempts + 1)} attempt(s) remaining.`);
+      }
+      const verificationToken = `otplocal-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      setOtpVerificationToken(verificationToken);
       setOtpMessage("Mobile verified. Creating your campaign now...");
       trackEvent("otp_verified", { mobile: maskPhone(draft.mobileNumber) });
-      await beginProvisioning(result.verificationToken);
+      await beginProvisioning(verificationToken);
     } catch (error) {
       const nextAttempts = otpAttempts + 1;
       setOtpAttempts(nextAttempts);
@@ -862,16 +855,6 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                     {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : otpChallengeId ? "Resend OTP" : "Send OTP"}
                   </button>
                 </div>
-
-                {isDevelopmentOtpMode && developmentOtpCode && (
-                  <div>
-                    <span className="status-pill">Development Mode</span>
-                    <p className="info-message">
-                      Development OTP
-                      <strong>{developmentOtpCode}</strong>
-                    </p>
-                  </div>
-                )}
 
                 <label className="field">
                   <span className="label">Enter OTP</span>

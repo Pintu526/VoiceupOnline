@@ -50,7 +50,6 @@ export interface PublicCampaignPayload {
 
 export interface OtpRequestResult {
   challengeId: string;
-  otp?: string;
   resendAfterSeconds: number;
   message: string;
 }
@@ -182,38 +181,6 @@ export async function loadPublicCampaign(slug: string): Promise<PublicCampaignPa
     { slug }
   );
   return result.campaign;
-}
-
-export async function requestOtp(
-  phone: string,
-  purpose: "public-signing" | "onboarding",
-  metadata: Record<string, unknown> = {}
-): Promise<OtpRequestResult> {
-  return invokeVoiceupFunction<OtpRequestResult>("voiceup-otp", {
-    action: "send",
-    phone,
-    purpose,
-    metadata
-  });
-}
-
-export async function verifyOtp(
-  challengeId: string,
-  phone: string,
-  code: string,
-  purpose: "public-signing" | "onboarding",
-  metadata: Record<string, unknown> = {}
-): Promise<OtpVerifyResult> {
-  const result = await invokeVoiceupFunction<OtpVerifyResult>("voiceup-otp", {
-    action: "verify",
-    challengeId,
-    phone,
-    code,
-    purpose,
-    metadata
-  });
-  if (result.customerSessionToken) writeCustomerSessionToken(result.customerSessionToken, result.workspaceId);
-  return result;
 }
 
 export async function createTrialWorkspace(payload: unknown): Promise<{

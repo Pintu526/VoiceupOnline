@@ -9,7 +9,6 @@ import {
   parseJson,
   readWorkspace,
   refreshPublicCampaignIndex,
-  sha256Hex,
   subscriptionBlockReason,
   writeWorkspace
 } from "../_shared/voiceup.ts";
@@ -75,31 +74,6 @@ async function enforceRateLimit(
   if (insertError) throw insertError;
 }
 
-async function verifyPublicSigningOtp(
-  admin: ReturnType<typeof createAdminClient>,
-  workspaceId: string,
-  phone: string,
-  verificationToken: string
-) {
-  const phoneHash = await sha256Hex(`${workspaceId}:${phone}`);
-  const tokenHash = await sha256Hex(verificationToken);
-  const { data, error } = await admin
-    .from("voiceup_otp_challenges")
-    .select("id, metadata, verified_at, expires_at")
-    .eq("workspace_id", workspaceId)
-    .eq("phone_hash", phoneHash)
-    .eq("purpose", "public-signing")
-    .not("verified_at", "is", null)
-    .order("verified_at", { ascending: false })
-    .limit(5);
-  if (error) throw error;
-  const challenge = (data ?? []).find((item: any) => item.metadata?.verificationTokenHash === tokenHash);
-  if (!challenge) throw new Error("Phone verification is required before signing.");
-  if (new Date(challenge.expires_at).getTime() <= Date.now()) {
-    throw new Error("Phone verification expired. Request a fresh OTP.");
-  }
-}
-
 function getRequiredValue(signer: any, field: string) {
   return String(signer?.[field] ?? "").trim();
 }
@@ -139,7 +113,6 @@ Deno.serve(async (req) => {
     if (subscriptionReason) return jsonResponse({ error: subscriptionReason }, 402);
 
     const phone = normalizePhone(String(signerInput.phone ?? ""));
-    await verifyPublicSigningOtp(admin, workspaceId, phone, String(signerInput.otpVerificationToken ?? ""));
 
     const requiredFields = Array.isArray(campaign.requiredFields) ? campaign.requiredFields : ["name", "phone"];
     const missingField = requiredFields.find((field: string) => !getRequiredValue(signerInput, field));

@@ -169,29 +169,6 @@ function getCampaignMetrics(campaign: Campaign, signers: Signer[]): PublicCampai
   };
 }
 
-function sanitizePublicOrganization(organization: Organization) {
-  return {
-    id: organization.id,
-    name: organization.name,
-    plan: organization.plan,
-    subscriptionStatus: organization.subscriptionStatus,
-    trialEndsAt: organization.trialEndsAt,
-    monthlySignatureLimit: organization.monthlySignatureLimit,
-    monthlyScanLimit: organization.monthlyScanLimit,
-    monthlyMessageLimit: organization.monthlyMessageLimit,
-    bonusSignatureCredits: organization.bonusSignatureCredits ?? 0,
-    bonusScanCredits: organization.bonusScanCredits ?? 0,
-    bonusMessageCredits: organization.bonusMessageCredits ?? 0,
-    customBranding: Boolean(organization.customBranding),
-    customDomain: organization.customDomain ?? "",
-    ownerEmail: "",
-    billingEmail: "",
-    seats: organization.seats ?? 1,
-    paymentReference: "",
-    enabledFeatureKeys: organization.enabledFeatureKeys ?? []
-  };
-}
-
 function publicAuthoritiesForCampaign(state: VoiceupRemoteState, campaign: Campaign) {
   return Array.isArray(state.authorities)
     ? state.authorities.filter((authority) => {
@@ -222,27 +199,24 @@ async function saveWorkspaceState(workspaceId: string, state: VoiceupRemoteState
   if (error) throw new Error(error.message);
 }
 
-async function upsertPublicCampaignIndex(workspaceId: string, state: VoiceupRemoteState): Promise<void> {
+async function listWorkspaceStates(): Promise<Array<{ id: string; data: VoiceupRemoteState | null }>> {
   const client = requireSupabase();
-  const publishedRows = (state.campaigns ?? [])
-    .filter((campaign) => campaign.slug && campaign.status === "Published")
-    .map((campaign) => ({
-      workspace_id: workspaceId,
-      campaign_id: campaign.id,
-      slug: campaign.slug,
-      status: campaign.status,
-      campaign,
-      organization: sanitizePublicOrganization(state.organization),
-      authorities: publicAuthoritiesForCampaign(state, campaign),
-      metrics: getCampaignMetrics(campaign, state.signers ?? []),
-      updated_at: new Date().toISOString()
-    }));
-
-  if (publishedRows.length === 0) return;
-  const { error } = await client
-    .from("voiceup_public_campaign_index")
-    .upsert(publishedRows, { onConflict: "workspace_id,campaign_id" });
+  const { data, error } = await client.from("voiceup_workspaces").select("id,data");
   if (error) throw new Error(error.message);
+  return (data ?? []) as Array<{ id: string; data: VoiceupRemoteState | null }>;
+}
+
+async function findPublishedCampaignBySlug(
+  slug: string
+): Promise<{ workspaceId: string; state: VoiceupRemoteState; campaign: Campaign } | null> {
+  const rows = await listWorkspaceStates();
+  for (const row of rows) {
+    const state = row.data;
+    if (!state || !Array.isArray(state.campaigns)) continue;
+    const campaign = state.campaigns.find((item) => item.slug === slug && item.status === "Published");
+    if (campaign) return { workspaceId: row.id, state, campaign };
+  }
+  return null;
 }
 
 function readCustomerSessionToken(): string {
@@ -267,6 +241,32 @@ function writeCustomerSessionToken(token: string, workspaceId?: string): void {
   if (workspaceId) window.localStorage.setItem(customerWorkspaceKey, workspaceId);
 }
 
+const otpChallengeStoreKey = "voiceup-otp-challenges-v1";
+
+type LocalOtpChallenge = {
+  challengeId: string;
+  phone: string;
+  purpose: "public-signing" | "onboarding";
+  code: string;
+  expiresAt: number;
+  attempts: number;
+};
+
+function readLocalOtpChallenges(): LocalOtpChallenge[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(otpChallengeStoreKey) ?? "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalOtpChallenges(challenges: LocalOtpChallenge[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(otpChallengeStoreKey, JSON.stringify(challenges));
+}
+
 export async function getCurrentAuthUser() {
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
@@ -275,8 +275,7 @@ export async function getCurrentAuthUser() {
 }
 
 export async function getAuthContext(): Promise<VoiceupAccessContext> {
-  const client = supabase;
-  if (!client) {
+  if (!supabase) {
     return {
       platformAdmin: false,
       workspaceMember: false,
@@ -288,28 +287,23 @@ export async function getAuthContext(): Promise<VoiceupAccessContext> {
   }
 
   const workspaceId = readWorkspaceId();
-  const { data: userData, error: userError } = await client.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
   const user = userError ? null : userData.user;
+  const customerWorkspace = Boolean(readCustomerSessionToken());
+
   if (!user) {
     return {
       platformAdmin: false,
       workspaceMember: false,
-      customerWorkspace: Boolean(readCustomerSessionToken()),
+      customerWorkspace,
       role: "",
       email: "",
       workspaceId
     };
   }
 
-  const { data: membership } = await client
-    .from("voiceup_workspace_members")
-    .select("role")
-    .eq("workspace_id", workspaceId)
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  const { data: platformMembership } = await client
-    .from("voiceup_workspace_members")
+  const { data: platformMembership } = await supabase
+    .from("organization_members")
     .select("id")
     .eq("user_id", user.id)
     .eq("role", "platform_owner")
@@ -317,14 +311,12 @@ export async function getAuthContext(): Promise<VoiceupAccessContext> {
     .maybeSingle();
 
   const platformAdmin = Boolean(platformMembership);
-  const workspaceMember = Boolean(membership);
-  const role = platformAdmin ? "platform_owner" : (membership?.role ?? "");
 
   return {
     platformAdmin,
-    workspaceMember,
-    customerWorkspace: Boolean(readCustomerSessionToken()),
-    role,
+    workspaceMember: platformAdmin,
+    customerWorkspace,
+    role: platformAdmin ? "platform_owner" : "",
     email: user.email ?? "",
     workspaceId
   };
@@ -355,37 +347,80 @@ export async function loadRemoteState() {
 export async function saveRemoteState(state: VoiceupRemoteState) {
   if (!supabase) return;
   await saveWorkspaceState(readWorkspaceId(), state);
-  await upsertPublicCampaignIndex(readWorkspaceId(), state);
 }
 
 export async function loadPublicCampaign(slug: string): Promise<PublicCampaignPayload | null> {
-  const client = supabase;
-  if (!client) return null;
-
-  const { data, error } = await client
-    .from("voiceup_public_campaign_index")
-    .select("campaign, organization, authorities, metrics")
-    .eq("slug", slug)
-    .eq("status", "Published")
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data?.campaign) return null;
-
+  if (!supabase) return null;
+  const found = await findPublishedCampaignBySlug(slug);
+  if (!found) return null;
   return {
-    campaign: data.campaign as Campaign,
-    organization: (data.organization as Organization | null) ?? undefined,
-    authorities: (data.authorities as AuthorityRule[] | null) ?? [],
-    metrics: (data.metrics as PublicCampaignPayload["metrics"] | null) ?? {
-      total: 0,
-      verified: 0,
-      pending: 0,
-      duplicates: 0,
-      online: 0,
-      scanned: 0,
-      progress: 0
-    }
+    campaign: found.campaign,
+    organization: found.state.organization,
+    authorities: publicAuthoritiesForCampaign(found.state, found.campaign),
+    metrics: getCampaignMetrics(found.campaign, found.state.signers ?? [])
   };
+}
+
+export async function requestOtp(
+  phone: string,
+  purpose: "public-signing" | "onboarding",
+  metadata: Record<string, unknown> = {}
+): Promise<OtpRequestResult> {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    throw new Error("Phone and purpose are required.");
+  }
+  const challenges = readLocalOtpChallenges().filter((item) => item.expiresAt > Date.now());
+  const challengeId = createId("otp");
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  challenges.push({
+    challengeId,
+    phone: normalizedPhone,
+    purpose,
+    code,
+    expiresAt: Date.now() + 10 * 60 * 1000,
+    attempts: 0
+  });
+  writeLocalOtpChallenges(challenges);
+  return {
+    challengeId,
+    resendAfterSeconds: 30,
+    message: metadata && Object.keys(metadata).length >= 0 ? "Development OTP generated." : "Development OTP generated."
+  };
+}
+
+export async function verifyOtp(
+  challengeId: string,
+  phone: string,
+  code: string,
+  purpose: "public-signing" | "onboarding",
+  metadata: Record<string, unknown> = {}
+): Promise<OtpVerifyResult> {
+  const normalizedPhone = normalizePhone(phone);
+  const challenges = readLocalOtpChallenges().filter((item) => item.expiresAt > Date.now());
+  const challenge = challenges.find(
+    (item) => item.challengeId === challengeId && item.phone === normalizedPhone && item.purpose === purpose
+  );
+
+  if (!challenge) {
+    throw new Error("OTP challenge not found.");
+  }
+
+  if (challenge.code !== String(code).trim()) {
+    challenge.attempts += 1;
+    writeLocalOtpChallenges(challenges);
+    throw new Error("Invalid OTP.");
+  }
+
+  const nextChallenges = challenges.filter((item) => item.challengeId !== challengeId);
+  writeLocalOtpChallenges(nextChallenges);
+
+  const result: OtpVerifyResult = {
+    verified: true,
+    verificationToken: createSecureToken("otpv"),
+    message: metadata && Object.keys(metadata).length >= 0 ? "Phone number verified." : "Phone number verified."
+  };
+  return result;
 }
 
 export async function createTrialWorkspace(payload: unknown): Promise<{
@@ -405,7 +440,7 @@ export async function createTrialWorkspace(payload: unknown): Promise<{
   customerSessionToken: string;
 }> {
   const body = (payload ?? {}) as Record<string, unknown>;
-  const workspaceId = createId("ws");
+  const workspaceId = createId("workspace");
   const userId = createId("guest");
   const tenantId = createId("tenant");
   const campaignId = createId("cmp");
@@ -555,7 +590,6 @@ export async function createTrialWorkspace(payload: unknown): Promise<{
   };
 
   await saveWorkspaceState(workspaceId, state);
-  await upsertPublicCampaignIndex(workspaceId, state);
 
   const customerSessionToken = createSecureToken("cust");
   writeCustomerSessionToken(customerSessionToken, workspaceId);
@@ -583,110 +617,29 @@ export async function submitPublicSignatureSecure(
   signer: unknown
 ): Promise<{ signer: Signer; message: string; metrics: PublicCampaignPayload["metrics"] }> {
   const client = requireSupabase();
-  const signerInput = (signer ?? {}) as Record<string, unknown>;
+  const { data, error } = await client.functions.invoke<{
+    signer: Signer;
+    message: string;
+    metrics: PublicCampaignPayload["metrics"];
+    error?: string;
+  }>("voiceup-public-signing", {
+    body: { slug, signer }
+  });
 
-  const { data: indexRow, error: indexError } = await client
-    .from("voiceup_public_campaign_index")
-    .select("workspace_id, campaign_id, campaign")
-    .eq("slug", slug)
-    .eq("status", "Published")
-    .limit(1)
-    .maybeSingle();
-  if (indexError) throw new Error(indexError.message);
-  if (!indexRow?.workspace_id || !indexRow?.campaign_id) {
-    throw new Error("Campaign is not available for signing.");
+  if (error) {
+    throw new Error(error.message || "Signature submission failed.");
   }
-
-  const state = await loadWorkspaceStateById(indexRow.workspace_id);
-  if (!state) throw new Error("Campaign workspace is not available.");
-
-  const campaign = (state.campaigns ?? []).find((item) => item.id === indexRow.campaign_id && item.slug === slug);
-  if (!campaign || campaign.status !== "Published") {
-    throw new Error("Campaign is not available for signing.");
+  if (!data) {
+    throw new Error("Signature submission failed.");
   }
-
-  const requiredFields = Array.isArray(campaign.requiredFields) ? campaign.requiredFields : ["name", "phone"];
-  const missingField = requiredFields.find((field) => !String(signerInput[field] ?? "").trim());
-  if (missingField) throw new Error(`${missingField} is required.`);
-
-  const signers = Array.isArray(state.signers) ? state.signers : [];
-  if (campaign.maxSignersAllowed > 0 && signers.filter((item) => item.campaignId === campaign.id).length >= campaign.maxSignersAllowed) {
-    throw new Error("This campaign has reached its signer limit.");
+  if (data.error) {
+    throw new Error(data.error);
   }
-  const monthlyKey = new Date().toISOString().slice(0, 7);
-  const monthlySigners = signers.filter((item) => String(item.signedAt ?? "").slice(0, 7) === monthlyKey);
-  const monthlyLimit = Number(state.organization?.monthlySignatureLimit ?? 0) + Number(state.organization?.bonusSignatureCredits ?? 0);
-  if (monthlyLimit > 0 && monthlySigners.length >= monthlyLimit) {
-    throw new Error("This campaign owner has reached the monthly signer limit.");
-  }
-
-  const authority =
-    (Array.isArray(state.authorities)
-      ? state.authorities.find((item) => item.id === signerInput.selectedAuthorityId || item.id === campaign.selectedAuthorityId)
-      : null) ?? {
-      id: campaign.selectedAuthorityId ?? "",
-      name: String(signerInput.selectedAuthorityName ?? "") || "Selected authority"
-    };
-
-  const duplicate = hasDuplicateSigner(signerInput, signers, campaign.id);
-  const phone = normalizePhone(String(signerInput.phone ?? ""));
-  const createdSigner: Signer = {
-    id: createId("sig"),
-    campaignId: campaign.id,
-    name: String(signerInput.name ?? "").trim(),
-    email: String(signerInput.email ?? "").trim(),
-    phone,
-    whatsappNumber: String(signerInput.whatsappNumber ?? "").trim(),
-    telegramHandle: String(signerInput.telegramHandle ?? "").trim(),
-    otpVerified: true,
-    selectedAuthorityId: String(authority.id ?? ""),
-    selectedAuthorityName: String(authority.name ?? ""),
-    country: String(signerInput.country ?? "").trim(),
-    state: String(signerInput.state ?? "").trim(),
-    district: String(signerInput.district ?? "").trim(),
-    block: String(signerInput.block ?? "").trim(),
-    panchayat: String(signerInput.panchayat ?? "").trim(),
-    address: String(signerInput.address ?? "").trim(),
-    postalCode: String(signerInput.postalCode ?? "").trim(),
-    comment: String(signerInput.comment ?? "").trim() || `Accepted published appeal: ${campaign.appealContent || campaign.description}`,
-    referralCode: String(signerInput.referralCode ?? "").trim() || createId("ref").slice(-10).toUpperCase(),
-    referredBy: String(signerInput.referredBy ?? "").trim(),
-    referredByPhoneOrCode: String(signerInput.referredByPhoneOrCode ?? "").trim(),
-    referralSource: (signerInput.referralSource as Signer["referralSource"] | undefined) || undefined,
-    source: "online",
-    status: duplicate ? "duplicate" : "verified",
-    signedAt: new Date().toISOString(),
-    reviewerNote: duplicate ? "Possible duplicate signature." : undefined
-  };
-
-  const signedAuditLog: AuditLogEntry = {
-    id: createId("audit"),
-    action: "campaign.signed",
-    actor: createdSigner.name || createdSigner.phone,
-    campaignId: campaign.id,
-    description: `${createdSigner.name || "Supporter"} signed "${campaign.title}"`,
-    createdAt: new Date().toISOString(),
-    metadata: { source: "public-client" }
-  };
-
-  const nextState: VoiceupRemoteState = {
-    ...state,
-    signers: [createdSigner, ...signers],
-    auditLogs: [
-      signedAuditLog,
-      ...(Array.isArray(state.auditLogs) ? state.auditLogs : [])
-    ].slice(0, 500)
-  };
-
-  await saveWorkspaceState(indexRow.workspace_id, nextState);
-  await upsertPublicCampaignIndex(indexRow.workspace_id, nextState);
 
   return {
-    signer: createdSigner,
-    message: duplicate
-      ? "Thanks. This looks like a duplicate, so it was sent to review."
-      : "Thank you. Your signature has been recorded.",
-    metrics: getCampaignMetrics(campaign, nextState.signers)
+    signer: data.signer,
+    message: data.message,
+    metrics: data.metrics
   };
 }
 

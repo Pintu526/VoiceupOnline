@@ -1,9 +1,12 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import { motion } from "framer-motion";
 import {
+  Archive,
   BarChart3,
   AlertTriangle,
   Command,
+  Copy,
   Crosshair,
   FileScan,
   FileText,
@@ -12,10 +15,13 @@ import {
   MessageCircle,
   Moon,
   Plus,
+  Search,
   ShieldCheck,
   Sparkles,
+  Star,
   Sun,
   TrendingUp,
+  Trash2,
   UsersRound,
   WalletCards
 } from "lucide-react";
@@ -40,6 +46,7 @@ import { blankSigner } from "../constants";
 import type { AiCampaignCopilotResult } from "../ai/types";
 import { createId } from "../lib";
 import { getCampaignAdminUrl, getCampaignPublicUrl } from "../utils/campaign";
+import { formatAuthorityDisplay, getAppealAuthority } from "../utils/authority";
 import { getCreateCampaignBlockReason, isFeatureIncludedInPlan } from "../utils/subscription";
 import { GROWTH_FEATURE_FLAGS } from "../growth/constants";
 import type { GrowthRuntimeState, GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
@@ -80,6 +87,40 @@ function slugifyCampaignTitle(value: string) {
 
 function campaignSnapshot(campaign: Campaign | null | undefined) {
   return campaign ? JSON.stringify(campaign) : "";
+}
+
+function readStoredIdList(storageKey: string) {
+  try {
+    const storedValue = window.localStorage.getItem(storageKey);
+    const parsedValue = storedValue ? JSON.parse(storedValue) : [];
+    return Array.isArray(parsedValue)
+      ? parsedValue.filter((value): value is string => typeof value === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredIdList(storageKey: string, ids: string[]) {
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(ids));
+  } catch {
+    // Campaign switching should keep working even when localStorage is unavailable.
+  }
+}
+
+function getCampaignSelectorStatus(campaign: Campaign) {
+  if (campaign.archivedAt) return "Archived";
+  return campaign.status === "Closed" ? "Completed" : campaign.status;
+}
+
+function getCampaignSelectorStatusData(campaign: Campaign) {
+  return campaign.archivedAt || campaign.status === "Closed" ? "Closed" : campaign.status;
+}
+
+function getCampaignAuthorityText(campaign: Campaign, authorities: AuthorityRule[]) {
+  const authority = getAppealAuthority(campaign, authorities);
+  return formatAuthorityDisplay(authority);
 }
 
 function getErrorDescription(error: unknown) {
@@ -206,6 +247,7 @@ interface AppShellProps {
   onCreateCampaign: () => void;
   onCloneCampaign: () => void;
   onArchiveCampaign: () => void;
+  onDeleteCampaign: () => void;
   onSaveCampaign: (event: FormEvent) => void;
   onPublishCampaign: () => void;
   onSubmitPublicSignature: (event: FormEvent) => void;
@@ -316,6 +358,7 @@ export function AppShell({
   onCreateCampaign,
   onCloneCampaign,
   onArchiveCampaign,
+  onDeleteCampaign,
   onSaveCampaign,
   onPublishCampaign,
   onSubmitPublicSignature,
@@ -354,7 +397,20 @@ export function AppShell({
     actionLabel?: string;
     onAction?: () => void;
   } | null>(null);
-  const campaignSelectionValue = campaignFormMode === "create" ? "new-draft" : activeCampaignId;
+  const pinnedCampaignStorageKey = `voiceup-campaign-selector-pinned-${organization.id}`;
+  const recentCampaignStorageKey = `voiceup-campaign-selector-recent-${organization.id}`;
+  const [campaignSelectorOpen, setCampaignSelectorOpen] = useState(false);
+  const [campaignSelectorQuery, setCampaignSelectorQuery] = useState("");
+  const [pinnedCampaignIds, setPinnedCampaignIds] = useState<string[]>(() =>
+    readStoredIdList(pinnedCampaignStorageKey)
+  );
+  const [recentCampaignIds, setRecentCampaignIds] = useState<string[]>(() =>
+    readStoredIdList(recentCampaignStorageKey)
+  );
+  const campaignAuthorityTextById = useMemo(
+    () => new Map(campaigns.map((campaign) => [campaign.id, getCampaignAuthorityText(campaign, authorities)])),
+    [authorities, campaigns]
+  );
   const savedCampaignSnapshot = campaignFormMode === "edit" ? campaignSnapshot(activeCampaign) : "";
   const draftCampaignSnapshot = campaignSnapshot(campaignDraft);
   const hasUnsavedCampaignChanges = Boolean(campaignDraft) && (
@@ -373,6 +429,73 @@ export function AppShell({
     enabledFeatureKeys.has(GROWTH_FEATURE_FLAGS.legacyMovementCrm);
   const canUseReports = hasWorkspaceFeature("basic_reports") || hasWorkspaceFeature("advanced_reports");
   const canUseAiCopilot = hasWorkspaceFeature("ai_copilot");
+
+  useEffect(() => {
+    setPinnedCampaignIds(readStoredIdList(pinnedCampaignStorageKey));
+    setRecentCampaignIds(readStoredIdList(recentCampaignStorageKey));
+  }, [pinnedCampaignStorageKey, recentCampaignStorageKey]);
+
+  useEffect(() => {
+    const validCampaignIds = new Set(campaigns.map((campaign) => campaign.id));
+    writeStoredIdList(
+      pinnedCampaignStorageKey,
+      pinnedCampaignIds.filter((campaignId) => validCampaignIds.has(campaignId))
+    );
+  }, [campaigns, pinnedCampaignIds, pinnedCampaignStorageKey]);
+
+  useEffect(() => {
+    const validCampaignIds = new Set(campaigns.map((campaign) => campaign.id));
+    writeStoredIdList(
+      recentCampaignStorageKey,
+      recentCampaignIds.filter((campaignId) => validCampaignIds.has(campaignId)).slice(0, 6)
+    );
+  }, [campaigns, recentCampaignIds, recentCampaignStorageKey]);
+
+  const campaignSelectorSearchTerm = campaignSelectorQuery.trim().toLowerCase();
+  const visibleCampaigns = useMemo(() => {
+    if (!campaignSelectorSearchTerm) return campaigns;
+    return campaigns.filter((campaign) =>
+      [
+        campaign.title,
+        campaign.slug,
+        campaign.category,
+        campaign.status,
+        getCampaignSelectorStatus(campaign),
+        campaignAuthorityTextById.get(campaign.id),
+        campaign.location,
+        campaign.state,
+        campaign.district,
+        campaign.country
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(campaignSelectorSearchTerm)
+    );
+  }, [campaignAuthorityTextById, campaignSelectorSearchTerm, campaigns]);
+  const shouldWindowCampaignList = visibleCampaigns.length > 100;
+  const campaignGroupRenderLimit = shouldWindowCampaignList ? 80 : Number.POSITIVE_INFINITY;
+  const pinnedCampaignIdSet = useMemo(() => new Set(pinnedCampaignIds), [pinnedCampaignIds]);
+  const pinnedCampaigns = pinnedCampaignIds
+    .map((campaignId) => visibleCampaigns.find((campaign) => campaign.id === campaignId))
+    .filter((campaign): campaign is Campaign => Boolean(campaign));
+  const recentCampaigns = recentCampaignIds
+    .map((campaignId) => visibleCampaigns.find((campaign) => campaign.id === campaignId))
+    .filter((campaign): campaign is Campaign => Boolean(campaign));
+  const draftCampaigns = visibleCampaigns.filter(
+    (campaign) => campaign.status === "Draft" && getCampaignSelectorStatus(campaign) !== "Archived"
+  );
+  const publishedCampaigns = visibleCampaigns.filter(
+    (campaign) => campaign.status === "Published" && getCampaignSelectorStatus(campaign) !== "Archived"
+  );
+  const pausedCampaigns = visibleCampaigns.filter(
+    (campaign) => campaign.status === "Paused" && getCampaignSelectorStatus(campaign) !== "Archived"
+  );
+  const completedCampaigns = visibleCampaigns.filter(
+    (campaign) => campaign.status === "Closed" && !campaign.archivedAt
+  );
+  const archivedCampaigns = visibleCampaigns.filter(
+    (campaign) => Boolean(campaign.archivedAt)
+  );
 
   function getLockedTabMessage(tab: Tab): string {
     const messages: Partial<Record<Tab, string>> = {
@@ -509,6 +632,124 @@ export function AppShell({
     }
     setOperationNotice(null);
     onCreateCampaign();
+  }
+
+  function selectCampaign(campaignId: string) {
+    const selectedCampaign = campaigns.find((campaign) => campaign.id === campaignId);
+    if (!selectedCampaign) return;
+    if (
+      hasUnsavedCampaignChanges &&
+      !window.confirm("You have unsaved changes. Switch campaigns without saving?")
+    ) {
+      return;
+    }
+    setCampaignFormMode("edit");
+    setActiveCampaignId(selectedCampaign.id);
+    setRecentCampaignIds((current) => [
+      selectedCampaign.id,
+      ...current.filter((currentCampaignId) => currentCampaignId !== selectedCampaign.id)
+    ].slice(0, 6));
+    setCampaignSelectorOpen(false);
+    setCampaignSelectorQuery("");
+  }
+
+  function requestOpenCampaignDashboard() {
+    if (hasUnsavedCampaignChanges && !window.confirm("You have unsaved changes. Open dashboard without saving?")) {
+      return;
+    }
+    setCampaignSelectorOpen(false);
+    setOperationNotice(null);
+    setActiveTab("dashboard");
+  }
+
+  function requestDuplicateCampaign() {
+    if (!campaignDraft) return;
+    if (hasUnsavedCampaignChanges && !window.confirm("You have unsaved changes. Duplicate without saving first?")) {
+      return;
+    }
+    onCloneCampaign();
+    setCampaignSelectorOpen(false);
+  }
+
+  function requestArchiveCampaign() {
+    if (campaignFormMode === "create" || !activeCampaign) return;
+    if (hasUnsavedCampaignChanges && !window.confirm("You have unsaved changes. Archive without saving first?")) {
+      return;
+    }
+    if (!window.confirm(`Archive "${activeCampaign.title || "this campaign"}"?`)) return;
+    onArchiveCampaign();
+    setCampaignSelectorOpen(false);
+  }
+
+  function requestDeleteCampaign() {
+    if (campaignFormMode === "create" || !activeCampaign) return;
+    if (hasUnsavedCampaignChanges && !window.confirm("You have unsaved changes. Delete without saving first?")) {
+      return;
+    }
+    const campaignName = activeCampaign.title || "this campaign";
+    if (!window.confirm(`Delete "${campaignName}" from this workspace? This cannot be undone.`)) return;
+    onDeleteCampaign();
+    setCampaignSelectorOpen(false);
+  }
+
+  function togglePinnedCampaign(campaignId: string) {
+    setPinnedCampaignIds((current) =>
+      current.includes(campaignId)
+        ? current.filter((currentCampaignId) => currentCampaignId !== campaignId)
+        : [campaignId, ...current]
+    );
+  }
+
+  function renderCampaignSelectorItem(campaign: Campaign, groupName: string) {
+    const isSelected = campaignFormMode === "edit" && activeCampaignId === campaign.id;
+    const isPinned = pinnedCampaignIdSet.has(campaign.id);
+    const authorityText = campaignAuthorityTextById.get(campaign.id) || "Authority not configured";
+    return (
+      <div className="campaign-switcher-item" key={`${groupName}-${campaign.id}`}>
+        <button
+          className={isSelected ? "selected" : ""}
+          type="button"
+          onClick={() => selectCampaign(campaign.id)}
+        >
+          <span>
+            <strong>{campaign.title || "Untitled campaign"}</strong>
+            <small>
+              {campaign.slug ? `/${campaign.slug}` : "No public slug"} · {authorityText}
+            </small>
+          </span>
+          <span className="status-pill" data-status={getCampaignSelectorStatusData(campaign)}>
+            {getCampaignSelectorStatus(campaign)}
+          </span>
+        </button>
+        <button
+          className={isPinned ? "campaign-pin-button active" : "campaign-pin-button"}
+          type="button"
+          aria-label={isPinned ? "Remove favourite campaign" : "Favourite campaign"}
+          onClick={() => togglePinnedCampaign(campaign.id)}
+        >
+          <Star size={15} />
+        </button>
+      </div>
+    );
+  }
+
+  function renderCampaignSelectorGroup(title: string, groupCampaigns: Campaign[]) {
+    if (groupCampaigns.length === 0) return null;
+    const renderedCampaigns = groupCampaigns.slice(0, campaignGroupRenderLimit);
+    return (
+      <section className="campaign-switcher-group" aria-label={title}>
+        <div className="campaign-switcher-group-header">
+          <span>{title}</span>
+          <small>{groupCampaigns.length}</small>
+        </div>
+        {renderedCampaigns.map((campaign) => renderCampaignSelectorItem(campaign, title))}
+        {renderedCampaigns.length < groupCampaigns.length && (
+          <p className="campaign-switcher-window-note">
+            Showing first {renderedCampaigns.length} of {groupCampaigns.length}. Search by name, slug, or authority to narrow results.
+          </p>
+        )}
+      </section>
+    );
   }
 
   function handleSafeSaveCampaign(event: FormEvent) {
@@ -671,6 +912,86 @@ export function AppShell({
         setQuery={setGlobalSearch}
         items={filteredCommandItems}
       />
+      <Dialog.Root open={campaignSelectorOpen} onOpenChange={setCampaignSelectorOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="command-overlay" />
+          <Dialog.Content className="campaign-switcher-dialog" aria-label="Campaign selector">
+            <div className="command-search campaign-switcher-search">
+              <Search size={18} />
+              <input
+                autoFocus
+                aria-label="Search campaigns"
+                placeholder="Search campaigns by name, slug, authority, category, or location"
+                value={campaignSelectorQuery}
+                onChange={(event) => setCampaignSelectorQuery(event.target.value)}
+              />
+              <kbd>Esc</kbd>
+            </div>
+            <div className="campaign-switcher-actions">
+              {campaignFormMode === "create" && campaignDraft && (
+                <button
+                  className="campaign-switcher-draft-card"
+                  type="button"
+                  onClick={() => setCampaignSelectorOpen(false)}
+                >
+                  <span className="eyebrow">Current draft</span>
+                  <strong>{campaignDraft.title || "New unsaved campaign"}</strong>
+                  <small>Separate campaign ID. Save it to create a new campaign.</small>
+                </button>
+              )}
+              <button className="secondary-button" type="button" onClick={requestCreateCampaign}>
+                <Plus size={18} /> New Campaign
+              </button>
+              <div className="campaign-manager-button-row" aria-label="Campaign actions">
+                <button className="secondary-button" type="button" onClick={requestDuplicateCampaign} disabled={!campaignDraft}>
+                  <Copy size={16} /> Duplicate Campaign
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={requestArchiveCampaign}
+                  disabled={campaignFormMode === "create" || !activeCampaign}
+                >
+                  <Archive size={16} /> Archive Campaign
+                </button>
+                <button
+                  className="secondary-button danger-action"
+                  type="button"
+                  onClick={requestDeleteCampaign}
+                  disabled={campaignFormMode === "create" || !activeCampaign}
+                >
+                  <Trash2 size={16} /> Delete Campaign
+                </button>
+                <button className="secondary-button" type="button" onClick={requestOpenCampaignDashboard}>
+                  <BarChart3 size={16} /> Open Dashboard
+                </button>
+              </div>
+            </div>
+            {shouldWindowCampaignList && (
+              <div className="campaign-switcher-performance-note" role="status">
+                Large workspace mode: results are windowed for speed. Search by campaign name, slug, or authority for exact access.
+              </div>
+            )}
+            <div className="campaign-switcher-list">
+              {campaigns.length === 0 ? (
+                <div className="command-empty">No campaigns yet. Start a new campaign to create the first draft.</div>
+              ) : visibleCampaigns.length === 0 ? (
+                <div className="command-empty">No campaigns match this search.</div>
+              ) : (
+                <>
+                  {!campaignSelectorSearchTerm && renderCampaignSelectorGroup("Favourite campaigns", pinnedCampaigns)}
+                  {!campaignSelectorSearchTerm && renderCampaignSelectorGroup("Recent", recentCampaigns)}
+                  {renderCampaignSelectorGroup("Draft campaigns", draftCampaigns)}
+                  {renderCampaignSelectorGroup("Published campaigns", publishedCampaigns)}
+                  {renderCampaignSelectorGroup("Paused campaigns", pausedCampaigns)}
+                  {renderCampaignSelectorGroup("Completed campaigns", completedCampaigns)}
+                  {renderCampaignSelectorGroup("Archived campaigns", archivedCampaigns)}
+                </>
+              )}
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
       <div className="app-shell">
         <aside className="sidebar">
           <div className="brand">
@@ -817,36 +1138,27 @@ export function AppShell({
                   {activeCampaign?.slug ? <small>/{activeCampaign.slug}</small> : null}
                 </strong>
               ) : (
-                <select
-                  value={campaignSelectionValue}
-                  onChange={(e) => {
-                    if (
-                      hasUnsavedCampaignChanges &&
-                      !window.confirm("You have unsaved campaign changes. Switch campaigns without saving?")
-                    ) {
-                      return;
-                    }
-                    if (e.target.value === "new-draft") {
-                      return;
-                    }
-                    setCampaignFormMode("edit");
-                    setActiveCampaignId(e.target.value);
-                  }}
-                  disabled={campaigns.length === 0}
+                <button
+                  className="campaign-switcher-trigger"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded={campaignSelectorOpen}
+                  onClick={() => setCampaignSelectorOpen(true)}
                 >
-                  {campaignFormMode === "create" && (
-                    <option value="new-draft">New unsaved campaign</option>
-                  )}
-                  {campaigns.length === 0 ? (
-                    <option>No campaign yet</option>
-                  ) : (
-                    campaigns.map((campaign) => (
-                      <option key={campaign.id} value={campaign.id}>
-                        {campaign.title}
-                      </option>
-                    ))
-                  )}
-                </select>
+                  <span>{campaignFormMode === "create" ? "New draft" : activeCampaign ? getCampaignSelectorStatus(activeCampaign) : "Campaign Manager"}</span>
+                  <strong>
+                    {campaignFormMode === "create"
+                      ? campaignDraft?.title || "New unsaved campaign"
+                      : activeCampaign?.title || "No campaign yet"}
+                  </strong>
+                  <small>
+                    {campaignFormMode === "create"
+                      ? "Will save as a separate campaign"
+                      : activeCampaign?.slug
+                        ? `/${activeCampaign.slug}`
+                        : "Search or create a campaign"}
+                  </small>
+                </button>
               )}
             </div>
             {isCampaignAdminRoute ? (

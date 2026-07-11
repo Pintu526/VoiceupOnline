@@ -301,6 +301,7 @@ export function renderCampaignMessage(
 export function createRemoteState(state: VoiceupRemoteState): VoiceupRemoteState {
   return {
     campaigns: state.campaigns,
+    activeCampaignId: state.activeCampaignId,
     signers: state.signers,
     authorities: state.authorities,
     organization: state.organization,

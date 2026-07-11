@@ -30,6 +30,7 @@ interface IndiaLocationFieldsProps {
   hiddenLockedLevel?: LocationGovernanceLevel;
   requiredFields?: SignerRequiredField[];
   showOptionalLabels?: boolean;
+  labelOverrides?: Partial<Record<SignerRequiredField, string>>;
   onAddLocation?: (values: LocationWithPin) => boolean | Promise<boolean>;
   onRemoveLocation?: (values: LocationWithPin, level: LocationDeletionLevel) => void;
 }
@@ -51,6 +52,7 @@ export function IndiaLocationFields({
   hiddenLockedLevel = "none",
   requiredFields = [],
   showOptionalLabels = false,
+  labelOverrides,
   onAddLocation,
   onRemoveLocation
 }: IndiaLocationFieldsProps) {
@@ -103,8 +105,9 @@ export function IndiaLocationFields({
   }
 
   function fieldLabel(label: string, field: SignerRequiredField) {
-    if (requiredFields.includes(field)) return `${label} *`;
-    return showOptionalLabels ? `${label} (optional)` : label;
+    const displayLabel = labelOverrides?.[field] ?? label;
+    if (requiredFields.includes(field)) return `${displayLabel} *`;
+    return showOptionalLabels ? `${displayLabel} (optional)` : displayLabel;
   }
 
   function updateLocation(nextValues: LocationWithPin) {
@@ -113,27 +116,15 @@ export function IndiaLocationFields({
   }
 
   function selectState(state: string) {
-    const districts = getDistrictOptions(state, locationOverrides, locationDeletions);
-    const district = districts[0] ?? "";
-    const blocks = getBlockOptions(state, district, locationOverrides, locationDeletions);
-    const block = blocks[0] ?? "";
-    const panchayats = getPanchayatOptions(state, district, block, locationOverrides, locationDeletions);
-    const panchayat = panchayats[0] ?? "";
-    updateLocation({ state, district, block, panchayat, postalCode: "" });
+    updateLocation({ state, district: "", block: "", panchayat: "", postalCode: "" });
   }
 
   function selectDistrict(district: string) {
-    const blocks = getBlockOptions(values.state, district, locationOverrides, locationDeletions);
-    const block = blocks[0] ?? "";
-    const panchayats = getPanchayatOptions(values.state, district, block, locationOverrides, locationDeletions);
-    const panchayat = panchayats[0] ?? "";
-    updateLocation({ ...values, district, block, panchayat, postalCode: "" });
+    updateLocation({ ...values, district, block: "", panchayat: "", postalCode: "" });
   }
 
   function selectBlock(block: string) {
-    const panchayats = getPanchayatOptions(values.state, values.district, block, locationOverrides, locationDeletions);
-    const panchayat = panchayats[0] ?? "";
-    updateLocation({ ...values, block, panchayat, postalCode: "" });
+    updateLocation({ ...values, block, panchayat: "", postalCode: "" });
   }
 
   function updatePin(postalCode: string) {
@@ -244,38 +235,40 @@ export function IndiaLocationFields({
       )}
       {!hideState && (
         <Field label={fieldLabel("State / Union Territory", "state")}>
-          <select
+          <input
+            list={`${idPrefix}-states`}
+            placeholder="Search state or leave blank"
             value={values.state}
             onChange={(event) => selectState(event.target.value)}
             disabled={stateLocked}
-          >
-            <option value="">Select state</option>
+          />
+          <datalist id={`${idPrefix}-states`}>
             {stateOptions.map((state) => (
               <option key={state} value={state}>
                 {state}
               </option>
             ))}
-          </select>
+          </datalist>
           {stateLocked && <LockedBadge level="state" />}
         </Field>
       )}
 
       {!hideDistrict && (
         <Field label={fieldLabel("District", "district")}>
-          <select
+          <input
+            list={`${idPrefix}-districts`}
+            placeholder={values.state ? "Search district or leave blank" : "Choose state first"}
             value={values.district}
             onChange={(event) => selectDistrict(event.target.value)}
             disabled={districtLocked || !values.state || districtOptions.length === 0}
-          >
-            <option value="">
-              {districtOptions.length ? "Select district" : "Select state first"}
-            </option>
+          />
+          <datalist id={`${idPrefix}-districts`}>
             {districtOptions.map((district) => (
               <option key={district} value={district}>
                 {district}
               </option>
             ))}
-          </select>
+          </datalist>
           {districtLocked && <LockedBadge level="district" />}
           {allowInlineAdd && !districtLocked && (
             <>
@@ -302,20 +295,20 @@ export function IndiaLocationFields({
 
       {!hideBlock && (
         <Field label={fieldLabel("Block / Tehsil / Taluk", "block")}>
-          <select
+          <input
+            list={`${idPrefix}-blocks`}
+            placeholder={values.district ? "Search block / ward group or leave blank" : "Choose district first"}
             value={values.block}
             onChange={(event) => selectBlock(event.target.value)}
             disabled={blockLocked || !values.district || blockOptions.length === 0}
-          >
-            <option value="">
-              {blockOptions.length ? "Select block / ward group" : "Select district first"}
-            </option>
+          />
+          <datalist id={`${idPrefix}-blocks`}>
             {blockOptions.map((block) => (
               <option key={block} value={block}>
                 {block}
               </option>
             ))}
-          </select>
+          </datalist>
           {blockLocked && <LockedBadge level="block" />}
           {allowInlineAdd && !blockLocked && (
             <>
@@ -342,20 +335,20 @@ export function IndiaLocationFields({
 
       {!hidePanchayat && (
         <Field label={fieldLabel("Gram Panchayat / Ward", "panchayat")}>
-          <select
+          <input
+            list={`${idPrefix}-panchayats`}
+            placeholder={values.block ? "Search panchayat / ward or leave blank" : "Choose block first"}
             value={values.panchayat}
             onChange={(event) => updateLocation({ ...values, panchayat: event.target.value })}
             disabled={panchayatLocked || !values.block || panchayatOptions.length === 0}
-          >
-            <option value="">
-              {panchayatOptions.length ? "Select panchayat / ward" : "Select block first"}
-            </option>
+          />
+          <datalist id={`${idPrefix}-panchayats`}>
             {panchayatOptions.map((panchayat) => (
               <option key={panchayat} value={panchayat}>
                 {panchayat}
               </option>
             ))}
-          </select>
+          </datalist>
           {panchayatLocked && <LockedBadge level="panchayat" />}
           {allowInlineAdd && !panchayatLocked && (
             <>

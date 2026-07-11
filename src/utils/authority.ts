@@ -112,11 +112,10 @@ export function getPublicAuthorityOptions(
   authorities: AuthorityRule[]
 ): AuthorityRule[] {
   const uploadedOptions = getAuthorityOptionsForCampaign(campaign, authorities);
-  const fallback = getAppealAuthority({ ...campaign, selectedAuthorityId: "" }, []);
-  if (uploadedOptions.some((authority) => authority.id === fallback.id)) {
+  if (uploadedOptions.length > 0) {
     return uploadedOptions;
   }
-  return [...uploadedOptions, fallback];
+  return [getAppealAuthority({ ...campaign, selectedAuthorityId: "" }, [])];
 }
 
 export function getAuthorityOptionsForCampaign(

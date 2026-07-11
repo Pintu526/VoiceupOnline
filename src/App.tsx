@@ -211,6 +211,35 @@ function createUniqueOnboardingSlug(payload: OnboardingCompletionPayload, campai
   return slug;
 }
 
+function createUniqueCampaignSlug(slugValue: string, campaigns: Campaign[]): string {
+  const base = slugifyOnboardingValue(slugValue) || `campaign-${Date.now()}`;
+  const existingSlugs = new Set(campaigns.map((campaign) => campaign.slug));
+  let slug = base;
+  let suffix = 2;
+  while (existingSlugs.has(slug)) {
+    slug = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  return slug;
+}
+
+function prepareUniqueCampaignCommit(
+  campaign: Campaign,
+  campaigns: Campaign[],
+  organization: Organization
+): Campaign {
+  const existingIds = new Set(campaigns.map((existingCampaign) => existingCampaign.id));
+  const id = existingIds.has(campaign.id) ? createId("cmp") : campaign.id;
+  const slug = createUniqueCampaignSlug(campaign.slug, campaigns);
+  return {
+    ...campaign,
+    id,
+    slug,
+    shareUrl: getCampaignPublicUrl(organization, { slug }),
+    adminUrl: getCampaignAdminUrl(organization, { slug })
+  };
+}
+
 function toTitleCase(value: string): string {
   return value
     .trim()
@@ -273,6 +302,8 @@ function describeSupabaseAuthError(errorMessage: string): string {
   }
   return errorMessage;
 }
+
+type StartupMode = "pending" | "local-mvp" | "saas-workspace";
 
 function App() {
   // ─── Persistent state ────────────────────────────────────────────────────
@@ -355,6 +386,9 @@ function App() {
       : "Local preview mode: configure Supabase for public links across devices."
   );
   const [remoteStateLoaded, setRemoteStateLoaded] = useState(!isBackendConfigured);
+  const [startupMode, setStartupMode] = useState<StartupMode>(
+    isBackendConfigured ? "pending" : "local-mvp"
+  );
   const [adminLogin, setAdminLogin] = useState(blankAdminLogin);
   const [adminLoginMessage, setAdminLoginMessage] = useState("");
   const [appLogin, setAppLogin] = useState(blankAppLogin);
@@ -571,6 +605,7 @@ function App() {
     if (!isBackendConfigured) {
       const restored = hasRestoredPlatformAdminSession();
       setIsPlatformAdminAuthenticated(restored);
+      setStartupMode("local-mvp");
       setAuthContextLoading(false);
       return;
     }
@@ -600,6 +635,34 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!isBackendConfigured) return;
+    if (authContextLoading) return;
+
+    const shouldUseSaasWorkspace =
+      isCustomerWorkspaceAuthenticated || isPlatformAdminAuthenticated;
+    const nextMode: StartupMode = shouldUseSaasWorkspace ? "saas-workspace" : "local-mvp";
+
+    setStartupMode(nextMode);
+
+    if (nextMode === "local-mvp" && !isPublicCampaignRoute) {
+      setRemoteStateLoaded(true);
+      setBackendLoading(false);
+      setBackendMessage("Local MVP mode active. Sign in to load your SaaS workspace.");
+    }
+
+    if (import.meta.env.DEV) {
+      console.info(
+        `[startup] mode=${nextMode} auth=${shouldUseSaasWorkspace ? "authenticated-workspace" : "anonymous-local"}`
+      );
+    }
+  }, [
+    authContextLoading,
+    isCustomerWorkspaceAuthenticated,
+    isPlatformAdminAuthenticated,
+    isPublicCampaignRoute
+  ]);
+
+  useEffect(() => {
     updateSeoMetadata(activeCampaign, legalPage, isPublicCampaignRoute);
   }, [activeCampaign]);
 
@@ -611,6 +674,7 @@ function App() {
 
   useEffect(() => {
     if (!isBackendConfigured) return;
+    if (!isPublicCampaignRoute && startupMode !== "saas-workspace") return;
     let isCancelled = false;
 
     async function loadSharedState() {
@@ -640,21 +704,12 @@ function App() {
 
         if (remoteState) {
           const remoteCampaigns = remoteState.campaigns ?? [];
-          if (remoteCampaigns.length === 0 && campaigns.length > 0) {
-            const localState = createRemoteState({
-              campaigns, signers, authorities, organization, scanItems,
-              locationOverrides, locationDeletions, auditLogs, integrations, commercialPackages
-            });
-            await saveRemoteState(localState);
-            if (isCancelled) return;
-            setBackendMessage(`Uploaded ${campaigns.length} local campaign(s) to shared database.`);
-            return;
-          }
           setCampaigns(remoteState.campaigns ?? []);
           setSigners(remoteState.signers ?? []);
           setAuthorities(remoteState.authorities ?? initialAuthorities);
           setOrganization(remoteState.organization ?? initialOrganization);
           setScanItems(remoteState.scanItems ?? []);
+          setActiveCampaignId(remoteState.activeCampaignId ?? remoteCampaigns[0]?.id ?? "");
           setLocationOverrides((current) =>
             mergeLocationOverrides(remoteState.locationOverrides ?? {}, current)
           );
@@ -664,17 +719,20 @@ function App() {
           setCommercialPackages(remoteState.commercialPackages ?? initialCommercialPackages);
           setBackendMessage(`Shared campaign database connected (${remoteCampaigns.length} campaign(s)).`);
         } else {
-          if (campaigns.length > 0) {
-            const localState = createRemoteState({
-              campaigns, signers, authorities, organization, scanItems,
-              locationOverrides, locationDeletions, auditLogs, integrations, commercialPackages
-            });
-            await saveRemoteState(localState);
-            if (isCancelled) return;
-            setBackendMessage(`Created shared database workspace with ${campaigns.length} campaign(s).`);
-          } else {
-            setBackendMessage("Shared campaign database ready. Create or save a campaign to publish it.");
-          }
+          setCampaigns([]);
+          setSigners([]);
+          setAuthorities(initialAuthorities);
+          setOrganization(initialOrganization);
+          setScanItems([]);
+          setActiveCampaignId("");
+          setCampaignDraft(null);
+          setCampaignFormMode("edit");
+          setLocationOverrides({});
+          setLocationDeletions(emptyLocationDeletions);
+          setAuditLogs([]);
+          setIntegrations(initialIntegrationSettings);
+          setCommercialPackages(initialCommercialPackages);
+          setBackendMessage("Shared campaign database connected (0 campaign(s)).");
         }
       } catch (error) {
         setBackendMessage(`Shared database error: ${error instanceof Error ? error.message : "Unable to connect"}`);
@@ -689,16 +747,28 @@ function App() {
     void loadSharedState();
     return () => { isCancelled = true; };
   }, [
+    isPublicCampaignRoute,
+    startupMode,
     setAuthorities, setAuditLogs, setCampaigns, setCommercialPackages,
     setIntegrations, setLocationDeletions, setLocationOverrides,
     setOrganization, setScanItems, setSigners
   ]);
 
   useEffect(() => {
-    if (!isBackendConfigured || !remoteStateLoaded || isPublicCampaignRoute) return;
+    if (
+      !isBackendConfigured ||
+      startupMode !== "saas-workspace" ||
+      !remoteStateLoaded ||
+      isPublicCampaignRoute
+    ) return;
     const timeoutId = window.setTimeout(() => {
       const state = createRemoteState({
-        campaigns, signers, authorities, organization, scanItems,
+        campaigns,
+        activeCampaignId,
+        signers,
+        authorities,
+        organization,
+        scanItems,
         locationOverrides, locationDeletions, auditLogs, integrations, commercialPackages
       });
       void saveRemoteState(state)
@@ -709,7 +779,8 @@ function App() {
     }, 700);
     return () => window.clearTimeout(timeoutId);
   }, [
-    authorities, auditLogs, campaigns, commercialPackages, integrations,
+    startupMode,
+    activeCampaignId, authorities, auditLogs, campaigns, commercialPackages, integrations,
     locationDeletions, locationOverrides, organization, remoteStateLoaded, scanItems, signers
   ]);
 
@@ -1018,25 +1089,29 @@ function App() {
     };
     const governedCampaignDraft = applyLocationGovernanceToCampaign(draftWithSlugUrls, organization);
     const isExistingCampaign = campaigns.some((campaign) => campaign.id === governedCampaignDraft.id);
-    if (campaignFormMode === "create" || !isExistingCampaign) {
+    const isCreateCommit = campaignFormMode === "create" || !isExistingCampaign;
+    const campaignToCommit = isCreateCommit
+      ? prepareUniqueCampaignCommit(governedCampaignDraft, campaigns, organization)
+      : governedCampaignDraft;
+    if (isCreateCommit) {
       const blockReason = getCreateCampaignBlockReason(organization, campaigns, isBackendConfigured);
       if (blockReason) {
         throw new Error(blockReason);
       }
     }
     setCampaigns((current) => {
-      if (campaignFormMode === "create" || !isExistingCampaign) {
-        return [...current, governedCampaignDraft];
+      if (isCreateCommit) {
+        return [...current, campaignToCommit];
       }
-      return current.map((c) => (c.id === governedCampaignDraft.id ? governedCampaignDraft : c));
+      return current.map((c) => (c.id === campaignToCommit.id ? campaignToCommit : c));
     });
-    setActiveCampaignId(governedCampaignDraft.id);
-    setCampaignDraft(governedCampaignDraft);
+    setActiveCampaignId(campaignToCommit.id);
+    setCampaignDraft(campaignToCommit);
     setCampaignFormMode("edit");
     addAuditLog(
-      campaignFormMode === "create" || !isExistingCampaign ? "campaign.created" : "campaign.saved",
-      `${campaignFormMode === "create" || !isExistingCampaign ? "Created" : "Saved"} campaign "${governedCampaignDraft.title}"`,
-      governedCampaignDraft.id
+      isCreateCommit ? "campaign.created" : "campaign.saved",
+      `${isCreateCommit ? "Created" : "Saved"} campaign "${campaignToCommit.title}"`,
+      campaignToCommit.id
     );
   }
 
@@ -1157,6 +1232,23 @@ function App() {
     showToast("Campaign archived", "The campaign was marked Closed and remains available in the workspace.");
   }
 
+  function deleteCampaign() {
+    if (!activeCampaign || campaignFormMode === "create") return;
+    const deletedCampaignId = activeCampaign.id;
+    const deletedCampaignTitle = activeCampaign.title || "Untitled campaign";
+    const remainingCampaigns = campaigns.filter((campaign) => campaign.id !== deletedCampaignId);
+    const nextActiveCampaign = remainingCampaigns[0] ?? null;
+
+    setCampaigns(remainingCampaigns);
+    setSigners((current) => current.filter((signer) => signer.campaignId !== deletedCampaignId));
+    setScanItems((current) => current.filter((item) => item.campaignId !== deletedCampaignId));
+    setActiveCampaignId(nextActiveCampaign?.id ?? "");
+    setCampaignDraft(nextActiveCampaign);
+    setCampaignFormMode("edit");
+    setActiveTab("dashboard");
+    showToast("Campaign deleted", `Deleted campaign "${deletedCampaignTitle}" from this workspace.`);
+  }
+
   function publishCampaign() {
     if (!campaignDraft) return;
     if (campaignDraft.publishingLockedBySaas && isCampaignAdminRoute) {
@@ -1174,16 +1266,20 @@ function App() {
     if (organization.subscriptionStatus === "Trial" && !organization.trialEndsAt) {
       setOrganization({ ...organization, trialEndsAt: getTomorrowDate() });
     }
-    const publishedCampaign = applyLocationGovernanceToCampaign({
+    const governedPublishedCampaign = applyLocationGovernanceToCampaign({
       ...campaignDraft,
       status: "Published" as const,
       shareUrl: getCampaignPublicUrl(organization, campaignDraft),
       adminUrl: getCampaignAdminUrl(organization, campaignDraft)
     }, organization);
-    const isExistingCampaign = campaigns.some((campaign) => campaign.id === publishedCampaign.id);
+    const isExistingCampaign = campaigns.some((campaign) => campaign.id === governedPublishedCampaign.id);
+    const isCreateCommit = campaignFormMode === "create" || !isExistingCampaign;
+    const publishedCampaign = isCreateCommit
+      ? prepareUniqueCampaignCommit(governedPublishedCampaign, campaigns, organization)
+      : governedPublishedCampaign;
     setCampaignDraft(publishedCampaign);
     setCampaigns((current) => {
-      if (campaignFormMode === "create" || !isExistingCampaign) {
+      if (isCreateCommit) {
         return [...current, publishedCampaign];
       }
       return current.map((c) => (c.id === publishedCampaign.id ? publishedCampaign : c));
@@ -1530,9 +1626,10 @@ function App() {
     addAuditLog("location.added", `Added ${level} dropdown value`, activeCampaign?.id);
     setBackendMessage(`Added ${level} location option. Saving to shared database...`);
 
-    if (isBackendConfigured && remoteStateLoaded) {
+    if (isBackendConfigured && startupMode === "saas-workspace" && remoteStateLoaded) {
       void saveRemoteState(createRemoteState({
           campaigns,
+          activeCampaignId,
           signers,
           authorities,
           organization,
@@ -2138,6 +2235,7 @@ function App() {
         onCreateCampaign={createCampaign}
         onCloneCampaign={cloneCampaign}
         onArchiveCampaign={archiveCampaign}
+        onDeleteCampaign={deleteCampaign}
         onSaveCampaign={saveCampaign}
         onPublishCampaign={publishCampaign}
         onSubmitPublicSignature={submitPublicSignature}

@@ -16,6 +16,7 @@ interface GlobalLocationFieldsProps {
   hiddenLockedLevel?: LocationGovernanceLevel;
   requiredFields?: SignerRequiredField[];
   showOptionalLabels?: boolean;
+  labelOverrides?: Partial<Record<SignerRequiredField, string>>;
 }
 
 export function GlobalLocationFields({
@@ -25,7 +26,8 @@ export function GlobalLocationFields({
   lockedLevel = "none",
   hiddenLockedLevel = "none",
   requiredFields = [],
-  showOptionalLabels = false
+  showOptionalLabels = false,
+  labelOverrides
 }: GlobalLocationFieldsProps) {
   const labels = getCampaignLocationLabels({ geographyMode: "global", country: values.country });
   const countryLocked = Boolean(allowedLocation?.country);
@@ -37,8 +39,9 @@ export function GlobalLocationFields({
   const hideLocality = isLocationLevelAtLeast(hiddenLockedLevel, "panchayat");
 
   function fieldLabel(label: string, field: SignerRequiredField) {
-    if (requiredFields.includes(field)) return `${label} *`;
-    return showOptionalLabels ? `${label} (optional)` : label;
+    const displayLabel = labelOverrides?.[field] ?? label;
+    if (requiredFields.includes(field)) return `${displayLabel} *`;
+    return showOptionalLabels ? `${displayLabel} (optional)` : displayLabel;
   }
 
   function LockedBadge({ level }: { level: LocationGovernanceLevel }) {

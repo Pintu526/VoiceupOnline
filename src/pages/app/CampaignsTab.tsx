@@ -114,20 +114,20 @@ interface CampaignsTabProps {
 
 const wizardSteps = [
   {
-    title: "Choose Template",
-    helper: "Start from a polished campaign blueprint, then edit every detail."
+    title: "Organisation",
+    helper: "Confirm the workspace context and choose how this campaign draft starts."
   },
   {
     title: "Campaign Details",
     helper: "Shape the title, story, target, dates, and campaign admin access."
   },
   {
-    title: "Location Governance",
-    helper: "Choose geography mode, campaign reach, signer restrictions, and local context."
-  },
-  {
     title: "Authorities",
     helper: "Review suggested authorities, routing choices, and uploaded authority masters."
+  },
+  {
+    title: "Location",
+    helper: "Choose geography mode, campaign reach, signer restrictions, and local context."
   },
   {
     title: "Supporter Form",
@@ -142,12 +142,8 @@ const wizardSteps = [
     helper: "Configure recognition, credits, referral sharing, rewards, and Growth Engine rules for this campaign."
   },
   {
-    title: "Review",
-    helper: "Check quality, warnings, and missing information before publishing."
-  },
-  {
     title: "Publish",
-    helper: "Preview public links, QR label, and final publish readiness."
+    helper: "Check quality, public links, QR label, and final publish readiness."
   }
 ];
 
@@ -1280,7 +1276,7 @@ export function CampaignsTab({
               </div>
             )}
 
-            {activeStep === 2 && effectiveCampaignDraft && (
+            {activeStep === 3 && effectiveCampaignDraft && (
               <div className="form-grid campaign-wizard-step">
                 <div className="wide location-mode-panel">
                   <span className="eyebrow">Location Governance</span>
@@ -1370,7 +1366,7 @@ export function CampaignsTab({
               </div>
             )}
 
-            {activeStep === 3 && effectiveCampaignDraft && (
+            {activeStep === 2 && effectiveCampaignDraft && (
               <div className="form-grid campaign-wizard-step">
                 <div className="wide authority-intelligence-panel">
                   <div className="authority-intelligence-header">
@@ -2121,7 +2117,7 @@ export function CampaignsTab({
               <div className="form-grid campaign-wizard-step">
                 <div className="wide campaign-review-panel">
                   <div>
-                    <span className="eyebrow">Campaign quality score</span>
+                    <span className="eyebrow">Publish readiness</span>
                     <strong>{campaignQuality?.score ?? 0} / 100</strong>
                     <p className="helper-text">
                       Visual guidance only. Save and publish still use the existing handlers.
@@ -2261,6 +2257,24 @@ export function CampaignsTab({
                       />
                       Lock publishing for campaign admin
                     </label>
+
+                  <div className="wide publish-preview">
+                    <div>
+                      <span className="eyebrow">Ready to publish</span>
+                      <h4>{campaignDraft.title || "Untitled campaign"}</h4>
+                      <p>{campaignDraft.description || "Add a campaign summary before publishing."}</p>
+                      <strong>{readyCount} of {readinessItems.length} publish readiness checks look ready</strong>
+                    </div>
+                    <div className="publish-url-card">
+                      <span className="label">Campaign URL preview</span>
+                      <strong>{hasDraftSlug ? publicCampaignUrl : "Add a campaign slug to generate links."}</strong>
+                      <small>{campaignDraft.status} · {getCampaignGoalValue(campaignDraft).toLocaleString()} target signatures</small>
+                    </div>
+                    <div className="qr-preview-card">
+                      <QrCode size={64} />
+                      <span>{campaignDraft.qrLabel || campaignDraft.title || "Campaign QR"}</span>
+                    </div>
+                  </div>
                     <label className="check-row">
                       <input
                         type="checkbox"
@@ -2357,28 +2371,6 @@ export function CampaignsTab({
                     </p>
                   </div>
                 )}
-              </div>
-            )}
-
-            {activeStep === 8 && (
-              <div className="form-grid campaign-wizard-step">
-                <div className="wide publish-preview">
-                  <div>
-                    <span className="eyebrow">Ready to publish</span>
-                    <h4>{campaignDraft.title || "Untitled campaign"}</h4>
-                    <p>{campaignDraft.description || "Add a campaign summary before publishing."}</p>
-                    <strong>{readyCount} of {readinessItems.length} publish readiness checks look ready</strong>
-                  </div>
-                  <div className="publish-url-card">
-                    <span className="label">Campaign URL preview</span>
-                    <strong>{hasDraftSlug ? publicCampaignUrl : "Add a campaign slug to generate links."}</strong>
-                    <small>{campaignDraft.status} · {getCampaignGoalValue(campaignDraft).toLocaleString()} target signatures</small>
-                  </div>
-                  <div className="qr-preview-card">
-                    <QrCode size={64} />
-                    <span>{campaignDraft.qrLabel || campaignDraft.title || "Campaign QR"}</span>
-                  </div>
-                </div>
               </div>
             )}
 

@@ -16,6 +16,7 @@ export interface VoiceupRemoteState {
   signers: Signer[];
   authorities: AuthorityRule[];
   organization: Organization;
+  activeCampaignId?: string;
   scanItems: ScanReviewItem[];
   locationOverrides: LocationOverrides;
   locationDeletions: LocationDeletions;
@@ -191,6 +192,29 @@ async function loadWorkspaceStateById(workspaceId: string): Promise<VoiceupRemot
   return (data?.data as VoiceupRemoteState | null) ?? null;
 }
 
+async function inspectWorkspaceStateById(workspaceId: string): Promise<{
+  rowFound: boolean;
+  campaignCount: number;
+  campaignIds: string[];
+}> {
+  const client = requireSupabase();
+  const { data, error } = await client
+    .from("voiceup_workspaces")
+    .select("data")
+    .eq("id", workspaceId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+
+  const state = (data?.data as VoiceupRemoteState | null) ?? null;
+  const campaigns = Array.isArray(state?.campaigns) ? state.campaigns : [];
+
+  return {
+    rowFound: Boolean(data),
+    campaignCount: campaigns.length,
+    campaignIds: campaigns.map((campaign) => campaign.id)
+  };
+}
+
 async function saveWorkspaceState(workspaceId: string, state: VoiceupRemoteState): Promise<void> {
   const client = requireSupabase();
   const { error } = await client
@@ -227,6 +251,53 @@ function readCustomerSessionToken(): string {
 function readWorkspaceId(): string {
   if (typeof window === "undefined") return fallbackWorkspaceId;
   return window.localStorage.getItem(customerWorkspaceKey) || fallbackWorkspaceId;
+}
+
+interface WorkspaceMembershipContext {
+  workspaceId: string;
+  workspaceMember: boolean;
+  platformAdmin: boolean;
+  role: string;
+}
+
+async function resolveWorkspaceMembershipContext(userId: string): Promise<WorkspaceMembershipContext> {
+  const { data: orgMembership } = await requireSupabase()
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  const { data: workspaceMembership } = await requireSupabase()
+    .from("voiceup_workspace_members")
+    .select("workspace_id,role")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  const orgRole = orgMembership?.role ?? "";
+  const workspaceRole = workspaceMembership?.role ?? "";
+  const role = workspaceRole || orgRole;
+
+  return {
+    workspaceId: workspaceMembership?.workspace_id ?? "",
+    workspaceMember: Boolean(workspaceMembership?.workspace_id),
+    platformAdmin: role === "platform_owner",
+    role
+  };
+}
+
+async function resolveWorkspaceId(): Promise<string | null> {
+  if (!supabase) return readWorkspaceId();
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const user = userError ? null : userData.user;
+  if (user) {
+    const membership = await resolveWorkspaceMembershipContext(user.id);
+    return membership.workspaceId || null;
+  }
+
+  return readWorkspaceId();
 }
 
 export function clearCustomerSessionToken(): void {
@@ -286,39 +357,29 @@ export async function getAuthContext(): Promise<VoiceupAccessContext> {
     };
   }
 
-  const workspaceId = readWorkspaceId();
   const { data: userData, error: userError } = await supabase.auth.getUser();
   const user = userError ? null : userData.user;
-  const customerWorkspace = Boolean(readCustomerSessionToken());
 
   if (!user) {
     return {
       platformAdmin: false,
       workspaceMember: false,
-      customerWorkspace,
+      customerWorkspace: false,
       role: "",
       email: "",
-      workspaceId
+      workspaceId: fallbackWorkspaceId
     };
   }
 
-  const { data: platformMembership } = await supabase
-    .from("organization_members")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("role", "platform_owner")
-    .limit(1)
-    .maybeSingle();
-
-  const platformAdmin = Boolean(platformMembership);
+  const membership = await resolveWorkspaceMembershipContext(user.id);
 
   return {
-    platformAdmin,
-    workspaceMember: platformAdmin,
-    customerWorkspace,
-    role: platformAdmin ? "platform_owner" : "",
+    platformAdmin: membership.platformAdmin,
+    workspaceMember: membership.workspaceMember,
+    customerWorkspace: false,
+    role: membership.role,
     email: user.email ?? "",
-    workspaceId
+    workspaceId: membership.workspaceId || ""
   };
 }
 
@@ -340,13 +401,75 @@ export async function signOutSupabase() {
 }
 
 export async function loadRemoteState() {
-  if (!supabase) return null;
-  return loadWorkspaceStateById(readWorkspaceId());
+  if (!supabase) {
+    console.info("[loadRemoteState]", {
+      authenticatedUserId: "",
+      authenticatedEmail: "",
+      organizationId: "",
+      workspaceIdRequested: "",
+      workspaceRowFound: false,
+      campaignCount: 0,
+      campaignIds: [],
+      nullReason: "supabase-not-configured"
+    });
+    return null;
+  }
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const user = userError ? null : userData.user;
+  const authenticatedUserId = user?.id ?? "";
+  const authenticatedEmail = user?.email ?? "";
+
+  const workspaceId = await resolveWorkspaceId();
+  let organizationId = "";
+
+  if (user) {
+    const { data: orgMembership, error: orgError } = await requireSupabase()
+      .from("organization_members")
+      .select("organization_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    if (orgError) throw new Error(orgError.message);
+    organizationId = orgMembership?.organization_id ?? "";
+  }
+
+  if (!workspaceId) {
+    console.info("[loadRemoteState]", {
+      authenticatedUserId,
+      authenticatedEmail,
+      organizationId,
+      workspaceIdRequested: "",
+      workspaceRowFound: false,
+      campaignCount: 0,
+      campaignIds: [],
+      nullReason: user ? "workspace-membership-missing" : "workspace-id-unresolved"
+    });
+    return null;
+  }
+
+  const workspaceTrace = await inspectWorkspaceStateById(workspaceId);
+  console.info("[loadRemoteState]", {
+    authenticatedUserId,
+    authenticatedEmail,
+    organizationId,
+    workspaceIdRequested: workspaceId,
+    workspaceRowFound: workspaceTrace.rowFound,
+    campaignCount: workspaceTrace.campaignCount,
+    campaignIds: workspaceTrace.campaignIds,
+    nullReason: workspaceTrace.rowFound ? "" : "workspace-row-not-found"
+  });
+
+  return loadWorkspaceStateById(workspaceId);
 }
 
 export async function saveRemoteState(state: VoiceupRemoteState) {
   if (!supabase) return;
-  await saveWorkspaceState(readWorkspaceId(), state);
+  const workspaceId = await resolveWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("Authenticated user does not have a workspace membership.");
+  }
+  await saveWorkspaceState(workspaceId, state);
 }
 
 export async function loadPublicCampaign(slug: string): Promise<PublicCampaignPayload | null> {
@@ -540,6 +663,7 @@ export async function createTrialWorkspace(payload: unknown): Promise<{
 
   const state: VoiceupRemoteState = {
     campaigns: [campaign],
+    activeCampaignId: campaignId,
     signers: [],
     authorities: [],
     organization,
@@ -653,9 +777,13 @@ export async function uploadFileToStorage(bucket: string, path: string, file: Fi
     throw new Error("Authenticated workspace access is required before uploading files.");
   }
 
-  const workspaceScopedPath = path.startsWith(`${readWorkspaceId()}/`)
+  const workspaceId = await resolveWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("Authenticated user does not have a workspace membership.");
+  }
+  const workspaceScopedPath = path.startsWith(`${workspaceId}/`)
     ? path
-    : `${readWorkspaceId()}/${path}`;
+    : `${workspaceId}/${path}`;
 
   const { error } = await supabase.storage.from(bucket).upload(workspaceScopedPath, file, {
     cacheControl: "3600",

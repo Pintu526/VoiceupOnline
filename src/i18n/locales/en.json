@@ -1,0 +1,27 @@
+{
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome to Voiceup"
+  },
+  "campaign": {
+    "create": "Create campaign",
+    "save": "Save campaign",
+    "publish": "Publish campaign"
+  },
+  "login": {
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language"
+  },
+  "common": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "loading": "Loading",
+    "yes": "Yes",
+    "no": "No"
+  }
+}

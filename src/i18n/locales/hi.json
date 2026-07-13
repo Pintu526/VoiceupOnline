@@ -40,6 +40,18 @@
     "thankYou": "धन्यवाद",
     "welcomeBack": "फिर से स्वागत है",
     "required": "आवश्यक",
-    "optional": "वैकल्पिक"
+    "optional": "वैकल्पिक",
+    "verifiedCampaign": "सत्यापित सार्वजनिक अभियान",
+    "supporterCount": "समर्थकों की संख्या",
+    "petitionPreparedFor": "याचिका तैयार की गई है:",
+    "faq": "अक्सर पूछे जाने वाले प्रश्न",
+    "simpleAnswersBeforeSigning": "हस्ताक्षर करने से पहले सरल उत्तर।",
+    "howLongSigningTakes": "हस्ताक्षर करने में कितना समय लगता है?",
+    "howLongSigningAnswer": "फ़ोन सत्यापन के बाद अधिकांश समर्थक दो मिनट से कम समय में प्रक्रिया पूरी कर लेते हैं।",
+    "whyOtpRequired": "ओटीपी क्यों आवश्यक है?",
+    "whyOtpRequiredAnswer": "ओटीपी अभियान को स्पैम, दुरुपयोग और डुप्लिकेट हस्ताक्षरों से बचाने में मदद करता है।",
+    "whatHappensAfterSigning": "हस्ताक्षर करने के बाद क्या होता है?",
+    "whatHappensAfterSigningAnswer": "आपका सत्यापित समर्थन गिना जाता है और चुने गए प्राधिकारी को भेजी जाने वाली अभियान अपील में शामिल किया जा सकता है।",
+    "relatedCampaigns": "संबंधित अभियान"
   }
 }

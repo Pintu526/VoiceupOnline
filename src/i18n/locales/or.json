@@ -40,6 +40,18 @@
     "thankYou": "ଧନ୍ୟବାଦ",
     "welcomeBack": "ପୁଣିଥରେ ସ୍ୱାଗତ",
     "required": "ଆବଶ୍ୟକ",
-    "optional": "ଇଚ୍ଛାଧୀନ"
+    "optional": "ଇଚ୍ଛାଧୀନ",
+    "verifiedCampaign": "ଯାଞ୍ଚ ହୋଇଥିବା ସାର୍ବଜନୀନ ଅଭିଯାନ",
+    "supporterCount": "ସମର୍ଥକଙ୍କ ସଂଖ୍ୟା",
+    "petitionPreparedFor": "ଆବେଦନ ପ୍ରସ୍ତୁତ କରାଯାଇଛି:",
+    "faq": "ବାରମ୍ବାର ପଚରାଯାଉଥିବା ପ୍ରଶ୍ନ",
+    "simpleAnswersBeforeSigning": "ସହି କରିବା ପୂର୍ବରୁ ସରଳ ଉତ୍ତର।",
+    "howLongSigningTakes": "ସହି କରିବାକୁ କେତେ ସମୟ ଲାଗେ?",
+    "howLongSigningAnswer": "ଫୋନ୍ ଯାଞ୍ଚ ପରେ ଅଧିକାଂଶ ସମର୍ଥକ ଦୁଇ ମିନିଟ୍‌ରୁ କମ୍ ସମୟରେ ପ୍ରକ୍ରିୟା ସମ୍ପୂର୍ଣ୍ଣ କରନ୍ତି।",
+    "whyOtpRequired": "ଓଟିପି କାହିଁକି ଆବଶ୍ୟକ?",
+    "whyOtpRequiredAnswer": "ଓଟିପି ଅଭିଯାନକୁ ସ୍ପାମ୍, ଅପବ୍ୟବହାର ଏବଂ ନକଲ ସହିରୁ ସୁରକ୍ଷିତ ରଖିବାରେ ସାହାଯ୍ୟ କରେ।",
+    "whatHappensAfterSigning": "ମୁଁ ସହି କରିବା ପରେ କଣ ହୁଏ?",
+    "whatHappensAfterSigningAnswer": "ଆପଣଙ୍କ ଯାଞ୍ଚ ହୋଇଥିବା ସମର୍ଥନ ଗଣାଯାଏ ଏବଂ ଚୟନିତ କର୍ତ୍ତୃପକ୍ଷଙ୍କୁ ପଠାଯାଉଥିବା ଅଭିଯାନ ଆବେଦନରେ ସାମିଲ କରାଯାଇପାରେ।",
+    "relatedCampaigns": "ସମ୍ପର୍କିତ ଅଭିଯାନ"
   }
 }

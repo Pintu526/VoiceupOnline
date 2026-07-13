@@ -430,7 +430,7 @@ export function PublicCampaignPage({
   const updateCards = [
     `${metrics.verified.toLocaleString()} verified supporters have joined this campaign.`,
     `${metrics.progress}% of the target has been reached so far.`,
-    `The petition is prepared for ${resolvedAuthority.name}.`
+    `${t("public.petitionPreparedFor")} ${resolvedAuthority.name}.`
   ];
   const shareText = `${shareMessages.social}\n${personalReferralUrl}`;
   const shareLinks = {
@@ -574,7 +574,7 @@ export function PublicCampaignPage({
           <div className="public-hero-surface">
             <div className="public-hero-content">
               <div className="public-hero-kicker">
-                <span className="eyebrow">Verified public campaign</span>
+                <span className="eyebrow">{t("public.verifiedCampaign")}</span>
                 <span className="status-pill" data-status={campaign.status}>{campaign.status}</span>
               </div>
               <h1>{campaign.title}</h1>
@@ -603,7 +603,7 @@ export function PublicCampaignPage({
               </div>
             </div>
 
-            <div className="supporter-counter" aria-label="Supporter count">
+            <div className="supporter-counter" aria-label={t("public.supporterCount")}>
               <div>
                 <Users size={18} />
                 <span>Total supporters</span>
@@ -715,28 +715,28 @@ export function PublicCampaignPage({
 
         <section className="public-section" aria-labelledby="faq-heading">
           <div className="public-section-heading">
-            <span className="eyebrow">FAQ</span>
-            <h2 id="faq-heading">Simple answers before you sign.</h2>
+            <span className="eyebrow">{t("public.faq")}</span>
+            <h2 id="faq-heading">{t("public.simpleAnswersBeforeSigning")}</h2>
           </div>
           <div className="faq-list">
             <details>
-              <summary>How long does signing take?</summary>
-              <p>Most supporters finish in under two minutes after phone verification.</p>
+              <summary>{t("public.howLongSigningTakes")}</summary>
+              <p>{t("public.howLongSigningAnswer")}</p>
             </details>
             <details>
-              <summary>Why is OTP required?</summary>
-              <p>OTP helps protect the campaign from spam, misuse, and duplicate signatures.</p>
+              <summary>{t("public.whyOtpRequired")}</summary>
+              <p>{t("public.whyOtpRequiredAnswer")}</p>
             </details>
             <details>
-              <summary>What happens after I sign?</summary>
-              <p>Your verified support is counted and can be included in the campaign appeal to the selected authority.</p>
+              <summary>{t("public.whatHappensAfterSigning")}</summary>
+              <p>{t("public.whatHappensAfterSigningAnswer")}</p>
             </details>
           </div>
         </section>
 
         <section className="public-section" aria-labelledby="related-heading">
           <div className="public-section-heading">
-            <span className="eyebrow">Related campaigns</span>
+            <span className="eyebrow">{t("public.relatedCampaigns")}</span>
             <h2 id="related-heading">More ways to support this cause.</h2>
           </div>
           <div className="related-campaigns-grid">

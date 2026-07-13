@@ -40,6 +40,18 @@
     "thankYou": "Thank you",
     "welcomeBack": "Welcome back",
     "required": "Required",
-    "optional": "Optional"
+    "optional": "Optional",
+    "verifiedCampaign": "Verified public campaign",
+    "supporterCount": "Supporter count",
+    "petitionPreparedFor": "The petition is prepared for",
+    "faq": "FAQ",
+    "simpleAnswersBeforeSigning": "Simple answers before you sign.",
+    "howLongSigningTakes": "How long does signing take?",
+    "howLongSigningAnswer": "Most supporters finish in under two minutes after phone verification.",
+    "whyOtpRequired": "Why is OTP required?",
+    "whyOtpRequiredAnswer": "OTP helps protect the campaign from spam, misuse, and duplicate signatures.",
+    "whatHappensAfterSigning": "What happens after I sign?",
+    "whatHappensAfterSigningAnswer": "Your verified support is counted and can be included in the campaign appeal to the selected authority.",
+    "relatedCampaigns": "Related campaigns"
   }
 }

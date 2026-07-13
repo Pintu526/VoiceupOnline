@@ -619,10 +619,6 @@ export function AppShell({
   }
 
   function requestCreateCampaign() {
-    if (campaignCreationLocked) {
-      requestUpgradePlan();
-      return;
-    }
     if (
       activeTab === "campaigns" &&
       hasUnsavedCampaignChanges &&
@@ -631,7 +627,18 @@ export function AppShell({
       return;
     }
     setOperationNotice(null);
+    setCampaignSelectorOpen(false);
+    setCampaignSelectorQuery("");
+    setCommandOpen(false);
+    setGlobalSearch("");
+    setAiCopilotOpen(false);
     onCreateCampaign();
+    if (campaignCreationBlockReason) {
+      setOperationNotice({
+        title: "Campaign creation unavailable",
+        description: campaignCreationBlockReason
+      });
+    }
   }
 
   function selectCampaign(campaignId: string) {
@@ -1162,13 +1169,22 @@ export function AppShell({
               )}
             </div>
             {isCampaignAdminRoute ? (
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={onLogoutCampaignAdmin}
-              >
-                Logout campaign admin
-              </button>
+              <div className="button-row">
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={requestCreateCampaign}
+                >
+                  <Plus size={18} /> New campaign
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={onLogoutCampaignAdmin}
+                >
+                  Logout campaign admin
+                </button>
+              </div>
             ) : (
               <div className="button-row">
                 {canShowWorkspaceCreateActions &&

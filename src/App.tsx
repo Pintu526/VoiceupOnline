@@ -667,10 +667,11 @@ function App() {
   }, [activeCampaign]);
 
   useEffect(() => {
+    if (campaignFormMode === "create") return;
     if (!campaigns.some((c) => c.id === activeCampaignId)) {
       setActiveCampaignId(campaigns[0]?.id ?? "");
     }
-  }, [activeCampaignId, campaigns]);
+  }, [activeCampaignId, campaignFormMode, campaigns]);
 
   useEffect(() => {
     if (!isBackendConfigured) return;
@@ -1116,12 +1117,6 @@ function App() {
   }
 
   function createCampaign() {
-    const blockReason = getCreateCampaignBlockReason(organization, campaigns, isBackendConfigured);
-    if (blockReason) {
-      setBackendMessage(blockReason);
-      setActiveTab(canAccessPlatformAdmin ? "saas" : "dashboard");
-      return;
-    }
     const slug = `new-campaign-${Date.now()}`;
     const campaign: Campaign = applyLocationGovernanceToCampaign({
       id: createId("cmp"),
@@ -1181,6 +1176,7 @@ function App() {
         "{{campaign}} update: {{verified}} verified supporters have joined so far. Share this campaign: {{url}}",
       signerLocationRestrictionLevel: "none"
     }, organization);
+    setActiveCampaignId("");
     setCampaignDraft(campaign);
     setCampaignFormMode("create");
     setActiveTab("campaigns");

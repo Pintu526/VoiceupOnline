@@ -23,5 +23,23 @@
     "loading": "Loading",
     "yes": "Yes",
     "no": "No"
+  },
+  "public": {
+    "supportCampaign": "Support this campaign",
+    "share": "Share",
+    "copyLink": "Copy link",
+    "back": "Back",
+    "continue": "Continue",
+    "name": "Name",
+    "phone": "Phone",
+    "sendOtp": "Send OTP",
+    "verifyOtp": "Verify OTP",
+    "enterOtp": "Enter OTP",
+    "review": "Review",
+    "submitSupport": "Submit support",
+    "thankYou": "Thank you",
+    "welcomeBack": "Welcome back",
+    "required": "Required",
+    "optional": "Optional"
   }
 }

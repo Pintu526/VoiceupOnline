@@ -35,6 +35,7 @@ import { IndiaLocationFields } from "../components/IndiaLocationFields";
 import { GlobalLocationFields } from "../components/GlobalLocationFields";
 import { ReferralQrPreview } from "../components/ReferralQrPreview";
 import { blankSigner } from "../constants";
+import { LanguageSwitcher, useTranslation, type Language } from "../i18n";
 import {
   getAppealAuthority,
   getPublicAuthorityOptions,
@@ -86,7 +87,6 @@ interface PublicCampaignPageProps {
 }
 
 type SigningStepId = "phone" | "otp" | "profile" | "address" | "review" | "done";
-type PublicSigningLanguage = "en" | "hi" | "or";
 
 const signingSteps: Array<{ id: SigningStepId }> = [
   { id: "phone" },
@@ -97,14 +97,7 @@ const signingSteps: Array<{ id: SigningStepId }> = [
   { id: "done" }
 ];
 
-const publicSigningLanguageOptions: Array<{ id: PublicSigningLanguage; label: string }> = [
-  { id: "en", label: "English" },
-  { id: "hi", label: "हिन्दी" },
-  { id: "or", label: "ଓଡ଼ିଆ" }
-];
-
 const publicSigningCopyEn = {
-  languageLabel: "Signing language",
   steps: {
     phone: "Phone",
     otp: "OTP",
@@ -119,33 +112,20 @@ const publicSigningCopyEn = {
   headerComplete: "Thank you for adding your voice.",
   headerActive: "Sign in about 60 seconds.",
   headerHelp: "Only required fields are shown first. Optional details stay available when needed.",
-  requiredNote: "Fields marked * are required.",
   invitedBy: "You were invited by",
   invitedFallback: "a campaign supporter",
   referralOptional: "Referral is optional and never affects your ability to sign.",
-  phoneVerifiedTitle: "Phone verified",
   phoneVerifiedBody: "Continue to sign, review your details, or share the campaign.",
-  continue: "Continue",
-  back: "Back",
   viewSignature: "View signature",
-  shareCampaign: "Share campaign",
   referFriends: "Refer friends",
   phoneTitle: "Start with your phone",
   phoneHelp: "OTP keeps signatures credible and protects the campaign from spam.",
-  phoneLabel: "Phone",
-  phonePlaceholder: "Phone",
-  sendOtp: "Send OTP",
   otpTitle: "Verify OTP",
   otpHelp: "Enter the code sent to your phone.",
-  otpLabel: "Enter OTP",
-  otpPlaceholder: "Enter OTP",
   resendOtp: "Resend OTP",
-  verifyOtp: "Verify OTP",
   phoneVerified: "Phone verified",
   profileTitle: "Your signature profile",
   profileHelp: "Enter the required signer details.",
-  fullNameLabel: "Full name",
-  fullNamePlaceholder: "Full name",
   emailLabel: "Email",
   emailPlaceholder: "Email",
   authorityLabel: "Choose authority for your appeal",
@@ -161,13 +141,9 @@ const publicSigningCopyEn = {
   telegramLabel: "Telegram handle or number",
   telegramPlaceholder: "@handle or number",
   referralLabel: "Referred by phone, name, or referral code",
-  optionalPlaceholder: "Optional",
   referralHelp: "Use a referrer phone, name, or code if someone invited you.",
-  reviewAction: "Review",
   reviewTitle: "Review and sign",
   reviewHelp: "Confirm your support and submit your signature to this campaign.",
-  reviewName: "Name",
-  reviewPhone: "Phone",
   reviewAuthority: "Authority",
   reviewReferral: "Referral",
   notEntered: "Not entered",
@@ -177,10 +153,7 @@ const publicSigningCopyEn = {
   storedSecurely: "Signature stored securely",
   routedAuthority: "Petition routed to selected authority",
   supportCheckbox: "I have read and support the campaign appeal/cause shown above.",
-  signCampaign: "Sign campaign",
-  doneTitle: "Signature saved successfully.",
   doneBody: "Your voice has been recorded. Share this campaign to help it reach the next supporter.",
-  support: "Support",
   locationLabels: {
     country: "Country",
     state: "State",
@@ -191,10 +164,9 @@ const publicSigningCopyEn = {
   }
 };
 
-const publicSigningCopy: Record<PublicSigningLanguage, typeof publicSigningCopyEn> = {
+const publicSigningCopy: Record<Language, typeof publicSigningCopyEn> = {
   en: publicSigningCopyEn,
   hi: {
-    languageLabel: "हस्ताक्षर भाषा",
     steps: {
       phone: "फोन",
       otp: "OTP",
@@ -209,33 +181,20 @@ const publicSigningCopy: Record<PublicSigningLanguage, typeof publicSigningCopyE
     headerComplete: "अपनी आवाज जोड़ने के लिए धन्यवाद।",
     headerActive: "लगभग 60 सेकंड में हस्ताक्षर करें।",
     headerHelp: "पहले केवल जरूरी जानकारी दिखाई जाती है। वैकल्पिक विवरण जरूरत पड़ने पर उपलब्ध हैं।",
-    requiredNote: "* वाले फ़ील्ड जरूरी हैं।",
     invitedBy: "आपको आमंत्रित किया",
     invitedFallback: "एक अभियान समर्थक",
     referralOptional: "रेफ़रल वैकल्पिक है और हस्ताक्षर करने की क्षमता को प्रभावित नहीं करता।",
-    phoneVerifiedTitle: "फोन सत्यापित",
     phoneVerifiedBody: "हस्ताक्षर जारी रखें, विवरण देखें, या अभियान साझा करें।",
-    continue: "जारी रखें",
-    back: "वापस",
     viewSignature: "हस्ताक्षर देखें",
-    shareCampaign: "अभियान साझा करें",
     referFriends: "मित्रों को भेजें",
     phoneTitle: "अपने फोन से शुरू करें",
     phoneHelp: "OTP हस्ताक्षरों को विश्वसनीय रखता है और अभियान को स्पैम से बचाता है।",
-    phoneLabel: "फोन",
-    phonePlaceholder: "फोन",
-    sendOtp: "OTP भेजें",
     otpTitle: "OTP सत्यापित करें",
     otpHelp: "अपने फोन पर भेजा गया कोड दर्ज करें।",
-    otpLabel: "OTP दर्ज करें",
-    otpPlaceholder: "OTP दर्ज करें",
     resendOtp: "OTP फिर भेजें",
-    verifyOtp: "OTP सत्यापित करें",
     phoneVerified: "फोन सत्यापित",
     profileTitle: "आपका हस्ताक्षर प्रोफाइल",
     profileHelp: "जरूरी समर्थक विवरण दर्ज करें।",
-    fullNameLabel: "पूरा नाम",
-    fullNamePlaceholder: "पूरा नाम",
     emailLabel: "ईमेल",
     emailPlaceholder: "ईमेल",
     authorityLabel: "अपील के लिए अधिकारी चुनें",
@@ -251,13 +210,9 @@ const publicSigningCopy: Record<PublicSigningLanguage, typeof publicSigningCopyE
     telegramLabel: "Telegram हैंडल या नंबर",
     telegramPlaceholder: "@handle या नंबर",
     referralLabel: "रेफ़र करने वाले का फोन, नाम, या कोड",
-    optionalPlaceholder: "वैकल्पिक",
     referralHelp: "यदि किसी ने आमंत्रित किया है तो फोन, नाम, या कोड दर्ज करें।",
-    reviewAction: "समीक्षा",
     reviewTitle: "समीक्षा करें और हस्ताक्षर करें",
     reviewHelp: "अपना समर्थन पुष्टि करें और हस्ताक्षर जमा करें।",
-    reviewName: "नाम",
-    reviewPhone: "फोन",
     reviewAuthority: "अधिकारी",
     reviewReferral: "रेफ़रल",
     notEntered: "दर्ज नहीं",
@@ -267,10 +222,7 @@ const publicSigningCopy: Record<PublicSigningLanguage, typeof publicSigningCopyE
     storedSecurely: "हस्ताक्षर सुरक्षित रूप से संग्रहीत",
     routedAuthority: "याचिका चुने गए अधिकारी तक भेजी जाएगी",
     supportCheckbox: "मैंने ऊपर दिखाए गए अभियान अपील/कारण को पढ़ा है और समर्थन करता/करती हूं।",
-    signCampaign: "अभियान पर हस्ताक्षर करें",
-    doneTitle: "हस्ताक्षर सफलतापूर्वक सहेजा गया।",
     doneBody: "आपकी आवाज दर्ज हो गई है। अगले समर्थक तक पहुंचने के लिए अभियान साझा करें।",
-    support: "समर्थन",
     locationLabels: {
       country: "देश",
       state: "राज्य",
@@ -281,7 +233,6 @@ const publicSigningCopy: Record<PublicSigningLanguage, typeof publicSigningCopyE
     }
   },
   or: {
-    languageLabel: "ସହି ଭାଷା",
     steps: {
       phone: "ଫୋନ",
       otp: "OTP",
@@ -296,33 +247,20 @@ const publicSigningCopy: Record<PublicSigningLanguage, typeof publicSigningCopyE
     headerComplete: "ଆପଣଙ୍କ ଆବାଜ ଯୋଡିଥିବାରୁ ଧନ୍ୟବାଦ।",
     headerActive: "ପ୍ରାୟ 60 ସେକେଣ୍ଡରେ ସହି କରନ୍ତୁ।",
     headerHelp: "ପ୍ରଥମେ କେବଳ ଆବଶ୍ୟକ ତଥ୍ୟ ଦେଖାଯାଏ। ବୈକଳ୍ପିକ ବିବରଣୀ ଆବଶ୍ୟକ ହେଲେ ଉପଲବ୍ଧ ରହେ।",
-    requiredNote: "* ଥିବା ଫିଲ୍ଡ ଆବଶ୍ୟକ।",
     invitedBy: "ଆପଣଙ୍କୁ ଆମନ୍ତ୍ରଣ କରିଛନ୍ତି",
     invitedFallback: "ଏକ ଅଭିଯାନ ସମର୍ଥକ",
     referralOptional: "ରେଫରାଲ ବୈକଳ୍ପିକ ଏବଂ ସହି କରିବାକୁ ପ୍ରଭାବିତ କରେ ନାହିଁ।",
-    phoneVerifiedTitle: "ଫୋନ ସତ୍ୟାପିତ",
     phoneVerifiedBody: "ସହି ଜାରି ରଖନ୍ତୁ, ବିବରଣୀ ଦେଖନ୍ତୁ, କିମ୍ବା ଅଭିଯାନ ସେୟାର କରନ୍ତୁ।",
-    continue: "ଜାରି ରଖନ୍ତୁ",
-    back: "ପଛକୁ",
     viewSignature: "ସହି ଦେଖନ୍ତୁ",
-    shareCampaign: "ଅଭିଯାନ ସେୟାର କରନ୍ତୁ",
     referFriends: "ମିତ୍ରଙ୍କୁ ପଠାନ୍ତୁ",
     phoneTitle: "ଆପଣଙ୍କ ଫୋନରୁ ଆରମ୍ଭ କରନ୍ତୁ",
     phoneHelp: "OTP ସହିକୁ ବିଶ୍ୱସନୀୟ ରଖେ ଏବଂ ଅଭିଯାନକୁ ସ୍ପାମରୁ ସୁରକ୍ଷା କରେ।",
-    phoneLabel: "ଫୋନ",
-    phonePlaceholder: "ଫୋନ",
-    sendOtp: "OTP ପଠାନ୍ତୁ",
     otpTitle: "OTP ସତ୍ୟାପିତ କରନ୍ତୁ",
     otpHelp: "ଆପଣଙ୍କ ଫୋନକୁ ପଠାଯାଇଥିବା କୋଡ୍ ଦିଅନ୍ତୁ।",
-    otpLabel: "OTP ଦିଅନ୍ତୁ",
-    otpPlaceholder: "OTP ଦିଅନ୍ତୁ",
     resendOtp: "OTP ପୁନଃ ପଠାନ୍ତୁ",
-    verifyOtp: "OTP ସତ୍ୟାପିତ କରନ୍ତୁ",
     phoneVerified: "ଫୋନ ସତ୍ୟାପିତ",
     profileTitle: "ଆପଣଙ୍କ ସହି ପ୍ରୋଫାଇଲ",
     profileHelp: "ଆବଶ୍ୟକ ସମର୍ଥକ ବିବରଣୀ ଦିଅନ୍ତୁ।",
-    fullNameLabel: "ପୂର୍ଣ୍ଣ ନାମ",
-    fullNamePlaceholder: "ପୂର୍ଣ୍ଣ ନାମ",
     emailLabel: "ଇମେଲ",
     emailPlaceholder: "ଇମେଲ",
     authorityLabel: "ଆପଣଙ୍କ ଅପିଲ ପାଇଁ କର୍ତ୍ତୃପକ୍ଷ ବାଛନ୍ତୁ",
@@ -338,13 +276,9 @@ const publicSigningCopy: Record<PublicSigningLanguage, typeof publicSigningCopyE
     telegramLabel: "Telegram ହ୍ୟାଣ୍ଡଲ କିମ୍ବା ନମ୍ବର",
     telegramPlaceholder: "@handle କିମ୍ବା ନମ୍ବର",
     referralLabel: "ରେଫର କରିଥିବା ଫୋନ, ନାମ, କିମ୍ବା କୋଡ୍",
-    optionalPlaceholder: "ବୈକଳ୍ପିକ",
     referralHelp: "କେହି ଆମନ୍ତ୍ରଣ କରିଥିଲେ ଫୋନ, ନାମ, କିମ୍ବା କୋଡ୍ ବ୍ୟବହାର କରନ୍ତୁ।",
-    reviewAction: "ସମୀକ୍ଷା",
     reviewTitle: "ସମୀକ୍ଷା କରନ୍ତୁ ଏବଂ ସହି କରନ୍ତୁ",
     reviewHelp: "ଆପଣଙ୍କ ସମର୍ଥନ ନିଶ୍ଚିତ କରି ସହି ଦାଖଲ କରନ୍ତୁ।",
-    reviewName: "ନାମ",
-    reviewPhone: "ଫୋନ",
     reviewAuthority: "କର୍ତ୍ତୃପକ୍ଷ",
     reviewReferral: "ରେଫରାଲ",
     notEntered: "ଦିଆଯାଇନାହିଁ",
@@ -354,10 +288,7 @@ const publicSigningCopy: Record<PublicSigningLanguage, typeof publicSigningCopyE
     storedSecurely: "ସହି ସୁରକ୍ଷିତ ଭାବେ ସଂରକ୍ଷିତ",
     routedAuthority: "ଆବେଦନ ଚୟିତ କର୍ତ୍ତୃପକ୍ଷଙ୍କୁ ପଠାଯିବ",
     supportCheckbox: "ମୁଁ ଉପରେ ଦେଖାଯାଇଥିବା ଅଭିଯାନ ଅପିଲ/କାରଣ ପଢିଛି ଏବଂ ସମର୍ଥନ କରୁଛି।",
-    signCampaign: "ଅଭିଯାନରେ ସହି କରନ୍ତୁ",
-    doneTitle: "ସହି ସଫଳତାର ସହିତ ସଂରକ୍ଷିତ ହେଲା।",
     doneBody: "ଆପଣଙ୍କ ଆବାଜ ରେକର୍ଡ ହୋଇଛି। ପରବର୍ତ୍ତୀ ସମର୍ଥକଙ୍କୁ ପହଞ୍ଚିବା ପାଇଁ ଅଭିଯାନ ସେୟାର କରନ୍ତୁ।",
-    support: "ସମର୍ଥନ",
     locationLabels: {
       country: "ଦେଶ",
       state: "ରାଜ୍ୟ",
@@ -368,12 +299,6 @@ const publicSigningCopy: Record<PublicSigningLanguage, typeof publicSigningCopyE
     }
   }
 };
-
-function readPublicSigningLanguage(): PublicSigningLanguage {
-  if (typeof window === "undefined") return "en";
-  const storedLanguage = window.localStorage.getItem("voiceup-public-signing-language");
-  return storedLanguage === "hi" || storedLanguage === "or" ? storedLanguage : "en";
-}
 
 export function PublicCampaignPage({
   campaign,
@@ -398,6 +323,7 @@ export function PublicCampaignPage({
   onGrowthShare,
   onSubmit
 }: PublicCampaignPageProps) {
+  const { language, t } = useTranslation();
   const publicAuthorityOptions = getPublicAuthorityOptions(campaign, authorities);
   const resolvedAuthority = authority ?? getAppealAuthority(campaign);
   const isGlobalMode = getCampaignGeographyMode(campaign) === "global";
@@ -419,7 +345,6 @@ export function PublicCampaignPage({
   const participationLabel = isGlobalMode ? `${locationLabels.district} participation` : "District participation";
   const locationParticipation = campaign.district || restrictedPublicForm.district || "Not captured yet";
   const requiredFields = campaign.requiredFields ?? [];
-  const [language, setLanguage] = useState<PublicSigningLanguage>(() => readPublicSigningLanguage());
   const copy = publicSigningCopy[language];
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
     requiredFields.includes(field) ? `${label} *` : label;
@@ -541,11 +466,6 @@ export function PublicCampaignPage({
       labelOverrides={copy.locationLabels}
     />
   );
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("voiceup-public-signing-language", language);
-  }, [language]);
 
   useEffect(() => {
     if (!incomingReferralCode) return;
@@ -722,10 +642,10 @@ export function PublicCampaignPage({
             </div>
             <div className="share-actions-grid">
               <button className="secondary-button" type="button" onClick={() => copyReferralText("Campaign link", personalReferralUrl, "copy")}>
-                <Copy size={16} /> Copy
+                <Copy size={16} /> {t("public.copyLink")}
               </button>
               <button className="secondary-button" type="button" onClick={shareNatively}>
-                <Share2 size={16} /> Native Share
+                <Share2 size={16} /> {t("public.share")}
               </button>
               <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>WhatsApp</a>
               <a className="secondary-link-button" href={shareLinks.telegram} target="_blank" rel="noreferrer" onClick={() => trackShareClick("telegram")}>Telegram</a>
@@ -843,16 +763,7 @@ export function PublicCampaignPage({
 
       <Panel title={hasSignedCampaign ? copy.panelTitleComplete : copy.panelTitleSign} icon={<ClipboardList />}>
         <div className="public-language-selector">
-          <label htmlFor="public-signing-language">{copy.languageLabel}</label>
-          <select
-            id="public-signing-language"
-            value={language}
-            onChange={(event) => setLanguage(event.target.value as PublicSigningLanguage)}
-          >
-            {publicSigningLanguageOptions.map((option) => (
-              <option key={option.id} value={option.id}>{option.label}</option>
-            ))}
-          </select>
+          <LanguageSwitcher />
         </div>
         <div className="wizard-header">
           <span className="eyebrow">{copy.secureSigning}</span>
@@ -864,13 +775,13 @@ export function PublicCampaignPage({
           <div className="verified-welcome" aria-live="polite">
             <UserRound size={20} />
             <div>
-              <strong>{copy.phoneVerifiedTitle}</strong>
+              <strong>{t("public.welcomeBack")}</strong>
               <span>{copy.phoneVerifiedBody}</span>
             </div>
             <div className="verified-actions">
-              <button className="secondary-button" type="button" onClick={() => setWizardStep("profile")}>{copy.continue}</button>
+              <button className="secondary-button" type="button" onClick={() => setWizardStep("profile")}>{t("public.continue")}</button>
               <button className="secondary-button" type="button" onClick={() => setWizardStep("review")}>{copy.viewSignature}</button>
-              <button className="secondary-button" type="button" onClick={shareNatively}>{copy.shareCampaign}</button>
+              <button className="secondary-button" type="button" onClick={shareNatively}>{t("public.share")}</button>
               <button className="secondary-button" type="button" onClick={() => copyReferralText("Campaign link", personalReferralUrl, "copy")}>{copy.referFriends}</button>
             </div>
           </div>
@@ -886,14 +797,14 @@ export function PublicCampaignPage({
                 onClick={() => setWizardStep(step.id)}
               >
                 <span>{index + 1}</span>
-                {copy.steps[step.id]}
+                {step.id === "review" ? t("public.review") : copy.steps[step.id]}
               </button>
             </li>
           ))}
         </ol>
 
         <form id="public-sign-form" className="form-stack public-sign-form public-sign-wizard" onSubmit={onSubmit}>
-          <p className="required-note">{copy.requiredNote}</p>
+          <p className="required-note">* {t("public.required")}</p>
           {incomingReferralCode && (
             <div className="referral-invite-note">
               <Share2 size={18} />
@@ -913,16 +824,16 @@ export function PublicCampaignPage({
                 <h3>{copy.phoneTitle}</h3>
                 <p>{copy.phoneHelp}</p>
               </div>
-              <Field label={signerFieldLabel(copy.phoneLabel, "phone")}>
+              <Field label={signerFieldLabel(t("public.phone"), "phone")}>
                 <input
-                  aria-label={copy.phoneLabel}
-                  placeholder={copy.phonePlaceholder}
+                  aria-label={t("public.phone")}
+                  placeholder={t("public.phone")}
                   value={publicForm.phone}
                   onChange={(event) => setPublicForm({ ...publicForm, phone: event.target.value })}
                 />
               </Field>
               <button className="primary-button" type="button" onClick={handleSendOtpWizard}>
-                {copy.sendOtp} <ArrowRight size={18} />
+                {t("public.sendOtp")} <ArrowRight size={18} />
               </button>
             </div>
           )}
@@ -936,14 +847,14 @@ export function PublicCampaignPage({
               </div>
               <div className="otp-box">
                 <input
-                  aria-label={copy.otpLabel}
-                  placeholder={copy.otpPlaceholder}
+                  aria-label={t("public.enterOtp")}
+                  placeholder={t("public.enterOtp")}
                   value={otpInput}
                   onChange={(event) => setOtpInput(event.target.value)}
                 />
                 <div className="button-row">
                   <button className="secondary-button" type="button" onClick={handleSendOtpWizard}>{copy.resendOtp}</button>
-                  <button className="primary-button" type="button" onClick={handleVerifyOtpWizard}>{copy.verifyOtp}</button>
+                  <button className="primary-button" type="button" onClick={handleVerifyOtpWizard}>{t("public.verifyOtp")}</button>
                 </div>
                 {publicForm.otpVerified && <span className="status-pill">{copy.phoneVerified}</span>}
                 {otpMessage && <p className="info-message">{otpMessage}</p>}
@@ -958,10 +869,10 @@ export function PublicCampaignPage({
                 <h3>{copy.profileTitle}</h3>
                 <p>{copy.profileHelp}</p>
               </div>
-              <Field label={signerFieldLabel(copy.fullNameLabel, "name")}>
+              <Field label={signerFieldLabel(t("public.name"), "name")}>
                 <input
-                  aria-label={copy.fullNameLabel}
-                  placeholder={copy.fullNamePlaceholder}
+                  aria-label={t("public.name")}
+                  placeholder={t("public.name")}
                   value={publicForm.name}
                   onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
                 />
@@ -999,11 +910,11 @@ export function PublicCampaignPage({
                 </Field>
               )}
               <div className="wizard-actions">
-                <button className="secondary-button" type="button" onClick={() => setWizardStep("otp")}>{copy.back}</button>
+                <button className="secondary-button" type="button" onClick={() => setWizardStep("otp")}>{t("public.back")}</button>
                 {!detailsRequired && (
                   <button className="secondary-button" type="button" onClick={() => setWizardStep("address")}>{copy.addOptionalDetails}</button>
                 )}
-                <button className="primary-button" type="button" onClick={() => setWizardStep(detailsRequired ? "address" : "review")}>{copy.continue} <ArrowRight size={18} /></button>
+                <button className="primary-button" type="button" onClick={() => setWizardStep(detailsRequired ? "address" : "review")}>{t("public.continue")} <ArrowRight size={18} /></button>
               </div>
             </div>
           )}
@@ -1074,7 +985,7 @@ export function PublicCampaignPage({
                 <Field label={copy.referralLabel}>
                   <input
                     aria-label={copy.referralLabel}
-                    placeholder={copy.optionalPlaceholder}
+                    placeholder={t("public.optional")}
                     value={publicForm.referredByPhoneOrCode ?? ""}
                     onChange={(event) =>
                       setPublicForm({
@@ -1088,8 +999,8 @@ export function PublicCampaignPage({
                 </Field>
               </details>
               <div className="wizard-actions">
-                <button className="secondary-button" type="button" onClick={() => setWizardStep("profile")}>{copy.back}</button>
-                <button className="primary-button" type="button" onClick={() => setWizardStep("review")}>{copy.reviewAction} <ArrowRight size={18} /></button>
+                <button className="secondary-button" type="button" onClick={() => setWizardStep("profile")}>{t("public.back")}</button>
+                <button className="primary-button" type="button" onClick={() => setWizardStep("review")}>{t("public.review")} <ArrowRight size={18} /></button>
               </div>
             </div>
           )}
@@ -1102,8 +1013,8 @@ export function PublicCampaignPage({
                 <p>{copy.reviewHelp}</p>
               </div>
               <div className="review-card">
-                <span>{copy.reviewName} <strong>{publicForm.name || copy.notEntered}</strong></span>
-                <span>{copy.reviewPhone} <strong>{publicForm.phone || copy.notEntered}</strong></span>
+                <span>{t("public.name")} <strong>{publicForm.name || copy.notEntered}</strong></span>
+                <span>{t("public.phone")} <strong>{publicForm.phone || copy.notEntered}</strong></span>
                 <span>{copy.reviewAuthority} <strong>{publicForm.selectedAuthorityName || resolvedAuthority.name}</strong></span>
                 <span>{copy.reviewReferral} <strong>{publicForm.referredByPhoneOrCode || copy.none}</strong></span>
               </div>
@@ -1120,9 +1031,9 @@ export function PublicCampaignPage({
               </label>
               {campaign.donationEnabled && <DonationCard campaign={campaign} />}
               <div className="wizard-actions">
-                <button className="secondary-button" type="button" onClick={() => setWizardStep(detailsRequired || hasOptionalDetails ? "address" : "profile")}>{copy.back}</button>
+                <button className="secondary-button" type="button" onClick={() => setWizardStep(detailsRequired || hasOptionalDetails ? "address" : "profile")}>{t("public.back")}</button>
                 <button className="primary-button" type="submit">
-                  <CheckCircle2 size={18} /> {copy.signCampaign}
+                  <CheckCircle2 size={18} /> {t("public.submitSupport")}
                 </button>
               </div>
             </div>
@@ -1131,11 +1042,11 @@ export function PublicCampaignPage({
           {wizardStep === "done" && hasSignedCampaign && (
             <div className="wizard-body done-card">
               <CheckCircle2 size={28} />
-              <h3>{copy.doneTitle}</h3>
+              <h3>{t("public.thankYou")}</h3>
               <p>{copy.doneBody}</p>
               <div className="wizard-actions">
                 <button className="secondary-button" type="button" onClick={() => setWizardStep("review")}>{copy.viewSignature}</button>
-                <button className="primary-button" type="button" onClick={shareNatively}>{copy.shareCampaign} <Send size={18} /></button>
+                <button className="primary-button" type="button" onClick={shareNatively}>{t("public.share")} <Send size={18} /></button>
               </div>
             </div>
           )}
@@ -1183,7 +1094,7 @@ export function PublicCampaignPage({
 
       {!hasSignedCampaign && (
         <a className="sticky-support-button" href="#public-sign-form">
-          <CheckCircle2 size={18} /> {copy.support}
+          <CheckCircle2 size={18} /> {t("public.supportCampaign")}
         </a>
       )}
     </section>

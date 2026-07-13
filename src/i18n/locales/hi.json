@@ -23,5 +23,23 @@
     "loading": "लोड हो रहा है",
     "yes": "हाँ",
     "no": "नहीं"
+  },
+  "public": {
+    "supportCampaign": "इस अभियान का समर्थन करें",
+    "share": "साझा करें",
+    "copyLink": "लिंक कॉपी करें",
+    "back": "वापस",
+    "continue": "जारी रखें",
+    "name": "नाम",
+    "phone": "मोबाइल नंबर",
+    "sendOtp": "ओटीपी भेजें",
+    "verifyOtp": "ओटीपी सत्यापित करें",
+    "enterOtp": "ओटीपी दर्ज करें",
+    "review": "समीक्षा करें",
+    "submitSupport": "समर्थन दर्ज करें",
+    "thankYou": "धन्यवाद",
+    "welcomeBack": "फिर से स्वागत है",
+    "required": "आवश्यक",
+    "optional": "वैकल्पिक"
   }
 }

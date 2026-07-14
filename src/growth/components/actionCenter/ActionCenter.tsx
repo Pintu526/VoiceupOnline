@@ -6,6 +6,7 @@ import type { GrowthActionCard, GrowthCommandId } from "../../commands/types";
 import { useGrowthActionCenter } from "../../commands/useGrowthActionCenter";
 import { Panel } from "../../../ui/Panel";
 import { StatusBadge } from "../../ui";
+import { useTranslation } from "../../../i18n/useTranslation";
 
 interface ActionCenterProps {
   runtime?: GrowthRuntimeState;
@@ -37,6 +38,7 @@ function ActionCard(props: {
   onUndo: (commandId: GrowthCommandId) => Promise<void>;
   onDismiss: (actionId: string) => void;
 }) {
+  const { t } = useTranslation();
   const { action, onExecute, onUndo, onDismiss } = props;
   const [openPreview, setOpenPreview] = useState(false);
   const execution = action.execution;
@@ -49,15 +51,15 @@ function ActionCard(props: {
       </div>
       <p>{action.reason}</p>
       <div className="growth-action-meta">
-        <span>Impact: {action.descriptor.expectedImpact}</span>
-        <span>Reach: {action.descriptor.estimatedReach.toLocaleString()}</span>
-        <span>Difficulty: {action.descriptor.difficulty}</span>
-        <span>Time: {action.descriptor.timeRequiredMinutes} min</span>
+        <span>{t("growth.actions.impact")}: {action.descriptor.expectedImpact}</span>
+        <span>{t("growth.actions.reach")}: {action.descriptor.estimatedReach.toLocaleString()}</span>
+        <span>{t("growth.actions.difficulty")}: {action.descriptor.difficulty}</span>
+        <span>{t("growth.actions.time")}: {action.descriptor.timeRequiredMinutes} {t("growth.actions.minutes")}</span>
       </div>
       <div className="growth-action-meta">
         <StatusBadge label={action.trigger} tone={triggerTone(action.trigger)} />
-        {action.scheduledAt ? <small>Scheduled: {action.scheduledAt}</small> : <small>Manual trigger available</small>}
-        {execution ? <StatusBadge label={execution.status} tone={statusTone(execution.status)} /> : <StatusBadge label="Not executed" tone="neutral" />}
+        {action.scheduledAt ? <small>{t("growth.actions.scheduled")}: {action.scheduledAt}</small> : <small>{t("growth.actions.manualTrigger")}</small>}
+        {execution ? <StatusBadge label={execution.status} tone={statusTone(execution.status)} /> : <StatusBadge label={t("growth.actions.notExecuted")} tone="neutral" />}
       </div>
       {execution && (
         <div className="growth-action-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={execution.progress}>
@@ -66,29 +68,29 @@ function ActionCard(props: {
       )}
       {execution && (
         <small>
-          Last run by {execution.actor} | Duration {formatDuration(execution.durationMs)} | Retries {execution.retryCount}
+          {t("growth.actions.lastRunBy")} {execution.actor} | {t("growth.actions.duration")} {formatDuration(execution.durationMs)} | {t("growth.actions.retries")} {execution.retryCount}
         </small>
       )}
       <div className="growth-action-buttons">
         <button type="button" className="primary-button" onClick={() => onExecute(action.descriptor.id, action.trigger)}>
-          Execute
+          {t("growth.actions.execute")}
         </button>
         <button type="button" className="secondary-button" onClick={() => setOpenPreview((value) => !value)}>
-          Preview
+          {t("growth.actions.preview")}
         </button>
         <button type="button" className="secondary-button" onClick={() => onDismiss(action.actionId)}>
-          Dismiss
+          {t("growth.actions.dismiss")}
         </button>
         {action.descriptor.undoSupported && execution?.status === "success" && (
           <button type="button" className="secondary-button" onClick={() => onUndo(action.descriptor.id)}>
-            Undo
+            {t("growth.actions.undo")}
           </button>
         )}
       </div>
       {openPreview && (
         <div className="growth-action-preview">
           <p>{action.descriptor.description}</p>
-          <small>Action ID: {action.actionId}</small>
+          <small>{t("growth.actions.actionId")}: {action.actionId}</small>
         </div>
       )}
     </article>
@@ -96,6 +98,7 @@ function ActionCard(props: {
 }
 
 export function ActionCenter({ runtime, activeCampaignId }: ActionCenterProps) {
+  const { t } = useTranslation();
   const { dashboardModel } = useGrowth();
   const {
     model,
@@ -131,19 +134,19 @@ export function ActionCenter({ runtime, activeCampaignId }: ActionCenterProps) {
 
   return (
     <div className="growth-action-center-stack">
-      <Panel title="Action Center" icon={<Sparkles />}>
+      <Panel title={t("growth.actions.title")} icon={<Sparkles />}>
         <div className="growth-action-section">
-          <h4>Urgent Actions</h4>
+          <h4>{t("growth.actions.urgent")}</h4>
           <div className="growth-action-grid">
             {model.urgentActions.map((action) => (
               <ActionCard key={action.actionId} action={action} onExecute={execute} onUndo={undo} onDismiss={dismissAction} />
             ))}
-            {model.urgentActions.length === 0 && <p className="helper-text">No urgent actions. Campaign risk indicators are stable.</p>}
+            {model.urgentActions.length === 0 && <p className="helper-text">{t("growth.actions.noUrgent")}</p>}
           </div>
         </div>
 
         <div className="growth-action-section">
-          <h4>Recommended Actions</h4>
+          <h4>{t("growth.actions.recommended")}</h4>
           <div className="growth-action-grid">
             {model.recommendedActions.map((action) => (
               <ActionCard key={action.actionId} action={action} onExecute={execute} onUndo={undo} onDismiss={dismissAction} />
@@ -152,34 +155,34 @@ export function ActionCenter({ runtime, activeCampaignId }: ActionCenterProps) {
         </div>
 
         <div className="growth-action-section">
-          <h4>Scheduled Actions</h4>
+          <h4>{t("growth.actions.scheduledActions")}</h4>
           <div className="growth-action-grid">
             {model.scheduledActions.map((action) => (
               <ActionCard key={action.actionId} action={action} onExecute={execute} onUndo={undo} onDismiss={dismissAction} />
             ))}
-            {model.scheduledActions.length === 0 && <p className="helper-text">No active automation schedules.</p>}
+            {model.scheduledActions.length === 0 && <p className="helper-text">{t("growth.actions.noSchedules")}</p>}
           </div>
         </div>
 
         <div className="growth-action-section">
-          <h4>Completed and Dismissed</h4>
+          <h4>{t("growth.actions.completedDismissed")}</h4>
           <div className="growth-action-mini-grid">
             <article>
-              <strong>Completed</strong>
+              <strong>{t("growth.actions.completed")}</strong>
               <span>{model.completedActions.length.toLocaleString()}</span>
             </article>
             <article>
-              <strong>Dismissed</strong>
+              <strong>{t("growth.actions.dismissed")}</strong>
               <span>{model.dismissedActions.length.toLocaleString()}</span>
             </article>
           </div>
         </div>
       </Panel>
 
-      <Panel title="Notification Delivery" icon={<Bell />}>
+      <Panel title={t("growth.actions.notificationDelivery")} icon={<Bell />}>
         <div className="growth-action-buttons sticky-mobile-actions">
           <button type="button" className="secondary-button" onClick={() => markAllNotificationsRead(allActionableNotifications.map((item) => item.id))}>
-            <CheckCircle2 size={15} /> Mark all read
+            <CheckCircle2 size={15} /> {t("growth.actions.markAllRead")}
           </button>
         </div>
         <div className="growth-notification-grid">
@@ -187,32 +190,32 @@ export function ActionCenter({ runtime, activeCampaignId }: ActionCenterProps) {
             <article key={item.id} className="growth-notification-card">
               <div>
                 <strong>{item.id}</strong>
-                <small>{item.read ? "Read" : "Unread"}</small>
+                <small>{t(item.read ? "growth.actions.read" : "growth.actions.unread")}</small>
               </div>
               <div className="growth-action-buttons">
                 <button type="button" className="secondary-button" onClick={() => markNotificationRead(item.id)}>
-                  <CheckCircle2 size={14} /> Read
+                  <CheckCircle2 size={14} /> {t("growth.actions.read")}
                 </button>
                 <button type="button" className="secondary-button" onClick={() => toggleNotificationPin(item.id)}>
-                  <Pin size={14} /> {item.pinned ? "Unpin" : "Pin"}
+                  <Pin size={14} /> {t(item.pinned ? "growth.actions.unpin" : "growth.actions.pin")}
                 </button>
                 <button type="button" className="secondary-button" onClick={() => archiveNotification(item.id)}>
-                  <Clock3 size={14} /> Archive
+                  <Clock3 size={14} /> {t("growth.actions.archive")}
                 </button>
                 <button type="button" className="secondary-button" onClick={() => dismissNotification(item.id)}>
-                  <XCircle size={14} /> Dismiss
+                  <XCircle size={14} /> {t("growth.actions.dismiss")}
                 </button>
               </div>
             </article>
           ))}
-          {allActionableNotifications.length === 0 && <p className="helper-text">No notification actions pending.</p>}
+          {allActionableNotifications.length === 0 && <p className="helper-text">{t("growth.actions.noNotifications")}</p>}
         </div>
       </Panel>
 
-      <Panel title="Admin Workflow History" icon={<ShieldAlert />}>
+      <Panel title={t("growth.actions.history")} icon={<ShieldAlert />}>
         <div className="growth-history-grid">
           <article>
-            <h4>Execution Log</h4>
+            <h4>{t("growth.actions.executionLog")}</h4>
             <div className="growth-node-list">
               {store.logs.slice(0, 15).map((log) => (
                 <div className="growth-node-row" key={log.id}>
@@ -229,7 +232,7 @@ export function ActionCenter({ runtime, activeCampaignId }: ActionCenterProps) {
             </div>
           </article>
           <article>
-            <h4>Audit and Timeline</h4>
+            <h4>{t("growth.actions.auditTimeline")}</h4>
             <div className="growth-node-list">
               {model.auditTrail.slice(0, 10).map((item) => (
                 <div className="growth-node-row" key={item.id}>
@@ -238,7 +241,7 @@ export function ActionCenter({ runtime, activeCampaignId }: ActionCenterProps) {
                     <small>{item.actor}</small>
                   </div>
                   <div>
-                    <small>Retries {item.retryCount}</small>
+                    <small>{t("growth.actions.retries")} {item.retryCount}</small>
                     <small>{formatDuration(item.durationMs)}</small>
                   </div>
                 </div>
@@ -246,7 +249,7 @@ export function ActionCenter({ runtime, activeCampaignId }: ActionCenterProps) {
             </div>
           </article>
           <article>
-            <h4>Certificates</h4>
+            <h4>{t("growth.actions.certificates")}</h4>
             <div className="growth-node-list">
               {store.certificates.slice(0, 10).map((item) => (
                 <div className="growth-node-row" key={item.id}>
@@ -260,7 +263,7 @@ export function ActionCenter({ runtime, activeCampaignId }: ActionCenterProps) {
                   </div>
                 </div>
               ))}
-              {store.certificates.length === 0 && <p className="helper-text">No certificates issued yet.</p>}
+              {store.certificates.length === 0 && <p className="helper-text">{t("growth.actions.noCertificates")}</p>}
             </div>
           </article>
         </div>

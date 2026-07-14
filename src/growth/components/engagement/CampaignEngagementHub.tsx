@@ -19,6 +19,7 @@ import { CelebrationCard } from "../../celebrations";
 import type { CampaignActivityFilter } from "../../engagement/types";
 import { AnimatedCounter, MiniTrend, ProgressRing, SkeletonLoader, StatusBadge } from "../../ui";
 import type { GrowthEngagementHubViewModel } from "../../viewModels/engagementViewModel";
+import { useTranslation } from "../../../i18n/useTranslation";
 
 const ActionCenter = lazy(() => import("../actionCenter/ActionCenter"));
 
@@ -53,6 +54,7 @@ function leaderboardSignal(overallRank: number, referralRank: number | undefined
 }
 
 export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps) {
+  const { t } = useTranslation();
   const { engagement, gamification, shareStudio, insights, celebrations, intelligence } = viewModel;
   const [filter, setFilter] = useState<CampaignActivityFilter>("week");
   const filteredFeed = useMemo(
@@ -62,22 +64,19 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
 
   return (
     <section className="page-stack growth-dashboard">
-      <Panel title="Campaign Engagement Hub" icon={<Sparkles />}>
+      <Panel title={t("growth.engagement.title")} icon={<Sparkles />}>
         <div className="growth-hero">
           <div>
-            <span className="eyebrow">Live campaign command center</span>
-            <h2>Momentum, milestones, and supporter delight in one place.</h2>
-            <p>
-              Premium campaign health metrics, live activity stream, celebrations, and quick actions powered by
-              the existing Growth runtime.
-            </p>
+            <span className="eyebrow">{t("growth.engagement.commandCenter")}</span>
+            <h2>{t("growth.engagement.headline")}</h2>
+            <p>{t("growth.engagement.description")}</p>
           </div>
           <div className="growth-stage-card">
-            <span>Campaign influence</span>
+            <span>{t("growth.engagement.influence")}</span>
             <strong>
               <AnimatedCounter value={gamification.profile.impactPercentage} format={(value) => `${Math.round(value)}%`} />
             </strong>
-            <small>{gamification.profile.currentRank} rank</small>
+            <small>{gamification.profile.currentRank} {t("growth.engagement.rank")}</small>
           </div>
         </div>
 
@@ -106,8 +105,8 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
       </Panel>
 
       <div className="growth-dashboard-grid">
-        <Panel title="Live Activity Stream" icon={<Activity />}>
-          <div className="growth-filter-row" role="tablist" aria-label="Activity filters">
+        <Panel title={t("growth.engagement.activityTitle")} icon={<Activity />}>
+          <div className="growth-filter-row" role="tablist" aria-label={t("growth.engagement.filtersAria")}>
             {(["today", "week", "month", "everything"] as CampaignActivityFilter[]).map((item) => (
               <button
                 key={item}
@@ -115,7 +114,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
                 className={filter === item ? "active" : ""}
                 onClick={() => setFilter(item)}
               >
-                {item}
+                {t(`growth.engagement.filters.${item}`)}
               </button>
             ))}
           </div>
@@ -131,28 +130,28 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
             ))}
             {engagement.feed.length > 0 && filteredFeed.length === 0 && (
               <article className="growth-empty-state-row">
-                <strong>No activity in this filter</strong>
-                <p>Switch to a wider window or publish an announcement to reignite momentum.</p>
+                <strong>{t("growth.engagement.noFilterActivity")}</strong>
+                <p>{t("growth.engagement.widerWindow")}</p>
                 <div className="growth-empty-state-actions">
-                  <button className="primary-button" type="button">Create announcement</button>
-                  <button className="secondary-button" type="button">Switch filter</button>
+                  <button className="primary-button" type="button">{t("growth.engagement.createAnnouncement")}</button>
+                  <button className="secondary-button" type="button">{t("growth.engagement.switchFilter")}</button>
                 </div>
               </article>
             )}
             {engagement.feed.length === 0 && (
               <article className="growth-empty-state-row">
-                <strong>No campaign activity yet</strong>
+                <strong>{t("growth.engagement.noActivity")}</strong>
                 <p>{engagement.feedEmptyMessage}</p>
                 <div className="growth-empty-state-actions">
-                  <button className="primary-button" type="button">Quick share</button>
-                  <button className="secondary-button" type="button">Create challenge</button>
+                  <button className="primary-button" type="button">{t("growth.engagement.quickShare")}</button>
+                  <button className="secondary-button" type="button">{t("growth.engagement.createChallenge")}</button>
                 </div>
               </article>
             )}
           </div>
         </Panel>
 
-        <Panel title="Celebrations" icon={<Gift />}>
+        <Panel title={t("growth.engagement.celebrations")} icon={<Gift />}>
           <div className="growth-celebration-grid">
             {celebrations.map((item) => (
               <CelebrationCard key={item.id} item={item} />
@@ -162,7 +161,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
       </div>
 
       <div className="growth-dashboard-grid">
-        <Panel title="Campaign Milestones" icon={<Trophy />}>
+        <Panel title={t("growth.engagement.milestones")} icon={<Trophy />}>
           <div className="growth-node-list">
             {engagement.milestones.map((milestone) => (
               <article className="growth-node-row" key={milestone.id}>
@@ -171,7 +170,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
                   <small>{milestone.description}</small>
                 </div>
                 <StatusBadge
-                  label={milestone.achieved ? "Achieved" : `${milestone.target.toLocaleString()} target`}
+                  label={milestone.achieved ? t("growth.status.achieved") : `${milestone.target.toLocaleString()} ${t("growth.engagement.target")}`}
                   tone={milestone.achieved ? "good" : "neutral"}
                 />
               </article>
@@ -179,28 +178,28 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
           </div>
         </Panel>
 
-        <Panel title="Streak & Impact" icon={<TrendingUp />}>
+        <Panel title={t("growth.engagement.streakImpact")} icon={<TrendingUp />}>
           <div className="growth-channel-list">
             <article className="growth-channel-row">
               <div>
-                <strong>Current streak</strong>
-                <small>{engagement.streak.current} active day(s)</small>
+                <strong>{t("growth.engagement.currentStreak")}</strong>
+                <small>{engagement.streak.current} {t("growth.engagement.activeDays")}</small>
               </div>
-              <ProgressRing value={Math.min(100, engagement.streak.current * 14)} size={58} stroke={7} label="Current streak" />
+              <ProgressRing value={Math.min(100, engagement.streak.current * 14)} size={58} stroke={7} label={t("growth.engagement.currentStreak")} />
             </article>
             <article className="growth-channel-row">
               <div>
-                <strong>Longest streak</strong>
-                <small>Best run so far</small>
+                <strong>{t("growth.engagement.longestStreak")}</strong>
+                <small>{t("growth.engagement.bestRun")}</small>
               </div>
               <span>{engagement.streak.longest}</span>
             </article>
             <article className="growth-channel-row">
               <div>
-                <strong>Next reward</strong>
+                <strong>{t("growth.engagement.nextReward")}</strong>
                 <small>{engagement.streak.upcomingReward}</small>
               </div>
-              <StatusBadge label={engagement.streak.broken ? "Needs recovery" : "On track"} tone={engagement.streak.broken ? "warning" : "good"} />
+              <StatusBadge label={t(engagement.streak.broken ? "growth.status.needsRecovery" : "growth.status.onTrack")} tone={engagement.streak.broken ? "warning" : "good"} />
             </article>
           </div>
           <div className="growth-impact-pill-list">
@@ -212,7 +211,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
       </div>
 
       <div className="growth-dashboard-grid">
-        <Panel title="Engagement Insights" icon={<ShieldCheck />}>
+        <Panel title={t("growth.engagement.insights")} icon={<ShieldCheck />}>
           <div className="growth-insight-grid">
             {insights.map((insight) => (
               <article key={insight.id}>
@@ -224,7 +223,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
           </div>
         </Panel>
 
-        <Panel title="Campaign Intelligence Center" icon={<Rocket />}>
+        <Panel title={t("growth.engagement.intelligenceCenter")} icon={<Rocket />}>
           <div className="growth-node-list">
             {intelligence.metrics.map((metric) => (
               <article className="growth-node-row" key={metric.id}>
@@ -240,8 +239,8 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
             ))}
           </div>
           <div className="growth-impact-pill-list">
-            <span><TrendingUp size={13} /> Top channel: {intelligence.topGrowthChannel}</span>
-            <span><Globe size={13} /> Fastest location: {intelligence.fastestGrowingLocation}</span>
+            <span><TrendingUp size={13} /> {t("growth.engagement.topChannel")}: {intelligence.topGrowthChannel}</span>
+            <span><Globe size={13} /> {t("growth.engagement.fastestLocation")}: {intelligence.fastestGrowingLocation}</span>
           </div>
           <div className="growth-admin-actions-grid">
             {intelligence.recommendations.map((item) => (
@@ -254,7 +253,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
           </div>
         </Panel>
 
-        <Panel title="Visual Leaderboard" icon={<Trophy />}>
+        <Panel title={t("growth.engagement.visualLeaderboard")} icon={<Trophy />}>
           {viewModel.gamification.profile.achievements.length === 0 && <SkeletonLoader lines={4} />}
           <div className="growth-podium-grid">
             {viewModel.leaderboard.overall.length > 0 && (
@@ -263,7 +262,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
                   <article key={item.id} className={`growth-podium-card rank-${index + 1}`}>
                     <span>#{index + 1}</span>
                     <strong>{item.name}</strong>
-                    <small>{item.score.toLocaleString()} pts</small>
+                    <small>{item.score.toLocaleString()} {t("growth.common.points")}</small>
                   </article>
                 ))}
               </>
@@ -278,10 +277,10 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
                   <span>{entry.rank}</span>
                   <div>
                     <strong>{entry.name}</strong>
-                    <small>{signal === "up" ? "Up" : signal === "down" ? "Down" : "New"}</small>
+                    <small>{t(signal === "up" ? "growth.status.up" : signal === "down" ? "growth.status.down" : "growth.status.new")}</small>
                   </div>
                   <div>
-                    <strong>{entry.score.toLocaleString()} pts</strong>
+                    <strong>{entry.score.toLocaleString()} {t("growth.common.points")}</strong>
                     <small>{entry.level}</small>
                   </div>
                 </article>
@@ -289,11 +288,11 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
             })}
             {viewModel.leaderboard.overall.length === 0 && (
               <article className="growth-empty-state-row">
-                <strong>No leaderboard activity yet</strong>
-                <p>Invite supporters and publish campaign activity to unlock rankings.</p>
+                <strong>{t("growth.engagement.noLeaderboard")}</strong>
+                <p>{t("growth.engagement.unlockRankings")}</p>
                 <div className="growth-empty-state-actions">
-                  <button className="primary-button" type="button">Share campaign</button>
-                  <button className="secondary-button" type="button">Create challenge</button>
+                  <button className="primary-button" type="button">{t("growth.engagement.shareCampaign")}</button>
+                  <button className="secondary-button" type="button">{t("growth.engagement.createChallenge")}</button>
                 </div>
               </article>
             )}
@@ -302,7 +301,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
       </div>
 
       <div className="growth-dashboard-grid">
-        <Panel title="Notification Center" icon={<Bell />}>
+        <Panel title={t("growth.engagement.notifications")} icon={<Bell />}>
           <div className="growth-node-list">
             {intelligence.notifications.unread.slice(0, 4).map((item) => (
               <article className="growth-node-row" key={item.id}>
@@ -324,14 +323,14 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
             ))}
             {intelligence.notifications.unread.length === 0 && intelligence.notifications.today.length === 0 && (
               <article className="growth-empty-state-row">
-                <strong>No notification activity yet</strong>
-                <p>Notifications appear as runtime timeline events are processed.</p>
+                <strong>{t("growth.engagement.noNotifications")}</strong>
+                <p>{t("growth.engagement.notificationsHelp")}</p>
               </article>
             )}
           </div>
         </Panel>
 
-        <Panel title="Automation Timeline" icon={<Sparkles />}>
+        <Panel title={t("growth.engagement.automationTimeline")} icon={<Sparkles />}>
           <div className="growth-node-list">
             {intelligence.automationTimeline.map((item) => (
               <article className="growth-node-row" key={item.id}>
@@ -344,8 +343,8 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
             ))}
             {intelligence.automationTimeline.length === 0 && (
               <article className="growth-empty-state-row">
-                <strong>No automation timeline events yet</strong>
-                <p>Enable automation rules in Growth Configuration Studio to populate this timeline.</p>
+                <strong>{t("growth.engagement.noAutomation")}</strong>
+                <p>{t("growth.engagement.automationHelp")}</p>
               </article>
             )}
           </div>
@@ -353,7 +352,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
       </div>
 
       <div className="growth-dashboard-grid">
-        <Panel title="Social Share Studio" icon={<MessageCircleMore />}>
+        <Panel title={t("growth.engagement.shareStudio")} icon={<MessageCircleMore />}>
           <div className="growth-node-list">
             {shareStudio.cards.map((card) => (
               <article className="growth-node-row" key={card.id}>
@@ -367,7 +366,7 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
           </div>
         </Panel>
 
-        <Panel title="Admin Quick Actions" icon={<ShieldCheck />}>
+        <Panel title={t("growth.engagement.quickActions")} icon={<ShieldCheck />}>
           <div className="growth-admin-actions-grid">
             {engagement.adminQuickActions.map((action) => (
               <button key={action.id} type="button" className="growth-admin-action-button">
@@ -380,54 +379,54 @@ export function CampaignEngagementHub({ viewModel }: CampaignEngagementHubProps)
       </div>
 
       <div className="growth-dashboard-grid">
-        <Panel title="Social Impact Dashboard" icon={<Globe />}>
+        <Panel title={t("growth.impact.title")} icon={<Globe />}>
           <div className="growth-insight-grid">
             <article>
-              <span>People reached</span>
+              <span>{t("growth.impact.peopleReached")}</span>
               <strong>{intelligence.socialImpact.totalPeopleReached.toLocaleString()}</strong>
-              <small>Estimated reach {intelligence.socialImpact.estimatedReach.toLocaleString()}</small>
+              <small>{t("growth.impact.estimatedReach")} {intelligence.socialImpact.estimatedReach.toLocaleString()}</small>
             </article>
             <article>
-              <span>Volunteer hours</span>
+              <span>{t("growth.impact.volunteerHours")}</span>
               <strong>{intelligence.socialImpact.volunteerHours.toLocaleString()}</strong>
-              <small>From runtime volunteer timeline events</small>
+              <small>{t("growth.impact.volunteerHoursHelp")}</small>
             </article>
             <article>
-              <span>Coverage</span>
-              <strong>{intelligence.socialImpact.districtCoverage.toLocaleString()} districts</strong>
-              <small>{intelligence.socialImpact.stateCoverage.toLocaleString()} states</small>
+              <span>{t("growth.impact.coverage")}</span>
+              <strong>{intelligence.socialImpact.districtCoverage.toLocaleString()} {t("growth.impact.districts")}</strong>
+              <small>{intelligence.socialImpact.stateCoverage.toLocaleString()} {t("growth.impact.states")}</small>
             </article>
             <article>
-              <span>Community influence</span>
+              <span>{t("growth.impact.communityInfluence")}</span>
               <strong>{intelligence.socialImpact.communityInfluenceScore.toLocaleString()}</strong>
-              <small>Referral tree {intelligence.socialImpact.referralTreeSize.toLocaleString()}</small>
+              <small>{t("growth.impact.referralTree")} {intelligence.socialImpact.referralTreeSize.toLocaleString()}</small>
             </article>
           </div>
           <div className="growth-impact-pill-list">
-            <span><UsersRound size={13} /> Shares {intelligence.socialImpact.totalShares.toLocaleString()}</span>
-            <span><TrendingUp size={13} /> 30d forecast {intelligence.forecast.projectedSupporters30d.toLocaleString()}</span>
+            <span><UsersRound size={13} /> {t("growth.impact.shares")} {intelligence.socialImpact.totalShares.toLocaleString()}</span>
+            <span><TrendingUp size={13} /> {t("growth.impact.forecast30d")} {intelligence.forecast.projectedSupporters30d.toLocaleString()}</span>
             <span><ArrowRight size={13} /> {intelligence.forecast.targetCompletionForecast}</span>
           </div>
         </Panel>
 
-        <Panel title="Certificate Preview" icon={<Trophy />}>
+        <Panel title={t("growth.certificate.title")} icon={<Trophy />}>
           <div className="growth-config-preview">
             <div>
-              <span className="eyebrow">Template</span>
+              <span className="eyebrow">{t("growth.certificate.template")}</span>
               <strong>{intelligence.certificatePreview.name}</strong>
               <p>{intelligence.certificatePreview.title}</p>
-              <small>Badge: {intelligence.certificatePreview.badge}</small>
+              <small>{t("growth.certificate.badge")}: {intelligence.certificatePreview.badge}</small>
             </div>
             <div>
-              <span className="eyebrow">Issuance</span>
+              <span className="eyebrow">{t("growth.certificate.issuance")}</span>
               <strong>{intelligence.certificatePreview.issueRule}</strong>
-              <p>Signatory: {intelligence.certificatePreview.signatory}</p>
-              <small>{intelligence.certificatePreview.qrEnabled ? "QR verification enabled" : "QR verification disabled"}</small>
+              <p>{t("growth.certificate.signatory")}: {intelligence.certificatePreview.signatory}</p>
+              <small>{t(intelligence.certificatePreview.qrEnabled ? "growth.certificate.qrEnabled" : "growth.certificate.qrDisabled")}</small>
             </div>
             <div>
-              <span className="eyebrow">Verification</span>
+              <span className="eyebrow">{t("growth.certificate.verification")}</span>
               <strong>{intelligence.certificatePreview.verificationLink}</strong>
-              <p>{intelligence.certificatePreview.enabled ? "Certificate issuance is enabled" : "Certificate issuance is disabled"}</p>
+              <p>{t(intelligence.certificatePreview.enabled ? "growth.certificate.enabled" : "growth.certificate.disabled")}</p>
             </div>
           </div>
         </Panel>

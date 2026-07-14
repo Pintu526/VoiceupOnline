@@ -18,6 +18,7 @@ import {
   getCampaignGeographyMode,
   getCampaignLocationLabels
 } from "../../utils/campaign";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface ReportsTabProps {
   activeCampaign: Campaign | undefined;
@@ -55,14 +56,15 @@ export function ReportsTab({
   panchayatTotals,
   onUpdateSignerStatus
 }: ReportsTabProps) {
+  const { t } = useTranslation();
   const [reportExportMessage, setReportExportMessage] = useState("");
   const [reportThemeId, setReportThemeId] = useState<ReportThemeId>("government-classic");
 
   if (!activeCampaign) {
     return (
       <NoCampaignPanel
-        title="Reports will appear after campaign setup"
-        description="Create a campaign and collect signatures before downloading PDF or CSV reports."
+        title={t("reports.noCampaign.title")}
+        description={t("reports.noCampaign.description")}
       />
     );
   }
@@ -76,7 +78,7 @@ export function ReportsTab({
     Object.keys(panchayatTotals).length;
   const verifiedCount = campaignSigners.filter((signer) => signer.status === "verified" || signer.otpVerified).length;
   const communicationReady = campaignSigners.filter((signer) => signer.phone || signer.email).length;
-  const authorityReady = authorityMatch ? "Ready" : "Needs authority";
+  const authorityReady = authorityMatch ? t("reports.status.ready") : t("reports.status.needsAuthority");
   const allVerified = signers.filter((signer) => signer.status === "verified" || signer.otpVerified).length;
   const onlineCount = campaignSigners.filter((signer) => signer.source === "online").length;
   const paperCount = campaignSigners.filter((signer) => signer.source === "scan").length;
@@ -124,17 +126,17 @@ export function ReportsTab({
     : weakBlocks;
   const aiInsights = [
     weakDistricts.length > 0
-      ? `Prioritize ${weakDistricts[0][0]} for field collection and volunteer outreach.`
-      : `${locationLabels.district} coverage looks balanced or needs more location data.`,
+      ? `${t("reports.insights.prioritize")} ${weakDistricts[0][0]} ${t("reports.insights.fieldOutreach")}`
+      : `${locationLabels.district} ${t("reports.insights.coverageBalanced")}`,
     authorityMatch
-      ? `Authority route is ready with ${authorityMatch.score}% confidence.`
-      : "Add or confirm an authority before large-scale outreach.",
+      ? `${t("reports.insights.authorityReady")} ${authorityMatch.score}% ${t("reports.insights.confidence")}`
+      : t("reports.insights.confirmAuthority"),
     communicationReady > 0
-      ? `${communicationReady.toLocaleString()} supporters are reachable by phone or email after consent checks.`
-      : "Collect consented phone or email fields before communication pushes.",
+      ? `${communicationReady.toLocaleString()} ${t("reports.insights.reachable")}`
+      : t("reports.insights.collectContacts"),
     pendingScans > 0
-      ? `Review ${pendingScans.toLocaleString()} pending field collection rows.`
-      : "Field collection queue has no pending review rows."
+      ? `${t("reports.insights.review")} ${pendingScans.toLocaleString()} ${t("reports.insights.pendingRows")}`
+      : t("reports.insights.noPendingRows")
   ];
 
   function downloadPetitionDossier() {
@@ -153,43 +155,41 @@ export function ReportsTab({
     });
     try {
       await navigator.clipboard.writeText(text);
-      setReportExportMessage("Cover letter copied. Paste it into Word, Google Docs, email, or an authority submission portal.");
+      setReportExportMessage(t("reports.exports.coverCopied"));
     } catch {
-      setReportExportMessage("Cover letter is ready, but clipboard access was blocked by the browser.");
+      setReportExportMessage(t("reports.exports.clipboardBlocked"));
     }
   }
 
   return (
     <section className="page-stack">
-      <Panel title="Location Governance Command Center" icon={<RadioTower />}>
+      <Panel title={t("reports.location.title")} icon={<RadioTower />}>
         <div className="national-command-hero">
           <div>
-            <span className="eyebrow">Leadership visibility</span>
-            <h2>{isGlobalMode ? "Global and regional campaign performance." : "India, state, and district campaign performance."}</h2>
-            <p>
-              Built from existing campaigns, supporters, field collection, authority routing, and communication readiness.
-            </p>
+            <span className="eyebrow">{t("reports.location.leadershipVisibility")}</span>
+            <h2>{t(isGlobalMode ? "reports.location.globalPerformance" : "reports.location.indiaPerformance")}</h2>
+            <p>{t("reports.location.builtFrom")}</p>
           </div>
           <div className="analytics-command-card">
-            <span>National verified supporters</span>
+            <span>{t("reports.location.nationalVerified")}</span>
             <strong>{allVerified.toLocaleString()}</strong>
-            <small>{signers.length.toLocaleString()} total supporter records across campaigns</small>
+            <small>{signers.length.toLocaleString()} {t("reports.location.totalRecords")}</small>
           </div>
         </div>
         <div className="analytics-command-grid">
           {[
-            ["Campaigns", campaigns.length, "All workspace campaigns"],
+            [t("reports.metrics.campaigns"), campaigns.length, t("reports.metrics.allCampaigns")],
             [
-              isGlobalMode ? "Regional coverage" : "India coverage",
+              t(isGlobalMode ? "reports.metrics.regionalCoverage" : "reports.metrics.indiaCoverage"),
               Object.keys(stateTotals).length,
               `${locationLabels.state}s with supporters`
             ],
             [`${locationLabels.district} coverage`, Object.keys(districtTotals).length, `${locationLabels.district}s with supporters`],
-            [`Weak ${locationLabels.district}s`, weakDistricts.length, `Low participation ${locationLabels.district.toLowerCase()}s`],
-            ["Online collection", onlineCount, "Selected campaign online supporters"],
-            ["Paper collection", paperCount, "Selected campaign scan supporters"],
-            ["Manual collection", manualCount, "Selected campaign field supporters"],
-            ["Pending field review", pendingScans, "Scan rows needing review"]
+            [`${t("reports.metrics.weak")} ${locationLabels.district}s`, weakDistricts.length, `${t("reports.metrics.lowParticipation")} ${locationLabels.district.toLowerCase()}s`],
+            [t("reports.metrics.onlineCollection"), onlineCount, t("reports.metrics.onlineSupporters")],
+            [t("reports.metrics.paperCollection"), paperCount, t("reports.metrics.scanSupporters")],
+            [t("reports.metrics.manualCollection"), manualCount, t("reports.metrics.fieldSupporters")],
+            [t("reports.metrics.pendingReview"), pendingScans, t("reports.metrics.scanNeedsReview")]
           ].map(([label, value, detail]) => (
             <div className="analytics-command-card" key={String(label)}>
               <span>{label}</span>
@@ -200,12 +200,12 @@ export function ReportsTab({
         </div>
       </Panel>
 
-      <Panel title={`${locationLabels.state}, ${locationLabels.district}, and ${isGlobalMode ? locationLabels.panchayat : locationLabels.block} Progress`} icon={<MapPin />}>
+      <Panel title={`${locationLabels.state}, ${locationLabels.district}, ${t("reports.common.and")} ${isGlobalMode ? locationLabels.panchayat : locationLabels.block} ${t("reports.common.progress")}`} icon={<MapPin />}>
         <div className="analytics-progress-grid">
           <div className="analytics-progress-card">
-            <span className="eyebrow">Top {locationLabels.state.toLowerCase()}s</span>
+            <span className="eyebrow">{t("reports.common.top")} {locationLabels.state.toLowerCase()}s</span>
             <div className="ranked-list">
-              {topStates.length === 0 && <p className="helper-text">{locationLabels.state} data appears after supporters provide location.</p>}
+              {topStates.length === 0 && <p className="helper-text">{locationLabels.state} {t("reports.location.dataAfterSupporters")}</p>}
               {topStates.map(([state, count]) => (
                 <div key={state}>
                   <span>{state}</span>
@@ -218,9 +218,9 @@ export function ReportsTab({
             </div>
           </div>
           <div className="analytics-progress-card">
-            <span className="eyebrow">Top {locationLabels.district.toLowerCase()}s</span>
+            <span className="eyebrow">{t("reports.common.top")} {locationLabels.district.toLowerCase()}s</span>
             <div className="ranked-list">
-              {topDistricts.length === 0 && <p className="helper-text">{locationLabels.district} progress appears after location data is available.</p>}
+              {topDistricts.length === 0 && <p className="helper-text">{locationLabels.district} {t("reports.location.progressAfterData")}</p>}
               {topDistricts.map(([district, count]) => (
                 <div key={district}>
                   <span>{district}</span>
@@ -233,11 +233,11 @@ export function ReportsTab({
             </div>
           </div>
           <div className="analytics-progress-card">
-            <span className="eyebrow">Top {isGlobalMode ? locationLabels.panchayat.toLowerCase() : locationLabels.block.toLowerCase()}s</span>
+            <span className="eyebrow">{t("reports.common.top")} {isGlobalMode ? locationLabels.panchayat.toLowerCase() : locationLabels.block.toLowerCase()}s</span>
             <div className="ranked-list">
               {topLocalAreas.length === 0 && (
                 <p className="helper-text">
-                  {isGlobalMode ? locationLabels.panchayat : locationLabels.block} progress appears after location data is available.
+                  {isGlobalMode ? locationLabels.panchayat : locationLabels.block} {t("reports.location.progressAfterData")}
                 </p>
               )}
               {topLocalAreas.map(([block, count]) => (
@@ -252,14 +252,14 @@ export function ReportsTab({
             </div>
           </div>
           <div className="analytics-progress-card">
-            <span className="eyebrow">Weak {isGlobalMode ? locationLabels.panchayat.toLowerCase() : locationLabels.block.toLowerCase()}s</span>
+            <span className="eyebrow">{t("reports.metrics.weak")} {isGlobalMode ? locationLabels.panchayat.toLowerCase() : locationLabels.block.toLowerCase()}s</span>
             <div className="ranked-list weak">
-              {weakLocalAreas.length === 0 && <p className="helper-text">Weak location insight appears after location-level data is available.</p>}
+              {weakLocalAreas.length === 0 && <p className="helper-text">{t("reports.location.weakAfterData")}</p>}
               {weakLocalAreas.map(([block, count]) => (
                 <div key={block}>
                   <span>{block}</span>
                   <strong>{count.toLocaleString()}</strong>
-                  <small>Needs local coordinator push.</small>
+                  <small>{t("reports.location.needsCoordinator")}</small>
                 </div>
               ))}
             </div>
@@ -267,12 +267,12 @@ export function ReportsTab({
         </div>
       </Panel>
 
-      <Panel title="Collection Split and AI Insights" icon={<RadioTower />}>
+      <Panel title={t("reports.collection.title")} icon={<RadioTower />}>
         <div className="analytics-progress-grid">
           {[
-            ["Online", onlineCount, "Public signing page"],
-            ["Paper", paperCount, "OCR/scan import"],
-            ["Manual", manualCount, "Manual field entry"]
+            [t("reports.collection.online"), onlineCount, t("reports.collection.publicPage")],
+            [t("reports.collection.paper"), paperCount, t("reports.collection.scanImport")],
+            [t("reports.collection.manual"), manualCount, t("reports.collection.manualEntry")]
           ].map(([label, value, detail]) => (
             <div className="analytics-progress-card" key={String(label)}>
               <span className="eyebrow">{label}</span>
@@ -284,30 +284,30 @@ export function ReportsTab({
             </div>
           ))}
           <div className="analytics-progress-card ai-ready">
-            <span className="eyebrow">AI insight cards</span>
-            <strong>Available after setup</strong>
+            <span className="eyebrow">{t("reports.metrics.aiInsights")}</span>
+            <strong>{t("reports.status.afterSetup")}</strong>
             {aiInsights.map((insight) => <small key={insight}>{insight}</small>)}
           </div>
         </div>
       </Panel>
 
-      <Panel title="Analytics Command Center" icon={<BarChart3 />}>
+      <Panel title={t("reports.analytics.title")} icon={<BarChart3 />}>
         <div className="analytics-command-grid">
           {[
-            ["National overview", campaignSigners.length, "Real campaign signer records"],
-            ["Verified supporters", verifiedCount, "OTP verified or approved"],
+            [t("reports.analytics.nationalOverview"), campaignSigners.length, t("reports.analytics.realRecords")],
+            [t("reports.analytics.verifiedSupporters"), verifiedCount, t("reports.analytics.otpApproved")],
             [
-              "Location coverage",
+              t("reports.analytics.locationCoverage"),
               locationCoverage,
               isGlobalMode
-                ? "Country/state-or-region/city/locality buckets"
-                : "State/district/block/panchayat buckets"
+                ? t("reports.analytics.globalBuckets")
+                : t("reports.analytics.indiaBuckets")
             ],
-            ["Authority readiness", authorityReady, authorityMatch ? `${authorityMatch.score}% confidence` : "No match"],
-            ["Field collection status", campaignSigners.filter((signer) => signer.source === "scan").length, "Imported scan supporters"],
-            ["Communication readiness", communicationReady, "Phone or email available"],
-            ["Volunteer productivity", manualCount + paperCount, "Field/manual contribution proxy"],
-            ["AI insight cards", "Available after setup", "Insights improve as campaign activity grows"]
+            [t("reports.analytics.authorityReadiness"), authorityReady, authorityMatch ? `${authorityMatch.score}% ${t("reports.insights.confidence")}` : t("reports.status.noMatch")],
+            [t("reports.analytics.fieldStatus"), campaignSigners.filter((signer) => signer.source === "scan").length, t("reports.analytics.importedScan")],
+            [t("reports.analytics.communicationReadiness"), communicationReady, t("reports.analytics.contactAvailable")],
+            [t("reports.analytics.volunteerProductivity"), manualCount + paperCount, t("reports.analytics.contributionProxy")],
+            [t("reports.metrics.aiInsights"), t("reports.status.afterSetup"), t("reports.analytics.insightsImprove")]
           ].map(([label, value, detail]) => (
             <div className="analytics-command-card" key={String(label)}>
               <span>{label}</span>
@@ -319,26 +319,26 @@ export function ReportsTab({
         <div className="two-column">
           <div className="export-ready-card">
             <FileText size={22} />
-            <strong>Export-ready reporting section</strong>
-            <p>PDF and CSV export buttons below continue using existing export functions.</p>
+            <strong>{t("reports.analytics.exportReady")}</strong>
+            <p>{t("reports.analytics.exportReadyHelp")}</p>
           </div>
           <div className="export-ready-card">
             <MapPin size={22} />
-            <strong>Distribution insight</strong>
+            <strong>{t("reports.analytics.distributionInsight")}</strong>
             <p>
-              Use the existing location reports below to compare{" "}
+              {t("reports.analytics.comparePrefix")}{" "}
               {isGlobalMode
-                ? "country, state/province, city/district, and locality coverage"
-                : "state, district, block, and panchayat coverage"}.
+                ? t("reports.analytics.globalCoverage")
+                : t("reports.analytics.indiaCoverage")}.
             </p>
           </div>
         </div>
       </Panel>
 
       <div className="two-column">
-        <Panel title="Supporter Growth Trend" icon={<BarChart3 />}>
+        <Panel title={t("reports.trends.supporterGrowth")} icon={<BarChart3 />}>
           <div className="growth-trend-list">
-            {Object.entries(dailyTotals).length === 0 && <p className="helper-text">No daily supporter trend yet.</p>}
+            {Object.entries(dailyTotals).length === 0 && <p className="helper-text">{t("reports.trends.noDaily")}</p>}
             {Object.entries(dailyTotals).slice(-14).map(([date, count]) => (
               <div key={date}>
                 <span>{date}</span>
@@ -351,25 +351,25 @@ export function ReportsTab({
           </div>
         </Panel>
 
-        <Panel title={`Weak ${locationLabels.district} Detection`} icon={<MapPin />}>
+        <Panel title={`${t("reports.metrics.weak")} ${locationLabels.district} ${t("reports.trends.detection")}`} icon={<MapPin />}>
           <div className="growth-trend-list weak">
-            {weakDistricts.length === 0 && <p className="helper-text">Weak location insight appears after location data is available.</p>}
+            {weakDistricts.length === 0 && <p className="helper-text">{t("reports.location.weakAfterData")}</p>}
             {weakDistricts.map(([district, count]) => (
               <div key={district}>
                 <span>{district}</span>
                 <strong>{count.toLocaleString()}</strong>
-                <small>Needs focused volunteer and communication push.</small>
+                <small>{t("reports.trends.needsFocusedPush")}</small>
               </div>
             ))}
           </div>
-          <span className="eyebrow">Top {locationLabels.district.toLowerCase()}s</span>
+          <span className="eyebrow">{t("reports.common.top")} {locationLabels.district.toLowerCase()}s</span>
           <div className="template-chip-row">
             {topDistricts.map(([district, count]) => <span key={district}>{district}: {count}</span>)}
           </div>
         </Panel>
       </div>
 
-      <Panel title="Campaign Comparison" icon={<Users />}>
+      <Panel title={t("reports.comparison.title")} icon={<Users />}>
         <div className="campaign-comparison-grid">
           {campaignComparison.map(({ campaign, supporters, verified }) => (
             <article className="campaign-comparison-card" key={campaign.id}>
@@ -379,22 +379,22 @@ export function ReportsTab({
               <div className="progress">
                 <div style={{ width: `${Math.min(100, (supporters / Math.max(...campaignComparison.map((item) => item.supporters), 1)) * 100)}%` }} />
               </div>
-              <p>{supporters.toLocaleString()} supporters - {verified.toLocaleString()} verified</p>
+              <p>{supporters.toLocaleString()} {t("reports.common.supporters")} - {verified.toLocaleString()} {t("reports.common.verified")}</p>
             </article>
           ))}
         </div>
       </Panel>
 
-      <Panel title="Leadership Readiness" icon={<RadioTower />}>
+      <Panel title={t("reports.leadership.title")} icon={<RadioTower />}>
         <div className="analytics-command-grid">
           {[
-            ["Authority response tracking", "Available after setup", "Response status and follow-up dates need workflow setup"],
-            ["Field collection status", `${approvedScans} approved / ${pendingScans} pending`, "Existing scan review data"],
-            ["Communication readiness", communicationReady, providerConfigured ? "Provider configured" : "Setup needed"],
-            ["Referral growth", referredSignatures, referralLeaders[0] ? `Top referrer: ${referralLeaders[0].label}` : "Leaderboard appears after referrals"],
-            ["Exportable reports", "Ready", "PDF and CSV exports below use existing functions"],
-            ["AI insight cards", "Available after setup", "Insights improve as campaign activity grows"],
-            ["Volunteer productivity", manualCount + paperCount, "Field contribution proxy from source data"]
+            [t("reports.leadership.authorityTracking"), t("reports.status.afterSetup"), t("reports.leadership.responseHelp")],
+            [t("reports.analytics.fieldStatus"), `${approvedScans} ${t("reports.status.approved")} / ${pendingScans} ${t("reports.status.pending")}`, t("reports.leadership.scanData")],
+            [t("reports.analytics.communicationReadiness"), communicationReady, t(providerConfigured ? "reports.status.providerConfigured" : "reports.status.setupNeeded")],
+            [t("reports.leadership.referralGrowth"), referredSignatures, referralLeaders[0] ? `${t("reports.leadership.topReferrer")}: ${referralLeaders[0].label}` : t("reports.leadership.leaderboardAfterReferrals")],
+            [t("reports.leadership.exportable"), t("reports.status.ready"), t("reports.leadership.exportsHelp")],
+            [t("reports.metrics.aiInsights"), t("reports.status.afterSetup"), t("reports.analytics.insightsImprove")],
+            [t("reports.analytics.volunteerProductivity"), manualCount + paperCount, t("reports.leadership.sourceProxy")]
           ].map(([label, value, detail]) => (
             <div className="analytics-command-card" key={String(label)}>
               <span>{label}</span>
@@ -405,31 +405,25 @@ export function ReportsTab({
         </div>
       </Panel>
 
-      <Panel title="Reports and exports" icon={<Download />}>
+      <Panel title={t("reports.exports.title")} icon={<Download />}>
         <div className="report-suite-hero">
           <div>
-            <span className="eyebrow">Authority-ready Petition Dossier</span>
-            <h2>Premium report package for submission, print, media, and leadership review.</h2>
-            <p>
-              Built only from existing campaign, supporter, authority, organization, location, field collection,
-              and configured readiness data. Missing values are marked Not configured or Not available.
-            </p>
+            <span className="eyebrow">{t("reports.exports.dossier")}</span>
+            <h2>{t("reports.exports.premiumPackage")}</h2>
+            <p>{t("reports.exports.dataHelp")}</p>
           </div>
           <div className="report-suite-score">
             <strong>{verifiedCount.toLocaleString()}</strong>
-            <span>verified supporters ready for formal reporting</span>
+            <span>{t("reports.exports.verifiedReady")}</span>
           </div>
         </div>
-        <div className="report-theme-panel" aria-label="Signature Edition report theme">
+        <div className="report-theme-panel" aria-label={t("reports.exports.themeAria")}>
           <div>
-            <span className="eyebrow">Signature Edition theme</span>
-            <h3>Choose report presentation for this export session.</h3>
-            <p>
-              Theme changes only affect typography, colors, headers, cover styling, spacing, and footer treatment.
-              Report content and calculations remain identical.
-            </p>
+            <span className="eyebrow">{t("reports.exports.signatureTheme")}</span>
+            <h3>{t("reports.exports.choosePresentation")}</h3>
+            <p>{t("reports.exports.themeHelp")}</p>
           </div>
-          <div className="report-theme-grid" role="radiogroup" aria-label="Report theme">
+          <div className="report-theme-grid" role="radiogroup" aria-label={t("reports.exports.reportTheme")}>
             {reportThemeOptions.map((theme) => (
               <label
                 className={reportThemeId === theme.id ? "report-theme-card selected" : "report-theme-card"}
@@ -442,8 +436,8 @@ export function ReportsTab({
                   checked={reportThemeId === theme.id}
                   onChange={() => setReportThemeId(theme.id)}
                 />
-                <strong>{theme.name}</strong>
-                <small>{theme.description}</small>
+                <strong>{t(`reports.themes.${theme.id}.name`)}</strong>
+                <small>{t(`reports.themes.${theme.id}.description`)}</small>
               </label>
             ))}
           </div>
@@ -451,46 +445,46 @@ export function ReportsTab({
         <div className="report-export-grid">
           {[
             {
-              title: "Authority-ready Petition Dossier",
-              detail: "Cover page, executive summary, details, dashboard, location summary, register, authority package, letter, certificate, and annexures.",
+              title: t("reports.exports.dossier"),
+              detail: t("reports.exports.dossierDetail"),
               icon: FileCheck2,
               action: downloadPetitionDossier,
-              button: "Download PDF"
+              button: t("reports.exports.downloadPdf")
             },
             {
-              title: "Supporter Register",
-              detail: "Formal wide-table register with supporter identity, location, status, source, notes, and page numbering inside the dossier.",
+              title: t("reports.exports.supporterRegister"),
+              detail: t("reports.exports.registerDetail"),
               icon: Users,
               action: downloadPetitionDossier,
-              button: "Download register"
+              button: t("reports.exports.downloadRegister")
             },
             {
-              title: "Executive Summary",
-              detail: "One-page authority and leadership summary included in the dossier with progress, routing, location, and readiness.",
+              title: t("reports.exports.executiveSummary"),
+              detail: t("reports.exports.summaryDetail"),
               icon: BookOpen,
               action: downloadPetitionDossier,
-              button: "Download summary"
+              button: t("reports.exports.downloadSummary")
             },
             {
-              title: "Raw Data Export",
-              detail: "CSV remains available for spreadsheet analysis, backup, and custom reporting.",
+              title: t("reports.exports.rawData"),
+              detail: t("reports.exports.rawDetail"),
               icon: Download,
               action: () => exportCsv(activeCampaign, campaignSigners),
-              button: "Download CSV"
+              button: t("reports.exports.downloadCsv")
             },
             {
-              title: "Print / PDF",
-              detail: "Use browser print for the current reports page, or use the dossier PDF for authority-ready formatting.",
+              title: t("reports.exports.printPdf"),
+              detail: t("reports.exports.printDetail"),
               icon: Printer,
               action: () => window.print(),
-              button: "Print page"
+              button: t("reports.exports.printPage")
             },
             {
-              title: "Copy Cover Letter",
-              detail: "Copy a professional neutral cover letter for Word, email, or an authority portal.",
+              title: t("reports.exports.copyCoverLetter"),
+              detail: t("reports.exports.copyDetail"),
               icon: ClipboardCopy,
               action: copyCoverLetter,
-              button: "Copy letter"
+              button: t("reports.exports.copyLetter")
             }
           ].map((item) => (
             <article className="report-export-card" key={item.title}>
@@ -510,51 +504,51 @@ export function ReportsTab({
             type="button"
             onClick={downloadPetitionDossier}
           >
-            <FileText size={18} /> Download petition dossier
+            <FileText size={18} /> {t("reports.exports.downloadDossier")}
           </button>
           <button
             className="secondary-button"
             type="button"
             onClick={() => exportCsv(activeCampaign, campaignSigners)}
           >
-            <Download size={18} /> Download CSV
+            <Download size={18} /> {t("reports.exports.downloadCsv")}
           </button>
           <button className="secondary-button" type="button" onClick={copyCoverLetter}>
-            <ClipboardCopy size={18} /> Copy cover letter
+            <ClipboardCopy size={18} /> {t("reports.exports.copyCoverLetter")}
           </button>
         </div>
         <div className="report-grid">
-          <ReportBlock title="Daily status" data={dailyTotals} />
-          <ReportBlock title="Weekly status" data={weeklyTotals} />
-          <ReportBlock title={`${locationLabels.state} count`} data={stateTotals} />
-          <ReportBlock title={`${locationLabels.district} count`} data={districtTotals} />
-          {!isGlobalMode && <ReportBlock title={`${locationLabels.block} count`} data={blockTotals} />}
-          <ReportBlock title={`${locationLabels.panchayat} count`} data={panchayatTotals} />
+          <ReportBlock title={t("reports.blocks.daily")} data={dailyTotals} />
+          <ReportBlock title={t("reports.blocks.weekly")} data={weeklyTotals} />
+          <ReportBlock title={`${locationLabels.state} ${t("reports.common.count")}`} data={stateTotals} />
+          <ReportBlock title={`${locationLabels.district} ${t("reports.common.count")}`} data={districtTotals} />
+          {!isGlobalMode && <ReportBlock title={`${locationLabels.block} ${t("reports.common.count")}`} data={blockTotals} />}
+          <ReportBlock title={`${locationLabels.panchayat} ${t("reports.common.count")}`} data={panchayatTotals} />
         </div>
       </Panel>
 
-      <Panel title="Signer register" icon={<Users />}>
+      <Panel title={t("reports.register.title")} icon={<Users />}>
         {campaignSigners.length === 0 ? (
-          <p>No signers have been collected for this campaign yet.</p>
+          <p>{t("reports.register.empty")}</p>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Phone</th>
-                  <th>Alt contacts</th>
-                  <th>OTP</th>
-                  {isGlobalMode && <th>Country</th>}
+                  <th>{t("reports.register.name")}</th>
+                  <th>{t("reports.register.phone")}</th>
+                  <th>{t("reports.register.altContacts")}</th>
+                  <th>{t("reports.register.otp")}</th>
+                  {isGlobalMode && <th>{t("reports.register.country")}</th>}
                   <th>{locationLabels.state}</th>
                   <th>{locationLabels.district}</th>
                   {!isGlobalMode && <th>{locationLabels.block}</th>}
                   <th>{locationLabels.panchayat}</th>
-                  <th>Source</th>
-                  <th>Status</th>
-                  <th>Signed at</th>
-                  <th>Review</th>
-                  <th>Appeal PDF</th>
+                  <th>{t("reports.register.source")}</th>
+                  <th>{t("reports.register.status")}</th>
+                  <th>{t("reports.register.signedAt")}</th>
+                  <th>{t("reports.register.review")}</th>
+                  <th>{t("reports.register.appealPdf")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -569,12 +563,12 @@ export function ReportsTab({
                       <span>WA: {signer.whatsappNumber || signer.phone || "-"}</span>
                       <span>TG: {signer.telegramHandle || "-"}</span>
                     </td>
-                    <td>{signer.otpVerified ? "Verified" : "Not verified"}</td>
-                    {isGlobalMode && <td>{signer.country || "Not captured"}</td>}
-                    <td>{signer.state || "Not captured"}</td>
-                    <td>{signer.district || "Not captured"}</td>
-                    {!isGlobalMode && <td>{signer.block || "Not captured"}</td>}
-                    <td>{signer.panchayat || "Not captured"}</td>
+                    <td>{t(signer.otpVerified ? "reports.status.verified" : "reports.status.notVerified")}</td>
+                    {isGlobalMode && <td>{signer.country || t("reports.status.notCaptured")}</td>}
+                    <td>{signer.state || t("reports.status.notCaptured")}</td>
+                    <td>{signer.district || t("reports.status.notCaptured")}</td>
+                    {!isGlobalMode && <td>{signer.block || t("reports.status.notCaptured")}</td>}
+                    <td>{signer.panchayat || t("reports.status.notCaptured")}</td>
                     <td>{signer.source}</td>
                     <td>
                       <select
@@ -583,14 +577,14 @@ export function ReportsTab({
                           onUpdateSignerStatus(signer.id, e.target.value as Signer["status"])
                         }
                       >
-                        <option value="verified">verified</option>
-                        <option value="pending">pending</option>
-                        <option value="duplicate">duplicate</option>
-                        <option value="rejected">rejected</option>
+                        <option value="verified">{t("reports.status.verified")}</option>
+                        <option value="pending">{t("reports.status.pending")}</option>
+                        <option value="duplicate">{t("reports.status.duplicate")}</option>
+                        <option value="rejected">{t("reports.status.rejected")}</option>
                       </select>
                     </td>
                     <td>{new Date(signer.signedAt).toLocaleString()}</td>
-                    <td>{signer.reviewerNote ?? "Ready"}</td>
+                    <td>{signer.reviewerNote ?? t("reports.status.ready")}</td>
                     <td>
                       <button
                         className="secondary-button"

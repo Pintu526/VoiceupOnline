@@ -16,6 +16,7 @@ import {
   getReferralBadge,
   getReferralLeaderboard
 } from "../../utils/referrals";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface EngagementTabProps {
   activeCampaign: Campaign | undefined;
@@ -40,11 +41,12 @@ export function EngagementTab({
   copiedMessage,
   onCopyText
 }: EngagementTabProps) {
+  const { t } = useTranslation();
   if (!activeCampaign) {
     return (
       <NoCampaignPanel
-        title="Engagement tools need a campaign"
-        description="Create and publish a campaign before sending WhatsApp, SMS, or social updates."
+        title={t("crm.engagement.noCampaign")}
+        description={t("crm.engagement.noCampaignHelp")}
       />
     );
   }
@@ -69,61 +71,73 @@ export function EngagementTab({
     () => [
       {
         label: "All supporters",
+        displayLabel: t("crm.engagement.segments.all"),
         count: campaignSigners.length,
-        detail: "Every supporter for this campaign"
+        detail: t("crm.engagement.segments.allHelp")
       },
       {
         label: "Verified supporters",
+        displayLabel: t("crm.engagement.segments.verified"),
         count: campaignSigners.filter((signer) => signer.status === "verified" || signer.otpVerified).length,
-        detail: "Verified or OTP-confirmed supporters"
+        detail: t("crm.engagement.segments.verifiedHelp")
       },
       {
         label: "Phone reachable",
+        displayLabel: t("crm.engagement.segments.phone"),
         count: campaignSigners.filter((signer) => signer.phone).length,
-        detail: "Eligible for SMS/WhatsApp after consent checks"
+        detail: t("crm.engagement.segments.phoneHelp")
       },
       {
         label: "Email reachable",
+        displayLabel: t("crm.engagement.segments.email"),
         count: campaignSigners.filter((signer) => signer.email).length,
-        detail: "Eligible for email after consent checks"
+        detail: t("crm.engagement.segments.emailHelp")
       },
       {
         label: "Field collection supporters",
+        displayLabel: t("crm.engagement.segments.field"),
         count: campaignSigners.filter((signer) => signer.source === "scan" || signer.source === "field").length,
-        detail: "Imported from paper/manual collection"
+        detail: t("crm.engagement.segments.fieldHelp")
       },
       {
         label: "Pending verification",
+        displayLabel: t("crm.engagement.segments.pending"),
         count: campaignSigners.filter((signer) => signer.status === "pending" && !signer.otpVerified).length,
-        detail: "Needs verification or review"
+        detail: t("crm.engagement.segments.pendingHelp")
       }
     ],
-    [campaignSigners]
+    [campaignSigners, t]
   );
   const activeSegment = supporterSegments.find((segment) => segment.label === selectedSegment) ?? supporterSegments[0];
   const messageTemplates = [
     {
       label: "Campaign update",
+      displayLabel: t("crm.engagement.templates.update"),
       message: reportMessage
     },
     {
       label: "Campaign launch",
+      displayLabel: t("crm.engagement.templates.launch"),
       message: `${activeCampaign.socialShareText || `Support ${activeCampaign.title}`} ${publicUrl}`
     },
     {
       label: "Authority follow-up",
+      displayLabel: t("crm.engagement.templates.authority"),
       message: `Update on ${activeCampaign.title}: we are preparing the supporter petition for authority follow-up. Track and share: ${publicUrl}`
     },
     {
       label: "Volunteer call",
+      displayLabel: t("crm.engagement.templates.volunteer"),
       message: `We need volunteers for ${activeCampaign.title}. Help with sharing, field collection, and local follow-up: ${publicUrl}`
     },
     {
       label: "Thank-you",
+      displayLabel: t("crm.engagement.templates.thankYou"),
       message: renderCampaignMessage(activeCampaign.thankYouMessage, campaignForMessages, metrics)
     },
     {
       label: "Field collection reminder",
+      displayLabel: t("crm.engagement.templates.fieldReminder"),
       message: `Field team reminder for ${activeCampaign.title}: collect supporter details carefully and route paper sheets for review.`
     }
   ];
@@ -196,11 +210,11 @@ export function EngagementTab({
 
   return (
     <section className="page-stack">
-      <Panel title="Communication Hub" icon={<Send />}>
+      <Panel title={t("crm.engagement.communicationHub")} icon={<Send />}>
         <div className="communication-hub-grid">
           <div className="communication-audience-card">
-            <span className="eyebrow">Audience selector</span>
-            <strong>{activeSegment.count.toLocaleString()} {activeSegment.label.toLowerCase()}</strong>
+            <span className="eyebrow">{t("crm.engagement.audienceSelector")}</span>
+            <strong>{activeSegment.count.toLocaleString()} {activeSegment.displayLabel.toLowerCase()}</strong>
             <p>{activeSegment.detail}</p>
             <div className="communication-segment-grid">
               {supporterSegments.map((segment) => (
@@ -210,20 +224,20 @@ export function EngagementTab({
                   type="button"
                   onClick={() => setSelectedSegment(segment.label)}
                 >
-                  <span>{segment.label}</span>
+                  <span>{segment.displayLabel}</span>
                   <strong>{segment.count.toLocaleString()}</strong>
                 </button>
               ))}
             </div>
-            <p className="info-message">Consent-aware sending becomes available after setup. Do not send messages without consent verification.</p>
+            <p className="info-message">{t("crm.engagement.consentSendingHelp")}</p>
           </div>
           <div className="communication-preview-card">
-            <span className="eyebrow">Message preview</span>
+            <span className="eyebrow">{t("crm.engagement.messagePreview")}</span>
             <label className="field">
-              <span className="label">Template</span>
+              <span className="label">{t("crm.engagement.template")}</span>
               <select value={selectedTemplate} onChange={(event) => setSelectedTemplate(event.target.value)}>
                 {messageTemplates.map((template) => (
-                  <option key={template.label}>{template.label}</option>
+                  <option key={template.label} value={template.label}>{template.displayLabel}</option>
                 ))}
               </select>
             </label>
@@ -234,17 +248,17 @@ export function EngagementTab({
             />
             <div className="button-row">
               <button className="secondary-button" type="button" onClick={() => onCopyText(previewMessage)}>
-                Copy preview
+                {t("crm.engagement.copyPreview")}
               </button>
               <button className="secondary-button" type="button" disabled>
-                Schedule after setup
+                {t("crm.engagement.scheduleAfterSetup")}
               </button>
             </div>
           </div>
           <div className="communication-preview-card">
-            <span className="eyebrow">Scheduling UI</span>
+            <span className="eyebrow">{t("crm.engagement.schedulingUi")}</span>
             <label className="field">
-              <span className="label">Planned send window</span>
+              <span className="label">{t("crm.engagement.sendWindow")}</span>
               <input
                 type="datetime-local"
                 value={scheduledFor}
@@ -252,24 +266,24 @@ export function EngagementTab({
               />
             </label>
             <label className="field">
-              <span className="label">Priority</span>
+              <span className="label">{t("crm.engagement.priority")}</span>
               <select value={deliveryPriority} onChange={(event) => setDeliveryPriority(event.target.value)}>
-                <option>Low</option>
-                <option>Normal</option>
-                <option>High</option>
+                <option value="Low">{t("crm.engagement.priorityLow")}</option>
+                <option value="Normal">{t("crm.engagement.priorityNormal")}</option>
+                <option value="High">{t("crm.engagement.priorityHigh")}</option>
               </select>
             </label>
             <p>
-              Schedule is UI-only. {scheduledFor ? `Prepared for ${new Date(scheduledFor).toLocaleString()}.` : "Choose a future window for planning."}
+              {t("crm.engagement.scheduleUiOnly")} {scheduledFor ? `${t("crm.engagement.preparedFor")} ${new Date(scheduledFor).toLocaleString()}.` : t("crm.engagement.chooseWindow")}
             </p>
           </div>
           <div className="communication-preview-card">
-            <span className="eyebrow">Delivery history</span>
-            <strong>No provider delivery records yet</strong>
-            <p>Future sends will show queued, delivered, failed, opted-out, and consent-blocked statuses here.</p>
+            <span className="eyebrow">{t("crm.engagement.deliveryHistory")}</span>
+            <strong>{t("crm.engagement.noDelivery")}</strong>
+            <p>{t("crm.engagement.deliveryHelp")}</p>
             <div className="delivery-status-row">
-              {["Queued", "Delivered", "Failed", "Opted-out", "Consent-blocked"].map((status) => (
-                <span key={status}>{status}</span>
+              {["queued", "delivered", "failed", "optedOut", "consentBlocked"].map((statusKey) => (
+                <span key={statusKey}>{t(`crm.engagement.status.${statusKey}`)}</span>
               ))}
             </div>
           </div>
@@ -277,11 +291,8 @@ export function EngagementTab({
         <div className="consent-compliance-card">
           <BellRing size={22} />
           <div>
-            <strong>Consent warning</strong>
-            <p>
-              No bulk sending is enabled. Verify supporter consent, opt-out rules, and provider compliance before using
-              SMS, WhatsApp, Email, IVR, Telegram, Social Media, or Push delivery.
-            </p>
+            <strong>{t("crm.engagement.consentWarning")}</strong>
+            <p>{t("crm.engagement.consentWarningHelp")}</p>
           </div>
         </div>
         <div className="engagement-channel-grid">
@@ -289,21 +300,21 @@ export function EngagementTab({
             <article className={selectedChannels.includes(label) ? "engagement-channel-card selected" : "engagement-channel-card"} key={label}>
               <Icon size={20} />
               <strong>{label}</strong>
-              <small>{status}</small>
+              <small>{t(`crm.engagement.channelStatus.${label.replace(/\s/g, "").toLowerCase()}`)}</small>
               <label className="check-row">
                 <input
                   type="checkbox"
                   checked={selectedChannels.includes(label)}
                   onChange={() => toggleChannel(label)}
                 />
-                Include in setup plan
+                {t("crm.engagement.includeSetup")}
               </label>
-              <p>Template library, scheduling, configuration, and delivery history foundations are UI-only.</p>
+              <p>{t("crm.engagement.foundationHelp")}</p>
             </article>
           ))}
         </div>
         <p className="info-message">
-          Prepared audience: {activeSegment.count.toLocaleString()} supporters - {selectedProviderCount} selected channels - priority {deliveryPriority}. This is a planning preview only.
+          {t("crm.engagement.preparedAudience")}: {activeSegment.count.toLocaleString()} {t("crm.common.supporters").toLowerCase()} - {selectedProviderCount} {t("crm.engagement.selectedChannels")} - {t("crm.engagement.priority").toLowerCase()} {t(`crm.engagement.priority${deliveryPriority}`)}. {t("crm.engagement.planningOnly")}
         </p>
         <div className="communication-library-grid">
           {messageTemplates.map((template) => (
@@ -316,7 +327,7 @@ export function EngagementTab({
                 setBroadcastMessage(template.message);
               }}
             >
-              <strong>{template.label}</strong>
+              <strong>{template.displayLabel}</strong>
               <span>{template.message}</span>
             </button>
           ))}
@@ -325,32 +336,32 @@ export function EngagementTab({
           {providerSettings.map(([channel, provider, detail]) => (
             <article className="provider-settings-card" key={channel}>
               <span className="eyebrow">{channel}</span>
-              <strong>{provider === "Not configured" ? "Setup needed" : provider}</strong>
+              <strong>{provider === "Not configured" ? t("crm.status.setupNeeded") : provider}</strong>
               <small>{detail}</small>
             </article>
           ))}
         </div>
       </Panel>
 
-      <Panel title="QR & Referral Dashboard" icon={<QrCode />}>
+      <Panel title={t("referrals.dashboard.title")} icon={<QrCode />}>
         <div className="referral-dashboard-grid">
           <div className="referral-metric-card">
-            <span>Total referral signatures</span>
+            <span>{t("referrals.dashboard.totalSignatures")}</span>
             <strong>{referredSignatures.toLocaleString()}</strong>
-            <small>Real count from existing signer referral fields</small>
+            <small>{t("referrals.dashboard.realCount")}</small>
           </div>
           <div className="referral-metric-card">
-            <span>Share clicks</span>
+            <span>{t("referrals.dashboard.shareClicks")}</span>
             <strong>{sessionShareClicks.toLocaleString()}</strong>
-            <small>Session-only until provider tracking is connected</small>
+            <small>{t("referrals.dashboard.sessionOnly")}</small>
           </div>
           <div className="referral-metric-card">
-            <span>Conversion rate</span>
+            <span>{t("referrals.dashboard.conversionRate")}</span>
             <strong>{referralConversionRate}%</strong>
-            <small>Referral signatures divided by total supporters</small>
+            <small>{t("referrals.dashboard.conversionHelp")}</small>
           </div>
           <div className="referral-metric-card">
-            <span>Referral points</span>
+            <span>{t("referrals.dashboard.points")}</span>
             <strong>{referralPoints.toLocaleString()}</strong>
             <small>{getReferralBadge(referralPoints)}</small>
           </div>
@@ -359,28 +370,28 @@ export function EngagementTab({
         <div className="qr-sharing-grid">
           <ReferralQrPreview
             value={publicUrl}
-            label="Public campaign QR"
-            caption="Public signer URL"
+            label={t("referrals.dashboard.publicQr")}
+            caption={t("referrals.dashboard.publicUrl")}
           />
           <ReferralQrPreview
             value={campaignReferralUrl}
-            label="Starter referral QR"
-            caption={`Referral code ${campaignReferralCode}`}
+            label={t("referrals.dashboard.starterQr")}
+            caption={`${t("referrals.dashboard.code")} ${campaignReferralCode}`}
           />
           <div className="qr-poster-preview">
-            <span className="eyebrow">Printable QR poster</span>
+            <span className="eyebrow">{t("referrals.dashboard.printablePoster")}</span>
             <strong>{activeCampaign.title}</strong>
             <p>{activeCampaign.description}</p>
             <code>{campaignReferralUrl}</code>
-            <small>{organization.name || "Voiceup"} · {activeCampaign.category} · Scan to sign</small>
+            <small>{organization.name || "Voiceup"} · {activeCampaign.category} · {t("referrals.dashboard.scanToSign")}</small>
           </div>
         </div>
 
         <div className="campaign-link-row referral-route">
-          <span>Campaign referral URL</span>
+          <span>{t("referrals.dashboard.campaignUrl")}</span>
           <code>{campaignReferralUrl}</code>
           <button className="secondary-button" type="button" onClick={() => onCopyText(campaignReferralUrl)}>
-            <Copy size={16} /> Copy referral link
+            <Copy size={16} /> {t("referrals.dashboard.copyLink")}
           </button>
         </div>
 
@@ -438,7 +449,7 @@ export function EngagementTab({
             Email
           </a>
           <button className="secondary-button" type="button" onClick={shareReferralNatively}>
-            <Share2 size={16} /> Native share
+            <Share2 size={16} /> {t("referrals.dashboard.nativeShare")}
           </button>
           <button
             className="secondary-button"
@@ -453,7 +464,7 @@ export function EngagementTab({
               });
             }}
           >
-            <Download size={16} /> Download poster
+            <Download size={16} /> {t("referrals.dashboard.downloadPoster")}
           </button>
           <button
             className="secondary-button"
@@ -463,19 +474,19 @@ export function EngagementTab({
               window.print();
             }}
           >
-            <Printer size={16} /> Print
+            <Printer size={16} /> {t("referrals.dashboard.print")}
           </button>
         </div>
 
         <div className="referral-dashboard-grid">
           <div className="communication-preview-card">
-            <span className="eyebrow">Referral leaderboard</span>
+            <span className="eyebrow">{t("referrals.dashboard.leaderboard")}</span>
             <label className="field">
-              <span className="label">Search referrer by safe label or code</span>
+              <span className="label">{t("referrals.dashboard.searchLabel")}</span>
               <input
                 value={referrerSearch}
                 onChange={(event) => setReferrerSearch(event.target.value)}
-                placeholder="Search name, code, or location"
+                placeholder={t("referrals.dashboard.searchPlaceholder")}
               />
             </label>
             <div className="referral-leaderboard">
@@ -483,46 +494,40 @@ export function EngagementTab({
                 filteredReferralLeaders.slice(0, 6).map((leader) => (
                   <div key={leader.code}>
                     <strong>{leader.label}</strong>
-                    <span>{leader.referredSignatures.toLocaleString()} referred signatures · {leader.points} points</span>
+                    <span>{leader.referredSignatures.toLocaleString()} {t("referrals.dashboard.referredSignatures")} · {leader.points} {t("growth.common.points")}</span>
                     <small>{leader.code} · {leader.location}</small>
                   </div>
                 ))
               ) : (
-                <p className="info-message">No referred signatures yet. Leaderboard export appears after referrals are recorded.</p>
+                <p className="info-message">{t("referrals.dashboard.emptyLeaderboard")}</p>
               )}
             </div>
           </div>
           <div className="communication-preview-card">
-            <span className="eyebrow">Referral intelligence</span>
-            <strong>{referralLeaders[0]?.label ?? "Top referrer not available yet"}</strong>
-            <p>
-              Visits, share-click attribution, downloadable leaderboard export, and location-level referral analytics are
-              available after setup. Successful referred signatures are counted when signer records include referral metadata.
-            </p>
+            <span className="eyebrow">{t("referrals.dashboard.intelligence")}</span>
+            <strong>{referralLeaders[0]?.label ?? t("referrals.dashboard.noTopReferrer")}</strong>
+            <p>{t("referrals.dashboard.intelligenceHelp")}</p>
             <div className="delivery-status-row">
-              <span>Campaign Starter</span>
-              <span>Community Promoter</span>
-              <span>Top Referrer</span>
-              <span>District Champion</span>
-              <span>Movement Ambassador</span>
+              <span>{t("referrals.badges.starter")}</span>
+              <span>{t("referrals.badges.promoter")}</span>
+              <span>{t("referrals.badges.topReferrer")}</span>
+              <span>{t("referrals.badges.districtChampion")}</span>
+              <span>{t("referrals.badges.ambassador")}</span>
             </div>
             <p className="info-message">
-              Privacy respected: public views mask phone numbers and do not expose full referrer identity.
+              {t("referrals.dashboard.privacyHelp")}
             </p>
           </div>
         </div>
         {copiedMessage && <p className="success-message">{copiedMessage}</p>}
       </Panel>
 
-      <Panel title="Social publishing and participant engagement" icon={<MessageCircle />}>
+      <Panel title={t("crm.engagement.socialPublishing")} icon={<MessageCircle />}>
         <div className="engagement-grid">
           <div className="engagement-card">
             <Share2 size={24} />
-            <h3>Publish campaign to social networks</h3>
-            <p>
-              Share the same campaign URL. The campaign is published as a slug under your main
-              domain.
-            </p>
+            <h3>{t("crm.engagement.publishSocial")}</h3>
+            <p>{t("crm.engagement.publishSocialHelp")}</p>
             <div className="button-row">
               <a
                 className="secondary-link-button"
@@ -534,7 +539,7 @@ export function EngagementTab({
                 rel="noreferrer"
                 onClick={trackReferralShare}
               >
-                WhatsApp share
+                {t("crm.engagement.whatsappShare")}
               </a>
               <a
                 className="secondary-link-button"
@@ -559,8 +564,8 @@ export function EngagementTab({
 
           <div className="engagement-card">
             <MessageCircle size={24} />
-            <h3>Participant report message</h3>
-            <p>Send a current progress update to keep supporters engaged after signup.</p>
+            <h3>{t("crm.engagement.participantReport")}</h3>
+            <p>{t("crm.engagement.participantReportHelp")}</p>
             <textarea
               rows={5}
               value={effectiveMessage}
@@ -572,14 +577,14 @@ export function EngagementTab({
                 type="button"
                 onClick={() => onCopyText(effectiveMessage)}
               >
-                Copy update
+                {t("crm.engagement.copyUpdate")}
               </button>
               <button
                 className="secondary-button"
                 type="button"
                 onClick={() => setBroadcastMessage(reportMessage)}
               >
-                Refresh report
+                {t("crm.engagement.refreshReport")}
               </button>
             </div>
             {copiedMessage && <p className="success-message">{copiedMessage}</p>}
@@ -587,9 +592,9 @@ export function EngagementTab({
         </div>
       </Panel>
 
-      <Panel title="Send message to participants" icon={<Users />}>
+      <Panel title={t("crm.engagement.sendParticipants")} icon={<Users />}>
         {campaignSigners.length === 0 ? (
-          <p>No participants yet. Once people sign, WhatsApp and SMS actions appear here.</p>
+          <p>{t("crm.engagement.noParticipants")}</p>
         ) : (
           <div className="participant-message-list">
             {campaignSigners.map((signer) => (
@@ -624,8 +629,7 @@ export function EngagementTab({
           </div>
         )}
         <p className="info-message">
-          Production bulk delivery should connect WhatsApp Business API and a regional SMS provider
-          such as MSG91, Gupshup, Twilio, or Airtel IQ.
+          {t("crm.engagement.bulkDeliveryHelp")}
         </p>
       </Panel>
     </section>

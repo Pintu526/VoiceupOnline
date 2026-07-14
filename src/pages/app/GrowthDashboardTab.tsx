@@ -25,6 +25,7 @@ import { buildGrowthEngagementHubViewModel } from "../../growth/viewModels/engag
 import { buildMerchantDashboardModel } from "../../growth/merchant";
 import { buildRewardCenterModel } from "../../growth/rewards";
 import { applyRewardRuntimeAction, type RewardRuntimeAction } from "../../growth/rewards/rewardRuntimeService";
+import { useTranslation } from "../../i18n/useTranslation";
 
 const MerchantDashboard = lazy(() => import("../../growth/merchant/components/MerchantDashboard"));
 
@@ -39,14 +40,15 @@ interface GrowthDashboardTabProps {
 }
 
 function TrendBars({ trends }: { trends: GrowthTrendPoint[] }) {
+  const { t } = useTranslation();
   const maxValue = Math.max(1, ...trends.map((point) => point.signatures));
   return (
-    <div className="growth-trend-bars" aria-label="14 day campaign growth trend">
+    <div className="growth-trend-bars" aria-label={t("growth.analytics.trendAria")}>
       {trends.map((point) => (
         <div className="growth-trend-bar" key={point.label}>
           <span
             style={{ height: `${Math.max(8, (point.signatures / maxValue) * 100)}%` }}
-            title={`${point.signatures} signatures, ${point.referrals} referrals`}
+            title={`${point.signatures} ${t("growth.common.signatures")}, ${point.referrals} ${t("growth.common.referrals")}`}
           />
           <small>{point.label}</small>
         </div>
@@ -56,9 +58,10 @@ function TrendBars({ trends }: { trends: GrowthTrendPoint[] }) {
 }
 
 function LeaderboardList({ entries }: { entries: LeaderboardEntry[] }) {
+  const { t } = useTranslation();
   return (
     <div className="growth-leaderboard-list">
-      {entries.length === 0 && <p className="helper-text">Leaderboard appears after supporters join and share.</p>}
+      {entries.length === 0 && <p className="helper-text">{t("growth.leaderboard.empty")}</p>}
       {entries.map((entry) => (
         <article className="growth-leaderboard-row" key={entry.id}>
           <span>{entry.rank}</span>
@@ -68,7 +71,7 @@ function LeaderboardList({ entries }: { entries: LeaderboardEntry[] }) {
           </div>
           <div>
             <strong>{entry.score.toLocaleString()}</strong>
-            <small>{entry.directReferrals.toLocaleString()} referrals</small>
+            <small>{entry.directReferrals.toLocaleString()} {t("growth.common.referrals")}</small>
           </div>
         </article>
       ))}
@@ -111,6 +114,7 @@ function GrowthDashboardContent({
   campaignSigners: Signer[];
   onGrowthRuntimeChange: (updater: (current: GrowthRuntimeState) => GrowthRuntimeState) => void;
 }) {
+  const { t } = useTranslation();
   const { dashboardModel: model } = useGrowth();
   const campaignWallets = (growthRuntime?.wallets ?? []).filter((wallet) =>
     activeCampaignId ? wallet.campaignId === activeCampaignId : true
@@ -127,7 +131,7 @@ function GrowthDashboardContent({
   const recognitionDistribution = (growthRuntime?.supporterSnapshots ?? [])
     .filter((snapshot) => (activeCampaignId ? snapshot.campaignId === activeCampaignId : true))
     .reduce<Record<string, number>>((items, snapshot) => {
-      const label = snapshot.currentRecognitionLevelName ?? "In progress";
+      const label = snapshot.currentRecognitionLevelName ?? t("growth.status.inProgress");
       return { ...items, [label]: (items[label] ?? 0) + 1 };
     }, {});
   const recentTimeline = (growthRuntime?.timeline ?? [])
@@ -171,60 +175,57 @@ function GrowthDashboardContent({
   return (
     <section className="page-stack growth-dashboard">
       <CampaignEngagementHub viewModel={engagementViewModel} />
-      <Panel title="Campaign Growth Dashboard" icon={<TrendingUp />}>
+      <Panel title={t("growth.dashboard.title")} icon={<TrendingUp />}>
         <div className="growth-hero">
           <div>
-            <span className="eyebrow">Growth Engine Foundation</span>
+            <span className="eyebrow">{t("growth.dashboard.foundation")}</span>
             <h2>{model.scope.label}</h2>
-            <p>
-              Track referrals, ambassadors, rewards, leaderboards, and campaign growth signals using existing
-              supporter and referral data.
-            </p>
+            <p>{t("growth.dashboard.description")}</p>
           </div>
           <div className="growth-stage-card">
-            <span>Growth stage</span>
+            <span>{t("growth.dashboard.stage")}</span>
             <strong>{model.summary.stage}</strong>
-            <small>{model.summary.growthScore}/100 growth score</small>
+            <small>{model.summary.growthScore}/100 {t("growth.dashboard.score")}</small>
           </div>
         </div>
 
         <div className="metric-grid">
           <MetricCard
             icon={<UsersRound />}
-            label="Supporters"
+            label={t("growth.common.supporters")}
             value={model.summary.totalSupporters}
-            detail={`${model.analytics.newSupporters7d.toLocaleString()} joined in 7 days`}
+            detail={`${model.analytics.newSupporters7d.toLocaleString()} ${t("growth.dashboard.joinedSevenDays")}`}
           />
           <MetricCard
             icon={<Share2 />}
-            label="Referral signatures"
+            label={t("growth.dashboard.referralSignatures")}
             value={model.summary.referralSignatures}
-            detail={`${model.summary.referralRate}% referral rate`}
+            detail={`${model.summary.referralRate}% ${t("growth.dashboard.referralRate")}`}
           />
           <MetricCard
             icon={<BadgeCheck />}
-            label="Ambassadors"
+            label={t("growth.common.ambassadors")}
             value={model.summary.ambassadorCount}
-            detail={`Top level: ${model.ambassadors.topLevel}`}
+            detail={`${t("growth.dashboard.topLevel")}: ${model.ambassadors.topLevel}`}
           />
           <MetricCard
             icon={<Award />}
-            label="Rewards earned"
+            label={t("growth.dashboard.rewardsEarned")}
             value={model.summary.earnedRewards}
-            detail={`${model.rewards.availableRewards.toLocaleString()} rewards nearly available`}
+            detail={`${model.rewards.availableRewards.toLocaleString()} ${t("growth.dashboard.rewardsNearlyAvailable")}`}
           />
         </div>
       </Panel>
 
       <div className="growth-dashboard-grid">
-        <Panel title="Growth Analytics" icon={<BarChart3 />}>
+        <Panel title={t("growth.analytics.title")} icon={<BarChart3 />}>
           <TrendBars trends={model.analytics.trends} />
           <div className="growth-channel-list">
             {model.analytics.channels.map((channel) => (
               <article className="growth-channel-row" key={channel.channel}>
                 <div>
                   <strong>{channel.label}</strong>
-                  <small>{channel.count.toLocaleString()} supporter record{channel.count === 1 ? "" : "s"}</small>
+                  <small>{channel.count.toLocaleString()} {t("growth.analytics.supporterRecords")}</small>
                 </div>
                 <span>{channel.percentage}%</span>
               </article>
@@ -232,12 +233,12 @@ function GrowthDashboardContent({
           </div>
         </Panel>
 
-        <Panel title="Referral Domain" icon={<GitBranch />}>
+        <Panel title={t("referrals.domain.title")} icon={<GitBranch />}>
           <div className="growth-domain-summary">
             <strong>{model.referrals.edges.length.toLocaleString()}</strong>
-            <span>referral edges recorded</span>
+            <span>{t("referrals.domain.edgesRecorded")}</span>
             <small>
-              Strongest code: {model.referrals.strongestCode || "Appears after referral activity"}
+              {t("referrals.domain.strongestCode")}: {model.referrals.strongestCode || t("referrals.domain.afterActivity")}
             </small>
           </div>
           <div className="growth-node-list">
@@ -251,65 +252,65 @@ function GrowthDashboardContent({
               </article>
             ))}
             {model.referrals.nodes.length === 0 && (
-              <p className="helper-text">Referral nodes appear when signatures include referral metadata.</p>
+              <p className="helper-text">{t("referrals.domain.nodesHelp")}</p>
             )}
           </div>
         </Panel>
       </div>
 
       <div className="growth-dashboard-grid">
-        <Panel title="Growth Wallet Summary" icon={<Award />}>
+        <Panel title={t("growth.wallet.title")} icon={<Award />}>
           <div className="growth-channel-list">
             <article className="growth-channel-row">
               <div>
-                <strong>Wallet credits</strong>
-                <small>Credits retained by supporters</small>
+                <strong>{t("growth.wallet.walletCredits")}</strong>
+                <small>{t("growth.wallet.retained")}</small>
               </div>
               <span>{walletSummary.walletCredits.toLocaleString()}</span>
             </article>
             <article className="growth-channel-row">
               <div>
-                <strong>Promotion credits</strong>
-                <small>Credits moving supporters toward recognition</small>
+                <strong>{t("growth.wallet.promotionCredits")}</strong>
+                <small>{t("growth.wallet.promotionHelp")}</small>
               </div>
               <span>{walletSummary.promotionCredits.toLocaleString()}</span>
             </article>
             <article className="growth-channel-row">
               <div>
-                <strong>Contribution credits</strong>
-                <small>Credits received through the growth tree</small>
+                <strong>{t("growth.wallet.contributionCredits")}</strong>
+                <small>{t("growth.wallet.contributionHelp")}</small>
               </div>
               <span>{walletSummary.contributionCredits.toLocaleString()}</span>
             </article>
             <article className="growth-channel-row">
               <div>
-                <strong>Reserved and redeemed</strong>
-                <small>Marketplace reservations and completed wallet burn</small>
+                <strong>{t("growth.wallet.reservedRedeemed")}</strong>
+                <small>{t("growth.wallet.reservedHelp")}</small>
               </div>
               <span>{campaignWallets.reduce((sum, wallet) => sum + wallet.balance.reservedCredits + wallet.balance.redeemedCredits, 0).toLocaleString()}</span>
             </article>
           </div>
         </Panel>
 
-        <Panel title="Recognition Distribution" icon={<BadgeCheck />}>
+        <Panel title={t("growth.recognition.title")} icon={<BadgeCheck />}>
           <div className="growth-node-list">
             {Object.entries(recognitionDistribution).map(([label, count]) => (
               <article className="growth-node-row" key={label}>
                 <div>
                   <strong>{label}</strong>
-                  <small>Supporter recognition level</small>
+                  <small>{t("growth.recognition.level")}</small>
                 </div>
                 <span>{count.toLocaleString()}</span>
               </article>
             ))}
             {Object.keys(recognitionDistribution).length === 0 && (
-              <p className="helper-text">Recognition updates appear after supporter activity.</p>
+              <p className="helper-text">{t("growth.recognition.empty")}</p>
             )}
           </div>
         </Panel>
       </div>
 
-      <Panel title="Growth Timeline" icon={<TrendingUp />}>
+      <Panel title={t("growth.timeline.title")} icon={<TrendingUp />}>
         <div className="growth-node-list">
           {recentTimeline.map((record) => (
             <article className="growth-node-row" key={record.id}>
@@ -321,13 +322,13 @@ function GrowthDashboardContent({
             </article>
           ))}
           {recentTimeline.length === 0 && (
-            <p className="helper-text">Growth timeline records appear when supporters sign, verify, share, or earn credits.</p>
+            <p className="helper-text">{t("growth.timeline.empty")}</p>
           )}
         </div>
       </Panel>
 
       <div className="growth-dashboard-grid">
-        <Panel title="Ambassador Domain" icon={<Network />}>
+        <Panel title={t("growth.ambassadors.title")} icon={<Network />}>
           <div className="growth-ambassador-list">
             {model.ambassadors.profiles.slice(0, 6).map((profile) => (
               <article className="growth-ambassador-row" key={profile.id}>
@@ -336,30 +337,30 @@ function GrowthDashboardContent({
                   <small>{profile.level} - {profile.location}</small>
                 </div>
                 <div>
-                  <span>{profile.totalPoints.toLocaleString()} pts</span>
-                  <small>{profile.directReferrals.toLocaleString()} referrals</small>
+                  <span>{profile.totalPoints.toLocaleString()} {t("growth.common.points")}</span>
+                  <small>{profile.directReferrals.toLocaleString()} {t("growth.common.referrals")}</small>
                 </div>
               </article>
             ))}
             {model.ambassadors.profiles.length === 0 && (
-              <p className="helper-text">Ambassador profiles appear after supporters sign the campaign.</p>
+              <p className="helper-text">{t("growth.ambassadors.empty")}</p>
             )}
           </div>
         </Panel>
 
-        <Panel title="Reward Domain" icon={<Medal />}>
+        <Panel title={t("growth.rewards.domainTitle")} icon={<Medal />}>
           <div className="growth-reward-rule-grid">
             {model.rewards.rules.map((rule) => (
               <article className="growth-reward-rule" key={rule.id}>
                 <Sparkles size={18} />
                 <div>
                   <strong>{rule.label}</strong>
-                  <small>{rule.pointsRequired.toLocaleString()} points required</small>
+                  <small>{rule.pointsRequired.toLocaleString()} {t("growth.rewards.pointsRequired")}</small>
                   <p>{rule.description}</p>
                 </div>
               </article>
             ))}
-            {activeCampaign && model.rewards.catalogCount === 0 && <p className="helper-text">Configure merchants and reward catalog items in Growth Configuration Studio.</p>}
+            {activeCampaign && model.rewards.catalogCount === 0 && <p className="helper-text">{t("growth.rewards.configureCatalog")}</p>}
           </div>
         </Panel>
       </div>
@@ -367,24 +368,24 @@ function GrowthDashboardContent({
       {activeCampaign && merchantDashboard && rewardAnalytics && (
         <>
           <div className="growth-dashboard-grid">
-            <Panel title="Campaign Reward Analytics" icon={<Gift />}>
+            <Panel title={t("growth.rewards.analyticsTitle")} icon={<Gift />}>
               <div className="growth-insight-grid">
-                <article><span>Reward Popularity</span><strong>{rewardAnalytics.rewardPopularity[0]?.label ?? "No rewards yet"}</strong><small>{rewardAnalytics.rewardPopularity[0]?.redemptionCount ?? 0} redemption(s)</small></article>
-                <article><span>Wallet Burn Rate</span><strong>{rewardAnalytics.walletBurnRate.toLocaleString()}</strong><small>Points spent on completed rewards</small></article>
-                <article><span>Redemption Rate</span><strong>{rewardAnalytics.redemptionRate}%</strong><small>Completed vs active redemption pipeline</small></article>
-                <article><span>Average Wallet Balance</span><strong>{rewardAnalytics.averageWalletBalance.toLocaleString()}</strong><small>Across campaign wallets</small></article>
+                <article><span>{t("growth.rewards.popularity")}</span><strong>{rewardAnalytics.rewardPopularity[0]?.label ?? t("growth.rewards.noRewards")}</strong><small>{rewardAnalytics.rewardPopularity[0]?.redemptionCount ?? 0} {t("growth.rewards.redemptions")}</small></article>
+                <article><span>{t("growth.rewards.burnRate")}</span><strong>{rewardAnalytics.walletBurnRate.toLocaleString()}</strong><small>{t("growth.rewards.pointsSpent")}</small></article>
+                <article><span>{t("growth.rewards.redemptionRate")}</span><strong>{rewardAnalytics.redemptionRate}%</strong><small>{t("growth.rewards.pipelineHelp")}</small></article>
+                <article><span>{t("growth.rewards.averageBalance")}</span><strong>{rewardAnalytics.averageWalletBalance.toLocaleString()}</strong><small>{t("growth.rewards.acrossWallets")}</small></article>
               </div>
               <div className="growth-node-list">
                 {rewardAnalytics.mostDesiredRewards.map((item) => (
-                  <article className="growth-node-row" key={item.rewardId}><div><strong>{item.label}</strong><small>Wishlist demand</small></div><span>{item.wishlistCount}</span></article>
+                  <article className="growth-node-row" key={item.rewardId}><div><strong>{item.label}</strong><small>{t("growth.rewards.wishlistDemand")}</small></div><span>{item.wishlistCount}</span></article>
                 ))}
                 {rewardAnalytics.topRedeemers.map((item) => (
-                  <article className="growth-node-row" key={item.supporterId}><div><strong>{item.supporterId}</strong><small>Top redeemer</small></div><span>{item.pointsBurned}</span></article>
+                  <article className="growth-node-row" key={item.supporterId}><div><strong>{item.supporterId}</strong><small>{t("growth.rewards.topRedeemer")}</small></div><span>{item.pointsBurned}</span></article>
                 ))}
               </div>
             </Panel>
 
-            <Panel title="Merchant Reward Dashboard" icon={<Gift />}>
+            <Panel title={t("growth.rewards.merchantDashboard")} icon={<Gift />}>
               <Suspense fallback={<div className="growth-skeleton-loader"><span /><span /><span /></div>}>
                 <MerchantDashboard model={merchantDashboard} pendingRedemptions={pendingRedemptions} onAction={handleRewardAction} />
               </Suspense>
@@ -393,18 +394,18 @@ function GrowthDashboardContent({
         </>
       )}
 
-      <Panel title="Leaderboard Domain" icon={<Trophy />}>
+      <Panel title={t("growth.leaderboard.title")} icon={<Trophy />}>
         <div className="growth-leaderboard-grid">
           <div>
-            <span className="eyebrow">Overall</span>
+            <span className="eyebrow">{t("growth.leaderboard.overall")}</span>
             <LeaderboardList entries={model.leaderboards.overall} />
           </div>
           <div>
-            <span className="eyebrow">Referrals</span>
+            <span className="eyebrow">{t("growth.common.referrals")}</span>
             <LeaderboardList entries={model.leaderboards.referral} />
           </div>
           <div>
-            <span className="eyebrow">Field</span>
+            <span className="eyebrow">{t("growth.leaderboard.field")}</span>
             <LeaderboardList entries={model.leaderboards.field} />
           </div>
         </div>

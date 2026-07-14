@@ -31,6 +31,7 @@ import {
   getSupporterDisplayName
 } from "./supporterPortalViewService";
 import { SupporterPortalEngagementCard } from "../components/engagement/SupporterPortalEngagementCard";
+import { useTranslation } from "../../i18n/useTranslation";
 
 const RewardCenter = lazy(() => import("../rewards/components/RewardCenter"));
 
@@ -44,10 +45,10 @@ interface SupporterGrowthPortalNotFoundProps {
   onRetry: () => void;
 }
 
-function formatDate(value?: string) {
-  if (!value) return "Not available";
+function formatDate(value?: string, fallback = "Not available") {
+  if (!value) return fallback;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not available";
+  if (Number.isNaN(date.getTime())) return fallback;
   return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -70,33 +71,36 @@ function metric(label: string, value: string | number, detail?: string) {
 }
 
 export function SupporterGrowthPortalNotFound({ message, onRetry }: SupporterGrowthPortalNotFoundProps) {
+  const { t } = useTranslation();
   return (
     <main className="supporter-portal-shell">
       <section className="supporter-portal-empty">
         <UserRound size={42} />
-        <span className="eyebrow">My Campaign Journey</span>
-        <h1>Journey not found yet</h1>
-        <p>{message ?? "This referral code is not connected to a signed supporter yet."}</p>
-        <button className="primary-button" type="button" onClick={onRetry}>Retry</button>
+        <span className="eyebrow">{t("supporters.portal.journey")}</span>
+        <h1>{t("supporters.portal.notFound")}</h1>
+        <p>{message ?? t("supporters.portal.notConnected")}</p>
+        <button className="primary-button" type="button" onClick={onRetry}>{t("supporters.portal.retry")}</button>
       </section>
     </main>
   );
 }
 
 export function SupporterGrowthPortalLoading() {
+  const { t } = useTranslation();
   return (
     <main className="supporter-portal-shell">
       <section className="supporter-portal-skeleton" aria-live="polite" role="status">
         <span />
         <span />
         <span />
-        <strong>Loading My Campaign Journey</strong>
+        <strong>{t("supporters.portal.loadingJourney")}</strong>
       </section>
     </main>
   );
 }
 
 export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterGrowthPortalPageProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState("");
   const [calculator, setCalculator] = useState({
     invites: 10,
@@ -128,7 +132,7 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
     };
   }, [calculator, portal.nextLevel, portal.remainingCreditsNeeded, portal.remainingReferralsNeeded]);
 
-  async function copy(value: string, label = "Copied") {
+  async function copy(value: string, label = t("common.copied")) {
     await navigator.clipboard.writeText(value);
     setCopied(label);
     window.setTimeout(() => setCopied(""), 2200);
@@ -147,7 +151,7 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
         // Fall back to copy if the native share sheet is dismissed or unavailable.
       }
     }
-    await copy(referralLink, "Referral link copied");
+    await copy(referralLink, t("referrals.linkCopied"));
   }
 
   return (
@@ -159,11 +163,11 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <h1>{displayName}</h1>
           <p>{portal.campaign.title}</p>
           <div className="supporter-status-row">
-            <span><BadgeCheck size={16} /> {portal.currentLevel?.badge ?? portal.currentLevel?.name ?? "Supporter"}</span>
-            <span><WalletCards size={16} /> {formatNumber(portal.wallet.balance.walletCredits)} wallet credits</span>
-            <span><Trophy size={16} /> Rank {portal.tree.currentRank ?? portal.leaderboards[0]?.rank ?? "New"}</span>
-            <span><CalendarClock size={16} /> Joined {formatDate(portal.supporter.signedAt)}</span>
-            <span><ShieldCheck size={16} /> {portal.supporter.otpVerified || portal.supporter.status === "verified" ? "Verified" : "Pending verification"}</span>
+            <span><BadgeCheck size={16} /> {portal.currentLevel?.badge ?? portal.currentLevel?.name ?? t("supporters.common.supporter")}</span>
+            <span><WalletCards size={16} /> {formatNumber(portal.wallet.balance.walletCredits)} {t("growth.wallet.walletCredits").toLowerCase()}</span>
+            <span><Trophy size={16} /> {t("supporters.portal.rank")} {portal.tree.currentRank ?? portal.leaderboards[0]?.rank ?? t("growth.status.new")}</span>
+            <span><CalendarClock size={16} /> {t("supporters.portal.joined")} {formatDate(portal.supporter.signedAt, t("supporters.common.notAvailable"))}</span>
+            <span><ShieldCheck size={16} /> {t(portal.supporter.otpVerified || portal.supporter.status === "verified" ? "supporters.status.verified" : "supporters.status.pendingVerification")}</span>
           </div>
         </div>
       </section>
@@ -173,18 +177,18 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <div className="supporter-card-heading">
             <Medal />
             <div>
-              <span className="eyebrow">My Progress</span>
-              <h2>{portal.currentLevel?.name ?? "Campaign Supporter"}</h2>
+              <span className="eyebrow">{t("supporters.portal.myProgress")}</span>
+              <h2>{portal.currentLevel?.name ?? t("supporters.portal.campaignSupporter")}</h2>
             </div>
           </div>
           <div className="supporter-progress-bar"><span style={{ width: `${progress}%` }} /></div>
           <div className="supporter-metric-grid">
-            {metric("Next level", portal.nextLevel?.name ?? "Top level reached")}
-            {metric("Wallet credits", portal.wallet.balance.walletCredits)}
-            {metric("Promotion credits", portal.wallet.balance.promotionCredits)}
-            {metric("Credits required", portal.creditsRequired)}
-            {metric("Remaining referrals", portal.remainingReferralsNeeded)}
-            {metric("Estimated promotion", portal.estimatedPromotionDate ? formatDate(portal.estimatedPromotionDate) : "Ready when criteria is met")}
+            {metric(t("supporters.portal.nextLevel"), portal.nextLevel?.name ?? t("supporters.portal.topLevel"))}
+            {metric(t("growth.wallet.walletCredits"), portal.wallet.balance.walletCredits)}
+            {metric(t("growth.wallet.promotionCredits"), portal.wallet.balance.promotionCredits)}
+            {metric(t("supporters.portal.creditsRequired"), portal.creditsRequired)}
+            {metric(t("supporters.portal.remainingReferrals"), portal.remainingReferralsNeeded)}
+            {metric(t("supporters.portal.estimatedPromotion"), portal.estimatedPromotionDate ? formatDate(portal.estimatedPromotionDate, t("supporters.common.notAvailable")) : t("supporters.portal.readyWhenMet"))}
           </div>
         </article>
 
@@ -192,22 +196,22 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <div className="supporter-card-heading">
             <QrCode />
             <div>
-              <span className="eyebrow">My Referral Link</span>
-              <h2>Invite supporters</h2>
+              <span className="eyebrow">{t("referrals.myLink")}</span>
+              <h2>{t("referrals.inviteSupporters")}</h2>
             </div>
           </div>
-          <ReferralQrPreview value={portal.portal.qrPayload} label="Personal QR" caption={portal.supporterCode} />
+          <ReferralQrPreview value={portal.portal.qrPayload} label={t("referrals.personalQr")} caption={portal.supporterCode} />
           <code className="supporter-referral-code">{referralLink}</code>
           <div className="supporter-share-grid">
-            <button type="button" className="primary-button" onClick={shareNative}><Share2 size={16} /> Share</button>
-            <button type="button" className="secondary-button" onClick={() => copy(referralLink, "Referral link copied")}><Copy size={16} /> Copy</button>
+            <button type="button" className="primary-button" onClick={shareNative}><Share2 size={16} /> {t("public.share")}</button>
+            <button type="button" className="secondary-button" onClick={() => copy(referralLink, t("referrals.linkCopied"))}><Copy size={16} /> {t("common.copy")}</button>
             <a className="secondary-link-button" href={whatsAppLink("", referralLink)} target="_blank" rel="noreferrer">WhatsApp</a>
             <a className="secondary-link-button" href={`https://t.me/share/url?url=${encodeURIComponent(referralLink)}`} target="_blank" rel="noreferrer">Telegram</a>
             <a className="secondary-link-button" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`} target="_blank" rel="noreferrer">Facebook</a>
             <a className="secondary-link-button" href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`} target="_blank" rel="noreferrer">LinkedIn</a>
             <a className="secondary-link-button" href={smsLink("", referralLink)}>SMS</a>
             <a className="secondary-link-button" href={`mailto:?subject=${encodeURIComponent(portal.campaign.title)}&body=${encodeURIComponent(referralLink)}`}>Email</a>
-            <button type="button" className="secondary-button" onClick={() => copy(`Support ${portal.campaign.title}: ${referralLink}`, "Instagram caption copied")}>Instagram</button>
+            <button type="button" className="secondary-button" onClick={() => copy(`Support ${portal.campaign.title}: ${referralLink}`, t("referrals.instagramCopied"))}>Instagram</button>
             <button type="button" className="secondary-button" onClick={() => downloadReferralCardSvg({
               supporterName: displayName,
               campaignTitle: portal.campaign.title,
@@ -215,8 +219,8 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
               supporterCode: portal.supporterCode,
               referralLink,
               journeyDisplayName
-            })}><Download size={16} /> Referral Card</button>
-            <button type="button" className="secondary-button" onClick={() => downloadSupporterReferralPoster(portal)}><Download size={16} /> Poster</button>
+            })}><Download size={16} /> {t("referrals.card")}</button>
+            <button type="button" className="secondary-button" onClick={() => downloadSupporterReferralPoster(portal)}><Download size={16} /> {t("referrals.poster")}</button>
           </div>
           {copied && <p className="success-message">{copied}</p>}
         </article>
@@ -225,19 +229,19 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <div className="supporter-card-heading">
             <WalletCards />
             <div>
-              <span className="eyebrow">My Wallet</span>
-              <h2>{formatNumber(portal.wallet.balance.walletCredits)} credits</h2>
+              <span className="eyebrow">{t("supporters.portal.myWallet")}</span>
+              <h2>{formatNumber(portal.wallet.balance.walletCredits)} {t("supporters.portal.credits")}</h2>
             </div>
           </div>
           <div className="supporter-metric-grid compact">
-            {metric("Available", portal.wallet.balance.walletCredits)}
-            {metric("Promotion", portal.wallet.balance.promotionCredits)}
-            {metric("Contribution received", portal.wallet.balance.contributionCredits)}
-            {metric("Contribution given", portal.wallet.balance.totalContributed)}
-            {metric("Lifetime", portal.wallet.balance.totalEarned)}
-            {metric("Pending", portal.wallet.balance.pendingPromotion)}
-            {metric("Locked", 0)}
-            {metric("Expired", 0)}
+            {metric(t("supporters.portal.available"), portal.wallet.balance.walletCredits)}
+            {metric(t("supporters.portal.promotion"), portal.wallet.balance.promotionCredits)}
+            {metric(t("supporters.portal.contributionReceived"), portal.wallet.balance.contributionCredits)}
+            {metric(t("supporters.portal.contributionGiven"), portal.wallet.balance.totalContributed)}
+            {metric(t("supporters.portal.lifetime"), portal.wallet.balance.totalEarned)}
+            {metric(t("supporters.portal.pending"), portal.wallet.balance.pendingPromotion)}
+            {metric(t("supporters.portal.locked"), 0)}
+            {metric(t("supporters.portal.expired"), 0)}
           </div>
           <div className="supporter-timeline compact-list">
             {portal.wallet.history.slice(0, 5).map((entry) => (
@@ -246,12 +250,12 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
                 <span>{formatDate(entry.timestamp)}</span>
               </div>
             ))}
-            {portal.wallet.history.length === 0 && <p className="helper-text">Recent wallet transactions appear after growth activity.</p>}
+            {portal.wallet.history.length === 0 && <p className="helper-text">{t("supporters.portal.walletHistoryEmpty")}</p>}
           </div>
         </article>
 
         <article className="supporter-portal-card wide">
-          <Suspense fallback={<div className="supporter-portal-skeleton"><span /><span /><span /><strong>Loading rewards</strong></div>}>
+          <Suspense fallback={<div className="supporter-portal-skeleton"><span /><span /><span /><strong>{t("growth.rewards.loading")}</strong></div>}>
             <RewardCenter
               model={portal.rewardCenter}
               campaignId={portal.campaign.id}
@@ -265,18 +269,18 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <div className="supporter-card-heading">
             <Award />
             <div>
-              <span className="eyebrow">My Recognition</span>
-              <h2>{portal.currentLevel?.name ?? "Supporter"}</h2>
+              <span className="eyebrow">{t("supporters.portal.myRecognition")}</span>
+              <h2>{portal.currentLevel?.name ?? t("supporters.common.supporter")}</h2>
             </div>
           </div>
-          <p>{portal.currentLevel?.description ?? "Keep sharing your referral link to unlock recognition."}</p>
+          <p>{portal.currentLevel?.description ?? t("supporters.portal.unlockRecognition")}</p>
           <div className="supporter-pill-row">
-            <span>{portal.currentLevel?.certificate ? "Certificate eligible" : "Certificate locked"}</span>
-            <span>{portal.currentLevel?.prizeEligibility ? "Prize eligible" : "Prize locked"}</span>
-            <span>Next badge: {portal.nextLevel?.badge ?? "Complete"}</span>
+            <span>{t(portal.currentLevel?.certificate ? "supporters.portal.certificateEligible" : "supporters.portal.certificateLocked")}</span>
+            <span>{t(portal.currentLevel?.prizeEligibility ? "supporters.portal.prizeEligible" : "supporters.portal.prizeLocked")}</span>
+            <span>{t("supporters.portal.nextBadge")}: {portal.nextLevel?.badge ?? t("growth.rewards.complete")}</span>
           </div>
           <ul className="supporter-benefit-list">
-            {(portal.currentLevel?.privileges.length ? portal.currentLevel.privileges : ["Share link", "Build referral tree", "Track campaign impact"]).map((item) => (
+            {(portal.currentLevel?.privileges.length ? portal.currentLevel.privileges : [t("supporters.portal.shareLink"), t("supporters.portal.buildTree"), t("supporters.portal.trackImpact")]).map((item) => (
               <li key={item}><Sparkles size={15} /> {item}</li>
             ))}
           </ul>
@@ -288,22 +292,22 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <div className="supporter-card-heading">
             <Gift />
             <div>
-              <span className="eyebrow">My Achievements</span>
-              <h2>{portal.achievements.length} unlocked</h2>
+              <span className="eyebrow">{t("supporters.portal.myAchievements")}</span>
+              <h2>{portal.achievements.length} {t("supporters.portal.unlocked")}</h2>
             </div>
           </div>
           <div className="supporter-timeline compact-list">
             {portal.achievements.slice(0, 5).map((achievement) => (
               <div key={achievement.id}>
                 <strong>{achievement.prizeDescription}</strong>
-                <span>Rank {achievement.rank} - {formatDate(achievement.qualifiedAt)}</span>
+                <span>{t("supporters.portal.rank")} {achievement.rank} - {formatDate(achievement.qualifiedAt, t("supporters.common.notAvailable"))}</span>
               </div>
             ))}
-            {portal.achievements.length === 0 && <p className="helper-text">Achievements, certificates, badges, and prizes appear as your campaign influence grows.</p>}
+            {portal.achievements.length === 0 && <p className="helper-text">{t("supporters.portal.achievementsEmpty")}</p>}
           </div>
           <div className="supporter-pill-row">
-            <span>{portal.prizes.length} prizes earned</span>
-            <span>{portal.currentLevel?.certificate ? "Certificate ready" : "Certificate upcoming"}</span>
+            <span>{portal.prizes.length} {t("supporters.portal.prizesEarned")}</span>
+            <span>{t(portal.currentLevel?.certificate ? "supporters.portal.certificateReady" : "supporters.portal.certificateUpcoming")}</span>
           </div>
         </article>
 
@@ -311,20 +315,20 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <div className="supporter-card-heading">
             <GitBranch />
             <div>
-              <span className="eyebrow">My Referral Tree</span>
-              <h2>{portal.tree.nodes.length} supporters</h2>
+              <span className="eyebrow">{t("supporters.portal.myReferralTree")}</span>
+              <h2>{portal.tree.nodes.length} {t("growth.common.supporters").toLowerCase()}</h2>
             </div>
           </div>
           <div className="supporter-tree-summary">
-            {metric("Direct", portal.tree.network.directNetwork)}
-            {metric("Indirect", portal.tree.network.indirectNetwork)}
-            {metric("Depth", Math.max(...portal.tree.nodes.map((node) => node.depth), 0))}
+            {metric(t("supporters.portal.direct"), portal.tree.network.directNetwork)}
+            {metric(t("supporters.portal.indirect"), portal.tree.network.indirectNetwork)}
+            {metric(t("supporters.portal.depth"), Math.max(...portal.tree.nodes.map((node) => node.depth), 0))}
           </div>
           <div className="supporter-tree">
             {portal.tree.nodes.slice(0, 12).map((node) => (
               <details key={`${node.supporterId}-${node.depth}`} open={node.depth < 2}>
-                <summary><ChevronDown size={16} /> {node.depth === 0 ? "Me" : `Level ${node.depth}`} <span>{node.referralCode ?? node.supporterId}</span></summary>
-                <p>{node.directChildren} direct referrals - {node.verifiedReferrals} verified</p>
+                <summary><ChevronDown size={16} /> {node.depth === 0 ? t("supporters.portal.me") : `${t("supporters.portal.level")} ${node.depth}`} <span>{node.referralCode ?? node.supporterId}</span></summary>
+                <p>{node.directChildren} {t("supporters.portal.directReferrals")} - {node.verifiedReferrals} {t("supporters.status.verified").toLowerCase()}</p>
               </details>
             ))}
           </div>
@@ -334,8 +338,8 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <div className="supporter-card-heading">
             <CalendarClock />
             <div>
-              <span className="eyebrow">My Timeline</span>
-              <h2>Growth events</h2>
+              <span className="eyebrow">{t("supporters.portal.myTimeline")}</span>
+              <h2>{t("supporters.portal.growthEvents")}</h2>
             </div>
           </div>
           <div className="supporter-timeline">
@@ -343,10 +347,10 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
               <div key={event.id}>
                 <strong>{event.title}</strong>
                 <span>{event.description}</span>
-                <small>{formatDate(event.timestamp)}</small>
+                <small>{formatDate(event.timestamp, t("supporters.common.notAvailable"))}</small>
               </div>
             ))}
-            {portal.timeline.length === 0 && <p className="helper-text">Your joined, verified, referral, promotion, and wallet events will appear here.</p>}
+            {portal.timeline.length === 0 && <p className="helper-text">{t("supporters.portal.timelineEmpty")}</p>}
           </div>
         </article>
 
@@ -354,16 +358,16 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <div className="supporter-card-heading">
             <BarChart3 />
             <div>
-              <span className="eyebrow">Leaderboard</span>
-              <h2>Campaign position</h2>
+              <span className="eyebrow">{t("growth.leaderboard.title")}</span>
+              <h2>{t("supporters.portal.campaignPosition")}</h2>
             </div>
           </div>
           <div className="supporter-leaderboards">
             {portal.leaderboards.slice(0, 5).map((leaderboard) => (
               <div key={leaderboard.filter}>
                 <span>{leaderboard.label}</span>
-                <strong>{leaderboard.rank ? `#${leaderboard.rank}` : "Building"}</strong>
-                <small>{formatNumber(leaderboard.score)} score</small>
+                <strong>{leaderboard.rank ? `#${leaderboard.rank}` : t("supporters.portal.building")}</strong>
+                <small>{formatNumber(leaderboard.score)} {t("supporters.portal.score")}</small>
               </div>
             ))}
           </div>
@@ -373,51 +377,51 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <div className="supporter-card-heading">
             <Sparkles />
             <div>
-              <span className="eyebrow">Growth Calculator</span>
-              <h2>What if I invite more people?</h2>
+              <span className="eyebrow">{t("supporters.calculator.title")}</span>
+              <h2>{t("supporters.calculator.question")}</h2>
             </div>
           </div>
           <div className="supporter-calculator-grid">
-            <label>Invites<input type="number" min="1" value={calculator.invites} onChange={(event) => setCalculator({ ...calculator, invites: Number(event.target.value) })} /></label>
-            <label>Verify %<input type="number" min="0" max="100" value={calculator.verificationRate} onChange={(event) => setCalculator({ ...calculator, verificationRate: Number(event.target.value) })} /></label>
-            <label>Volunteer %<input type="number" min="0" max="100" value={calculator.volunteerRate} onChange={(event) => setCalculator({ ...calculator, volunteerRate: Number(event.target.value) })} /></label>
-            <label>Tree levels<input type="number" min="1" max="7" value={calculator.treeLevels} onChange={(event) => setCalculator({ ...calculator, treeLevels: Number(event.target.value) })} /></label>
+            <label>{t("supporters.calculator.invites")}<input type="number" min="1" value={calculator.invites} onChange={(event) => setCalculator({ ...calculator, invites: Number(event.target.value) })} /></label>
+            <label>{t("supporters.calculator.verify")} %<input type="number" min="0" max="100" value={calculator.verificationRate} onChange={(event) => setCalculator({ ...calculator, verificationRate: Number(event.target.value) })} /></label>
+            <label>{t("supporters.calculator.volunteer")} %<input type="number" min="0" max="100" value={calculator.volunteerRate} onChange={(event) => setCalculator({ ...calculator, volunteerRate: Number(event.target.value) })} /></label>
+            <label>{t("supporters.calculator.treeLevels")}<input type="number" min="1" max="7" value={calculator.treeLevels} onChange={(event) => setCalculator({ ...calculator, treeLevels: Number(event.target.value) })} /></label>
           </div>
           <div className="supporter-metric-grid">
-            {metric("Projected wallet", projected.expectedWallet)}
-            {metric("Promotion progress", `${formatNumber(projected.expectedPromotion)}%`)}
-            {metric("Contribution", projected.expectedContribution)}
-            {metric("Recognition", projected.expectedRecognition ?? "Keep growing")}
-            {metric("Tree size", projected.projectedTreeSize)}
-            {metric("Campaign influence", projected.projectedCampaignInfluence)}
+            {metric(t("supporters.calculator.projectedWallet"), projected.expectedWallet)}
+            {metric(t("supporters.calculator.promotionProgress"), `${formatNumber(projected.expectedPromotion)}%`)}
+            {metric(t("supporters.calculator.contribution"), projected.expectedContribution)}
+            {metric(t("supporters.calculator.recognition"), projected.expectedRecognition ?? t("supporters.calculator.keepGrowing"))}
+            {metric(t("supporters.calculator.treeSize"), projected.projectedTreeSize)}
+            {metric(t("growth.engagement.influence"), projected.projectedCampaignInfluence)}
           </div>
-          <p className="helper-text">Projection only. Calculator results never modify real balances.</p>
+          <p className="helper-text">{t("supporters.calculator.disclaimer")}</p>
         </article>
 
         <article className="supporter-portal-card wide">
           <div className="supporter-card-heading">
             <Trophy />
             <div>
-              <span className="eyebrow">My Impact</span>
-              <h2>Campaign influence</h2>
+              <span className="eyebrow">{t("supporters.impact.title")}</span>
+              <h2>{t("growth.engagement.influence")}</h2>
             </div>
           </div>
           <div className="supporter-metric-grid">
-            {metric("Verified referrals", portal.impact.verifiedReferrals)}
-            {metric("Signatures influenced", portal.impact.signaturesInfluenced)}
-            {metric("Volunteer influence", portal.impact.volunteerInfluence)}
-            {metric("Events attended", portal.impact.eventsAttended)}
-            {metric("Campaign reach", portal.impact.campaignReach)}
-            {metric("Social reach", portal.impact.estimatedSocialReach)}
-            {metric("Goal contribution", `${formatNumber(portal.impact.campaignGoalContribution)}%`)}
+            {metric(t("supporters.impact.verifiedReferrals"), portal.impact.verifiedReferrals)}
+            {metric(t("supporters.impact.signaturesInfluenced"), portal.impact.signaturesInfluenced)}
+            {metric(t("supporters.impact.volunteerInfluence"), portal.impact.volunteerInfluence)}
+            {metric(t("supporters.impact.eventsAttended"), portal.impact.eventsAttended)}
+            {metric(t("supporters.impact.campaignReach"), portal.impact.campaignReach)}
+            {metric(t("supporters.impact.socialReach"), portal.impact.estimatedSocialReach)}
+            {metric(t("supporters.impact.goalContribution"), `${formatNumber(portal.impact.campaignGoalContribution)}%`)}
           </div>
         </article>
       </section>
 
-      <nav className="supporter-bottom-share" aria-label="Supporter sharing">
-        <button type="button" onClick={shareNative}><Share2 size={18} /> Share</button>
+      <nav className="supporter-bottom-share" aria-label={t("supporters.portal.sharingAria")}>
+        <button type="button" onClick={shareNative}><Share2 size={18} /> {t("public.share")}</button>
         <a href={whatsAppLink("", referralLink)} target="_blank" rel="noreferrer"><MessageCircle size={18} /> WhatsApp</a>
-        <button type="button" onClick={() => copy(referralLink, "Referral link copied")}><Copy size={18} /> Copy</button>
+        <button type="button" onClick={() => copy(referralLink, t("referrals.linkCopied"))}><Copy size={18} /> {t("common.copy")}</button>
         <a href={`mailto:?subject=${encodeURIComponent(portal.campaign.title)}&body=${encodeURIComponent(referralLink)}`}><Mail size={18} /> Email</a>
       </nav>
     </main>

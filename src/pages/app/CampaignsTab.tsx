@@ -77,6 +77,7 @@ import {
   signerFieldLabel
 } from "../../utils/campaign";
 import { downloadQrPosterSvg, getCampaignReferralUrl } from "../../utils/referrals";
+import { useTranslation } from "../../i18n";
 
 interface CampaignsTabProps {
   campaignDraft: Campaign | null;
@@ -113,38 +114,7 @@ interface CampaignsTabProps {
 }
 
 const wizardSteps = [
-  {
-    title: "Organisation",
-    helper: "Confirm the workspace context and choose how this campaign draft starts."
-  },
-  {
-    title: "Campaign Details",
-    helper: "Shape the title, story, target, dates, and campaign admin access."
-  },
-  {
-    title: "Authorities",
-    helper: "Review suggested authorities, routing choices, and uploaded authority masters."
-  },
-  {
-    title: "Location",
-    helper: "Choose geography mode, campaign reach, signer restrictions, and local context."
-  },
-  {
-    title: "Supporter Form",
-    helper: "Choose required fields and preview the public signer experience."
-  },
-  {
-    title: "Media",
-    helper: "Polish the banner, focus point, donation media, and campaign sharing assets."
-  },
-  {
-    title: "Growth Configuration",
-    helper: "Configure recognition, credits, referral sharing, rewards, and Growth Engine rules for this campaign."
-  },
-  {
-    title: "Publish",
-    helper: "Check quality, public links, QR label, and final publish readiness."
-  }
+  "organisation", "details", "authorities", "location", "supporterForm", "media", "growth", "publish"
 ];
 
 function addDays(dateValue: string, days: number) {
@@ -195,48 +165,49 @@ function getCampaignLocationReadinessSuggestion(campaign: Campaign) {
 function getCampaignQuality(
   campaign: Campaign,
   selectedAuthority: string,
-  selectedTemplate: CampaignTemplate | undefined
+  selectedTemplate: CampaignTemplate | undefined,
+  t: (key: string) => string
 ) {
   const checks = [
     {
-      label: "Title",
+      label: t("campaignAdmin.quality.title"),
       ready: campaign.title.trim().length >= 18,
-      suggestion: "Use a specific, action-oriented title."
+      suggestion: t("campaignAdmin.quality.titleHelp")
     },
     {
-      label: "Description",
+      label: t("campaignAdmin.quality.description"),
       ready: campaign.description.trim().length >= 80 && (campaign.appealContent ?? "").trim().length >= 120,
-      suggestion: "Add a fuller summary and petition appeal."
+      suggestion: t("campaignAdmin.quality.descriptionHelp")
     },
     {
-      label: "Banner",
+      label: t("campaignAdmin.quality.banner"),
       ready: Boolean(campaign.heroImage),
-      suggestion: "Upload a clear campaign banner."
+      suggestion: t("campaignAdmin.quality.bannerHelp")
     },
     {
-      label: "Authority",
+      label: t("campaignAdmin.quality.authority"),
       ready: Boolean(selectedAuthority || campaign.selectedAuthorityId || campaign.authorityTargetLevel),
-      suggestion: "Confirm who receives the petition."
+      suggestion: t("campaignAdmin.quality.authorityHelp")
     },
     {
-      label: "Location",
+      label: t("campaignAdmin.quality.location"),
       ready: isCampaignLocationReady(campaign),
       suggestion: getCampaignLocationReadinessSuggestion(campaign)
     },
     {
-      label: "Goal",
+      label: t("campaignAdmin.quality.goal"),
       ready: getCampaignGoalValue(campaign) >= 100,
-      suggestion: "Set a realistic supporter target."
+      suggestion: t("campaignAdmin.quality.goalHelp")
     },
     {
-      label: "Supporter form",
+      label: t("campaignAdmin.quality.supporterForm"),
       ready: (campaign.requiredFields ?? []).length > 0,
-      suggestion: "Choose at least one required signer field."
+      suggestion: t("campaignAdmin.quality.supporterFormHelp")
     },
     {
-      label: "Template fit",
+      label: t("campaignAdmin.quality.templateFit"),
       ready: Boolean(selectedTemplate),
-      suggestion: "Start from a template for faster launch."
+      suggestion: t("campaignAdmin.quality.templateFitHelp")
     }
   ];
   const score = Math.round((checks.filter((check) => check.ready).length / checks.length) * 100);
@@ -280,6 +251,7 @@ export function CampaignsTab({
   onUpdateCampaignMedia,
   onUpdateCampaignDonationQr
 }: CampaignsTabProps) {
+  const { t } = useTranslation();
   const [activeStep, setActiveStep] = useState(0);
   const [templates, setTemplates] = useState<CampaignTemplate[]>([]);
   const [templateCategories, setTemplateCategories] = useState<string[]>(["All"]);
@@ -510,34 +482,34 @@ export function CampaignsTab({
   const readinessItems = campaignDraft
     ? [
         {
-          label: "Campaign basics",
+          label: t("campaignAdmin.quality.basics"),
           ready: Boolean(campaignDraft.title && campaignDraft.slug && getCampaignGoalValue(campaignDraft) > 0),
-          detail: campaignDraft.title || "Campaign name is empty"
+          detail: campaignDraft.title || t("campaignAdmin.quality.nameEmpty")
         },
         {
-          label: "Location Governance",
+          label: t("campaignAdmin.fields.locationGovernance"),
           ready: effectiveCampaignDraft ? isCampaignLocationReady(effectiveCampaignDraft) : false,
           detail:
             effectiveCampaignDraft
               ? formatLocationForCampaign(effectiveCampaignDraft, effectiveCampaignDraft) ||
                 getCampaignLocationReadinessSuggestion(effectiveCampaignDraft)
-              : "Location Governance is empty"
+              : t("campaignAdmin.quality.locationEmpty")
         },
         {
-          label: "Authority routing",
+          label: t("campaignAdmin.dashboard.authorityRouting"),
           ready: Boolean(selectedAuthority),
-          detail: selectedAuthority || "Default authority will be used when available"
+          detail: selectedAuthority || t("campaignAdmin.quality.defaultAuthority")
         },
         {
-          label: "Public page content",
+          label: t("campaignAdmin.quality.publicContent"),
           ready: Boolean(campaignDraft.description && campaignDraft.consentText),
-          detail: campaignDraft.description ? "Description is present" : "Description is empty"
+          detail: campaignDraft.description ? t("campaignAdmin.quality.descriptionPresent") : t("campaignAdmin.quality.descriptionEmpty")
         }
       ]
     : [];
   const readyCount = readinessItems.filter((item) => item.ready).length;
   const campaignQuality = campaignDraft
-    ? getCampaignQuality(campaignDraft, selectedAuthority, selectedTemplate)
+    ? getCampaignQuality(campaignDraft, selectedAuthority, selectedTemplate, t)
     : null;
   const campaignVersionHistory = campaignDraft
     ? auditLogs
@@ -575,13 +547,13 @@ export function CampaignsTab({
 
   function confirmArchiveCampaign() {
     if (!campaignDraft) return;
-    const campaignName = campaignDraft.title || "this campaign";
+    const campaignName = campaignDraft.title || t("campaignAdmin.common.thisCampaign");
     const confirmed = window.confirm(
-      `Archive "${campaignName}"? It will be marked Closed and kept in the workspace.`
+      `${t("campaignAdmin.confirm.archive")} "${campaignName}"? ${t("campaignAdmin.confirm.archiveKept")}`
     );
     if (!confirmed) return;
     const typedConfirmation = window.prompt(
-      `Type ARCHIVE to confirm archiving "${campaignName}".`
+      `${t("campaignAdmin.confirm.typeArchive")} "${campaignName}".`
     );
     if (typedConfirmation === "ARCHIVE") {
       onArchiveCampaign();
@@ -705,12 +677,12 @@ export function CampaignsTab({
   return (
     <section className="page-stack">
       <Panel
-        title={campaignFormMode === "create" ? "Create new campaign" : "Campaign configuration"}
+        title={t(campaignFormMode === "create" ? "campaignAdmin.studio.createNew" : "campaignAdmin.studio.configuration")}
         icon={<Settings />}
       >
         {orgSetupIncomplete && campaignFormMode === "create" && (
           <div className="info-message wide">
-            <strong>Organization setup is incomplete.</strong>
+            <strong>{t("campaignAdmin.studio.organizationIncomplete")}</strong>
             <span>
               You can still create a campaign draft here. Complete your workspace details later in SaaS admin.
             </span>
@@ -718,17 +690,17 @@ export function CampaignsTab({
         )}
         {campaignDraft ? (
           <form className="campaign-wizard" onSubmit={onSaveCampaign}>
-            <div className="campaign-wizard-progress" aria-label="Campaign setup progress">
+            <div className="campaign-wizard-progress" aria-label={t("campaignAdmin.studio.progressAria")}>
               {wizardSteps.map((step, index) => (
                 <button
-                  key={step.title}
+                  key={step}
                   type="button"
                   className={index === activeStep ? "active" : ""}
                   aria-current={index === activeStep ? "step" : undefined}
                   onClick={() => setActiveStep(index)}
                 >
                   <span>{index + 1}</span>
-                  <strong>{step.title}</strong>
+                  <strong>{t(`campaignAdmin.studio.steps.${step}.title`)}</strong>
                 </button>
               ))}
             </div>
@@ -736,13 +708,13 @@ export function CampaignsTab({
             <div className="campaign-wizard-header">
               <div className="campaign-wizard-title-row">
                 <div>
-                  <span className="eyebrow">Step {activeStep + 1} of {wizardSteps.length}</span>
-                  <h3>{wizardSteps[activeStep].title}</h3>
-                  <p>{wizardSteps[activeStep].helper}</p>
+                  <span className="eyebrow">{t("campaignAdmin.studio.step")} {activeStep + 1} {t("campaignAdmin.selector.of")} {wizardSteps.length}</span>
+                  <h3>{t(`campaignAdmin.studio.steps.${wizardSteps[activeStep]}.title`)}</h3>
+                  <p>{t(`campaignAdmin.studio.steps.${wizardSteps[activeStep]}.helper`)}</p>
                 </div>
                 {canUseCampaignCreationTools && (
                   <button className="secondary-button" type="button" onClick={onOpenAiCopilot}>
-                    <Sparkles size={18} /> Create with AI
+                    <Sparkles size={18} /> {t("campaignAdmin.studio.createWithAi")}
                   </button>
                 )}
               </div>
@@ -755,11 +727,11 @@ export function CampaignsTab({
               <div className="unsaved-changes-banner" role="status">
                 <AlertTriangle size={18} />
                 <div>
-                  <strong>Unsaved changes</strong>
+                  <strong>{t("campaignAdmin.studio.unsaved")}</strong>
                   <span>
                     {campaignFormMode === "create"
-                      ? "This is a new campaign draft. Use Create new campaign to save it."
-                      : "Update this campaign before leaving Campaign Studio."}
+                      ? t("campaignAdmin.studio.newDraftHelp")
+                      : t("campaignAdmin.studio.updateBeforeLeaving")}
                   </span>
                 </div>
               </div>
@@ -774,21 +746,21 @@ export function CampaignsTab({
                       type="button"
                       onClick={() => setCreationMode("manual")}
                     >
-                      Manual campaign
+                      {t("campaignAdmin.studio.manual")}
                     </button>
                     <button
                       className={creationMode === "template" ? "selected" : "secondary-button"}
                       type="button"
                       onClick={() => setCreationMode("template")}
                     >
-                      Start from template
+                      {t("campaignAdmin.studio.fromTemplate")}
                     </button>
                     <button
                       className={creationMode === "ai" ? "selected" : "secondary-button"}
                       type="button"
                       onClick={() => setCreationMode("ai")}
                     >
-                      Create with AI
+                      {t("campaignAdmin.studio.createWithAi")}
                     </button>
                   </div>
                 )}
@@ -796,16 +768,16 @@ export function CampaignsTab({
                 {!canUseCampaignCreationTools || creationMode === "manual" ? (
                   <div className="manual-campaign-entry">
                     <div className="form-grid">
-                      <Field label="Location Governance">
+                      <Field label={t("campaignAdmin.fields.locationGovernance")}>
                         <select
                           value={campaignGeographyMode}
                           onChange={(e) => updateCampaignGeographyMode(e.target.value as CampaignGeographyMode)}
                         >
-                          <option value="global">Global mode</option>
-                          <option value="india_detailed">India detailed mode</option>
+                          <option value="global">{t("campaignAdmin.options.globalMode")}</option>
+                          <option value="india_detailed">{t("campaignAdmin.options.indiaMode")}</option>
                         </select>
                       </Field>
-                      <Field label="Campaign reach">
+                      <Field label={t("campaignAdmin.fields.campaignReach")}>
                         <select
                           value={campaignScope}
                           onChange={(e) => updateCampaignScope(e.target.value as CampaignScope)}
@@ -827,32 +799,32 @@ export function CampaignsTab({
                         </Field>
                       )}
                     </div>
-                    <Field label="Campaign title">
+                      <Field label={t("campaignAdmin.fields.campaignTitle")}>
                       <input
                         value={campaignDraft?.title ?? ""}
                         onChange={(e) => setCampaignDraft({ ...campaignDraft!, title: e.target.value })}
-                        placeholder="Enter campaign title"
+                            placeholder={t("campaignAdmin.placeholders.title")}
                       />
                     </Field>
-                    <Field label="Campaign slug">
+                      <Field label={t("campaignAdmin.fields.campaignSlug")}>
                       <input
                         value={campaignDraft?.slug ?? ""}
                         onChange={(e) => setCampaignDraft({ ...campaignDraft!, slug: e.target.value })}
-                        placeholder="Enter campaign slug"
+                            placeholder={t("campaignAdmin.placeholders.slug")}
                       />
                     </Field>
-                    <Field label="Summary">
+                      <Field label={t("campaignAdmin.fields.summary")}>
                       <textarea
                         value={campaignDraft?.description ?? ""}
                         onChange={(e) => setCampaignDraft({ ...campaignDraft!, description: e.target.value })}
-                        placeholder="Enter a short campaign summary"
+                            placeholder={t("campaignAdmin.placeholders.summary")}
                       />
                     </Field>
-                    <Field label="Description">
+                      <Field label={t("campaignAdmin.fields.description")}>
                       <textarea
                         value={campaignDraft?.appealContent ?? ""}
                         onChange={(e) => setCampaignDraft({ ...campaignDraft!, appealContent: e.target.value })}
-                        placeholder="Enter campaign description and public appeal"
+                            placeholder={t("campaignAdmin.placeholders.description")}
                       />
                     </Field>
                     <div className="form-grid">
@@ -879,12 +851,12 @@ export function CampaignsTab({
                           />
                         </Field>
                       )}
-                      <Field label="Authority">
+                      <Field label={t("campaignAdmin.fields.authority")}>
                         <select
                           value={campaignDraft?.selectedAuthorityId ?? ""}
                           onChange={(e) => setCampaignDraft({ ...campaignDraft!, selectedAuthorityId: e.target.value })}
                         >
-                          <option value="">Select authority</option>
+                          <option value="">{t("campaignAdmin.options.selectAuthority")}</option>
                           {authorities.map((authority) => (
                             <option key={authority.id} value={authority.id}>
                               {authority.name}
@@ -897,17 +869,17 @@ export function CampaignsTab({
                 ) : creationMode === "template" ? (
                   <>
                     <div className="template-toolbar">
-                      <Field label="Search templates">
+                      <Field label={t("campaignAdmin.fields.searchTemplates")}>
                         <div className="input-with-icon">
                           <Search size={18} />
                           <input
                             value={templateSearch}
                             onChange={(e) => setTemplateSearch(e.target.value)}
-                            placeholder="Search by topic, authority, or tag"
+                          placeholder={t("campaignAdmin.placeholders.searchTemplates")}
                           />
                         </div>
                       </Field>
-                      <Field label="Category filter">
+                      <Field label={t("campaignAdmin.fields.categoryFilter")}>
                         <select value={templateCategory} onChange={(e) => setTemplateCategory(e.target.value)}>
                           {templateCategories.map((category) => (
                             <option key={category}>{category}</option>
@@ -920,7 +892,7 @@ export function CampaignsTab({
                       <div className="template-quick-lanes">
                         {favoriteTemplates.length > 0 && (
                           <div>
-                            <span className="eyebrow">Favorites</span>
+                            <span className="eyebrow">{t("campaignAdmin.selector.favourites")}</span>
                             <div className="template-chip-row">
                               {favoriteTemplates.map((template) => (
                                 <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
@@ -932,7 +904,7 @@ export function CampaignsTab({
                         )}
                         {recentTemplates.length > 0 && (
                           <div>
-                            <span className="eyebrow">Recent</span>
+                            <span className="eyebrow">{t("campaignAdmin.selector.recent")}</span>
                             <div className="template-chip-row">
                               {recentTemplates.map((template) => (
                                 <button key={template.id} type="button" onClick={() => applyTemplate(template)}>
@@ -985,30 +957,27 @@ export function CampaignsTab({
                               <span>{template.suggestedCategory}</span>
                             </div>
                             <details>
-                              <summary>Preview details</summary>
+                              <summary>{t("campaignAdmin.studio.previewDetails")}</summary>
                               <p>{template.summary}</p>
                               <small>{template.suggestedBannerStyle}</small>
                             </details>
                             <button className="primary-button" type="button" onClick={() => applyTemplate(template)}>
-                              Use template
+                              {t("campaignAdmin.studio.useTemplate")}
                             </button>
                           </article>
                         );
                       })}
                     </div>
-                    {templates.length === 0 && <p className="helper-text">Loading campaign templates...</p>}
+                    {templates.length === 0 && <p className="helper-text">{t("campaignAdmin.studio.loadingTemplates")}</p>}
                     {templates.length > 0 && filteredTemplates.length === 0 && (
-                      <p className="helper-text">No templates match this search.</p>
+                      <p className="helper-text">{t("campaignAdmin.studio.noTemplates")}</p>
                     )}
                   </>
                 ) : (
                   <div className="campaign-ai-callout">
-                    <p>
-                      AI campaign creation helps you generate a polished campaign with title, description, and
-                      suggested appeal content in a few clicks.
-                    </p>
+                    <p>{t("campaignAdmin.studio.aiHelp")}</p>
                     <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
-                      <Sparkles size={18} /> Open AI campaign builder
+                      <Sparkles size={18} /> {t("campaignAdmin.studio.openAiBuilder")}
                     </button>
                   </div>
                 )}
@@ -1019,32 +988,32 @@ export function CampaignsTab({
               <div className="form-grid campaign-wizard-step">
                 {isCampaignAdminRoute && hasSaasLocks(campaignDraft) && (
                   <div className="info-message wide campaign-admin-control-summary">
-                    <strong>SaaS admin controls are active for this campaign.</strong>
-                    <span>Target signatures: {getCampaignGoalValue(campaignDraft).toLocaleString()}</span>
+                    <strong>{t("campaignAdmin.studio.saasControlsActive")}</strong>
+                    <span>{t("campaignAdmin.fields.targetSignatures")}: {getCampaignGoalValue(campaignDraft).toLocaleString()}</span>
                     <span>
-                      Signer limit:{" "}
+                      {t("campaignAdmin.fields.signerLimit")}: {" "}
                       {campaignDraft.maxSignersAllowed > 0
                         ? campaignDraft.maxSignersAllowed.toLocaleString()
-                        : "No campaign-specific limit"}
+                        : t("campaignAdmin.common.noSpecificLimit")}
                     </span>
                     <span>
-                      Scan document limit:{" "}
+                      {t("campaignAdmin.fields.scanLimit")}: {" "}
                       {campaignDraft.maxScansAllowed > 0
                         ? campaignDraft.maxScansAllowed.toLocaleString()
-                        : "No campaign-specific limit"}
+                        : t("campaignAdmin.common.noSpecificLimit")}
                     </span>
-                    <span>Start date: {campaignDraft.startDate || "Not set"}</span>
-                    <span>End date: {campaignDraft.endDate || "Not set"}</span>
+                    <span>{t("campaignAdmin.fields.startDate")}: {campaignDraft.startDate || t("campaignAdmin.common.notSet")}</span>
+                    <span>{t("campaignAdmin.fields.endDate")}: {campaignDraft.endDate || t("campaignAdmin.common.notSet")}</span>
                   </div>
                 )}
 
-                <Field label="Campaign name">
+                <Field label={t("campaignAdmin.fields.campaignName")}>
                   <input
                     value={campaignDraft.title}
                     onChange={(e) => setCampaignDraft({ ...campaignDraft, title: e.target.value })}
                   />
                 </Field>
-                <Field label="Public slug">
+                <Field label={t("campaignAdmin.fields.publicSlug")}>
                   <input
                     value={campaignDraft.slug}
                     onChange={(e) => {
@@ -1058,7 +1027,7 @@ export function CampaignsTab({
                     }}
                   />
                 </Field>
-                <Field label="Category">
+                <Field label={t("campaignAdmin.fields.category")}>
                   <select
                     value={campaignDraft.category}
                     onChange={(e) =>
@@ -1070,20 +1039,20 @@ export function CampaignsTab({
                     ))}
                   </select>
                 </Field>
-                <Field label="Status">
+                <Field label={t("campaignAdmin.fields.status")}>
                   <select
                     value={campaignDraft.status}
                     onChange={(e) =>
                       setCampaignDraft({ ...campaignDraft, status: e.target.value as Campaign["status"] })
                     }
                   >
-                    <option>Draft</option>
-                    <option>Published</option>
-                    <option>Paused</option>
-                    <option>Closed</option>
+                    <option value="Draft">{t("campaignAdmin.status.draft")}</option>
+                    <option value="Published">{t("campaignAdmin.status.published")}</option>
+                    <option value="Paused">{t("campaignAdmin.status.paused")}</option>
+                    <option value="Closed">{t("campaignAdmin.status.closed")}</option>
                   </select>
                 </Field>
-                <Field label="Target signatures">
+                <Field label={t("campaignAdmin.fields.targetSignatures")}>
                   <input
                     type="number"
                     min="1"
@@ -1097,16 +1066,16 @@ export function CampaignsTab({
                     }
                   />
                   {isCampaignAdminRoute && campaignDraft.maxSignersAllowed > 0 && (
-                    <small>SaaS admin limit: {campaignDraft.maxSignersAllowed.toLocaleString()} signers</small>
+                    <small>{t("campaignAdmin.studio.saasLimit")}: {campaignDraft.maxSignersAllowed.toLocaleString()} {t("campaignAdmin.fields.signers")}</small>
                   )}
                 </Field>
-                <Field label="Location display label">
+                <Field label={t("campaignAdmin.fields.locationLabel")}>
                   <input
                     value={campaignDraft.location}
                     onChange={(e) => setCampaignDraft({ ...campaignDraft, location: e.target.value })}
                   />
                 </Field>
-                <Field label="Start date">
+                <Field label={t("campaignAdmin.fields.startDate")}>
                   <input
                     type="date"
                     value={campaignDraft.startDate}
@@ -1114,7 +1083,7 @@ export function CampaignsTab({
                     onChange={(e) => setCampaignDraft({ ...campaignDraft, startDate: e.target.value })}
                   />
                 </Field>
-                <Field label="End date">
+                <Field label={t("campaignAdmin.fields.endDate")}>
                   <input
                     type="date"
                     value={campaignDraft.endDate}
@@ -1122,66 +1091,66 @@ export function CampaignsTab({
                     onChange={(e) => setCampaignDraft({ ...campaignDraft, endDate: e.target.value })}
                   />
                 </Field>
-                <Field label="Public share URL">
+                <Field label={t("campaignAdmin.fields.publicShareUrl")}>
                   <input
                     value={hasDraftSlug ? publicCampaignUrl : ""}
-                    placeholder="Add a campaign slug to generate this URL"
+                    placeholder={t("campaignAdmin.placeholders.addSlugUrl")}
                     readOnly
                   />
-                  <small>Generated from the public slug.</small>
+                  <small>{t("campaignAdmin.studio.generatedFromSlug")}</small>
                 </Field>
-                <Field label="Campaign admin URL">
+                <Field label={t("campaignAdmin.fields.adminUrl")}>
                   <input
                     value={hasDraftSlug ? campaignAdminUrl : ""}
-                    placeholder="Add a campaign slug to generate this URL"
+                    placeholder={t("campaignAdmin.placeholders.addSlugUrl")}
                     readOnly
                   />
-                  <small>Generated from the public slug.</small>
+                  <small>{t("campaignAdmin.studio.generatedFromSlug")}</small>
                 </Field>
                 <div className="campaign-links-card wide" aria-live="polite">
                   <div className="campaign-links-header">
                     <div>
-                      <span className="eyebrow">Campaign links</span>
-                      <h4>Slug-based routes</h4>
+                      <span className="eyebrow">{t("campaignAdmin.links.title")}</span>
+                      <h4>{t("campaignAdmin.links.slugRoutes")}</h4>
                     </div>
                     {!hasDraftSlug && (
-                      <span className="route-warning">Add a campaign slug to generate links.</span>
+                      <span className="route-warning">{t("campaignAdmin.links.addSlug")}</span>
                     )}
                   </div>
                   <div className="campaign-link-list">
                     <div className="campaign-link-row public-route">
-                      <span>Public campaign URL</span>
-                      <code>{hasDraftSlug ? publicCampaignUrl : "Slug required"}</code>
+                      <span>{t("campaignAdmin.links.publicUrl")}</span>
+                      <code>{hasDraftSlug ? publicCampaignUrl : t("campaignAdmin.links.slugRequired")}</code>
                       <button
                         className="secondary-button"
                         type="button"
                         disabled={!hasDraftSlug}
                         onClick={() => copyCampaignLink("Public campaign URL", publicCampaignUrl)}
                       >
-                        <Copy size={16} /> {copiedCampaignLink === "Public campaign URL" ? "Copied" : "Copy"}
+                        <Copy size={16} /> {copiedCampaignLink === "Public campaign URL" ? t("campaignAdmin.actions.copied") : t("campaignAdmin.actions.copy")}
                       </button>
                     </div>
                     <div className="campaign-link-row campaign-admin-route">
-                      <span>Campaign admin URL</span>
-                      <code>{hasDraftSlug ? campaignAdminUrl : "Slug required"}</code>
+                      <span>{t("campaignAdmin.links.adminUrl")}</span>
+                      <code>{hasDraftSlug ? campaignAdminUrl : t("campaignAdmin.links.slugRequired")}</code>
                       <button
                         className="secondary-button"
                         type="button"
                         disabled={!hasDraftSlug}
                         onClick={() => copyCampaignLink("Campaign admin URL", campaignAdminUrl)}
                       >
-                        <Copy size={16} /> {copiedCampaignLink === "Campaign admin URL" ? "Copied" : "Copy"}
+                        <Copy size={16} /> {copiedCampaignLink === "Campaign admin URL" ? t("campaignAdmin.actions.copied") : t("campaignAdmin.actions.copy")}
                       </button>
                     </div>
                     <div className="campaign-link-row saas-admin-route">
-                      <span>SaaS admin URL</span>
+                      <span>{t("campaignAdmin.links.saasUrl")}</span>
                       <code>{saasAdminUrl}</code>
                       <button
                         className="secondary-button"
                         type="button"
                         onClick={() => copyCampaignLink("SaaS admin URL", saasAdminUrl)}
                       >
-                        <Copy size={16} /> {copiedCampaignLink === "SaaS admin URL" ? "Copied" : "Copy"}
+                        <Copy size={16} /> {copiedCampaignLink === "SaaS admin URL" ? t("campaignAdmin.actions.copied") : t("campaignAdmin.actions.copy")}
                       </button>
                     </div>
                   </div>
@@ -1190,41 +1159,41 @@ export function CampaignsTab({
                 <div className="qr-sharing-center wide">
                   <div className="campaign-links-header">
                     <div>
-                      <span className="eyebrow">QR & Sharing Center</span>
-                      <h4>Campaign poster and referral starter link</h4>
+                      <span className="eyebrow">{t("campaignAdmin.links.qrCenter")}</span>
+                      <h4>{t("campaignAdmin.links.posterReferral")}</h4>
                     </div>
-                    <span className="status-pill">QR ready</span>
+                    <span className="status-pill">{t("campaignAdmin.links.qrReady")}</span>
                   </div>
                   <div className="qr-sharing-grid">
                     <ReferralQrPreview
                       value={publicCampaignUrl || "Slug required"}
-                      label="Campaign public QR"
-                      caption={hasDraftSlug ? "Public signer URL" : "Add a slug to generate this link."}
+                      label={t("campaignAdmin.links.publicQr")}
+                      caption={hasDraftSlug ? t("campaignAdmin.links.publicSignerUrl") : t("campaignAdmin.links.addSlug")}
                     />
                     <ReferralQrPreview
                       value={campaignAdminUrl || "Slug required"}
-                      label="Campaign admin QR"
-                      caption={hasDraftSlug ? "Campaign admin login URL" : "Add a slug to generate this link."}
+                      label={t("campaignAdmin.links.adminQr")}
+                      caption={hasDraftSlug ? t("campaignAdmin.links.adminLoginUrl") : t("campaignAdmin.links.addSlug")}
                       compact
                     />
                     <div className="qr-poster-preview">
-                      <span className="eyebrow">Printable poster</span>
-                      <strong>{campaignDraft.title || "Campaign title"}</strong>
-                      <p>{campaignDraft.description || "Campaign summary appears here for public poster printing."}</p>
-                      <code>{hasDraftSlug ? publicCampaignUrl : "Slug required"}</code>
+                      <span className="eyebrow">{t("campaignAdmin.links.printablePoster")}</span>
+                      <strong>{campaignDraft.title || t("campaignAdmin.fields.campaignTitle")}</strong>
+                      <p>{campaignDraft.description || t("campaignAdmin.links.posterSummary")}</p>
+                      <code>{hasDraftSlug ? publicCampaignUrl : t("campaignAdmin.links.slugRequired")}</code>
                       <small>Scan to sign · {organization.name || "Voiceup"} · {campaignDraft.category}</small>
                     </div>
                   </div>
                   <div className="campaign-link-row referral-route">
-                    <span>Starter referral URL</span>
-                    <code>{hasDraftSlug ? starterReferralUrl : "Slug required"}</code>
+                    <span>{t("campaignAdmin.links.referralUrl")}</span>
+                    <code>{hasDraftSlug ? starterReferralUrl : t("campaignAdmin.links.slugRequired")}</code>
                     <button
                       className="secondary-button"
                       type="button"
                       disabled={!hasDraftSlug}
                       onClick={() => copyCampaignLink("Starter referral URL", starterReferralUrl)}
                     >
-                      <Copy size={16} /> {copiedCampaignLink === "Starter referral URL" ? "Copied" : "Copy"}
+                      <Copy size={16} /> {copiedCampaignLink === "Starter referral URL" ? t("campaignAdmin.actions.copied") : t("campaignAdmin.actions.copy")}
                     </button>
                   </div>
                   <div className="button-row">
@@ -1241,33 +1210,33 @@ export function CampaignsTab({
                         })
                       }
                     >
-                      <Download size={16} /> Download poster SVG
+                      <Download size={16} /> {t("campaignAdmin.actions.downloadPoster")}
                     </button>
                     <button className="secondary-button" type="button" disabled={!hasDraftSlug} onClick={() => window.print()}>
-                      <Printer size={16} /> Print poster
+                      <Printer size={16} /> {t("campaignAdmin.actions.printPoster")}
                     </button>
                   </div>
                   <p className="info-message">
-                    Campaign links are live. QR and poster downloads are ready for sharing.
+                    {t("campaignAdmin.links.readyMessage")}
                   </p>
                 </div>
-                <Field label="Campaign admin email">
+                <Field label={t("campaignAdmin.fields.adminEmail")}>
                   <input
                     type="email"
                     value={campaignDraft.adminEmail ?? ""}
                     onChange={(e) => setCampaignDraft({ ...campaignDraft, adminEmail: e.target.value })}
                   />
                 </Field>
-                <Field label="Campaign admin passcode">
+                <Field label={t("campaignAdmin.fields.adminPasscode")}>
                   <PasswordField
-                    placeholder="Campaign admin passcode"
+                    placeholder={t("campaignAdmin.login.passcodePlaceholder")}
                     value={campaignDraft.adminPasscode ?? ""}
                     onChange={(e) =>
                       setCampaignDraft({ ...campaignDraft, adminPasscode: e.target.value })
                     }
                   />
                 </Field>
-                <Field label="QR / WhatsApp campaign label">
+                <Field label={t("campaignAdmin.fields.qrLabel")}>
                   <input
                     value={campaignDraft.qrLabel}
                     onChange={(e) => setCampaignDraft({ ...campaignDraft, qrLabel: e.target.value })}
@@ -1279,18 +1248,18 @@ export function CampaignsTab({
             {activeStep === 3 && effectiveCampaignDraft && (
               <div className="form-grid campaign-wizard-step">
                 <div className="wide location-mode-panel">
-                  <span className="eyebrow">Location Governance</span>
+                  <span className="eyebrow">{t("campaignAdmin.fields.locationGovernance")}</span>
                   <div className="form-grid">
-                    <Field label="Geography mode">
+                    <Field label={t("campaignAdmin.fields.geographyMode")}>
                       <select
                         value={campaignGeographyMode}
                         onChange={(e) => updateCampaignGeographyMode(e.target.value as CampaignGeographyMode)}
                       >
-                        <option value="global">Global mode</option>
-                        <option value="india_detailed">India detailed mode</option>
+                        <option value="global">{t("campaignAdmin.options.globalMode")}</option>
+                        <option value="india_detailed">{t("campaignAdmin.options.indiaMode")}</option>
                       </select>
                     </Field>
-                    <Field label="Campaign reach">
+                    <Field label={t("campaignAdmin.fields.campaignReach")}>
                       <select
                         value={campaignScope}
                         onChange={(e) => updateCampaignScope(e.target.value as CampaignScope)}
@@ -1341,7 +1310,7 @@ export function CampaignsTab({
                 )}
 
                 <div className="wide signer-restriction-panel">
-                  <span className="eyebrow">Public signer location restriction</span>
+                  <span className="eyebrow">{t("campaignAdmin.fields.signerLocationRestriction")}</span>
                   <p className="helper-text">
                     Further restrict public signatures to the selected campaign geography for a local cause.
                   </p>
@@ -1371,8 +1340,8 @@ export function CampaignsTab({
                 <div className="wide authority-intelligence-panel">
                   <div className="authority-intelligence-header">
                     <div>
-                      <span className="eyebrow">Authority Intelligence</span>
-                      <h4>Recommended routing for this campaign</h4>
+                      <span className="eyebrow">{t("campaignAdmin.authority.intelligence")}</span>
+                      <h4>{t("campaignAdmin.authority.recommendedRouting")}</h4>
                       <p className="helper-text">
                         Recommendations are generated from the selected template and Location Governance.
                         Select an uploaded authority when available, or use a recommendation as a routing hint.
@@ -1395,7 +1364,7 @@ export function CampaignsTab({
                           <div className="template-chip-row">
                             <span>{uploadedMatch ? "Uploaded match found" : "Directory profile"}</span>
                             <span>{entry.status}</span>
-                            <span>Public visibility ready</span>
+                            <span>{t("campaignAdmin.authority.visibilityReady")}</span>
                           </div>
                           <div className="button-row">
                             <button className="primary-button" type="button" onClick={() => useAuthorityEntry(entry)}>
@@ -1434,17 +1403,17 @@ export function CampaignsTab({
 
                 <div className="wide authority-picker-panel">
                   <div className="authority-picker-toolbar">
-                    <Field label="Search authority directory">
+                <Field label={t("campaignAdmin.fields.searchAuthority")}>
                       <div className="input-with-icon">
                         <Search size={18} />
                         <input
                           value={authoritySearch}
                           onChange={(e) => setAuthoritySearch(e.target.value)}
-                          placeholder="Search designation, department, district, party, notes"
+                    placeholder={t("campaignAdmin.placeholders.searchAuthority")}
                         />
                       </div>
                     </Field>
-                    <Field label="Category">
+                <Field label={t("campaignAdmin.fields.category")}>
                       <select
                         value={authorityCategoryFilter}
                         onChange={(e) => setAuthorityCategoryFilter(e.target.value)}
@@ -1454,15 +1423,15 @@ export function CampaignsTab({
                         ))}
                       </select>
                     </Field>
-                    <Field label="Type">
+                <Field label={t("campaignAdmin.fields.type")}>
                       <select value={authorityKindFilter} onChange={(e) => setAuthorityKindFilter(e.target.value)}>
-                        <option>All</option>
-                        <option>Government</option>
-                        <option>Political</option>
-                        <option>NGO</option>
+                    <option value="All">{t("campaignAdmin.options.all")}</option>
+                    <option value="Government">{t("campaignAdmin.options.government")}</option>
+                    <option value="Political">{t("campaignAdmin.options.political")}</option>
+                    <option value="NGO">NGO</option>
                       </select>
                     </Field>
-                    <Field label="Department">
+                <Field label={t("campaignAdmin.fields.department")}>
                       <select
                         value={authorityDepartmentFilter}
                         onChange={(e) => setAuthorityDepartmentFilter(e.target.value)}
@@ -1492,7 +1461,7 @@ export function CampaignsTab({
                     <div className="template-quick-lanes">
                       {recentAuthorities.length > 0 && (
                         <div>
-                          <span className="eyebrow">Recently used</span>
+                          <span className="eyebrow">{t("campaignAdmin.authority.recentlyUsed")}</span>
                           <div className="template-chip-row">
                             {recentAuthorities.map((entry) => (
                               <button key={entry.id} type="button" onClick={() => useAuthorityEntry(entry)}>
@@ -1504,7 +1473,7 @@ export function CampaignsTab({
                       )}
                       {favoriteAuthorityIds.length > 0 && (
                         <div>
-                          <span className="eyebrow">Favorites</span>
+                          <span className="eyebrow">{t("campaignAdmin.selector.favourites")}</span>
                           <div className="template-chip-row">
                             {authorityDirectory
                               .filter((entry) => favoriteAuthorityIds.includes(entry.id))
@@ -1587,7 +1556,7 @@ export function CampaignsTab({
                   </p>
                 </div>
 
-                <Field label="Appeal should go to authority">
+                <Field label={t("campaignAdmin.fields.appealAuthority")}>
                   <select
                     value={campaignDraft.authorityTargetLevel ?? "district"}
                     disabled={isCampaignAdminRoute && campaignDraft.authorityLockedBySaas}
@@ -1600,10 +1569,10 @@ export function CampaignsTab({
                   >
                     <option value="district">{locationLabels.district} level authority</option>
                     <option value="state">{locationLabels.state} level authority</option>
-                    <option value="country">National authority</option>
+                    <option value="country">{t("campaignAdmin.options.nationalAuthority")}</option>
                   </select>
                 </Field>
-                <Field label="Authority selection mode">
+                <Field label={t("campaignAdmin.fields.authoritySelectionMode")}>
                   <select
                     value={campaignDraft.authoritySelectionMode ?? "admin_enforced"}
                     disabled={isCampaignAdminRoute && campaignDraft.authorityLockedBySaas}
@@ -1614,11 +1583,11 @@ export function CampaignsTab({
                       })
                     }
                   >
-                    <option value="admin_enforced">Admin enforces selected authority</option>
-                    <option value="public_choice">Public can choose from uploaded authorities</option>
+                    <option value="admin_enforced">{t("campaignAdmin.options.adminEnforced")}</option>
+                    <option value="public_choice">{t("campaignAdmin.options.publicChoice")}</option>
                   </select>
                 </Field>
-                <Field label="Choose uploaded authority">
+                <Field label={t("campaignAdmin.fields.chooseAuthority")}>
                   <select
                     value={campaignDraft.selectedAuthorityId ?? ""}
                     disabled={isCampaignAdminRoute && campaignDraft.authorityLockedBySaas}
@@ -1626,7 +1595,7 @@ export function CampaignsTab({
                       setCampaignDraft({ ...campaignDraft, selectedAuthorityId: e.target.value })
                     }
                   >
-                    <option value="">Use default authority for selected level</option>
+                    <option value="">{t("campaignAdmin.options.defaultAuthority")}</option>
                     {getAuthorityOptionsForCampaign(effectiveCampaignDraft, authorities).map((authority) => (
                       <option key={authority.id} value={authority.id}>
                         {authority.position ? `${authority.position} - ` : ""}
@@ -1640,39 +1609,39 @@ export function CampaignsTab({
                     ))}
                   </select>
                 </Field>
-                <Field label="Selected appeal authority">
+                <Field label={t("campaignAdmin.fields.selectedAuthority")}>
                   <input value={selectedAuthority} readOnly />
                 </Field>
 
                 <div className="wide multi-authority-panel">
-                  <span className="eyebrow">Multi-authority routing plan</span>
+                  <span className="eyebrow">{t("campaignAdmin.authority.multiRouting")}</span>
                   <div className="campaign-review-summary">
                     <div>
-                      <span className="label">Primary Authority</span>
+                      <span className="label">{t("campaignAdmin.authority.primary")}</span>
                       <strong>{selectedAuthority || "Default authority routing"}</strong>
-                      <small>Persisted through existing campaign authority selection.</small>
+                      <small>{t("campaignAdmin.authority.primaryHelp")}</small>
                     </div>
                     <div>
-                      <span className="label">Secondary Authorities</span>
+                      <span className="label">{t("campaignAdmin.authority.secondary")}</span>
                       <strong>{secondaryAuthorityIds.length}</strong>
-                      <small>Ready to use when email, WhatsApp, SMS, IVR, PDF, and API dispatch are configured.</small>
+                      <small>{t("campaignAdmin.authority.secondaryHelp")}</small>
                     </div>
                     <div>
-                      <span className="label">CC Authorities</span>
+                      <span className="label">{t("campaignAdmin.authority.cc")}</span>
                       <strong>{ccAuthorityIds.length}</strong>
-                      <small>Planning only until provider dispatch is implemented.</small>
+                      <small>{t("campaignAdmin.authority.ccHelp")}</small>
                     </div>
                     <div>
-                      <span className="label">Public visibility</span>
-                      <strong>Configurable</strong>
-                      <small>Designed for future authority visibility controls.</small>
+                      <span className="label">{t("campaignAdmin.authority.publicVisibility")}</span>
+                      <strong>{t("campaignAdmin.authority.configurable")}</strong>
+                      <small>{t("campaignAdmin.authority.visibilityHelp")}</small>
                     </div>
                   </div>
                 </div>
 
                 <div className="wide upload-tools">
                   <div className="csv-upload-card">
-                    <span className="label">Location master CSV</span>
+                    <span className="label">{t("campaignAdmin.authority.locationCsv")}</span>
                     <label className="secondary-button">
                       Choose location CSV
                       <input
@@ -1698,7 +1667,7 @@ export function CampaignsTab({
                     </button>
                   </div>
                   <div className="csv-upload-card">
-                    <span className="label">Authority master CSV</span>
+                    <span className="label">{t("campaignAdmin.authority.authorityCsv")}</span>
                     <label className="secondary-button">
                       Choose authority CSV
                       <input
@@ -1729,27 +1698,27 @@ export function CampaignsTab({
                   </span>
                   {authorityCsvFile && (
                     <div className="csv-review-panel wide">
-                      <span className="eyebrow">Authority CSV preview</span>
+                      <span className="eyebrow">{t("campaignAdmin.authority.csvPreview")}</span>
                       <div className="campaign-review-summary">
                         <div>
-                          <span className="label">File</span>
+                          <span className="label">{t("campaignAdmin.authority.file")}</span>
                           <strong>{authorityCsvFile.name}</strong>
                           <small>{Math.round(authorityCsvFile.size / 1024)} KB selected</small>
                         </div>
                         <div>
-                          <span className="label">Validation</span>
-                          <strong>Ready to validate</strong>
-                          <small>Column checks run through the existing upload handler.</small>
+                          <span className="label">{t("campaignAdmin.authority.validation")}</span>
+                          <strong>{t("campaignAdmin.authority.readyValidate")}</strong>
+                          <small>{t("campaignAdmin.authority.validationHelp")}</small>
                         </div>
                         <div>
-                          <span className="label">Duplicates</span>
-                          <strong>Ready to detect</strong>
-                          <small>Name, designation, email, and phone can be compared before import.</small>
+                          <span className="label">{t("campaignAdmin.authority.duplicates")}</span>
+                          <strong>{t("campaignAdmin.authority.readyDetect")}</strong>
+                          <small>{t("campaignAdmin.authority.duplicateHelp")}</small>
                         </div>
                         <div>
-                          <span className="label">Import summary</span>
-                          <strong>Generated after upload</strong>
-                          <small>Existing upload message is displayed below.</small>
+                          <span className="label">{t("campaignAdmin.authority.importSummary")}</span>
+                          <strong>{t("campaignAdmin.authority.generatedUpload")}</strong>
+                          <small>{t("campaignAdmin.authority.uploadMessageHelp")}</small>
                         </div>
                       </div>
                     </div>
@@ -1771,7 +1740,7 @@ export function CampaignsTab({
 
             {activeStep === 4 && (
               <div className="form-grid campaign-wizard-step">
-                <Field label="Campaign description" wide>
+                <Field label={t("campaignAdmin.fields.campaignDescription")} wide>
                   <textarea
                     rows={5}
                     value={campaignDraft.description}
@@ -1780,7 +1749,7 @@ export function CampaignsTab({
                     }
                   />
                 </Field>
-                <Field label="Appeal / cause text shown on public signing page" wide>
+                <Field label={t("campaignAdmin.fields.appealText")} wide>
                   <textarea
                     rows={5}
                     value={campaignDraft.appealContent ?? ""}
@@ -1789,7 +1758,7 @@ export function CampaignsTab({
                     }
                   />
                 </Field>
-                <Field label="Consent text" wide>
+                <Field label={t("campaignAdmin.fields.consentText")} wide>
                   <textarea
                     rows={3}
                     value={campaignDraft.consentText}
@@ -1801,15 +1770,15 @@ export function CampaignsTab({
 
                 <div className="wide media-editor">
                   <div>
-                    <span className="label">Campaign banner image</span>
+                    <span className="label">{t("campaignAdmin.fields.bannerImage")}</span>
                     <p className="helper-text">
                       Recommended size: 1600 x 900 px. Use a clear landscape image with important
                       content near the selected focus point.
                     </p>
                     <label className="drop-zone compact-drop">
                       <ImageIcon size={28} />
-                      <strong>Upload banner / background image</strong>
-                      <span>Use a campaign poster or field photo. Crop is controlled below.</span>
+                      <strong>{t("campaignAdmin.media.uploadBanner")}</strong>
+                      <span>{t("campaignAdmin.media.bannerHelp")}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -1836,10 +1805,10 @@ export function CampaignsTab({
                         <span>Zoom: {campaignDraft.heroImageZoom}%</span>
                       </div>
                     ) : (
-                      <span>Banner preview</span>
+                      <span>{t("campaignAdmin.media.bannerPreview")}</span>
                     )}
                   </div>
-                  <Field label="Image crop / zoom">
+                <Field label={t("campaignAdmin.fields.cropZoom")}>
                     <input
                       type="range"
                       min="100"
@@ -1850,23 +1819,23 @@ export function CampaignsTab({
                       }
                     />
                   </Field>
-                  <Field label="Image focus">
+                <Field label={t("campaignAdmin.fields.imageFocus")}>
                     <select
                       value={campaignDraft.heroImagePosition}
                       onChange={(e) =>
                         setCampaignDraft({ ...campaignDraft, heroImagePosition: e.target.value })
                       }
                     >
-                      <option value="center center">Center</option>
-                      <option value="center top">Top</option>
-                      <option value="center bottom">Bottom</option>
-                      <option value="left center">Left</option>
-                      <option value="right center">Right</option>
+                      <option value="center center">{t("campaignAdmin.options.center")}</option>
+                      <option value="center top">{t("campaignAdmin.options.top")}</option>
+                      <option value="center bottom">{t("campaignAdmin.options.bottom")}</option>
+                      <option value="left center">{t("campaignAdmin.options.left")}</option>
+                      <option value="right center">{t("campaignAdmin.options.right")}</option>
                     </select>
                   </Field>
-                  <Field label="Campaign video URL">
+                <Field label={t("campaignAdmin.fields.videoUrl")}>
                     <input
-                      placeholder="YouTube, Instagram, or hosted video link"
+                    placeholder={t("campaignAdmin.placeholders.videoUrl")}
                       value={campaignDraft.campaignVideoUrl}
                       onChange={(e) =>
                         setCampaignDraft({ ...campaignDraft, campaignVideoUrl: e.target.value })
@@ -1875,7 +1844,7 @@ export function CampaignsTab({
                   </Field>
                 </div>
 
-                <Field label="Social share text" wide>
+                <Field label={t("campaignAdmin.fields.socialShareText")} wide>
                   <textarea
                     rows={3}
                     value={campaignDraft.socialShareText}
@@ -1884,7 +1853,7 @@ export function CampaignsTab({
                     }
                   />
                 </Field>
-                <Field label="Thank-you WhatsApp/SMS message" wide>
+                <Field label={t("campaignAdmin.fields.thankYouMessage")} wide>
                   <textarea
                     rows={3}
                     value={campaignDraft.thankYouMessage}
@@ -1893,7 +1862,7 @@ export function CampaignsTab({
                     }
                   />
                 </Field>
-                <Field label="Participant update message" wide>
+                <Field label={t("campaignAdmin.fields.updateMessage")} wide>
                   <textarea
                     rows={3}
                     value={campaignDraft.participantUpdateMessage}
@@ -1904,7 +1873,7 @@ export function CampaignsTab({
                 </Field>
 
                 <div className="wide required-fields">
-                  <span className="label">Required signer details</span>
+                  <span className="label">{t("campaignAdmin.fields.requiredSignerDetails")}</span>
                   <span className="helper-text">
                     Select the signer details that must be required. Unselected fields remain optional on the public form.
                   </span>
@@ -2023,16 +1992,16 @@ export function CampaignsTab({
               <div className="form-grid campaign-wizard-step">
                 <div className="wide media-studio">
                   <div>
-                    <span className="eyebrow">Campaign media manager</span>
-                    <h4>Banner, focus, and device previews</h4>
+                    <span className="eyebrow">{t("campaignAdmin.media.manager")}</span>
+                    <h4>{t("campaignAdmin.media.managerSubtitle")}</h4>
                     <p className="helper-text">
                       Recommended banner size is 1600 x 900 px. Keep faces, roads, signs, or petition
                       text near the selected focus point so mobile crops stay useful.
                     </p>
                     <label className="drop-zone compact-drop">
                       <ImageIcon size={28} />
-                      <strong>Upload banner image</strong>
-                      <span>Existing upload and storage logic is reused.</span>
+                      <strong>{t("campaignAdmin.media.uploadBannerImage")}</strong>
+                      <span>{t("campaignAdmin.media.storageHelp")}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -2054,7 +2023,7 @@ export function CampaignsTab({
                         backgroundSize: `${campaignDraft.heroImageZoom}%`
                       }}
                     >
-                      <span>Desktop preview</span>
+                      <span>{t("campaignAdmin.media.desktopPreview")}</span>
                     </div>
                     <div
                       className="mobile-preview"
@@ -2066,10 +2035,10 @@ export function CampaignsTab({
                         backgroundSize: `${campaignDraft.heroImageZoom}%`
                       }}
                     >
-                      <span>Mobile preview</span>
+                      <span>{t("campaignAdmin.media.mobilePreview")}</span>
                     </div>
                   </div>
-                  <Field label="Crop / zoom">
+                <Field label={t("campaignAdmin.fields.cropZoom")}>
                     <input
                       type="range"
                       min="100"
@@ -2080,23 +2049,23 @@ export function CampaignsTab({
                       }
                     />
                   </Field>
-                  <Field label="Focus point">
+                <Field label={t("campaignAdmin.fields.focusPoint")}>
                     <select
                       value={campaignDraft.heroImagePosition}
                       onChange={(e) =>
                         setCampaignDraft({ ...campaignDraft, heroImagePosition: e.target.value })
                       }
                     >
-                      <option value="center center">Center</option>
-                      <option value="center top">Top</option>
-                      <option value="center bottom">Bottom</option>
-                      <option value="left center">Left</option>
-                      <option value="right center">Right</option>
+                      <option value="center center">{t("campaignAdmin.options.center")}</option>
+                      <option value="center top">{t("campaignAdmin.options.top")}</option>
+                      <option value="center bottom">{t("campaignAdmin.options.bottom")}</option>
+                      <option value="left center">{t("campaignAdmin.options.left")}</option>
+                      <option value="right center">{t("campaignAdmin.options.right")}</option>
                     </select>
                   </Field>
-                  <Field label="Campaign video URL">
+                <Field label={t("campaignAdmin.fields.videoUrl")}>
                     <input
-                      placeholder="YouTube, Instagram, or hosted video link"
+                    placeholder={t("campaignAdmin.placeholders.videoUrl")}
                       value={campaignDraft.campaignVideoUrl}
                       onChange={(e) =>
                         setCampaignDraft({ ...campaignDraft, campaignVideoUrl: e.target.value })
@@ -2117,10 +2086,10 @@ export function CampaignsTab({
               <div className="form-grid campaign-wizard-step">
                 <div className="wide campaign-review-panel">
                   <div>
-                    <span className="eyebrow">Publish readiness</span>
+                    <span className="eyebrow">{t("campaignAdmin.publish.readiness")}</span>
                     <strong>{campaignQuality?.score ?? 0} / 100</strong>
                     <p className="helper-text">
-                      Visual guidance only. Save and publish still use the existing handlers.
+                      {t("campaignAdmin.quality.visualOnly")}
                     </p>
                   </div>
                   <div className="campaign-readiness-list">
@@ -2129,7 +2098,7 @@ export function CampaignsTab({
                         <CheckCircle2 size={18} />
                         <span>
                           <strong>{item.label}</strong>
-                          <small>{item.ready ? "Looks ready" : item.suggestion}</small>
+                          <small>{item.ready ? t("campaignAdmin.quality.looksReady") : item.suggestion}</small>
                         </span>
                       </div>
                     ))}
@@ -2138,7 +2107,7 @@ export function CampaignsTab({
 
                 {(campaignQuality?.suggestions.length ?? 0) > 0 && (
                   <div className="wide quality-suggestions">
-                    <span className="eyebrow">Suggestions</span>
+                    <span className="eyebrow">{t("campaignAdmin.publish.suggestions")}</span>
                     {campaignQuality?.suggestions.map((suggestion) => (
                       <p key={suggestion}>{suggestion}</p>
                     ))}
@@ -2147,29 +2116,29 @@ export function CampaignsTab({
 
                 <div className="wide campaign-review-summary">
                   <div>
-                    <span className="label">Campaign</span>
-                    <strong>{campaignDraft.title || "Untitled campaign"}</strong>
-                    <small>{campaignDraft.slug ? `/${campaignDraft.slug}` : "No public slug yet"}</small>
+                    <span className="label">{t("campaignAdmin.publish.campaign")}</span>
+                    <strong>{campaignDraft.title || t("campaignAdmin.selector.untitled")}</strong>
+                    <small>{campaignDraft.slug ? `/${campaignDraft.slug}` : t("campaignAdmin.quality.noSlugYet")}</small>
                   </div>
                   <div>
-                    <span className="label">Status</span>
+                    <span className="label">{t("campaignAdmin.fields.status")}</span>
                     <strong>{campaignDraft.status}</strong>
-                    <small>{getCampaignGoalValue(campaignDraft).toLocaleString()} target signatures</small>
+                    <small>{getCampaignGoalValue(campaignDraft).toLocaleString()} {t("campaignAdmin.fields.targetSignatures")}</small>
                   </div>
                   <div>
-                    <span className="label">Authority</span>
-                    <strong>{selectedAuthority || "Default authority"}</strong>
+                    <span className="label">{t("campaignAdmin.fields.authority")}</span>
+                    <strong>{selectedAuthority || t("campaignAdmin.quality.defaultAuthorityLabel")}</strong>
                     <small>{campaignDraft.authorityTargetLevel ?? "district"} level routing</small>
                   </div>
                   <div>
-                    <span className="label">Public URL</span>
-                    <strong>{hasDraftSlug ? publicCampaignUrl : "Add a campaign slug to generate links."}</strong>
-                    <small>{campaignDraft.startDate || "No start date"} to {campaignDraft.endDate || "No end date"}</small>
+                    <span className="label">{t("campaignAdmin.links.publicUrl")}</span>
+                    <strong>{hasDraftSlug ? publicCampaignUrl : t("campaignAdmin.links.addSlug")}</strong>
+                    <small>{campaignDraft.startDate || t("campaignAdmin.quality.noStartDate")} {t("campaignAdmin.quality.to")} {campaignDraft.endDate || t("campaignAdmin.quality.noEndDate")}</small>
                   </div>
 
                   <div className="authority-2-grid">
                     <div className="authority-2-card">
-                      <span className="eyebrow">Escalation chain</span>
+                      <span className="eyebrow">{t("campaignAdmin.authority.escalationChain")}</span>
                       <div className="hierarchy-chain">
                         {authorityEscalationChain.map((level) => <span key={level}>{level}</span>)}
                       </div>
@@ -2180,36 +2149,36 @@ export function CampaignsTab({
                       </small>
                     </div>
                     <div className="authority-2-card">
-                      <span className="eyebrow">Political hierarchy</span>
+                      <span className="eyebrow">{t("campaignAdmin.authority.politicalHierarchy")}</span>
                       <div className="hierarchy-chain">
                         {politicalHierarchy.map((level) => <span key={level}>{level}</span>)}
                       </div>
-                      <small>Use as escalation context; not sent automatically.</small>
+                      <small>{t("campaignAdmin.authority.hierarchyHelp")}</small>
                     </div>
                     <div className="authority-2-card">
-                      <span className="eyebrow">Department mapping</span>
+                      <span className="eyebrow">{t("campaignAdmin.authority.departmentMapping")}</span>
                       <strong>{departmentMapping}</strong>
-                      <small>Mapped from campaign category and template recommendation.</small>
+                      <small>{t("campaignAdmin.authority.departmentHelp")}</small>
                     </div>
                     <div className="authority-2-card">
-                      <span className="eyebrow">Authority confidence</span>
+                      <span className="eyebrow">{t("campaignAdmin.authority.confidence")}</span>
                       <strong>{authorityConfidenceScore}%</strong>
-                      <small>Based on template, selected authority, and location completeness.</small>
+                      <small>{t("campaignAdmin.authority.confidenceHelp")}</small>
                     </div>
                     <div className="authority-2-card">
-                      <span className="eyebrow">CSV validation preview</span>
-                      <strong>{authorityCsvFile ? authorityCsvFile.name : "No CSV selected"}</strong>
-                      <small>{csvUploadMessage || "Upload preview is available; existing upload handling remains unchanged."}</small>
+                      <span className="eyebrow">{t("campaignAdmin.authority.csvValidationPreview")}</span>
+                      <strong>{authorityCsvFile ? authorityCsvFile.name : t("campaignAdmin.quality.noCsv")}</strong>
+                      <small>{csvUploadMessage || t("campaignAdmin.quality.uploadPreview")}</small>
                     </div>
                     <div className="authority-2-card">
-                      <span className="eyebrow">Duplicate detection</span>
-                      <strong>{duplicateAuthorityKeys.length.toLocaleString()} possible duplicates</strong>
-                      <small>Checks uploaded authority name, department, and email keys.</small>
+                      <span className="eyebrow">{t("campaignAdmin.authority.duplicateDetection")}</span>
+                      <strong>{duplicateAuthorityKeys.length.toLocaleString()} {t("campaignAdmin.quality.possibleDuplicates")}</strong>
+                      <small>{t("campaignAdmin.authority.duplicateDetectionHelp")}</small>
                     </div>
                     <div className="authority-2-card selected-authority-package">
-                      <span className="eyebrow">Selected authority package</span>
-                      <strong>{selectedAuthority || "No primary authority selected"}</strong>
-                      <small>Primary + secondary + CC package is ready for future petition delivery providers.</small>
+                      <span className="eyebrow">{t("campaignAdmin.authority.selectedPackage")}</span>
+                      <strong>{selectedAuthority || t("campaignAdmin.quality.noPrimaryAuthority")}</strong>
+                      <small>{t("campaignAdmin.authority.selectedPackageHelp")}</small>
                     </div>
                   </div>
                 </div>
@@ -2218,8 +2187,8 @@ export function CampaignsTab({
                   <div className="version-history-header">
                     <History size={20} />
                     <div>
-                      <span className="eyebrow">Version history</span>
-                      <h4>Recent campaign changes</h4>
+                      <span className="eyebrow">{t("campaignAdmin.publish.versionHistory")}</span>
+                      <h4>{t("campaignAdmin.publish.recentChanges")}</h4>
                     </div>
                   </div>
                   {campaignVersionHistory.length > 0 ? (
@@ -2233,11 +2202,11 @@ export function CampaignsTab({
                     </div>
                   ) : (
                     <p className="helper-text">
-                      Version history appears after this campaign is created, updated, published, cloned, or archived.
+                      {t("campaignAdmin.publish.historyHelp")}
                     </p>
                   )}
                   {campaignDraft.archivedAt && (
-                    <p className="info-message">Archived on {new Date(campaignDraft.archivedAt).toLocaleString()}.</p>
+                    <p className="info-message">{t("campaignAdmin.status.archivedOn")} {new Date(campaignDraft.archivedAt).toLocaleString()}.</p>
                   )}
                 </div>
 
@@ -2260,13 +2229,13 @@ export function CampaignsTab({
 
                   <div className="wide publish-preview">
                     <div>
-                      <span className="eyebrow">Ready to publish</span>
+                      <span className="eyebrow">{t("campaignAdmin.publish.ready")}</span>
                       <h4>{campaignDraft.title || "Untitled campaign"}</h4>
                       <p>{campaignDraft.description || "Add a campaign summary before publishing."}</p>
                       <strong>{readyCount} of {readinessItems.length} publish readiness checks look ready</strong>
                     </div>
                     <div className="publish-url-card">
-                      <span className="label">Campaign URL preview</span>
+                      <span className="label">{t("campaignAdmin.publish.urlPreview")}</span>
                       <strong>{hasDraftSlug ? publicCampaignUrl : "Add a campaign slug to generate links."}</strong>
                       <small>{campaignDraft.status} · {getCampaignGoalValue(campaignDraft).toLocaleString()} target signatures</small>
                     </div>
@@ -2381,7 +2350,7 @@ export function CampaignsTab({
                 disabled={activeStep === 0}
                 onClick={() => setActiveStep((step) => Math.max(0, step - 1))}
               >
-                <ChevronLeft size={18} /> Previous
+                <ChevronLeft size={18} /> {t("campaignAdmin.actions.previous")}
               </button>
               <button
                 className="secondary-button"
@@ -2389,29 +2358,29 @@ export function CampaignsTab({
                 disabled={activeStep === wizardSteps.length - 1}
                 onClick={() => setActiveStep((step) => Math.min(wizardSteps.length - 1, step + 1))}
               >
-                Next step <ChevronRight size={18} />
+                {t("campaignAdmin.actions.next")} <ChevronRight size={18} />
               </button>
               <button className="primary-button" type="submit">
-                <Save size={18} /> {campaignFormMode === "create" ? "Create new campaign" : "Update campaign"}
+                <Save size={18} /> {t(campaignFormMode === "create" ? "campaignAdmin.studio.createNew" : "campaignAdmin.actions.update")}
               </button>
               {campaignFormMode === "create" && (
                 <button className="secondary-button" type="button" onClick={onPublishCampaign}>
-                  <Rocket size={18} /> Publish current campaign
+                  <Rocket size={18} /> {t("campaignAdmin.actions.publishCurrent")}
                 </button>
               )}
             </div>
           </form>
         ) : (
           <NoCampaignPanel
-            title="Create the first campaign"
-            description="This workspace is clean and has no sample data. Start by creating a real campaign for an NGO, community group, association, union, or campaign agency."
+            title={t("campaignAdmin.empty.title")}
+            description={t("campaignAdmin.empty.description")}
           />
         )}
       </Panel>
 
-      <Panel title="Authority rules" icon={<Landmark />}>
+      <Panel title={t("campaignAdmin.authority.rules")} icon={<Landmark />}>
         <button className="secondary-button" type="button" onClick={onAddAuthorityRule}>
-          <Plus size={18} /> Add authority rule
+          <Plus size={18} /> {t("campaignAdmin.authority.addRule")}
         </button>
         <div className="authority-list">
           {authorities.map((authority) => (

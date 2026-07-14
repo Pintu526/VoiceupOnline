@@ -183,5 +183,89 @@
       "privacy": "Privacy", "terms": "Terms", "refund": "Refund policy", "dataDeletion": "Data deletion",
       "tagline": "Voiceup Global, built for public campaigns worldwide."
     }
+  },
+  "campaignAdmin": {
+    "common": { "thisCampaign": "this campaign", "noSpecificLimit": "No campaign-specific limit", "notSet": "Not set", "loadingAi": "Loading AI Campaign Copilot..." },
+    "login": {
+      "commandCenter": "Campaign command center", "administration": "Campaign Administration",
+      "intro": "Sign in to review supporters, process scanned forms, send participant updates, and keep campaign operations moving.",
+      "capabilitiesAria": "Campaign admin capabilities", "signers": "Signers", "review": "Review", "hardCopies": "Hard copies", "scan": "Scan", "updates": "Updates", "engage": "Engage",
+      "access": "Campaign admin access", "signInManage": "Sign in to manage", "emailAddress": "Email address", "emailPlaceholder": "Campaign admin email",
+      "passcode": "Passcode", "passcodePlaceholder": "Campaign admin passcode", "campaignAccess": "Campaign-level access",
+      "credentialsHelp": "Use the private admin credentials shared for this campaign.", "submit": "Login to campaign admin"
+    },
+    "notFound": { "eyebrow": "Campaign admin", "title": "Campaign admin page not found.", "description": "Please check the admin link or ask the campaign owner to share the correct campaign admin URL." },
+    "status": { "draft": "Draft", "published": "Published", "paused": "Paused", "closed": "Closed", "completed": "Completed", "archived": "Archived", "archivedOn": "Archived on" },
+    "nav": { "dashboard": "Dashboard", "commandCenter": "Command Center", "campaignAdmin": "Campaign admin", "publicSigning": "Public signing", "movementCrm": "Movement CRM", "growthEngine": "Growth Engine", "fieldCollection": "Field Collection", "reports": "Reports", "engagement": "Engagement", "activity": "Activity" },
+    "shell": { "tagline": "Public Campaign SaaS", "currentPlan": "Current plan", "signaturesPerMonth": "signatures/month", "administration": "Campaign Administration" },
+    "selector": {
+      "authorityNotConfigured": "Authority not configured", "untitled": "Untitled campaign", "noSlug": "No public slug", "removeFavourite": "Remove favourite campaign", "favourite": "Favourite campaign",
+      "showingFirst": "Showing first", "of": "of", "narrowResults": "Search by name, slug, or authority to narrow results.", "aria": "Campaign selector", "searchAria": "Search campaigns",
+      "searchPlaceholder": "Search campaigns by name, slug, authority, category, or location", "currentDraft": "Current draft", "newUnsaved": "New unsaved campaign", "separateId": "Separate campaign ID. Save it to create a new campaign.",
+      "largeWorkspace": "Large workspace mode: results are windowed for speed. Search by campaign name, slug, or authority for exact access.",
+      "empty": "No campaigns yet. Start a new campaign to create the first draft.", "noMatch": "No campaigns match this search.",
+      "favourites": "Favourite campaigns", "recent": "Recent", "drafts": "Draft campaigns", "published": "Published campaigns", "paused": "Paused campaigns", "completed": "Completed campaigns", "archived": "Archived campaigns"
+    },
+    "actions": {
+      "aria": "Campaign actions", "newCampaign": "New Campaign", "duplicate": "Duplicate Campaign", "archive": "Archive Campaign", "delete": "Delete Campaign", "openDashboard": "Open Dashboard", "logout": "Logout campaign admin",
+      "copy": "Copy", "copied": "Copied", "downloadPoster": "Download poster SVG", "printPoster": "Print poster", "previous": "Previous", "next": "Next step", "update": "Update campaign", "publishCurrent": "Publish current campaign"
+    },
+    "confirm": {
+      "leaveUnsaved": "You have unsaved campaign changes. Leave without saving?", "startNewUnsaved": "You have unsaved campaign changes. Start a new campaign anyway?",
+      "switchUnsaved": "You have unsaved changes. Switch campaigns without saving?", "dashboardUnsaved": "You have unsaved changes. Open dashboard without saving?",
+      "duplicateUnsaved": "You have unsaved changes. Duplicate without saving first?", "archiveUnsaved": "You have unsaved changes. Archive without saving first?",
+      "deleteUnsaved": "You have unsaved changes. Delete without saving first?", "archive": "Archive", "archiveKept": "It will be marked Closed and kept in the workspace.",
+      "typeArchive": "Type ARCHIVE to confirm archiving", "deletePrefix": "Delete", "deleteSuffix": "from this workspace? This cannot be undone."
+    },
+    "studio": {
+      "createNew": "Create new campaign", "configuration": "Campaign configuration", "progressAria": "Campaign setup progress", "step": "Step", "createWithAi": "Create with AI",
+      "unsaved": "Unsaved changes", "newDraftHelp": "This is a new campaign draft. Use Create new campaign to save it.", "updateBeforeLeaving": "Update this campaign before leaving Campaign Studio.",
+      "manual": "Manual campaign", "fromTemplate": "Start from template", "previewDetails": "Preview details", "useTemplate": "Use template", "loadingTemplates": "Loading campaign templates...", "noTemplates": "No templates match this search.",
+      "aiHelp": "AI campaign creation helps you generate a polished campaign with title, description, and suggested appeal content in a few clicks.", "openAiBuilder": "Open AI campaign builder",
+      "saasControlsActive": "SaaS admin controls are active for this campaign.", "saasLimit": "SaaS admin limit", "generatedFromSlug": "Generated from the public slug.", "organizationIncomplete": "Organization setup is incomplete.",
+      "steps": {
+        "organisation": { "title": "Organisation", "helper": "Confirm the workspace context and choose how this campaign draft starts." },
+        "details": { "title": "Campaign Details", "helper": "Shape the title, story, target, dates, and campaign admin access." },
+        "authorities": { "title": "Authorities", "helper": "Review suggested authorities, routing choices, and uploaded authority masters." },
+        "location": { "title": "Location", "helper": "Choose geography mode, campaign reach, signer restrictions, and local context." },
+        "supporterForm": { "title": "Supporter Form", "helper": "Choose required fields and preview the public signer experience." },
+        "media": { "title": "Media", "helper": "Polish the banner, focus point, donation media, and campaign sharing assets." },
+        "growth": { "title": "Growth Configuration", "helper": "Configure recognition, credits, referral sharing, rewards, and Growth Engine rules for this campaign." },
+        "publish": { "title": "Publish", "helper": "Check quality, public links, QR label, and final publish readiness." }
+      }
+    },
+    "fields": {
+      "locationGovernance": "Location Governance", "campaignReach": "Campaign reach", "campaignTitle": "Campaign title", "campaignSlug": "Campaign slug", "summary": "Summary", "description": "Description", "authority": "Authority",
+      "searchTemplates": "Search templates", "categoryFilter": "Category filter", "targetSignatures": "Target signatures", "signerLimit": "Signer limit", "scanLimit": "Scan document limit", "signers": "signers",
+      "campaignName": "Campaign name", "publicSlug": "Public slug", "category": "Category", "status": "Status", "locationLabel": "Location display label", "startDate": "Start date", "endDate": "End date",
+      "publicShareUrl": "Public share URL", "adminUrl": "Campaign admin URL", "adminEmail": "Campaign admin email", "adminPasscode": "Campaign admin passcode", "qrLabel": "QR / WhatsApp campaign label",
+      "geographyMode": "Geography mode", "signerLocationRestriction": "Public signer location restriction", "searchAuthority": "Search authority directory", "type": "Type", "department": "Department",
+      "appealAuthority": "Appeal should go to authority", "authoritySelectionMode": "Authority selection mode", "chooseAuthority": "Choose uploaded authority", "selectedAuthority": "Selected appeal authority",
+      "campaignDescription": "Campaign description", "appealText": "Appeal / cause text shown on public signing page", "consentText": "Consent text", "bannerImage": "Campaign banner image",
+      "cropZoom": "Image crop / zoom", "imageFocus": "Image focus", "focusPoint": "Focus point", "videoUrl": "Campaign video URL", "socialShareText": "Social share text",
+      "thankYouMessage": "Thank-you WhatsApp/SMS message", "updateMessage": "Participant update message", "requiredSignerDetails": "Required signer details"
+    },
+    "placeholders": { "title": "Enter campaign title", "slug": "Enter campaign slug", "summary": "Enter a short campaign summary", "description": "Enter campaign description and public appeal", "searchTemplates": "Search by topic, authority, or tag", "addSlugUrl": "Add a campaign slug to generate this URL", "searchAuthority": "Search designation, department, district, party, notes", "videoUrl": "YouTube, Instagram, or hosted video link" },
+    "options": { "globalMode": "Global mode", "indiaMode": "India detailed mode", "selectAuthority": "Select authority", "all": "All", "government": "Government", "political": "Political", "nationalAuthority": "National authority", "adminEnforced": "Admin enforces selected authority", "publicChoice": "Public can choose from uploaded authorities", "defaultAuthority": "Use default authority for selected level", "center": "Center", "top": "Top", "bottom": "Bottom", "left": "Left", "right": "Right" },
+    "links": {
+      "title": "Campaign links", "slugRoutes": "Slug-based routes", "addSlug": "Add a campaign slug to generate links.", "publicUrl": "Public campaign URL", "adminUrl": "Campaign admin URL", "saasUrl": "SaaS admin URL", "slugRequired": "Slug required",
+      "qrCenter": "QR & Sharing Center", "posterReferral": "Campaign poster and referral starter link", "qrReady": "QR ready", "publicQr": "Campaign public QR", "publicSignerUrl": "Public signer URL", "adminQr": "Campaign admin QR", "adminLoginUrl": "Campaign admin login URL",
+      "printablePoster": "Printable poster", "posterSummary": "Campaign summary appears here for public poster printing.", "referralUrl": "Starter referral URL", "readyMessage": "Campaign links are live. QR and poster downloads are ready for sharing."
+    },
+    "authority": {
+      "intelligence": "Authority Intelligence", "recommendedRouting": "Recommended routing for this campaign", "recentlyUsed": "Recently used", "multiRouting": "Multi-authority routing plan", "visibilityReady": "Public visibility ready",
+      "primary": "Primary Authority", "primaryHelp": "Persisted through existing campaign authority selection.", "secondary": "Secondary Authorities", "secondaryHelp": "Ready to use when email, WhatsApp, SMS, IVR, PDF, and API dispatch are configured.",
+      "cc": "CC Authorities", "ccHelp": "Planning only until provider dispatch is implemented.", "publicVisibility": "Public visibility", "configurable": "Configurable", "visibilityHelp": "Designed for future authority visibility controls.",
+      "locationCsv": "Location master CSV", "authorityCsv": "Authority master CSV", "csvPreview": "Authority CSV preview", "file": "File", "validation": "Validation", "readyValidate": "Ready to validate", "validationHelp": "Column checks run through the existing upload handler.",
+      "duplicates": "Duplicates", "readyDetect": "Ready to detect", "duplicateHelp": "Name, designation, email, and phone can be compared before import.", "importSummary": "Import summary", "generatedUpload": "Generated after upload", "uploadMessageHelp": "Existing upload message is displayed below.",
+      "escalationChain": "Escalation chain", "politicalHierarchy": "Political hierarchy", "hierarchyHelp": "Use as escalation context; not sent automatically.", "departmentMapping": "Department mapping", "departmentHelp": "Mapped from campaign category and template recommendation.",
+      "confidence": "Authority confidence", "confidenceHelp": "Based on template, selected authority, and location completeness.", "csvValidationPreview": "CSV validation preview", "duplicateDetection": "Duplicate detection", "duplicateDetectionHelp": "Checks uploaded authority name, department, and email keys.",
+      "selectedPackage": "Selected authority package", "selectedPackageHelp": "Primary + secondary + CC package is ready for future petition delivery providers.", "rules": "Authority rules", "addRule": "Add authority rule"
+    },
+    "quality": { "title": "Title", "titleHelp": "Use a specific, action-oriented title.", "description": "Description", "descriptionHelp": "Add a fuller summary and petition appeal.", "banner": "Banner", "bannerHelp": "Upload a clear campaign banner.", "authority": "Authority", "authorityHelp": "Confirm who receives the petition.", "location": "Location", "goal": "Goal", "goalHelp": "Set a realistic supporter target.", "supporterForm": "Supporter form", "supporterFormHelp": "Choose at least one required signer field.", "templateFit": "Template fit", "templateFitHelp": "Start from a template for faster launch.", "basics": "Campaign basics", "nameEmpty": "Campaign name is empty", "locationEmpty": "Location Governance is empty", "defaultAuthority": "Default authority will be used when available", "publicContent": "Public page content", "descriptionPresent": "Description is present", "descriptionEmpty": "Description is empty", "visualOnly": "Visual guidance only. Save and publish still use the existing handlers.", "looksReady": "Looks ready", "noSlugYet": "No public slug yet", "defaultAuthorityLabel": "Default authority", "noStartDate": "No start date", "to": "to", "noEndDate": "No end date", "noCsv": "No CSV selected", "uploadPreview": "Upload preview is available; existing upload handling remains unchanged.", "possibleDuplicates": "possible duplicates", "noPrimaryAuthority": "No primary authority selected" },
+    "media": { "uploadBanner": "Upload banner / background image", "bannerHelp": "Use a campaign poster or field photo. Crop is controlled below.", "bannerPreview": "Banner preview", "manager": "Campaign media manager", "managerSubtitle": "Banner, focus, and device previews", "uploadBannerImage": "Upload banner image", "storageHelp": "Existing upload and storage logic is reused.", "desktopPreview": "Desktop preview", "mobilePreview": "Mobile preview" },
+    "publish": { "readiness": "Publish readiness", "suggestions": "Suggestions", "campaign": "Campaign", "versionHistory": "Version history", "recentChanges": "Recent campaign changes", "ready": "Ready to publish", "urlPreview": "Campaign URL preview", "historyHelp": "Version history appears after this campaign is created, updated, published, cloned, or archived." },
+    "empty": { "title": "Create the first campaign", "description": "This workspace is clean and has no sample data. Start by creating a real campaign for an NGO, community group, association, union, or campaign agency.", "noData": "No campaign data", "noPublicCampaign": "No public campaign yet" },
+    "dashboard": { "metricsAria": "Campaign performance metrics", "totalSigners": "Total signers", "onlineSignatures": "Online signatures", "scannedRecords": "Scanned records", "duplicates": "Duplicates", "suggestions": "Campaign suggestions", "health": "Campaign health", "suggestionsHelp": "Suggestions based on current campaign, signer, and authority data.", "shareReady": "Share ready", "needsAttention": "Needs attention", "lowParticipation": "Low-participation locations", "locationHelp": "Location-level suggestions improve as more supporter activity is collected.", "authorityFollowUp": "Authority follow-up", "nextAction": "What should we do next?", "nextActionHelp": "Use these suggestions to improve sharing, authority routing, and campaign readiness.", "readyForSharing": "Campaign looks ready for sharing.", "contextualHelp": "Contextual help", "dailyStatus": "Daily campaign status", "noSignerActivity": "No signer activity yet.", "authorityRouting": "Authority routing", "noAuthorityRule": "No matching authority rule has been configured.", "createSixty": "Create and publish your campaign in 60 seconds", "trialTitle": "Start with the essentials, then upgrade when the campaign needs more power.", "trialPlan": "Trial plan", "campaignIncluded": "campaign included", "aiCopilot": "AI Campaign Copilot", "aiCopilotHelp": "Turn one sentence into a professional campaign draft.", "setupTitle": "Set up your workspace and first campaign with guided steps.", "setupProgress": "Setup progress", "organizationType": "Organization type", "recommendedSetup": "Recommended setup", "templates": "Templates", "supporterFields": "Supporter fields", "authorities": "Authorities", "channels": "Channels" }
   }
 }

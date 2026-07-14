@@ -24,6 +24,7 @@ import { BarList } from "../../ui/BarList";
 import { Hero } from "../../components/Hero";
 import { EmptyWorkspace } from "../../components/EmptyWorkspace";
 import type { Organization } from "../../types";
+import { useTranslation } from "../../i18n";
 
 interface DashboardTabProps {
   activeCampaign: Campaign | undefined;
@@ -210,6 +211,7 @@ export function DashboardTab({
   canUseAiCopilot,
   onUpgradePlan
 }: DashboardTabProps) {
+  const { t } = useTranslation();
   const displayCampaign = activeCampaign ?? PLACEHOLDER_CAMPAIGN;
   const isTrialWorkspace = organization.plan === "Free Trial";
   const [quickStartDismissed, setQuickStartDismissed] = useState(false);
@@ -316,17 +318,17 @@ export function DashboardTab({
           <div className="quick-start-panel">
             <div className="quick-start-hero">
               <div>
-                <span className="eyebrow">Create and publish your campaign in 60 seconds</span>
-                <h2>Start with the essentials, then upgrade when the campaign needs more power.</h2>
+                <span className="eyebrow">{t("campaignAdmin.dashboard.createSixty")}</span>
+                <h2>{t("campaignAdmin.dashboard.trialTitle")}</h2>
                 <p>
                   Your trial workspace keeps the first campaign simple: edit the campaign, share the public link,
                   watch supporters, review analytics, and upgrade when you are ready.
                 </p>
               </div>
               <div className="quick-start-score">
-                <span>Trial plan</span>
+                <span>{t("campaignAdmin.dashboard.trialPlan")}</span>
                 <strong>1</strong>
-                <small>campaign included</small>
+                <small>{t("campaignAdmin.dashboard.campaignIncluded")}</small>
               </div>
             </div>
             <div className="quick-start-steps">
@@ -354,8 +356,8 @@ export function DashboardTab({
       {!isTrialWorkspace && (
       <div className="ai-entry-strip">
         <div>
-          <span className="eyebrow">AI Campaign Copilot</span>
-          <strong>Turn one sentence into a professional campaign draft.</strong>
+          <span className="eyebrow">{t("campaignAdmin.dashboard.aiCopilot")}</span>
+          <strong>{t("campaignAdmin.dashboard.aiCopilotHelp")}</strong>
         </div>
         {createCampaignBlockReason || !canUseAiCopilot ? (
           <button className="primary-button" type="button" onClick={onUpgradePlan}>
@@ -374,15 +376,15 @@ export function DashboardTab({
           <div className="quick-start-panel">
             <div className="quick-start-hero">
               <div>
-                <span className="eyebrow">Create and publish your campaign in 60 seconds</span>
-                <h2>Set up your workspace and first campaign with guided steps.</h2>
+                <span className="eyebrow">{t("campaignAdmin.dashboard.createSixty")}</span>
+                <h2>{t("campaignAdmin.dashboard.setupTitle")}</h2>
                 <p>
                   Follow the checklist, pick your organization type, draft a campaign, then review
                   and save using the existing campaign workflow.
                 </p>
               </div>
               <div className="quick-start-score">
-                <span>Setup progress</span>
+                <span>{t("campaignAdmin.dashboard.setupProgress")}</span>
                 <strong>{quickStartProgress}%</strong>
                 <small>{quickStartItems.filter((item) => item.ready).length} of {quickStartItems.length} ready</small>
               </div>
@@ -408,7 +410,7 @@ export function DashboardTab({
 
             <div className="quick-start-grid">
               <div className="quick-start-card">
-                <span className="eyebrow">Organization type</span>
+                <span className="eyebrow">{t("campaignAdmin.dashboard.organizationType")}</span>
                 <div className="org-type-grid" role="list" aria-label="Organization type recommendations">
                   {organizationTypes.map((type) => (
                     <button
@@ -424,12 +426,12 @@ export function DashboardTab({
               </div>
 
               <div className="quick-start-card recommendation-card">
-                <span className="eyebrow">Recommended setup</span>
+                <span className="eyebrow">{t("campaignAdmin.dashboard.recommendedSetup")}</span>
                 <strong>{selectedOrgRecommendation.label}</strong>
-                <p><b>Templates:</b> {selectedOrgRecommendation.templates}</p>
-                <p><b>Supporter fields:</b> {selectedOrgRecommendation.fields}</p>
-                <p><b>Authorities:</b> {selectedOrgRecommendation.authorities}</p>
-                <p><b>Channels:</b> {selectedOrgRecommendation.channels}</p>
+                <p><b>{t("campaignAdmin.dashboard.templates")}:</b> {selectedOrgRecommendation.templates}</p>
+                <p><b>{t("campaignAdmin.dashboard.supporterFields")}:</b> {selectedOrgRecommendation.fields}</p>
+                <p><b>{t("campaignAdmin.dashboard.authorities")}:</b> {selectedOrgRecommendation.authorities}</p>
+                <p><b>{t("campaignAdmin.dashboard.channels")}:</b> {selectedOrgRecommendation.channels}</p>
               </div>
             </div>
 
@@ -470,66 +472,66 @@ export function DashboardTab({
         </Panel>
       )}
 
-      <div className="metric-grid dashboard-metrics" aria-label="Campaign performance metrics">
+      <div className="metric-grid dashboard-metrics" aria-label={t("campaignAdmin.dashboard.metricsAria")}>
         <MetricCard
           icon={<Users />}
-          label="Total signers"
+          label={t("campaignAdmin.dashboard.totalSigners")}
           value={metrics.total}
           detail={`${metrics.verified} verified`}
         />
         <MetricCard
           icon={<Globe2 />}
-          label="Online signatures"
+          label={t("campaignAdmin.dashboard.onlineSignatures")}
           value={metrics.online}
           detail="Collected from public page"
         />
         <MetricCard
           icon={<FileScan />}
-          label="Scanned records"
+          label={t("campaignAdmin.dashboard.scannedRecords")}
           value={metrics.scanned}
           detail={`${metrics.pending} awaiting review`}
         />
         <MetricCard
           icon={<SearchCheck />}
-          label="Duplicates"
+          label={t("campaignAdmin.dashboard.duplicates")}
           value={metrics.duplicates}
           detail="Flagged automatically"
         />
       </div>
 
       {!isTrialWorkspace && (
-      <Panel title="Campaign suggestions" icon={<Sparkles />}>
+      <Panel title={t("campaignAdmin.dashboard.suggestions")} icon={<Sparkles />}>
         <div className="movement-brain-panel">
           <div className="movement-brain-score">
-            <span className="eyebrow">Campaign health</span>
+            <span className="eyebrow">{t("campaignAdmin.dashboard.health")}</span>
             <strong>{movementBrainScore}/100</strong>
-            <small>Suggestions based on current campaign, signer, and authority data.</small>
+            <small>{t("campaignAdmin.dashboard.suggestionsHelp")}</small>
           </div>
           <div className="movement-brain-grid">
             <div>
-              <span>Campaign health</span>
-              <strong>{movementBrainScore >= 70 ? "Share ready" : "Needs attention"}</strong>
+              <span>{t("campaignAdmin.dashboard.health")}</span>
+              <strong>{t(movementBrainScore >= 70 ? "campaignAdmin.dashboard.shareReady" : "campaignAdmin.dashboard.needsAttention")}</strong>
               <p>{activeCampaign?.title ?? "Create a campaign to unlock movement insights."}</p>
             </div>
             <div>
-              <span>Low-participation locations</span>
+              <span>{t("campaignAdmin.dashboard.lowParticipation")}</span>
               <strong>{Object.keys(dailyTotals).length ? "Monitor daily trend" : "No trend yet"}</strong>
-              <p>Location-level suggestions improve as more supporter activity is collected.</p>
+              <p>{t("campaignAdmin.dashboard.locationHelp")}</p>
             </div>
             <div>
-              <span>Authority follow-up</span>
+              <span>{t("campaignAdmin.dashboard.authorityFollowUp")}</span>
               <strong>{authorityMatch ? `${authorityMatch.score}% confidence` : "Needs route"}</strong>
               <p>{authorityMatch ? authorityMatch.authority.name : "Confirm authority before petition delivery."}</p>
             </div>
             <div>
-              <span>What should we do next?</span>
+              <span>{t("campaignAdmin.dashboard.nextAction")}</span>
               <strong>{lowParticipationHints[0] ?? "Keep momentum"}</strong>
-              <p>Use these suggestions to improve sharing, authority routing, and campaign readiness.</p>
+              <p>{t("campaignAdmin.dashboard.nextActionHelp")}</p>
             </div>
           </div>
           <div className="quality-suggestions">
             {lowParticipationHints.map((hint) => <p key={hint}>{hint}</p>)}
-            {lowParticipationHints.length === 0 && <p>Campaign looks ready for sharing.</p>}
+            {lowParticipationHints.length === 0 && <p>{t("campaignAdmin.dashboard.readyForSharing")}</p>}
           </div>
         </div>
       </Panel>
@@ -546,7 +548,7 @@ export function DashboardTab({
       )}
 
       {!isTrialWorkspace && (
-      <Panel title="Contextual help" icon={<SearchCheck />}>
+      <Panel title={t("campaignAdmin.dashboard.contextualHelp")} icon={<SearchCheck />}>
         <div className="help-panel-grid">
           {helpPanels.map(([title, text]) => (
             <div className="help-panel-card" key={title}>
@@ -559,10 +561,10 @@ export function DashboardTab({
       )}
 
       <div className="two-column dashboard-insights">
-        <Panel title="Daily campaign status" icon={<CalendarDays />}>
-          <BarList data={dailyTotals} emptyLabel="No signer activity yet." />
+        <Panel title={t("campaignAdmin.dashboard.dailyStatus")} icon={<CalendarDays />}>
+          <BarList data={dailyTotals} emptyLabel={t("campaignAdmin.dashboard.noSignerActivity")} />
         </Panel>
-        <Panel title="Authority routing" icon={<Landmark />}>
+        <Panel title={t("campaignAdmin.dashboard.authorityRouting")} icon={<Landmark />}>
           {authorityMatch ? (
             <div className="authority-card">
               <strong>{authorityMatch.authority.name}</strong>
@@ -576,7 +578,7 @@ export function DashboardTab({
               </small>
             </div>
           ) : (
-            <p>No matching authority rule has been configured.</p>
+            <p>{t("campaignAdmin.dashboard.noAuthorityRule")}</p>
           )}
         </Panel>
       </div>

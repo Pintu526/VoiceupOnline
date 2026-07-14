@@ -51,6 +51,7 @@ import { getCreateCampaignBlockReason, isFeatureIncludedInPlan } from "../utils/
 import { GROWTH_FEATURE_FLAGS } from "../growth/constants";
 import type { GrowthRuntimeState, GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
 import type { SupporterGrowthPortalModel } from "../growth/tree";
+import { useTranslation } from "../i18n";
 
 const MovementCrmTab = lazy(() =>
   import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
@@ -388,6 +389,7 @@ export function AppShell({
   onLogoutCampaignAdmin,
   onLogoutAppAdmin
 }: AppShellProps) {
+  const { t } = useTranslation();
   const [aiCopilotOpen, setAiCopilotOpen] = useState(false);
   const [aiDraftAppliedFocusKey, setAiDraftAppliedFocusKey] = useState(0);
   const [aiUndoDraft, setAiUndoDraft] = useState<Campaign | null>(null);
@@ -571,7 +573,7 @@ export function AppShell({
       tab !== activeTab &&
       activeTab === "campaigns" &&
       hasUnsavedCampaignChanges &&
-      !window.confirm("You have unsaved campaign changes. Leave without saving?")
+      !window.confirm(t("campaignAdmin.confirm.leaveUnsaved"))
     ) {
       return;
     }
@@ -622,7 +624,7 @@ export function AppShell({
     if (
       activeTab === "campaigns" &&
       hasUnsavedCampaignChanges &&
-      !window.confirm("You have unsaved campaign changes. Start a new campaign anyway?")
+      !window.confirm(t("campaignAdmin.confirm.startNewUnsaved"))
     ) {
       return;
     }
@@ -646,7 +648,7 @@ export function AppShell({
     if (!selectedCampaign) return;
     if (
       hasUnsavedCampaignChanges &&
-      !window.confirm("You have unsaved changes. Switch campaigns without saving?")
+      !window.confirm(t("campaignAdmin.confirm.switchUnsaved"))
     ) {
       return;
     }
@@ -661,7 +663,7 @@ export function AppShell({
   }
 
   function requestOpenCampaignDashboard() {
-    if (hasUnsavedCampaignChanges && !window.confirm("You have unsaved changes. Open dashboard without saving?")) {
+    if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.dashboardUnsaved"))) {
       return;
     }
     setCampaignSelectorOpen(false);
@@ -671,7 +673,7 @@ export function AppShell({
 
   function requestDuplicateCampaign() {
     if (!campaignDraft) return;
-    if (hasUnsavedCampaignChanges && !window.confirm("You have unsaved changes. Duplicate without saving first?")) {
+    if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.duplicateUnsaved"))) {
       return;
     }
     onCloneCampaign();
@@ -680,21 +682,21 @@ export function AppShell({
 
   function requestArchiveCampaign() {
     if (campaignFormMode === "create" || !activeCampaign) return;
-    if (hasUnsavedCampaignChanges && !window.confirm("You have unsaved changes. Archive without saving first?")) {
+    if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.archiveUnsaved"))) {
       return;
     }
-    if (!window.confirm(`Archive "${activeCampaign.title || "this campaign"}"?`)) return;
+    if (!window.confirm(`${t("campaignAdmin.confirm.archive")} "${activeCampaign.title || t("campaignAdmin.common.thisCampaign")}"?`)) return;
     onArchiveCampaign();
     setCampaignSelectorOpen(false);
   }
 
   function requestDeleteCampaign() {
     if (campaignFormMode === "create" || !activeCampaign) return;
-    if (hasUnsavedCampaignChanges && !window.confirm("You have unsaved changes. Delete without saving first?")) {
+    if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.deleteUnsaved"))) {
       return;
     }
-    const campaignName = activeCampaign.title || "this campaign";
-    if (!window.confirm(`Delete "${campaignName}" from this workspace? This cannot be undone.`)) return;
+    const campaignName = activeCampaign.title || t("campaignAdmin.common.thisCampaign");
+    if (!window.confirm(`${t("campaignAdmin.confirm.deletePrefix")} "${campaignName}" ${t("campaignAdmin.confirm.deleteSuffix")}`)) return;
     onDeleteCampaign();
     setCampaignSelectorOpen(false);
   }
@@ -710,7 +712,7 @@ export function AppShell({
   function renderCampaignSelectorItem(campaign: Campaign, groupName: string) {
     const isSelected = campaignFormMode === "edit" && activeCampaignId === campaign.id;
     const isPinned = pinnedCampaignIdSet.has(campaign.id);
-    const authorityText = campaignAuthorityTextById.get(campaign.id) || "Authority not configured";
+    const authorityText = campaignAuthorityTextById.get(campaign.id) || t("campaignAdmin.selector.authorityNotConfigured");
     return (
       <div className="campaign-switcher-item" key={`${groupName}-${campaign.id}`}>
         <button
@@ -719,19 +721,19 @@ export function AppShell({
           onClick={() => selectCampaign(campaign.id)}
         >
           <span>
-            <strong>{campaign.title || "Untitled campaign"}</strong>
+            <strong>{campaign.title || t("campaignAdmin.selector.untitled")}</strong>
             <small>
-              {campaign.slug ? `/${campaign.slug}` : "No public slug"} · {authorityText}
+              {campaign.slug ? `/${campaign.slug}` : t("campaignAdmin.selector.noSlug")} · {authorityText}
             </small>
           </span>
           <span className="status-pill" data-status={getCampaignSelectorStatusData(campaign)}>
-            {getCampaignSelectorStatus(campaign)}
+            {t(`campaignAdmin.status.${getCampaignSelectorStatus(campaign).toLowerCase()}`)}
           </span>
         </button>
         <button
           className={isPinned ? "campaign-pin-button active" : "campaign-pin-button"}
           type="button"
-          aria-label={isPinned ? "Remove favourite campaign" : "Favourite campaign"}
+          aria-label={t(isPinned ? "campaignAdmin.selector.removeFavourite" : "campaignAdmin.selector.favourite")}
           onClick={() => togglePinnedCampaign(campaign.id)}
         >
           <Star size={15} />
@@ -752,7 +754,7 @@ export function AppShell({
         {renderedCampaigns.map((campaign) => renderCampaignSelectorItem(campaign, title))}
         {renderedCampaigns.length < groupCampaigns.length && (
           <p className="campaign-switcher-window-note">
-            Showing first {renderedCampaigns.length} of {groupCampaigns.length}. Search by name, slug, or authority to narrow results.
+            {t("campaignAdmin.selector.showingFirst")} {renderedCampaigns.length} {t("campaignAdmin.selector.of")} {groupCampaigns.length}. {t("campaignAdmin.selector.narrowResults")}
           </p>
         )}
       </section>
@@ -922,13 +924,13 @@ export function AppShell({
       <Dialog.Root open={campaignSelectorOpen} onOpenChange={setCampaignSelectorOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="command-overlay" />
-          <Dialog.Content className="campaign-switcher-dialog" aria-label="Campaign selector">
+          <Dialog.Content className="campaign-switcher-dialog" aria-label={t("campaignAdmin.selector.aria")}>
             <div className="command-search campaign-switcher-search">
               <Search size={18} />
               <input
                 autoFocus
-                aria-label="Search campaigns"
-                placeholder="Search campaigns by name, slug, authority, category, or location"
+                aria-label={t("campaignAdmin.selector.searchAria")}
+                placeholder={t("campaignAdmin.selector.searchPlaceholder")}
                 value={campaignSelectorQuery}
                 onChange={(event) => setCampaignSelectorQuery(event.target.value)}
               />
@@ -941,17 +943,17 @@ export function AppShell({
                   type="button"
                   onClick={() => setCampaignSelectorOpen(false)}
                 >
-                  <span className="eyebrow">Current draft</span>
-                  <strong>{campaignDraft.title || "New unsaved campaign"}</strong>
-                  <small>Separate campaign ID. Save it to create a new campaign.</small>
+                  <span className="eyebrow">{t("campaignAdmin.selector.currentDraft")}</span>
+                  <strong>{campaignDraft.title || t("campaignAdmin.selector.newUnsaved")}</strong>
+                  <small>{t("campaignAdmin.selector.separateId")}</small>
                 </button>
               )}
               <button className="secondary-button" type="button" onClick={requestCreateCampaign}>
-                <Plus size={18} /> New Campaign
+                <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
               </button>
-              <div className="campaign-manager-button-row" aria-label="Campaign actions">
+              <div className="campaign-manager-button-row" aria-label={t("campaignAdmin.actions.aria")}>
                 <button className="secondary-button" type="button" onClick={requestDuplicateCampaign} disabled={!campaignDraft}>
-                  <Copy size={16} /> Duplicate Campaign
+                  <Copy size={16} /> {t("campaignAdmin.actions.duplicate")}
                 </button>
                 <button
                   className="secondary-button"
@@ -959,7 +961,7 @@ export function AppShell({
                   onClick={requestArchiveCampaign}
                   disabled={campaignFormMode === "create" || !activeCampaign}
                 >
-                  <Archive size={16} /> Archive Campaign
+                  <Archive size={16} /> {t("campaignAdmin.actions.archive")}
                 </button>
                 <button
                   className="secondary-button danger-action"
@@ -967,32 +969,32 @@ export function AppShell({
                   onClick={requestDeleteCampaign}
                   disabled={campaignFormMode === "create" || !activeCampaign}
                 >
-                  <Trash2 size={16} /> Delete Campaign
+                  <Trash2 size={16} /> {t("campaignAdmin.actions.delete")}
                 </button>
                 <button className="secondary-button" type="button" onClick={requestOpenCampaignDashboard}>
-                  <BarChart3 size={16} /> Open Dashboard
+                  <BarChart3 size={16} /> {t("campaignAdmin.actions.openDashboard")}
                 </button>
               </div>
             </div>
             {shouldWindowCampaignList && (
               <div className="campaign-switcher-performance-note" role="status">
-                Large workspace mode: results are windowed for speed. Search by campaign name, slug, or authority for exact access.
+                {t("campaignAdmin.selector.largeWorkspace")}
               </div>
             )}
             <div className="campaign-switcher-list">
               {campaigns.length === 0 ? (
-                <div className="command-empty">No campaigns yet. Start a new campaign to create the first draft.</div>
+                <div className="command-empty">{t("campaignAdmin.selector.empty")}</div>
               ) : visibleCampaigns.length === 0 ? (
-                <div className="command-empty">No campaigns match this search.</div>
+                <div className="command-empty">{t("campaignAdmin.selector.noMatch")}</div>
               ) : (
                 <>
-                  {!campaignSelectorSearchTerm && renderCampaignSelectorGroup("Favourite campaigns", pinnedCampaigns)}
-                  {!campaignSelectorSearchTerm && renderCampaignSelectorGroup("Recent", recentCampaigns)}
-                  {renderCampaignSelectorGroup("Draft campaigns", draftCampaigns)}
-                  {renderCampaignSelectorGroup("Published campaigns", publishedCampaigns)}
-                  {renderCampaignSelectorGroup("Paused campaigns", pausedCampaigns)}
-                  {renderCampaignSelectorGroup("Completed campaigns", completedCampaigns)}
-                  {renderCampaignSelectorGroup("Archived campaigns", archivedCampaigns)}
+                  {!campaignSelectorSearchTerm && renderCampaignSelectorGroup(t("campaignAdmin.selector.favourites"), pinnedCampaigns)}
+                  {!campaignSelectorSearchTerm && renderCampaignSelectorGroup(t("campaignAdmin.selector.recent"), recentCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.drafts"), draftCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.published"), publishedCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.paused"), pausedCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.completed"), completedCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.archived"), archivedCampaigns)}
                 </>
               )}
             </div>
@@ -1007,13 +1009,13 @@ export function AppShell({
             </div>
             <div>
               <strong>Voiceup Global</strong>
-              <span>Public Campaign SaaS</span>
+              <span>{t("campaignAdmin.shell.tagline")}</span>
             </div>
           </div>
           <nav className="nav">
             <NavButton
               icon={<BarChart3 />}
-              label="Dashboard"
+              label={t("campaignAdmin.nav.dashboard")}
               tab="dashboard"
               activeTab={activeTab}
               onClick={requestTabChange}
@@ -1021,7 +1023,7 @@ export function AppShell({
             {hasWorkspaceFeature("command_center") && (
               <NavButton
                 icon={<Crosshair />}
-                label="Command Center"
+                label={t("campaignAdmin.nav.commandCenter")}
                 tab="command"
                 activeTab={activeTab}
                 onClick={requestTabChange}
@@ -1029,7 +1031,7 @@ export function AppShell({
             )}
             <NavButton
               icon={<Megaphone />}
-              label="Campaign admin"
+              label={t("campaignAdmin.nav.campaignAdmin")}
               tab="campaigns"
               activeTab={activeTab}
               onClick={requestTabChange}
@@ -1037,7 +1039,7 @@ export function AppShell({
             {hasWorkspaceFeature("public_signing") && (
               <NavButton
                 icon={<Globe2 />}
-                label="Public signing"
+                label={t("campaignAdmin.nav.publicSigning")}
                 tab="public"
                 activeTab={activeTab}
                 onClick={requestTabChange}
@@ -1046,7 +1048,7 @@ export function AppShell({
             {hasWorkspaceFeature("movement_crm") && (
               <NavButton
                 icon={<UsersRound />}
-                label="Movement CRM"
+                label={t("campaignAdmin.nav.movementCrm")}
                 tab="movement"
                 activeTab={activeTab}
                 onClick={requestTabChange}
@@ -1055,7 +1057,7 @@ export function AppShell({
             {canUseGrowthEngine && (
               <NavButton
                 icon={<TrendingUp />}
-                label="Growth Engine"
+                label={t("campaignAdmin.nav.growthEngine")}
                 tab="growth"
                 activeTab={activeTab}
                 onClick={requestTabChange}
@@ -1064,7 +1066,7 @@ export function AppShell({
             {hasWorkspaceFeature("field_collection") && (
               <NavButton
                 icon={<FileScan />}
-                label="Field Collection"
+                label={t("campaignAdmin.nav.fieldCollection")}
                 tab="scans"
                 activeTab={activeTab}
                 onClick={requestTabChange}
@@ -1073,7 +1075,7 @@ export function AppShell({
             {canUseReports && (
               <NavButton
                 icon={<FileText />}
-                label="Reports"
+                label={t("campaignAdmin.nav.reports")}
                 tab="reports"
                 activeTab={activeTab}
                 onClick={requestTabChange}
@@ -1082,7 +1084,7 @@ export function AppShell({
             {hasWorkspaceFeature("communication_hub") && (
               <NavButton
                 icon={<MessageCircle />}
-                label="Engagement"
+                label={t("campaignAdmin.nav.engagement")}
                 tab="engagement"
                 activeTab={activeTab}
                 onClick={requestTabChange}
@@ -1091,7 +1093,7 @@ export function AppShell({
             {hasWorkspaceFeature("roles") && (
               <NavButton
                 icon={<ShieldCheck />}
-                label="Activity"
+                label={t("campaignAdmin.nav.activity")}
                 tab="activity"
                 activeTab={activeTab}
                 onClick={requestTabChange}
@@ -1117,9 +1119,9 @@ export function AppShell({
             )}
           </nav>
           <div className="sidebar-card">
-            <span className="eyebrow">Current plan</span>
+            <span className="eyebrow">{t("campaignAdmin.shell.currentPlan")}</span>
             <strong>{organization.plan}</strong>
-            <small>{organization.monthlySignatureLimit.toLocaleString()} signatures/month</small>
+            <small>{organization.monthlySignatureLimit.toLocaleString()} {t("campaignAdmin.shell.signaturesPerMonth")}</small>
             <small>{backendMessage}</small>
           </div>
         </aside>
@@ -1134,7 +1136,7 @@ export function AppShell({
             <div className="topbar-context">
               <span className="eyebrow">
                 {isCampaignAdminRoute
-                  ? "Campaign Administration"
+                  ? t("campaignAdmin.shell.administration")
                   : activeTab === "saas"
                     ? "SaaS Administration"
                     : "Selected campaign"}
@@ -1175,14 +1177,14 @@ export function AppShell({
                   type="button"
                   onClick={requestCreateCampaign}
                 >
-                  <Plus size={18} /> New campaign
+                  <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
                 </button>
                 <button
                   className="secondary-button"
                   type="button"
                   onClick={onLogoutCampaignAdmin}
                 >
-                  Logout campaign admin
+                  {t("campaignAdmin.actions.logout")}
                 </button>
               </div>
             ) : (
@@ -1374,8 +1376,8 @@ export function AppShell({
               />
             ) : (
               <div className="empty-state compact-empty">
-                <span className="eyebrow">No campaign data</span>
-                <h2>No public campaign yet</h2>
+                <span className="eyebrow">{t("campaignAdmin.empty.noData")}</span>
+                <h2>{t("campaignAdmin.empty.noPublicCampaign")}</h2>
                 <p>
                   Create and publish a campaign before collecting signatures from the public page.
                 </p>
@@ -1498,7 +1500,7 @@ export function AppShell({
         </motion.main>
       </div>
       {aiCopilotOpen && (
-        <Suspense fallback={<div className="empty-state compact-empty">Loading AI Campaign Copilot...</div>}>
+        <Suspense fallback={<div className="empty-state compact-empty">{t("campaignAdmin.common.loadingAi")}</div>}>
           <AiCampaignCopilot
             campaignDraft={campaignDraft}
             onApplyAiDraft={applyAiDraftToCampaign}

@@ -4,6 +4,7 @@ interface PlanCardProps {
   features: string[];
   highlighted?: boolean;
   actionLabel?: string;
+  displayActionLabel?: string;
   onSelect?: () => void;
 }
 
@@ -13,6 +14,7 @@ export function PlanCard({
   features,
   highlighted,
   actionLabel,
+  displayActionLabel,
   onSelect
 }: PlanCardProps) {
   return (
@@ -30,7 +32,7 @@ export function PlanCard({
           type="button"
           onClick={onSelect}
         >
-          {actionLabel ?? "Select plan"}
+          {displayActionLabel ?? actionLabel ?? "Select plan"}
         </button>
       )}
     </div>

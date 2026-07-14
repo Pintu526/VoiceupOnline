@@ -501,18 +501,18 @@ export function AppShell({
 
   function getLockedTabMessage(tab: Tab): string {
     const messages: Partial<Record<Tab, string>> = {
-      command: "Command Center is available on Pro Movement or Enterprise plans.",
-      public: "Public signing is not enabled on the current plan.",
-      movement: "Movement CRM is available on Pro Movement or Enterprise plans.",
-      growth: "Campaign Growth Engine is available on Pro Movement or Enterprise plans.",
-      scans: "Field Collection is available on Growth, Pro Movement, or Enterprise plans.",
-      reports: "Reports are not enabled on the current plan.",
-      engagement: "Communication Hub is available on Growth, Pro Movement, or Enterprise plans.",
-      activity: "Activity and role audit views require an Enterprise roles plan.",
-      saas: "SaaS administration requires platform admin authentication.",
-      ideas: "Feature ideas require platform admin authentication."
+      command: t("settings.shell.locks.command"),
+      public: t("settings.shell.locks.public"),
+      movement: t("settings.shell.locks.movement"),
+      growth: t("settings.shell.locks.growth"),
+      scans: t("settings.shell.locks.scans"),
+      reports: t("settings.shell.locks.reports"),
+      engagement: t("settings.shell.locks.engagement"),
+      activity: t("settings.shell.locks.activity"),
+      saas: t("settings.shell.locks.saas"),
+      ideas: t("settings.shell.locks.ideas")
     };
-    return messages[tab] ?? "Upgrade the workspace plan to use this feature.";
+    return messages[tab] ?? t("settings.shell.locks.default");
   }
 
   function canAccessWorkspaceTab(tab: Tab): boolean {
@@ -535,12 +535,12 @@ export function AppShell({
     if (params.get("ai") === "1") {
       if (!canUseAiCopilot) {
         setOperationNotice({
-          title: "Upgrade plan required",
+          title: t("settings.shell.upgradeRequired"),
           description: "AI Copilot is available on Growth, Pro Movement, or Enterprise plans."
         });
       } else if (campaignCreationBlockReason) {
         setOperationNotice({
-          title: "Upgrade plan required",
+          title: t("settings.shell.upgradeRequired"),
           description: campaignCreationBlockReason
         });
       } else {
@@ -556,14 +556,14 @@ export function AppShell({
   function requestTabChange(tab: Tab) {
     if ((tab === "saas" || tab === "ideas") && !canAccessPlatformAdmin) {
       setOperationNotice({
-        title: "Platform admin access required",
-        description: "SaaS billing, packages, integrations, and global platform controls require platform admin authentication."
+          title: t("settings.shell.platformAccessRequired"),
+          description: t("settings.shell.platformAccessHelp")
       });
       return;
     }
     if (!canAccessWorkspaceTab(tab)) {
       setOperationNotice({
-        title: "Upgrade plan required",
+        title: t("settings.shell.upgradeRequired"),
         description: getLockedTabMessage(tab)
       });
       setActiveTab("dashboard");
@@ -1103,14 +1103,14 @@ export function AppShell({
               <>
                 <NavButton
                   icon={<WalletCards />}
-                  label="SaaS admin"
+                  label={t("settings.shell.saasAdmin")}
                   tab="saas"
                   activeTab={activeTab}
                   onClick={requestTabChange}
                 />
                 <NavButton
                   icon={<Sparkles />}
-                  label="Feature ideas"
+                  label={t("settings.shell.featureIdeas")}
                   tab="ideas"
                   activeTab={activeTab}
                   onClick={requestTabChange}
@@ -1138,8 +1138,8 @@ export function AppShell({
                 {isCampaignAdminRoute
                   ? t("campaignAdmin.shell.administration")
                   : activeTab === "saas"
-                    ? "SaaS Administration"
-                    : "Selected campaign"}
+                    ? t("settings.shell.saasAdministration")
+                    : t("campaignAdmin.shell.selectedCampaign")}
               </span>
               {isCampaignAdminRoute ? (
                 <strong>
@@ -1196,7 +1196,7 @@ export function AppShell({
                       type="button"
                       onClick={requestUpgradePlan}
                     >
-                      <WalletCards size={18} /> Upgrade Plan
+                      <WalletCards size={18} /> {t("settings.shell.upgradePlan")}
                     </button>
                   ) : (
                     <>
@@ -1206,7 +1206,7 @@ export function AppShell({
                           type="button"
                           onClick={requestAiCampaignCreation}
                         >
-                          <Sparkles size={18} /> Create with AI
+                          <Sparkles size={18} /> {t("campaignAdmin.studio.createWithAi")}
                         </button>
                       )}
                       <button
@@ -1214,7 +1214,7 @@ export function AppShell({
                         type="button"
                         onClick={requestCreateCampaign}
                       >
-                        <Plus size={18} /> New campaign
+                        <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
                       </button>
                     </>
                   ))}
@@ -1222,8 +1222,8 @@ export function AppShell({
                   className="secondary-button icon-button"
                   type="button"
                   onClick={() => setCommandOpen(true)}
-                  title="Open command palette (Ctrl/⌘ K)"
-                  aria-label="Open command palette"
+                  title={t("settings.shell.commandPaletteTitle")}
+                  aria-label={t("settings.shell.commandPalette")}
                 >
                   <Command size={18} />
                 </button>
@@ -1231,8 +1231,8 @@ export function AppShell({
                   className="secondary-button icon-button"
                   type="button"
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  title="Toggle theme"
-                  aria-label="Toggle color theme"
+                  title={t("settings.shell.toggleTheme")}
+                  aria-label={t("settings.shell.toggleColorTheme")}
                 >
                   {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
@@ -1242,7 +1242,7 @@ export function AppShell({
                     type="button"
                     onClick={onLogoutAppAdmin}
                   >
-                    Logout
+                    {t("settings.shell.logout")}
                   </button>
                 )}
               </div>

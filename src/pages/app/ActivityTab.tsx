@@ -1,16 +1,17 @@
 import { AlertTriangle, CheckCircle2, Clock3, ShieldCheck } from "lucide-react";
 import type { AuditLogEntry } from "../../types";
 import { Panel } from "../../ui/Panel";
+import { useTranslation } from "../../i18n/useTranslation";
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, t: (key: string) => string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1) return t("workspace.activity.justNow");
+  if (minutes < 60) return `${minutes}${t("workspace.activity.minutesAgo")}`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `${hours}${t("workspace.activity.hoursAgo")}`;
   const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return `${days}${t("workspace.activity.daysAgo")}`;
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
@@ -32,6 +33,7 @@ interface ActivityTabProps {
 }
 
 export function ActivityTab({ auditLogs }: ActivityTabProps) {
+  const { t } = useTranslation();
   const sortedLogs = [...auditLogs].sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
@@ -43,38 +45,35 @@ export function ActivityTab({ auditLogs }: ActivityTabProps) {
 
   return (
     <section className="page-stack">
-      <Panel title="Admin activity and audit log" icon={<ShieldCheck />}>
+      <Panel title={t("workspace.activity.title")} icon={<ShieldCheck />}>
         <div className="audit-summary-grid">
           <div className="audit-summary-card">
             <Clock3 size={20} />
-            <span>Total events</span>
+            <span>{t("workspace.activity.totalEvents")}</span>
             <strong>{sortedLogs.length.toLocaleString()}</strong>
           </div>
           <div className="audit-summary-card">
             <CheckCircle2 size={20} />
-            <span>Campaign events</span>
+            <span>{t("workspace.activity.campaignEvents")}</span>
             <strong>{campaignEvents.toLocaleString()}</strong>
           </div>
           <div className="audit-summary-card">
             <ShieldCheck size={20} />
-            <span>Location events</span>
+            <span>{t("workspace.activity.locationEvents")}</span>
             <strong>{locationEvents.toLocaleString()}</strong>
           </div>
           <div className="audit-summary-card">
             <AlertTriangle size={20} />
-            <span>Safety events</span>
+            <span>{t("workspace.activity.safetyEvents")}</span>
             <strong>{safetyEvents.toLocaleString()}</strong>
           </div>
         </div>
 
         {sortedLogs.length === 0 ? (
           <div className="empty-state compact-empty">
-            <span className="eyebrow">Audit ready</span>
-            <h2>No admin activity has been recorded yet.</h2>
-            <p>
-              Campaign saves, publishes, archive actions, integration updates, and location changes will appear here
-              after admins use the workspace.
-            </p>
+            <span className="eyebrow">{t("workspace.activity.auditReady")}</span>
+            <h2>{t("workspace.activity.emptyTitle")}</h2>
+            <p>{t("workspace.activity.emptyHelp")}</p>
           </div>
         ) : (
           <div className="activity-list">
@@ -85,7 +84,7 @@ export function ActivityTab({ auditLogs }: ActivityTabProps) {
                   <span>{getActionLabel(entry.action)}</span>
                   <div className="audit-chip-row">
                     <span>{entry.actor}</span>
-                    {entry.campaignId && <span>Campaign {entry.campaignId}</span>}
+                    {entry.campaignId && <span>{t("workspace.activity.campaign")} {entry.campaignId}</span>}
                     {entry.metadata &&
                       Object.entries(entry.metadata).slice(0, 3).map(([key, value]) => (
                         <span key={key}>{key}: {String(value)}</span>
@@ -94,7 +93,7 @@ export function ActivityTab({ auditLogs }: ActivityTabProps) {
                 </div>
                 <small>
                   <time dateTime={entry.createdAt} title={new Date(entry.createdAt).toLocaleString("en-IN")}>
-                    {relativeTime(entry.createdAt)}
+                    {relativeTime(entry.createdAt, t)}
                   </time>
                 </small>
               </div>

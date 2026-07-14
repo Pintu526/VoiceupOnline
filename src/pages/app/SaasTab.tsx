@@ -55,7 +55,8 @@ import {
   isFeatureIncludedInPlan,
   pricingFeatureCatalog
 } from "../../utils/subscription";
-import { getLocationGovernance, getLocationLevelLabel } from "../../utils/campaign";
+import { getLocationGovernance } from "../../utils/campaign";
+import { useTranslation } from "../../i18n/useTranslation";
 
 type SaasSection = "organization" | "usage" | "packages" | "integrations" | "plans";
 
@@ -82,14 +83,6 @@ interface SaasTabProps {
   onAuditIntegrationUpdate: () => void;
 }
 
-const saasTabs = [
-  { id: "organization", label: "Organization" },
-  { id: "usage", label: "Usage & subscription" },
-  { id: "packages", label: "Recharge packages" },
-  { id: "integrations", label: "Integrations" },
-  { id: "plans", label: "Pricing" }
-];
-
 type ProviderStatus = "Not configured" | "Test mode" | "Ready" | "Error";
 
 const providerStatuses: ProviderStatus[] = ["Not configured", "Test mode", "Ready", "Error"];
@@ -97,20 +90,20 @@ const providerStatuses: ProviderStatus[] = ["Not configured", "Test mode", "Read
 const aiProviderOptions = ["OpenAI", "Gemini", "Claude", "Azure OpenAI", "OpenRouter", "Local LLM"];
 
 const messagingProviderCards = [
-  { name: "SMS", icon: MessageSquare, detail: "Transactional alerts, campaign updates, and consent-aware supporter nudges." },
-  { name: "WhatsApp Business", icon: PhoneCall, detail: "Template messages, supporter updates, and volunteer coordination when provider is connected." },
-  { name: "Email", icon: Mail, detail: "Petition updates, press notes, receipts, and supporter newsletters." },
-  { name: "IVR", icon: PhoneCall, detail: "Voice call campaigns and verification flows. Available after setup." }
+  { name: "SMS", icon: MessageSquare, detailKey: "integrations.messaging.sms" },
+  { name: "WhatsApp Business", icon: PhoneCall, detailKey: "integrations.messaging.whatsapp" },
+  { name: "Email", icon: Mail, detailKey: "integrations.messaging.email" },
+  { name: "IVR", icon: PhoneCall, detailKey: "integrations.messaging.ivr" }
 ];
 
 const paymentProviderCards = [
-  { name: "Razorpay", detail: "India payment gateway readiness for cards, UPI, netbanking, and wallets." },
-  { name: "Stripe", detail: "Global cards, subscriptions, invoice references, and hosted checkout readiness." },
-  { name: "PayU", detail: "India checkout readiness for UPI, cards, netbanking, and wallet methods." },
-  { name: "UPI", detail: "Manual or provider-backed UPI collection references for prepaid wallet top-ups." },
-  { name: "Cards", detail: "Credit and debit card checkout method placeholder." },
-  { name: "NetBanking", detail: "Bank redirect method placeholder for supported payment providers." },
-  { name: "Wallets", detail: "Digital wallet method placeholder and prepaid signature balance reference." }
+  { name: "Razorpay", detailKey: "integrations.payments.razorpay" },
+  { name: "Stripe", detailKey: "integrations.payments.stripe" },
+  { name: "PayU", detailKey: "integrations.payments.payu" },
+  { name: "UPI", detailKey: "integrations.payments.upi" },
+  { name: "Cards", detailKey: "integrations.payments.cards" },
+  { name: "NetBanking", detailKey: "integrations.payments.netbanking" },
+  { name: "Wallets", detailKey: "integrations.payments.wallets" }
 ];
 
 const billingCadenceOptions: Array<{ value: BillingCadence; label: string }> = [
@@ -152,6 +145,14 @@ export function SaasTab({
   onApplyCommercialPackage,
   onAuditIntegrationUpdate
 }: SaasTabProps) {
+  const { t } = useTranslation();
+  const saasTabs = [
+    { id: "organization", label: t("settings.tabs.organization") },
+    { id: "usage", label: t("settings.tabs.usage") },
+    { id: "packages", label: t("settings.tabs.packages") },
+    { id: "integrations", label: t("settings.tabs.integrations") },
+    { id: "plans", label: t("settings.tabs.pricing") }
+  ];
   const [providerStatusByName, setProviderStatusByName] = useState<Record<string, ProviderStatus>>({});
   const [providerTestMessage, setProviderTestMessage] = useState("");
   const locationGovernance = getLocationGovernance(organization);
@@ -193,7 +194,7 @@ export function SaasTab({
   }
 
   function testProviderConnection(providerName: string) {
-    setProviderTestMessage(`${providerName} connection check is ready to configure. No external request was sent.`);
+    setProviderTestMessage(`${providerName}: ${t("integrations.testMessage")}`);
   }
 
   function updateFeatureAddOn(featureKey: string, enabled: boolean) {
@@ -222,16 +223,16 @@ export function SaasTab({
       />
 
       {saasSection === "organization" && (
-        <Panel title="Customer organization subscription" icon={<Building2 />}>
+        <Panel title={t("organization.subscriptionTitle")} icon={<Building2 />}>
           <form className="form-grid">
-            <Field label="Organization name">
+            <Field label={t("organization.name")}>
               <input
-                placeholder="Organization or customer name"
+                placeholder={t("organization.namePlaceholder")}
                 value={organization.name}
                 onChange={(e) => setOrganization({ ...organization, name: e.target.value })}
               />
             </Field>
-            <Field label="Owner email">
+            <Field label={t("organization.ownerEmail")}>
               <input
                 type="email"
                 placeholder="owner@example.org"
@@ -241,7 +242,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Billing email">
+            <Field label={t("organization.billingEmail")}>
               <input
                 type="email"
                 placeholder="billing@example.org"
@@ -251,7 +252,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Subscription plan">
+            <Field label={t("organization.subscriptionPlan")}>
               <select
                 value={currentPlan.name}
                 onChange={(e) => onSelectSubscriptionPlan(e.target.value as BillingPlan)}
@@ -261,7 +262,7 @@ export function SaasTab({
                 ))}
               </select>
             </Field>
-            <Field label="Subscription status">
+            <Field label={t("organization.subscriptionStatus")}>
               <select
                 value={organization.subscriptionStatus}
                 onChange={(e) =>
@@ -271,13 +272,13 @@ export function SaasTab({
                   })
                 }
               >
-                <option>Trial</option>
-                <option>Active</option>
-                <option>Past due</option>
-                <option>Cancelled</option>
+                <option value="Trial">{t("organization.status.trial")}</option>
+                <option value="Active">{t("organization.status.active")}</option>
+                <option value="Past due">{t("organization.status.pastDue")}</option>
+                <option value="Cancelled">{t("organization.status.cancelled")}</option>
               </select>
             </Field>
-            <Field label="Trial ends">
+            <Field label={t("organization.trialEnds")}>
               <input
                 type="date"
                 value={organization.trialEndsAt}
@@ -286,7 +287,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Team seats">
+            <Field label={t("organization.teamSeats")}>
               <input
                 type="number"
                 min="1"
@@ -296,7 +297,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Monthly signature limit">
+            <Field label={t("organization.monthlySignatureLimit")}>
               <input
                 type="number"
                 min="0"
@@ -309,7 +310,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Monthly scan limit">
+            <Field label={t("organization.monthlyScanLimit")}>
               <input
                 type="number"
                 min="0"
@@ -322,7 +323,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Monthly message limit">
+            <Field label={t("organization.monthlyMessageLimit")}>
               <input
                 type="number"
                 min="0"
@@ -335,7 +336,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Custom domain">
+            <Field label={t("organization.customDomain")}>
               <input
                 placeholder="campaigns.customer.in"
                 value={organization.customDomain}
@@ -344,9 +345,9 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Payment reference">
+            <Field label={t("organization.paymentReference")}>
               <input
-                placeholder="Stripe/customer reference"
+                placeholder={t("organization.paymentReferencePlaceholder")}
                 value={organization.paymentReference}
                 onChange={(e) =>
                   setOrganization({ ...organization, paymentReference: e.target.value })
@@ -361,14 +362,14 @@ export function SaasTab({
                   setOrganization({ ...organization, customBranding: e.target.checked })
                 }
               />
-              Enable custom branding for this organization
+              {t("organization.enableCustomBranding")}
             </label>
           </form>
         </Panel>
       )}
 
       {saasSection === "organization" && (
-        <Panel title="Location Governance" icon={<MapPin />}>
+        <Panel title={t("organization.locationGovernance")} icon={<MapPin />}>
           <div className="form-grid">
             <IndiaLocationFields
               idPrefix="saas-location-governance"
@@ -377,7 +378,7 @@ export function SaasTab({
               locationOverrides={locationOverrides}
               locationDeletions={locationDeletions}
             />
-            <Field label="Lock level">
+            <Field label={t("organization.lockLevel")}>
               <select
                 value={locationGovernance.lockLevel}
                 onChange={(event) =>
@@ -390,18 +391,17 @@ export function SaasTab({
                   })
                 }
               >
-                <option value="none">None</option>
-                <option value="state">State</option>
-                <option value="district">District</option>
-                <option value="block">Block</option>
-                <option value="panchayat">Panchayat/Ward</option>
+                <option value="none">{t("organization.location.none")}</option>
+                <option value="state">{t("organization.location.state")}</option>
+                <option value="district">{t("organization.location.district")}</option>
+                <option value="block">{t("organization.location.block")}</option>
+                <option value="panchayat">{t("organization.location.panchayat")}</option>
               </select>
             </Field>
             <div className="info-message wide geography-governance-summary">
-              <strong>Location Governance lock: {getLocationLevelLabel(locationGovernance.lockLevel)}</strong>
+              <strong>{t("organization.locationLock")}: {t(`organization.location.${locationGovernance.lockLevel}`)}</strong>
               <span>
-                Campaign admins can only configure campaigns inside the selected geography when
-                a lock level is active.
+                {t("organization.locationLockHelp")}
               </span>
             </div>
           </div>
@@ -409,58 +409,58 @@ export function SaasTab({
       )}
 
       {saasSection === "organization" && (
-        <Panel title="Organization Workspace" icon={<ShieldCheck />}>
+        <Panel title={t("workspace.organizationWorkspace")} icon={<ShieldCheck />}>
           <div className="workspace-grid">
             <div className="workspace-card">
               <Building2 size={22} />
-              <span className="eyebrow">Workspace profile</span>
-              <strong>{organization.name || "Unnamed workspace"}</strong>
-              <p>{organization.ownerEmail || "Add owner email"} - {organization.seats} seats</p>
+              <span className="eyebrow">{t("workspace.profile")}</span>
+              <strong>{organization.name || t("workspace.unnamed")}</strong>
+              <p>{organization.ownerEmail || t("workspace.addOwnerEmail")} - {organization.seats} {t("workspace.seats")}</p>
             </div>
             <div className="workspace-card branding-preview">
               <ImageIcon size={22} />
-              <span className="eyebrow">Branding settings</span>
-              <strong>{organization.customBranding ? "Custom branding enabled" : "Default Voiceup branding"}</strong>
-              <p>Logo/banner preview and asset library are ready to configure.</p>
+              <span className="eyebrow">{t("workspace.brandingSettings")}</span>
+              <strong>{t(organization.customBranding ? "workspace.customBrandingEnabled" : "workspace.defaultBranding")}</strong>
+              <p>{t("workspace.brandingHelp")}</p>
             </div>
             <div className="workspace-card">
               <UsersRound size={22} />
-              <span className="eyebrow">Roles and permissions</span>
-              <strong>Available after setup</strong>
-              <p>Platform owner, organization admin, campaign admin, reviewer, and viewer roles.</p>
+              <span className="eyebrow">{t("workspace.rolesPermissions")}</span>
+              <strong>{t("workspace.availableAfterSetup")}</strong>
+              <p>{t("workspace.rolesHelp")}</p>
             </div>
             <div className="workspace-card">
               <UsersRound size={22} />
-              <span className="eyebrow">Team members</span>
-              <strong>{organization.seats.toLocaleString()} seat capacity</strong>
-              <p>Invitation and member management UI placeholder.</p>
+              <span className="eyebrow">{t("workspace.teamMembers")}</span>
+              <strong>{organization.seats.toLocaleString()} {t("workspace.seatCapacity")}</strong>
+              <p>{t("workspace.teamHelp")}</p>
             </div>
             <div className="workspace-card">
               <ShieldCheck size={22} />
-              <span className="eyebrow">Audit log</span>
-              <strong>Available in Activity</strong>
-              <p>Workspace audit summary placeholder for future filtering.</p>
+              <span className="eyebrow">{t("workspace.auditLog")}</span>
+              <strong>{t("workspace.availableInActivity")}</strong>
+              <p>{t("workspace.auditHelp")}</p>
             </div>
             <div className="workspace-card">
               <WalletCards size={22} />
-              <span className="eyebrow">Billing readiness</span>
+              <span className="eyebrow">{t("workspace.billingReadiness")}</span>
               <strong>{organization.subscriptionStatus}</strong>
-              <p>Plan, usage, recharge packages, and subscription controls remain in existing tabs.</p>
+              <p>{t("workspace.billingHelp")}</p>
             </div>
           </div>
           <div className="white-label-readiness">
-            <span className="eyebrow">White-label readiness</span>
+            <span className="eyebrow">{t("workspace.whiteLabelReadiness")}</span>
             <div className="guided-checklist">
               {[
-                ["Custom domain", Boolean(organization.customDomain)],
-                ["Custom branding", organization.customBranding],
-                ["Owner email", Boolean(organization.ownerEmail)],
-                ["Location governance", Boolean(organization.locationGovernance?.lockLevel && organization.locationGovernance.lockLevel !== "none")],
-                ["Subscription active", organization.subscriptionStatus === "Active"]
-              ].map(([label, ready]) => (
-                <div className={ready ? "ready" : ""} key={String(label)}>
+                ["workspace.customDomain", Boolean(organization.customDomain)],
+                ["workspace.customBranding", organization.customBranding],
+                ["workspace.ownerEmail", Boolean(organization.ownerEmail)],
+                ["workspace.locationGovernance", Boolean(organization.locationGovernance?.lockLevel && organization.locationGovernance.lockLevel !== "none")],
+                ["workspace.subscriptionActive", organization.subscriptionStatus === "Active"]
+              ].map(([labelKey, ready]) => (
+                <div className={ready ? "ready" : ""} key={String(labelKey)}>
                   <ShieldCheck size={18} />
-                  <span>{label}</span>
+                  <span>{t(String(labelKey))}</span>
                 </div>
               ))}
             </div>
@@ -469,137 +469,125 @@ export function SaasTab({
       )}
 
       {saasSection === "organization" && (
-        <Panel title="Workspace management" icon={<Building2 />}>
+        <Panel title={t("workspace.management")} icon={<Building2 />}>
           <div className="workspace-management-hero">
             <div>
-              <span className="eyebrow">Workspace profile</span>
-              <h3>{organization.name || "Unnamed workspace"}</h3>
-              <p>
-                Manage the customer-facing workspace shell, brand readiness, team capacity, roles, billing posture,
-                and audit visibility from one admin surface.
-              </p>
+              <span className="eyebrow">{t("workspace.profile")}</span>
+              <h3>{organization.name || t("workspace.unnamed")}</h3>
+              <p>{t("workspace.managementHelp")}</p>
             </div>
             <div className="workspace-brand-preview">
               <div className="workspace-logo-preview">
                 {(organization.name || "V").slice(0, 1).toUpperCase()}
               </div>
-              <strong>{organization.customBranding ? "Custom brand ready" : "Default Voiceup brand"}</strong>
-              <small>{organization.customDomain || "No custom domain configured"}</small>
+              <strong>{t(organization.customBranding ? "workspace.customBrandReady" : "workspace.defaultBrand")}</strong>
+              <small>{organization.customDomain || t("workspace.noCustomDomain")}</small>
             </div>
           </div>
 
           <div className="workspace-management-grid">
             <article className="workspace-management-card">
               <ImageIcon size={22} />
-              <span className="eyebrow">Logo/banner preview</span>
-              <strong>{organization.name || "Voiceup workspace"}</strong>
+              <span className="eyebrow">{t("workspace.logoBannerPreview")}</span>
+              <strong>{organization.name || t("workspace.voiceupWorkspace")}</strong>
               <div className="workspace-banner-preview">
-                <span>{organization.customBranding ? "Custom branding enabled" : "Voiceup default banner"}</span>
+                <span>{t(organization.customBranding ? "workspace.customBrandingEnabled" : "workspace.defaultBanner")}</span>
               </div>
-              <p>Logo upload, banner asset library, and brand color controls are ready to configure.</p>
+              <p>{t("workspace.logoHelp")}</p>
             </article>
             <article className="workspace-management-card">
               <UsersRound size={22} />
-              <span className="eyebrow">Team members</span>
-              <strong>{organization.seats.toLocaleString()} seat capacity</strong>
-              <p>Invite, suspend, resend invite, and seat assignment workflows are placeholder UI.</p>
+              <span className="eyebrow">{t("workspace.teamMembers")}</span>
+              <strong>{organization.seats.toLocaleString()} {t("workspace.seatCapacity")}</strong>
+              <p>{t("workspace.memberActionsHelp")}</p>
               <div className="workspace-chip-row">
-                <span>Owner</span>
-                <span>Admin</span>
-                <span>Reviewer</span>
+                <span>{t("workspace.roles.owner")}</span>
+                <span>{t("workspace.roles.admin")}</span>
+                <span>{t("workspace.roles.reviewer")}</span>
               </div>
             </article>
             <article className="workspace-management-card">
               <ShieldCheck size={22} />
-              <span className="eyebrow">Roles and permissions</span>
-              <strong>Setup matrix</strong>
-              <p>Platform owner, organization admin, campaign admin, reviewer, viewer, and field volunteer roles.</p>
+              <span className="eyebrow">{t("workspace.rolesPermissions")}</span>
+              <strong>{t("workspace.setupMatrix")}</strong>
+              <p>{t("workspace.rolesMatrixHelp")}</p>
               <div className="workspace-chip-row">
-                <span>Create</span>
-                <span>Review</span>
-                <span>Publish</span>
-                <span>Export</span>
+                <span>{t("workspace.permissions.create")}</span>
+                <span>{t("workspace.permissions.review")}</span>
+                <span>{t("workspace.permissions.publish")}</span>
+                <span>{t("workspace.permissions.export")}</span>
               </div>
             </article>
             <article className="workspace-management-card">
               <ShieldCheck size={22} />
-              <span className="eyebrow">Audit log placeholder</span>
-              <strong>Activity tab connected</strong>
-              <p>Future filters: user, campaign, action, date range, export, and security alerts.</p>
+              <span className="eyebrow">{t("workspace.auditPlaceholder")}</span>
+              <strong>{t("workspace.activityConnected")}</strong>
+              <p>{t("workspace.futureFilters")}</p>
             </article>
             <article className="workspace-management-card">
               <WalletCards size={22} />
-              <span className="eyebrow">Billing and subscription</span>
+              <span className="eyebrow">{t("workspace.billingSubscription")}</span>
               <strong>{organization.plan} - {organization.subscriptionStatus}</strong>
-              <p>Usage, subscription controls, and recharge packages remain in existing SaaS admin tabs.</p>
+              <p>{t("workspace.billingTabsHelp")}</p>
             </article>
             <article className="workspace-management-card">
               <LockKeyhole size={22} />
-              <span className="eyebrow">White-label readiness</span>
+              <span className="eyebrow">{t("workspace.whiteLabelReadiness")}</span>
               <strong>
                 {[
                   Boolean(organization.customDomain),
                   organization.customBranding,
                   Boolean(organization.ownerEmail),
                   organization.subscriptionStatus === "Active"
-                ].filter(Boolean).length} / 4 ready
+                ].filter(Boolean).length} / 4 {t("workspace.ready")}
               </strong>
-              <p>Custom domain, custom branding, owner email, and active subscription readiness.</p>
+              <p>{t("workspace.whiteLabelHelp")}</p>
             </article>
           </div>
         </Panel>
       )}
 
       {saasSection === "organization" && (
-        <Panel title="Production safety, privacy, and backup readiness" icon={<LockKeyhole />}>
+        <Panel title={t("workspace.safetyPrivacyBackup")} icon={<LockKeyhole />}>
           <div className="workspace-grid">
             <div className="workspace-card">
               <Download size={22} />
-              <span className="eyebrow">Workspace export</span>
-              <strong>Available after setup</strong>
-              <p>
-                Backup package UI for campaigns, supporters, scans, authorities, and audit logs. No export job is
-                started from this card.
-              </p>
+              <span className="eyebrow">{t("workspace.export")}</span>
+              <strong>{t("workspace.availableAfterSetup")}</strong>
+              <p>{t("workspace.exportHelp")}</p>
             </div>
             <div className="workspace-card">
               <DatabaseBackup size={22} />
-              <span className="eyebrow">Recovery posture</span>
-              <strong>{campaigns.length.toLocaleString()} campaigns tracked</strong>
-              <p>
-                Existing data remains in the current workspace state. Automated snapshots require backend provider
-                wiring.
-              </p>
+              <span className="eyebrow">{t("workspace.recoveryPosture")}</span>
+              <strong>{campaigns.length.toLocaleString()} {t("workspace.campaignsTracked")}</strong>
+              <p>{t("workspace.recoveryHelp")}</p>
             </div>
             <div className="workspace-card">
               <ShieldCheck size={22} />
-              <span className="eyebrow">Consent coverage</span>
+              <span className="eyebrow">{t("workspace.consentCoverage")}</span>
               <strong>
                 {campaigns.filter((campaign) => campaign.consentText?.trim()).length.toLocaleString()} / {campaigns.length.toLocaleString()}
               </strong>
-              <p>Campaigns with visible public consent language configured.</p>
+              <p>{t("workspace.consentHelp")}</p>
             </div>
             <div className="workspace-card">
               <LockKeyhole size={22} />
-              <span className="eyebrow">Privacy settings</span>
-              <strong>UI foundation</strong>
-              <p>
-                Retention rules, data subject requests, and consent audit exports are available after
-                backend workflows exist.
-              </p>
+              <span className="eyebrow">{t("workspace.privacySettings")}</span>
+              <strong>{t("workspace.uiFoundation")}</strong>
+              <p>{t("workspace.privacyHelp")}</p>
             </div>
           </div>
           <div className="privacy-readiness-list">
             {[
-              ["Collect explicit public consent", campaigns.some((campaign) => campaign.consentText?.trim())],
-              ["Review communication consent before outreach", true],
-              ["Export/backup workflow connected", false],
-              ["Automated retention policy connected", false]
-            ].map(([label, ready]) => (
-              <div className={ready ? "ready" : ""} key={String(label)}>
+              ["workspace.privacy.explicitConsent", campaigns.some((campaign) => campaign.consentText?.trim())],
+              ["workspace.privacy.reviewConsent", true],
+              ["workspace.privacy.exportConnected", false],
+              ["workspace.privacy.retentionConnected", false]
+            ].map(([labelKey, ready]) => (
+              <div className={ready ? "ready" : ""} key={String(labelKey)}>
                 <ShieldCheck size={18} />
-                <span>{label}</span>
-                <strong>{ready ? "Ready" : "Available after setup"}</strong>
+                <span>{t(String(labelKey))}</span>
+                <strong>{t(ready ? "workspace.ready" : "workspace.availableAfterSetup")}</strong>
               </div>
             ))}
           </div>
@@ -607,63 +595,63 @@ export function SaasTab({
       )}
 
       {saasSection === "usage" && (
-        <Panel title="Subscription controls and usage" icon={<WalletCards />}>
+        <Panel title={t("settings.usage.title")} icon={<WalletCards />}>
           <div className="usage-grid">
             <UsageCard
-              label="Subscription status"
+              label={t("organization.subscriptionStatus")}
               value={organization.subscriptionStatus}
               detail={getSubscriptionStatusDetail(organization)}
             />
             <UsageCard
-              label="Active campaigns"
+              label={t("settings.usage.activeCampaigns")}
               value={`${getActiveCampaignCount(campaigns)} / ${formatPlanLimit(currentPlan.campaignLimit)}`}
-              detail="Published or paused campaigns counted against plan limit"
+              detail={t("settings.usage.activeCampaignsHelp")}
             />
             <UsageCard
-              label="Monthly signers"
+              label={t("settings.usage.monthlySigners")}
               value={`${getMonthlySignerCount(signers).toLocaleString()} / ${getEffectiveSignatureLimit(organization).toLocaleString()}`}
-              detail={`Base ${organization.monthlySignatureLimit.toLocaleString()} + extra ${(organization.bonusSignatureCredits ?? 0).toLocaleString()}`}
+              detail={`${t("settings.usage.base")} ${organization.monthlySignatureLimit.toLocaleString()} + ${t("settings.usage.extra")} ${(organization.bonusSignatureCredits ?? 0).toLocaleString()}`}
             />
             <UsageCard
-              label="Monthly scans"
+              label={t("settings.usage.monthlyScans")}
               value={`${getMonthlyScanCount(scanItems).toLocaleString()} / ${getEffectiveScanLimit(organization).toLocaleString()}`}
-              detail={`Base ${organization.monthlyScanLimit.toLocaleString()} + extra ${(organization.bonusScanCredits ?? 0).toLocaleString()}`}
+              detail={`${t("settings.usage.base")} ${organization.monthlyScanLimit.toLocaleString()} + ${t("settings.usage.extra")} ${(organization.bonusScanCredits ?? 0).toLocaleString()}`}
             />
             <UsageCard
-              label="Message credits"
+              label={t("settings.usage.messageCredits")}
               value={`${0} / ${getEffectiveMessageLimit(organization).toLocaleString()}`}
-              detail={`Base ${(organization.monthlyMessageLimit ?? 0).toLocaleString()} + extra ${(organization.bonusMessageCredits ?? 0).toLocaleString()}`}
+              detail={`${t("settings.usage.base")} ${(organization.monthlyMessageLimit ?? 0).toLocaleString()} + ${t("settings.usage.extra")} ${(organization.bonusMessageCredits ?? 0).toLocaleString()}`}
             />
           </div>
           <div className="subscription-status-grid">
             <div className="subscription-status-card">
               <ShieldCheck size={22} />
-              <span className="eyebrow">Current plan</span>
+              <span className="eyebrow">{t("settings.usage.currentPlan")}</span>
               <strong>{currentPlan.name}</strong>
-              <p>{currentPlan.description ?? "Plan details are ready for billing configuration."}</p>
+              <p>{currentPlan.description ?? t("settings.usage.planDetailsReady")}</p>
               <small>{organization.subscriptionStatus === "Trial" ? getTrialCountdownLabel(organization) : getSubscriptionStatusDetail(organization)}</small>
             </div>
             <div className="subscription-status-card">
               <WalletCards size={22} />
-              <span className="eyebrow">Prepaid signature wallet</span>
-              <strong>{walletCapacity.toLocaleString()} sign capacity</strong>
+              <span className="eyebrow">{t("settings.packages.wallet")}</span>
+              <strong>{walletCapacity.toLocaleString()} {t("settings.usage.signCapacity")}</strong>
               <p>
                 {organization.prepaidWalletEnabled
-                  ? `${formatInr(organization.signatureWalletBalanceInr ?? 0)} balance at ${formatInr(organization.signaturePriceInr ?? currentPlan.pricePerSignatureInr ?? 1)} per sign.`
-                  : "Wallet pricing is disabled until an admin enables it."}
+                  ? `${formatInr(organization.signatureWalletBalanceInr ?? 0)} ${t("settings.usage.balanceAt")} ${formatInr(organization.signaturePriceInr ?? currentPlan.pricePerSignatureInr ?? 1)} ${t("settings.usage.perSign")}.`
+                  : t("settings.usage.walletDisabled")}
               </p>
-              <small>No signer charge is processed from this UI.</small>
+              <small>{t("settings.usage.noSignerCharge")}</small>
             </div>
             <div className="subscription-status-card">
               <CreditCard size={22} />
-              <span className="eyebrow">Invoice placeholder</span>
+              <span className="eyebrow">{t("settings.usage.invoicePlaceholder")}</span>
               <strong>{invoiceReference}</strong>
               <p>{pricingEstimate.label}</p>
-              <small>Draft invoice only. Provider checkout is not active.</small>
+              <small>{t("settings.usage.draftInvoice")}</small>
             </div>
           </div>
           <div className="form-grid">
-            <Field label="Extra signature credits">
+            <Field label={t("settings.usage.extraSignatureCredits")}>
               <input
                 type="number"
                 min="0"
@@ -676,7 +664,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Extra scan credits">
+            <Field label={t("settings.usage.extraScanCredits")}>
               <input
                 type="number"
                 min="0"
@@ -689,7 +677,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Extra message credits">
+            <Field label={t("settings.usage.extraMessageCredits")}>
               <input
                 type="number"
                 min="0"
@@ -705,24 +693,24 @@ export function SaasTab({
           </div>
           <div className="button-row">
             <button className="secondary-button" type="button" onClick={onStartOneDayTrial}>
-              Start 1-day trial
+              {t("settings.usage.startTrial")}
             </button>
             <button
               className="primary-button"
               type="button"
               onClick={onActivateSubscriptionManually}
             >
-              Manually activate subscription
+              {t("settings.usage.activateManually")}
             </button>
             <button
               className="secondary-button"
               type="button"
               onClick={onMarkSubscriptionPastDue}
             >
-              Mark past due
+              {t("settings.usage.markPastDue")}
             </button>
             <button className="secondary-button" type="button" onClick={onCancelSubscription}>
-              Cancel
+              {t("common.cancel")}
             </button>
           </div>
           {getSubscriptionBlockReason(organization) && (
@@ -732,7 +720,7 @@ export function SaasTab({
       )}
 
       {saasSection === "packages" && (
-        <Panel title="Recharge packages and pricing controls" icon={<WalletCards />}>
+        <Panel title={t("settings.packages.title")} icon={<WalletCards />}>
           <div className="package-grid">
             {commercialPackages.map((pkg) => (
               <div className="package-card" key={pkg.id}>
@@ -748,9 +736,9 @@ export function SaasTab({
                       )
                     }
                   />
-                  Active
+                  {t("settings.packages.active")}
                 </label>
-                <Field label="Package name">
+                <Field label={t("settings.packages.packageName")}>
                   <input
                     value={pkg.name}
                     onChange={(e) =>
@@ -762,7 +750,7 @@ export function SaasTab({
                     }
                   />
                 </Field>
-                <Field label="Price INR">
+                <Field label={t("settings.packages.priceInr")}>
                   <input
                     type="number"
                     min="0"
@@ -779,9 +767,9 @@ export function SaasTab({
                   />
                 </Field>
                 <div className="package-credit-row">
-                  <span>Signatures: {pkg.signatureCredits.toLocaleString()}</span>
-                  <span>Scans: {pkg.scanCredits.toLocaleString()}</span>
-                  <span>Messages: {pkg.messageCredits.toLocaleString()}</span>
+                  <span>{t("settings.packages.signatures")}: {pkg.signatureCredits.toLocaleString()}</span>
+                  <span>{t("settings.packages.scans")}: {pkg.scanCredits.toLocaleString()}</span>
+                  <span>{t("settings.packages.messages")}: {pkg.messageCredits.toLocaleString()}</span>
                 </div>
                 <p>{pkg.description}</p>
                 <button
@@ -789,23 +777,19 @@ export function SaasTab({
                   type="button"
                   onClick={() => onApplyCommercialPackage(pkg)}
                 >
-                  Grant package credits
+                  {t("settings.packages.grantCredits")}
                 </button>
               </div>
             ))}
           </div>
           <p className="info-message">
-            Use these for manual UPI/bank payment operations now. After payment is received, click
-            Grant package credits. Later this can connect to Razorpay webhooks automatically.
+            {t("settings.packages.manualPaymentHelp")}
           </p>
           <div className="wallet-config-panel">
             <div>
-              <span className="eyebrow">Prepaid signature wallet</span>
-              <h3>Configurable price per one sign</h3>
-              <p>
-                Configure a prepaid balance and unique PIN reference for online payment, cash, or donation credit.
-                This is accounting setup UI only.
-              </p>
+              <span className="eyebrow">{t("settings.packages.wallet")}</span>
+              <h3>{t("settings.packages.configurablePrice")}</h3>
+              <p>{t("settings.packages.walletHelp")}</p>
             </div>
             <div className="form-grid">
               <label className="check-row wide">
@@ -816,9 +800,9 @@ export function SaasTab({
                     setOrganization({ ...organization, prepaidWalletEnabled: e.target.checked })
                   }
                 />
-                Enable prepaid signature wallet for this organization
+                {t("settings.packages.enableWallet")}
               </label>
-              <Field label="Collection mode">
+              <Field label={t("settings.packages.collectionMode")}>
                 <select
                   value={organization.prepaidWalletMode ?? "online_payment"}
                   onChange={(e) =>
@@ -829,11 +813,11 @@ export function SaasTab({
                   }
                 >
                   {prepaidWalletModes.map((mode) => (
-                    <option key={mode.value} value={mode.value}>{mode.label}</option>
+                    <option key={mode.value} value={mode.value}>{t(`settings.packages.modes.${mode.value}`)}</option>
                   ))}
                 </select>
               </Field>
-              <Field label="Price per one sign">
+              <Field label={t("settings.packages.pricePerSign")}>
                 <input
                   type="number"
                   min="0"
@@ -844,7 +828,7 @@ export function SaasTab({
                   }
                 />
               </Field>
-              <Field label="Wallet balance">
+              <Field label={t("settings.packages.walletBalance")}>
                 <input
                   type="number"
                   min="0"
@@ -854,7 +838,7 @@ export function SaasTab({
                   }
                 />
               </Field>
-              <Field label="PIN prefix">
+              <Field label={t("settings.packages.pinPrefix")}>
                 <input
                   value={organization.signaturePinPrefix ?? "VUP"}
                   onChange={(e) =>
@@ -865,17 +849,17 @@ export function SaasTab({
             </div>
             <div className="wallet-summary-grid">
               <div>
-                <span className="eyebrow">Estimated signs</span>
+                <span className="eyebrow">{t("settings.packages.estimatedSigns")}</span>
                 <strong>{walletCapacity.toLocaleString()}</strong>
-                <small>Balance divided by configured per-sign price.</small>
+                <small>{t("settings.packages.balanceHelp")}</small>
               </div>
               <div>
-                <span className="eyebrow">Last generated PIN</span>
-                <strong>{organization.lastSignaturePin ?? "Not generated"}</strong>
-                <small>Use after verified online payment, cash receipt, or donation credit.</small>
+                <span className="eyebrow">{t("settings.packages.lastPin")}</span>
+                <strong>{organization.lastSignaturePin ?? t("settings.packages.notGenerated")}</strong>
+                <small>{t("settings.packages.pinHelp")}</small>
               </div>
               <button className="secondary-button" type="button" onClick={generateSignatureWalletPin}>
-                Generate PIN reference
+                {t("settings.packages.generatePin")}
               </button>
             </div>
           </div>
@@ -883,21 +867,18 @@ export function SaasTab({
       )}
 
       {saasSection === "integrations" && (
-        <Panel title="Production integrations" icon={<Settings />}>
+        <Panel title={t("integrations.title")} icon={<Settings />}>
           <div className="integration-readiness-hero">
             <div>
-              <span className="eyebrow">Integration readiness layer</span>
-              <h3>Configure providers without enabling real sending by default.</h3>
-              <p>
-                Use this screen to prepare AI, messaging, payment, donation, and storage providers. Test buttons are
-                placeholders and do not call external services.
-              </p>
+              <span className="eyebrow">{t("integrations.readiness")}</span>
+              <h3>{t("integrations.configureSafely")}</h3>
+              <p>{t("integrations.intro")}</p>
             </div>
             <div className="integration-status-card">
               <ShieldCheck size={22} />
-              <span>Default mode</span>
-              <strong>Disabled</strong>
-              <small>No SMS, WhatsApp, email, IVR, payment, donation, or AI request is sent from this readiness UI.</small>
+              <span>{t("integrations.defaultMode")}</span>
+              <strong>{t("integrations.status.disabled")}</strong>
+              <small>{t("integrations.noRequests")}</small>
             </div>
           </div>
 
@@ -905,22 +886,22 @@ export function SaasTab({
             <div className="provider-section-heading">
               <Bot size={22} />
               <div>
-                <h4>AI provider settings</h4>
-                <p>AI settings are ready for future OpenAI, Gemini, Claude, Azure OpenAI, OpenRouter, and local LLM use.</p>
+                <h4>{t("integrations.aiTitle")}</h4>
+                <p>{t("integrations.aiHelp")}</p>
               </div>
             </div>
             <div className="provider-card-grid">
               {aiProviderOptions.map((provider) => (
                 <div className="provider-readiness-card" key={provider}>
                   <span className="eyebrow">{provider}</span>
-                  <strong>{getProviderStatus(provider)}</strong>
+                  <strong>{t(`integrations.status.${getProviderStatus(provider).replace(/\s/g, "").toLowerCase()}`)}</strong>
                   <label>
-                    Provider status
+                    {t("integrations.providerStatus")}
                     <select
                       value={getProviderStatus(provider)}
                       onChange={(e) => updateProviderStatus(provider, e.target.value as ProviderStatus)}
                     >
-                      {providerStatuses.map((status) => <option key={status}>{status}</option>)}
+                      {providerStatuses.map((status) => <option key={status} value={status}>{t(`integrations.status.${status.replace(/\s/g, "").toLowerCase()}`)}</option>)}
                     </select>
                   </label>
                   <button
@@ -928,9 +909,9 @@ export function SaasTab({
                     type="button"
                     onClick={() => testProviderConnection(provider)}
                   >
-                    <FlaskConical size={16} /> Test connection
+                    <FlaskConical size={16} /> {t("integrations.testConnection")}
                   </button>
-                  <small>API keys must live server-side. No real AI API is connected here.</small>
+                  <small>{t("integrations.apiKeysHelp")}</small>
                 </div>
               ))}
             </div>
@@ -940,29 +921,29 @@ export function SaasTab({
             <div className="provider-section-heading">
               <MessageSquare size={22} />
               <div>
-                <h4>Messaging provider settings</h4>
-                <p>Prepare consent-aware SMS, WhatsApp Business, Email, and IVR without sending messages.</p>
+                <h4>{t("integrations.messagingTitle")}</h4>
+                <p>{t("integrations.messagingHelp")}</p>
               </div>
             </div>
             <div className="provider-card-grid">
-              {messagingProviderCards.map(({ name, icon: Icon, detail }) => (
+              {messagingProviderCards.map(({ name, icon: Icon, detailKey }) => (
                 <div className="provider-readiness-card" key={name}>
                   <Icon size={22} />
                   <span className="eyebrow">{name}</span>
-                  <strong>{getProviderStatus(name)}</strong>
+                  <strong>{t(`integrations.status.${getProviderStatus(name).replace(/\s/g, "").toLowerCase()}`)}</strong>
                   <label>
-                    Provider status
+                    {t("integrations.providerStatus")}
                     <select
                       value={getProviderStatus(name)}
                       onChange={(e) => updateProviderStatus(name, e.target.value as ProviderStatus)}
                     >
-                      {providerStatuses.map((status) => <option key={status}>{status}</option>)}
+                      {providerStatuses.map((status) => <option key={status} value={status}>{t(`integrations.status.${status.replace(/\s/g, "").toLowerCase()}`)}</option>)}
                     </select>
                   </label>
                   <button className="secondary-button" type="button" onClick={() => testProviderConnection(name)}>
-                    <FlaskConical size={16} /> Test connection
+                    <FlaskConical size={16} /> {t("integrations.testConnection")}
                   </button>
-                  <small>{detail}</small>
+                  <small>{t(detailKey)}</small>
                 </div>
               ))}
             </div>
@@ -972,8 +953,8 @@ export function SaasTab({
             <div className="provider-section-heading">
               <CreditCard size={22} />
               <div>
-                <h4>Payment setup cards</h4>
-                <p>Prepare checkout methods for subscriptions, invoices, donations, and prepaid signature wallet top-ups.</p>
+                <h4>{t("integrations.paymentTitle")}</h4>
+                <p>{t("integrations.paymentHelp")}</p>
               </div>
             </div>
             <div className="provider-card-grid">
@@ -981,14 +962,14 @@ export function SaasTab({
                 <div className="provider-readiness-card" key={provider.name}>
                   <CreditCard size={22} />
                   <span className="eyebrow">{provider.name}</span>
-                  <strong>{getProviderStatus(provider.name)}</strong>
+                  <strong>{t(`integrations.status.${getProviderStatus(provider.name).replace(/\s/g, "").toLowerCase()}`)}</strong>
                   <label>
-                    Provider status
+                    {t("integrations.providerStatus")}
                     <select
                       value={getProviderStatus(provider.name)}
                       onChange={(e) => updateProviderStatus(provider.name, e.target.value as ProviderStatus)}
                     >
-                      {providerStatuses.map((status) => <option key={status}>{status}</option>)}
+                      {providerStatuses.map((status) => <option key={status} value={status}>{t(`integrations.status.${status.replace(/\s/g, "").toLowerCase()}`)}</option>)}
                     </select>
                   </label>
                   <button
@@ -996,9 +977,9 @@ export function SaasTab({
                     type="button"
                     onClick={() => testProviderConnection(provider.name)}
                   >
-                    <FlaskConical size={16} /> Test connection
+                    <FlaskConical size={16} /> {t("integrations.testConnection")}
                   </button>
-                  <small>{provider.detail} No real payment request is sent.</small>
+                  <small>{t(provider.detailKey)} {t("integrations.noPaymentRequest")}</small>
                 </div>
               ))}
             </div>
@@ -1008,29 +989,32 @@ export function SaasTab({
             {[
               {
                 name: "Payment and donation",
+                label: t("integrations.cards.paymentDonation"),
                 icon: CreditCard,
                 status: integrations.razorpayKeyId ? "Test mode" : "Not configured",
-                detail: "Razorpay and donation provider setup remains configuration-only unless existing payment logic is connected."
+                detail: t("integrations.cards.paymentDonationHelp")
               },
               {
                 name: "File storage",
+                label: t("integrations.cards.fileStorage"),
                 icon: HardDrive,
                 status: integrations.storageProvider === "Not configured" ? "Not configured" : "Test mode",
-                detail: "Storage references can be prepared here; secrets and upload providers must stay server-side."
+                detail: t("integrations.cards.fileStorageHelp")
               },
               {
                 name: "Compliance guardrails",
+                label: t("integrations.cards.compliance"),
                 icon: LockKeyhole,
                 status: "Ready",
-                detail: "Review consent, opt-out, retention, and provider contracts before enabling any outbound workflow."
+                detail: t("integrations.cards.complianceHelp")
               }
-            ].map(({ name, icon: Icon, status, detail }) => (
+            ].map(({ name, label, icon: Icon, status, detail }) => (
               <div className="provider-readiness-card" key={name}>
                 <Icon size={22} />
-                <span className="eyebrow">{name}</span>
-                <strong>{status}</strong>
+                <span className="eyebrow">{label}</span>
+                <strong>{t(`integrations.status.${status.replace(/\s/g, "").toLowerCase()}`)}</strong>
                 <button className="secondary-button" type="button" onClick={() => testProviderConnection(name)}>
-                  <FlaskConical size={16} /> Test connection
+                  <FlaskConical size={16} /> {t("integrations.testConnection")}
                 </button>
                 <small>{detail}</small>
               </div>
@@ -1042,16 +1026,13 @@ export function SaasTab({
           <div className="consent-compliance-card">
             <LockKeyhole size={22} />
             <div>
-              <strong>Consent and compliance reminder</strong>
-              <p>
-                Keep providers disabled until opt-in consent, unsubscribe handling, data retention, and authority to
-                contact supporters are reviewed for each campaign.
-              </p>
+              <strong>{t("integrations.consentReminder")}</strong>
+              <p>{t("integrations.consentHelp")}</p>
             </div>
           </div>
 
           <form className="form-grid">
-            <Field label="Razorpay key ID">
+            <Field label={t("integrations.fields.razorpayKey")}>
               <input
                 placeholder="rzp_live_xxxxx"
                 value={integrations.razorpayKeyId}
@@ -1061,7 +1042,7 @@ export function SaasTab({
                 onBlur={onAuditIntegrationUpdate}
               />
             </Field>
-            <Field label="Razorpay plan/reference">
+            <Field label={t("integrations.fields.razorpayReference")}>
               <input
                 value={integrations.razorpayPlanReference}
                 onChange={(e) =>
@@ -1069,7 +1050,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="WhatsApp provider">
+            <Field label={t("integrations.fields.whatsappProvider")}>
               <select
                 value={integrations.whatsappProvider}
                 onChange={(e) =>
@@ -1088,11 +1069,11 @@ export function SaasTab({
                   "Twilio",
                   "Airtel IQ"
                 ].map((provider) => (
-                  <option key={provider}>{provider}</option>
+                  <option key={provider} value={provider}>{provider === "Not configured" ? t("integrations.status.notconfigured") : provider}</option>
                 ))}
               </select>
             </Field>
-            <Field label="WhatsApp sender ID">
+            <Field label={t("integrations.fields.whatsappSender")}>
               <input
                 value={integrations.whatsappSenderId}
                 onChange={(e) =>
@@ -1100,7 +1081,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="SMS provider">
+            <Field label={t("integrations.fields.smsProvider")}>
               <select
                 value={integrations.smsProvider}
                 onChange={(e) =>
@@ -1112,12 +1093,12 @@ export function SaasTab({
               >
                 {["Not configured", "MSG91", "Gupshup", "Twilio", "Airtel IQ"].map(
                   (provider) => (
-                    <option key={provider}>{provider}</option>
+                    <option key={provider} value={provider}>{provider === "Not configured" ? t("integrations.status.notconfigured") : provider}</option>
                   )
                 )}
               </select>
             </Field>
-            <Field label="SMS sender ID">
+            <Field label={t("integrations.fields.smsSender")}>
               <input
                 value={integrations.smsSenderId}
                 onChange={(e) =>
@@ -1125,7 +1106,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Email provider">
+            <Field label={t("integrations.fields.emailProvider")}>
               <select
                 value={integrations.emailProvider}
                 onChange={(e) =>
@@ -1136,11 +1117,11 @@ export function SaasTab({
                 }
               >
                 {["Not configured", "Resend", "SendGrid", "Amazon SES"].map((provider) => (
-                  <option key={provider}>{provider}</option>
+                  <option key={provider} value={provider}>{provider === "Not configured" ? t("integrations.status.notconfigured") : provider}</option>
                 ))}
               </select>
             </Field>
-            <Field label="Sender email">
+            <Field label={t("integrations.fields.senderEmail")}>
               <input
                 value={integrations.emailSender}
                 onChange={(e) =>
@@ -1148,7 +1129,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Storage provider">
+            <Field label={t("integrations.fields.storageProvider")}>
               <select
                 value={integrations.storageProvider}
                 onChange={(e) =>
@@ -1159,11 +1140,11 @@ export function SaasTab({
                 }
               >
                 {["Supabase Storage", "AWS S3", "Not configured"].map((provider) => (
-                  <option key={provider}>{provider}</option>
+                  <option key={provider} value={provider}>{provider === "Not configured" ? t("integrations.status.notconfigured") : provider}</option>
                 ))}
               </select>
             </Field>
-            <Field label="Storage bucket">
+            <Field label={t("integrations.fields.storageBucket")}>
               <input
                 value={integrations.storageBucket}
                 onChange={(e) =>
@@ -1171,7 +1152,7 @@ export function SaasTab({
                 }
               />
             </Field>
-            <Field label="Analytics provider">
+            <Field label={t("integrations.fields.analyticsProvider")}>
               <select
                 value={integrations.analyticsProvider}
                 onChange={(e) =>
@@ -1184,12 +1165,12 @@ export function SaasTab({
               >
                 {["Not configured", "Vercel Analytics", "PostHog", "Plausible"].map(
                   (provider) => (
-                    <option key={provider}>{provider}</option>
+                    <option key={provider} value={provider}>{provider === "Not configured" ? t("integrations.status.notconfigured") : provider}</option>
                   )
                 )}
               </select>
             </Field>
-            <Field label="Analytics key">
+            <Field label={t("integrations.fields.analyticsKey")}>
               <input
                 value={integrations.analyticsKey}
                 onChange={(e) =>
@@ -1199,19 +1180,18 @@ export function SaasTab({
             </Field>
           </form>
           <p className="info-message">
-            Store provider secrets in Vercel server-side environment variables. These fields are
-            operational references for admins, not a place for private API secrets.
+            {t("integrations.secretsHelp")}
           </p>
         </Panel>
       )}
 
       {saasSection === "plans" && (
         <>
-          <Panel title="Dynamic price calculator" icon={<CreditCard />}>
+          <Panel title={t("settings.plans.calculatorTitle")} icon={<CreditCard />}>
             <div className="pricing-calculator-grid">
               <div className="pricing-controls">
                 <div className="form-grid">
-                  <Field label="Plan">
+                  <Field label={t("settings.plans.plan")}>
                     <select
                       value={currentPlan.name}
                       onChange={(e) => onSelectSubscriptionPlan(e.target.value as BillingPlan)}
@@ -1221,7 +1201,7 @@ export function SaasTab({
                       ))}
                     </select>
                   </Field>
-                  <Field label="Pricing model">
+                  <Field label={t("settings.plans.pricingModel")}>
                     <select
                       value={organization.billingCadence ?? "monthly"}
                       onChange={(e) =>
@@ -1232,11 +1212,11 @@ export function SaasTab({
                       }
                     >
                       {billingCadenceOptions.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
+                        <option key={option.value} value={option.value}>{t(`settings.plans.cadence.${option.value}`)}</option>
                       ))}
                     </select>
                   </Field>
-                  <Field label="Campaign duration days">
+                  <Field label={t("settings.plans.durationDays")}>
                     <input
                       type="number"
                       min="1"
@@ -1246,7 +1226,7 @@ export function SaasTab({
                       }
                     />
                   </Field>
-                  <Field label="Supporter estimate">
+                  <Field label={t("settings.plans.supporterEstimate")}>
                     <input
                       type="number"
                       min="0"
@@ -1272,8 +1252,8 @@ export function SaasTab({
                           <strong>{feature.label}</strong>
                           <small>
                             {included
-                              ? `Included in ${currentPlan.name}`
-                              : `${formatInr(feature.addOnPriceInr)} add-on or upgrade to ${feature.includedFrom}`}
+                              ? `${t("settings.plans.includedIn")} ${currentPlan.name}`
+                              : `${formatInr(feature.addOnPriceInr)} ${t("settings.plans.addOnOrUpgrade")} ${feature.includedFrom}`}
                           </small>
                         </span>
                       </label>
@@ -1282,9 +1262,9 @@ export function SaasTab({
                 </div>
               </div>
               <div className="pricing-estimate-card">
-                <span className="eyebrow">Estimated quote</span>
+                <span className="eyebrow">{t("settings.plans.estimatedQuote")}</span>
                 <strong>{pricingEstimate.label}</strong>
-                <p>{pricingEstimate.cadenceLabel} pricing for {currentPlan.name}</p>
+                <p>{pricingEstimate.cadenceLabel} {t("settings.plans.pricingFor")} {currentPlan.name}</p>
                 <ul>
                   {pricingEstimate.lineItems.map((item) => (
                     <li key={item}>{item}</li>
@@ -1292,13 +1272,13 @@ export function SaasTab({
                 </ul>
                 <div className="button-row">
                   <button className="primary-button" type="button" onClick={onActivateSubscriptionManually}>
-                    Mark subscription ready
+                    {t("settings.plans.markReady")}
                   </button>
                   <button className="secondary-button" type="button" onClick={() => testProviderConnection("Checkout")}>
-                    Configure checkout
+                    {t("settings.plans.configureCheckout")}
                   </button>
                 </div>
-                <small>No checkout, charge, webhook, or payment provider request is executed here.</small>
+                <small>{t("settings.plans.noCheckout")}</small>
               </div>
             </div>
           </Panel>
@@ -1310,46 +1290,47 @@ export function SaasTab({
                 title={plan.name}
                 price={plan.price}
                 features={[
-                  `${formatPlanLimit(plan.campaignLimit)} campaign${plan.campaignLimit === 1 ? "" : "s"}`,
-                  `${formatPlanLimit(plan.supporterLimit)} supporter limit`,
-                  `${plan.monthlySignatureLimit.toLocaleString()} signatures/month`,
-                  `${plan.monthlyMessageLimit.toLocaleString()} messages/month`,
-                  plan.voiceupBranding ? "Voiceup branding" : "Custom branding available",
-                  plan.providerReadyIntegrations ? "Integrations available" : "Upgrade for integrations",
+                  `${formatPlanLimit(plan.campaignLimit)} ${t(plan.campaignLimit === 1 ? "settings.plans.campaign" : "settings.plans.campaigns")}`,
+                  `${formatPlanLimit(plan.supporterLimit)} ${t("settings.plans.supporterLimit")}`,
+                  `${plan.monthlySignatureLimit.toLocaleString()} ${t("settings.plans.signaturesMonth")}`,
+                  `${plan.monthlyMessageLimit.toLocaleString()} ${t("settings.plans.messagesMonth")}`,
+                  t(plan.voiceupBranding ? "settings.plans.voiceupBranding" : "settings.plans.customBrandingAvailable"),
+                  t(plan.providerReadyIntegrations ? "settings.plans.integrationsAvailable" : "settings.plans.upgradeIntegrations"),
                   ...plan.features
                 ]}
                 highlighted={currentPlan.name === plan.name}
-                actionLabel={currentPlan.name === plan.name ? "Selected" : `Select ${plan.name}`}
+                actionLabel={currentPlan.name === plan.name ? "Selected" : `${t("settings.plans.select")} ${plan.name}`}
+                displayActionLabel={currentPlan.name === plan.name ? t("settings.plans.selected") : `${t("settings.plans.select")} ${plan.name}`}
                 onSelect={() => onSelectSubscriptionPlan(plan.name)}
               />
             ))}
           </div>
 
-          <Panel title="Plan comparison table" icon={<DatabaseBackup />}>
+          <Panel title={t("settings.plans.comparisonTitle")} icon={<DatabaseBackup />}>
             <div className="pricing-table-wrap">
               <table className="pricing-comparison-table">
                 <thead>
                   <tr>
-                    <th>Plan</th>
-                    <th>Monthly</th>
-                    <th>Quarterly</th>
-                    <th>Yearly</th>
-                    <th>Campaigns</th>
-                    <th>Supporters</th>
-                    <th>Setup status</th>
-                    <th>Best for</th>
+                    <th>{t("settings.plans.plan")}</th>
+                    <th>{t("settings.plans.monthly")}</th>
+                    <th>{t("settings.plans.quarterly")}</th>
+                    <th>{t("settings.plans.yearly")}</th>
+                    <th>{t("settings.plans.campaigns")}</th>
+                    <th>{t("settings.plans.supporters")}</th>
+                    <th>{t("settings.plans.setupStatus")}</th>
+                    <th>{t("settings.plans.bestFor")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {subscriptionPlans.map((plan) => (
                     <tr key={plan.name}>
                       <td><strong>{plan.name}</strong></td>
-                      <td>{plan.monthlyPriceInr === null ? "Quote" : formatInr(plan.monthlyPriceInr)}</td>
-                      <td>{plan.quarterlyPriceInr === null ? "Quote" : formatInr(plan.quarterlyPriceInr ?? plan.monthlyPriceInr ?? 0)}</td>
-                      <td>{plan.yearlyPriceInr === null ? "Quote" : formatInr(plan.yearlyPriceInr ?? plan.monthlyPriceInr ?? 0)}</td>
+                      <td>{plan.monthlyPriceInr === null ? t("settings.plans.quote") : formatInr(plan.monthlyPriceInr)}</td>
+                      <td>{plan.quarterlyPriceInr === null ? t("settings.plans.quote") : formatInr(plan.quarterlyPriceInr ?? plan.monthlyPriceInr ?? 0)}</td>
+                      <td>{plan.yearlyPriceInr === null ? t("settings.plans.quote") : formatInr(plan.yearlyPriceInr ?? plan.monthlyPriceInr ?? 0)}</td>
                       <td>{formatPlanLimit(plan.campaignLimit)}</td>
                       <td>{formatPlanLimit(plan.supporterLimit)}</td>
-                      <td>{plan.providerReadyIntegrations ? "Enabled" : "Disabled"}</td>
+                      <td>{t(plan.providerReadyIntegrations ? "settings.plans.enabled" : "settings.plans.disabled")}</td>
                       <td>{plan.description}</td>
                     </tr>
                   ))}
@@ -1358,7 +1339,7 @@ export function SaasTab({
             </div>
           </Panel>
 
-          <Panel title="Feature gates and upgrade prompts" icon={<LockKeyhole />}>
+          <Panel title={t("settings.plans.featureGates")} icon={<LockKeyhole />}>
             <div className="feature-gate-grid">
               {pricingFeatureCatalog.map((feature) => {
                 const included = isFeatureIncludedInPlan(currentPlan.name, feature.key);
@@ -1366,14 +1347,14 @@ export function SaasTab({
                   <article className={included ? "feature-gate-card unlocked" : "feature-gate-card"} key={feature.key}>
                     <div>
                       {included ? <ShieldCheck size={20} /> : <LockKeyhole size={20} />}
-                      <span className="eyebrow">{included ? "Included" : "Upgrade prompt"}</span>
+                      <span className="eyebrow">{t(included ? "settings.plans.included" : "settings.plans.upgradePrompt")}</span>
                     </div>
                     <strong>{feature.label}</strong>
                     <p>{feature.description}</p>
                     <small>
                       {included
-                        ? `Available on ${currentPlan.name}`
-                        : `Upgrade to ${feature.includedFrom} or add for ${formatInr(feature.addOnPriceInr)}.`}
+                        ? `${t("settings.plans.availableOn")} ${currentPlan.name}`
+                        : `${t("settings.plans.upgradeTo")} ${feature.includedFrom} ${t("settings.plans.orAddFor")} ${formatInr(feature.addOnPriceInr)}.`}
                     </small>
                   </article>
                 );

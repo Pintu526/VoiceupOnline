@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import { Building2, CheckCircle2, LockKeyhole, Megaphone, ShieldCheck } from "lucide-react";
 import { PasswordField } from "../ui/PasswordField";
 import { blankAppLogin } from "../constants";
+import { useTranslation } from "../i18n/useTranslation";
 
 interface SaasAppLoginPageProps {
   mode?: "platform" | "workspace";
@@ -18,6 +19,7 @@ export function SaasAppLoginPage({
   message,
   onSubmit
 }: SaasAppLoginPageProps) {
+  const { t } = useTranslation();
   const isWorkspaceMode = mode === "workspace";
 
   return (
@@ -30,41 +32,41 @@ export function SaasAppLoginPage({
             </div>
             <div>
               <strong>Voiceup Global</strong>
-              <span>Enterprise campaign operations</span>
+              <span>{t("workspace.login.enterpriseOperations")}</span>
             </div>
           </div>
 
           <div className="login-copy">
             <span className="eyebrow">
-              {isWorkspaceMode ? "Protected customer workspace" : "Protected platform administration"}
+              {t(isWorkspaceMode ? "workspace.login.protectedWorkspace" : "workspace.login.protectedPlatform")}
             </span>
             <h1 id="saas-login-title">
               {isWorkspaceMode
-                ? "Restore your campaign workspace after mobile verification."
-                : "Manage organizations with enterprise-grade control."}
+                ? t("workspace.login.restoreTitle")
+                : t("workspace.login.manageTitle")}
             </h1>
             <p>
               {isWorkspaceMode
-                ? "Customer workspace access is created by the public onboarding OTP flow. Platform credentials can also access this workspace for support."
-                : "Access subscription controls, integrations, campaign operations, and production workspace settings from a focused admin console."}
+                ? t("workspace.login.workspaceIntro")
+                : t("workspace.login.platformIntro")}
             </p>
           </div>
 
-          <div className="login-value-grid" aria-label="Workspace capabilities">
+          <div className="login-value-grid" aria-label={t("workspace.login.capabilitiesAria")}>
             <div>
               <Building2 size={18} />
-              <span>Organizations</span>
-              <strong>Tenant-ready</strong>
+              <span>{t("workspace.login.organizations")}</span>
+              <strong>{t("workspace.login.tenantReady")}</strong>
             </div>
             <div>
               <ShieldCheck size={18} />
-              <span>Access</span>
-              <strong>Protected</strong>
+              <span>{t("workspace.login.access")}</span>
+              <strong>{t("workspace.login.protected")}</strong>
             </div>
             <div>
               <CheckCircle2 size={18} />
-              <span>Operations</span>
-              <strong>Production-ready</strong>
+              <span>{t("workspace.login.operations")}</span>
+              <strong>{t("workspace.login.productionReady")}</strong>
             </div>
           </div>
         </div>
@@ -76,37 +78,37 @@ export function SaasAppLoginPage({
             </span>
             <div>
               <span className="eyebrow">
-                {isWorkspaceMode ? "Customer workspace access" : "SaaS admin access"}
+                {t(isWorkspaceMode ? "workspace.login.customerAccess" : "workspace.login.saasAccess")}
               </span>
-              <h2>{isWorkspaceMode ? "Verify or use support credentials" : "Sign in to workspace"}</h2>
+              <h2>{t(isWorkspaceMode ? "workspace.login.verifySupport" : "workspace.login.signIn")}</h2>
             </div>
           </div>
 
           {isWorkspaceMode && (
             <a className="primary-link-button" href="/start">
-              Verify mobile and restore workspace
+              {t("workspace.login.verifyMobile")}
             </a>
           )}
 
           <form className="form-stack login-form" onSubmit={onSubmit}>
             <label className="field" htmlFor="saas-admin-email">
-              <span className="label">Email address</span>
+              <span className="label">{t("login.email")}</span>
               <input
                 id="saas-admin-email"
                 name="email"
                 type="email"
-                placeholder="SaaS admin email"
+                placeholder={t("workspace.login.emailPlaceholder")}
                 autoComplete="email"
                 value={appLogin.email}
                 onChange={(event) => setAppLogin({ ...appLogin, email: event.target.value })}
               />
             </label>
             <label className="field" htmlFor="saas-admin-passcode">
-              <span className="label">Passcode</span>
+              <span className="label">{t("workspace.login.passcode")}</span>
               <PasswordField
                 id="saas-admin-passcode"
                 name="password"
-                placeholder="SaaS admin passcode"
+                placeholder={t("workspace.login.passcodePlaceholder")}
                 autoComplete="current-password"
                 value={appLogin.passcode}
                 onChange={(event) => setAppLogin({ ...appLogin, passcode: event.target.value })}
@@ -114,22 +116,22 @@ export function SaasAppLoginPage({
             </label>
           <div className="login-role-note">
             <strong>
-              Login role: {isWorkspaceMode ? "Customer Workspace or Platform Support" : "SaaS / Platform Admin"}
+              {t("workspace.login.role")}: {t(isWorkspaceMode ? "workspace.login.customerRole" : "workspace.login.platformRole")}
             </strong>
             <span>
               {isWorkspaceMode
-                ? "Visitors create customer workspace access from /start. Platform credentials are reserved for support and production operations."
-                : "Use this only for platform owner tasks such as subscriptions, packages, global campaign controls, and integrations."}
+                ? t("workspace.login.customerRoleHelp")
+                : t("workspace.login.platformRoleHelp")}
             </span>
           </div>
           <button className="primary-button" type="submit">
-            {isWorkspaceMode ? "Login with platform support credentials" : "Login to SaaS admin"}
+            {t(isWorkspaceMode ? "workspace.login.supportLogin" : "workspace.login.adminLogin")}
           </button>
           {message && <p className="info-message">{message}</p>}
           <p className="helper-text">
             {isWorkspaceMode
-              ? "Customer sessions are restored through mobile OTP. Platform support access requires an authenticated server-side role."
-              : "Platform administration requires Supabase Auth plus a server-side platform_owner role, or the configured fallback admin credentials."}
+              ? t("workspace.login.customerSessionHelp")
+              : t("workspace.login.platformSessionHelp")}
           </p>
           </form>
         </div>

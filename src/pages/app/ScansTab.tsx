@@ -14,7 +14,7 @@ import type { Campaign, ScanReviewItem, Signer } from "../../types";
 import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
-import { signerFieldLabel } from "../../utils/campaign";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface ScansTabProps {
   activeCampaign: Campaign | undefined;
@@ -49,11 +49,12 @@ export function ScansTab({
   onUpdateScanParsedSigner,
   onApproveScan
 }: ScansTabProps) {
+  const { t } = useTranslation();
   if (!activeCampaign) {
     return (
       <NoCampaignPanel
-        title="No campaign for scans"
-        description="Create a campaign before importing hard-copy signatures or OCR scan batches."
+        title={t("scans.noCampaign.title")}
+        description={t("scans.noCampaign.description")}
       />
     );
   }
@@ -102,28 +103,26 @@ export function ScansTab({
 
   return (
     <section className="page-stack">
-      <Panel title="Paper-to-Movement Import Wizard" icon={<FileScan />}>
+      <Panel title={t("scans.import.title")} icon={<FileScan />}>
         <div className="paper-import-hero">
           <div>
             <span className="eyebrow">Voiceup v0.6</span>
-            <h2>Digitize paper signature sheets into supporter records.</h2>
-            <p>
-              Upload images for existing OCR review, correct missing fields, detect duplicates, and approve batches into the supporter workflow.
-            </p>
+            <h2>{t("scans.import.headline")}</h2>
+            <p>{t("scans.import.description")}</p>
           </div>
           <div className="import-summary-card">
-            <span>Import summary</span>
-            <strong>{campaignScanItems.length.toLocaleString()} rows</strong>
+            <span>{t("scans.import.summary")}</span>
+            <strong>{campaignScanItems.length.toLocaleString()} {t("scans.common.rows")}</strong>
             <small>
-              {approvedScanItems.length} approved - {duplicateReviewItems.length} duplicates - {rejectedScanItems.length} rejected - {missingPhoneReviewItems.length} missing phone
+              {approvedScanItems.length} {t("scans.status.approved")} - {duplicateReviewItems.length} {t("scans.status.duplicates")} - {rejectedScanItems.length} {t("scans.status.rejected")} - {missingPhoneReviewItems.length} {t("scans.status.missingPhone")}
             </small>
           </div>
         </div>
         <div className="paper-import-grid">
           <label className="paper-import-option real">
             <FileScan size={28} />
-            <strong>Image OCR upload</strong>
-            <span>PNG, JPG, WEBP. Uses existing OCR/review queue.</span>
+            <strong>{t("scans.import.imageUpload")}</strong>
+            <span>{t("scans.import.imageHelp")}</span>
             <input
               type="file"
               accept="image/*"
@@ -135,49 +134,49 @@ export function ScansTab({
           </label>
           <label className="paper-import-option available-after-setup">
             <FileText size={28} />
-            <strong>PDF sheet upload</strong>
-            <span>Available after document import setup.</span>
+            <strong>{t("scans.import.pdfUpload")}</strong>
+            <span>{t("scans.import.documentSetup")}</span>
             <input type="file" accept="application/pdf" disabled />
           </label>
           <label className="paper-import-option available-after-setup">
             <FileSpreadsheet size={28} />
-            <strong>CSV / Excel import</strong>
-            <span>Available after spreadsheet import setup.</span>
+            <strong>{t("scans.import.spreadsheetImport")}</strong>
+            <span>{t("scans.import.spreadsheetSetup")}</span>
             <input type="file" accept=".csv,.xls,.xlsx" disabled />
           </label>
         </div>
         <div className="paper-import-fields">
           {[
-            "name",
-            "phone",
-            "email",
-            "state",
-            "district",
-            "block",
-            "panchayat/ward",
-            "village",
-            "note",
-            "source",
-            "volunteer"
+            t("scans.fields.name"),
+            t("scans.fields.phone"),
+            t("scans.fields.email"),
+            t("scans.fields.state"),
+            t("scans.fields.district"),
+            t("scans.fields.block"),
+            t("scans.fields.panchayatWard"),
+            t("scans.fields.village"),
+            t("scans.fields.note"),
+            t("scans.fields.source"),
+            t("scans.fields.volunteer")
           ].map((field) => (
             <span key={field}>{field}</span>
           ))}
         </div>
-        <p className="helper-text">All fields are optional during review. Missing phone is flagged, not blocked.</p>
+        <p className="helper-text">{t("scans.import.optionalFields")}</p>
       </Panel>
 
-      <Panel title="Offline Field Operations" icon={<ClipboardList />}>
+      <Panel title={t("scans.operations.title")} icon={<ClipboardList />}>
         <div className="field-ops-grid">
           {[
-            ["Paper sheet upload queue", campaignScanItems.length, "Real OCR/review items"],
-            ["Manual supporter entry", reviewQueueItems.length, "Ready for approval"],
-            ["Batch review and approval", reviewQueueItems.length, "Use existing review queue"],
-            ["Duplicate detection", duplicateOrRejectedSigners.length, "Real signer status flags"],
-            ["Volunteer attribution", "Setup needed", "Future field team ownership"],
-            ["District tracking", districtCount, "Real signer location data"],
-            ["Block tracking", blockCount, "Real signer location data"],
-            ["Panchayat tracking", panchayatCount, "Real signer location data"],
-            ["Import summary", importedSupporters.length, "Imported scan supporters"]
+            [t("scans.operations.uploadQueue"), campaignScanItems.length, t("scans.operations.realReviewItems")],
+            [t("scans.operations.manualEntry"), reviewQueueItems.length, t("scans.operations.readyApproval")],
+            [t("scans.operations.batchApproval"), reviewQueueItems.length, t("scans.operations.existingQueue")],
+            [t("scans.operations.duplicateDetection"), duplicateOrRejectedSigners.length, t("scans.operations.realStatusFlags")],
+            [t("scans.operations.volunteerAttribution"), t("scans.status.setupNeeded"), t("scans.operations.futureOwnership")],
+            [t("scans.operations.districtTracking"), districtCount, t("scans.operations.realLocationData")],
+            [t("scans.operations.blockTracking"), blockCount, t("scans.operations.realLocationData")],
+            [t("scans.operations.panchayatTracking"), panchayatCount, t("scans.operations.realLocationData")],
+            [t("scans.import.summary"), importedSupporters.length, t("scans.operations.importedSupporters")]
           ].map(([label, value, detail]) => (
             <div className="field-ops-card" key={String(label)}>
               <span>{label}</span>
@@ -189,18 +188,18 @@ export function ScansTab({
         <div className="qr-handout-card">
           <QrCode size={42} />
           <div>
-            <strong>QR code handout section</strong>
-            <p>Use the campaign public link QR on posters and field sheets. Printable handouts are available from the campaign assets.</p>
+            <strong>{t("scans.operations.qrHandout")}</strong>
+            <p>{t("scans.operations.qrHelp")}</p>
           </div>
         </div>
       </Panel>
 
-      <Panel title="Upload paper sheet" icon={<Upload />}>
+      <Panel title={t("scans.upload.title")} icon={<Upload />}>
         <div className="scan-grid">
           <label className="drop-zone">
             <FileScan size={34} />
-            <strong>Upload scanned image</strong>
-            <span>PNG, JPG, WEBP, or scanned image files work best for OCR.</span>
+            <strong>{t("scans.upload.image")}</strong>
+            <span>{t("scans.upload.imageHelp")}</span>
             <input
               type="file"
               accept="image/*"
@@ -211,7 +210,7 @@ export function ScansTab({
             />
           </label>
           <div>
-            <span className="label">Manual OCR correction or paste</span>
+            <span className="label">{t("scans.upload.manualCorrection")}</span>
             <textarea
               rows={8}
               value={scanText}
@@ -219,14 +218,14 @@ export function ScansTab({
             />
           </div>
         </div>
-        {isScanning && <p className="info-message">OCR processing is running...</p>}
+        {isScanning && <p className="info-message">{t("scans.upload.processing")}</p>}
         {scanMessage && <p className="success-message">{scanMessage}</p>}
       </Panel>
 
-      <Panel title="Manual entry" icon={<Plus />}>
+      <Panel title={t("scans.manual.title")} icon={<Plus />}>
         <div className="form-stack">
           <p className="helper-text">
-            Paste typed supporter details or corrected OCR text, then create a review item before approval.
+            {t("scans.manual.description")}
           </p>
           <textarea
             rows={6}
@@ -235,17 +234,17 @@ export function ScansTab({
           />
           <div className="button-row">
             <button className="secondary-button" type="button" onClick={onCreateManualScanItem}>
-              <Plus size={18} /> Create review item
+              <Plus size={18} /> {t("scans.manual.createReview")}
             </button>
           </div>
         </div>
       </Panel>
 
-      <Panel title="OCR/review queue" icon={<SearchCheck />}>
+      <Panel title={t("scans.review.title")} icon={<SearchCheck />}>
         <div className="batch-review-toolbar">
           <div>
-            <span className="eyebrow">Batch review</span>
-            <strong>{reviewQueueItems.length.toLocaleString()} rows waiting</strong>
+            <span className="eyebrow">{t("scans.review.batchReview")}</span>
+            <strong>{reviewQueueItems.length.toLocaleString()} {t("scans.review.rowsWaiting")}</strong>
           </div>
           <div className="button-row">
             <button
@@ -254,7 +253,7 @@ export function ScansTab({
               disabled={reviewQueueItems.length === 0}
               onClick={batchApproveReviewItems}
             >
-              Batch approve into supporters
+              {t("scans.review.batchApprove")}
             </button>
             <button
               className="secondary-button"
@@ -262,7 +261,7 @@ export function ScansTab({
               disabled={reviewQueueItems.length === 0}
               onClick={() => batchUpdateReviewItems("Rejected")}
             >
-              Batch reject
+              {t("scans.review.batchReject")}
             </button>
           </div>
         </div>
@@ -271,18 +270,18 @@ export function ScansTab({
             <table>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Phone</th>
-                  <th>Email</th>
-                  <th>State</th>
-                  <th>District</th>
-                  <th>Block</th>
-                  <th>Panchayat/Ward</th>
-                  <th>Village</th>
-                  <th>Note</th>
-                  <th>Source</th>
-                  <th>Volunteer</th>
-                  <th>Duplicate</th>
+                  <th>{t("scans.fields.name")}</th>
+                  <th>{t("scans.fields.phone")}</th>
+                  <th>{t("scans.fields.email")}</th>
+                  <th>{t("scans.fields.state")}</th>
+                  <th>{t("scans.fields.district")}</th>
+                  <th>{t("scans.fields.block")}</th>
+                  <th>{t("scans.fields.panchayatWard")}</th>
+                  <th>{t("scans.fields.village")}</th>
+                  <th>{t("scans.fields.note")}</th>
+                  <th>{t("scans.fields.source")}</th>
+                  <th>{t("scans.fields.volunteer")}</th>
+                  <th>{t("scans.fields.duplicate")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -302,7 +301,7 @@ export function ScansTab({
                         <input
                           value={item.parsedSigner.address}
                           onChange={(event) => onUpdateScanParsedSigner(item.id, "address", event.target.value)}
-                          placeholder="Village/locality"
+                          placeholder={t("scans.fields.villagePlaceholder")}
                         />
                       </td>
                       <td>
@@ -311,9 +310,9 @@ export function ScansTab({
                           onChange={(event) => onUpdateScanParsedSigner(item.id, "comment", event.target.value)}
                         />
                       </td>
-                      <td>paper</td>
-                      <td>Setup needed</td>
-                      <td>{isDuplicate ? "Possible duplicate" : item.parsedSigner.phone ? "Clear" : "Missing phone"}</td>
+                      <td>{t("scans.status.paper")}</td>
+                      <td>{t("scans.status.setupNeeded")}</td>
+                      <td>{isDuplicate ? t("scans.status.possibleDuplicate") : item.parsedSigner.phone ? t("scans.status.clear") : t("scans.status.missingPhone")}</td>
                     </tr>
                   );
                 })}
@@ -322,12 +321,12 @@ export function ScansTab({
           </div>
         )}
         <div className="review-list">
-          {reviewQueueItems.length === 0 && <p>No field collection items are waiting for review.</p>}
+          {reviewQueueItems.length === 0 && <p>{t("scans.review.empty")}</p>}
           {reviewQueueItems.map((item) => (
             <div className="review-card" key={item.id}>
               <div>
                 <strong>{item.fileName}</strong>
-                <span className="status-pill" data-status={item.status}>{item.status}</span>
+                <span className="status-pill" data-status={item.status}>{t(`scans.status.${item.status.replace(/\s/g, "").toLowerCase()}`)}</span>
               </div>
               <div className="form-grid compact">
                 {(
@@ -344,7 +343,7 @@ export function ScansTab({
                     "comment"
                   ] as const
                 ).map((field) => (
-                  <Field key={field} label={signerFieldLabel(field)}>
+                  <Field key={field} label={t(`scans.fields.${field}`)}>
                     <input
                       value={item.parsedSigner[field]}
                       onChange={(e) => onUpdateScanParsedSigner(item.id, field, e.target.value)}
@@ -353,7 +352,7 @@ export function ScansTab({
                 ))}
               </div>
               <details>
-                <summary>Extracted text</summary>
+                <summary>{t("scans.review.extractedText")}</summary>
                 <pre>{item.extractedText}</pre>
               </details>
               <div className="button-row">
@@ -362,7 +361,7 @@ export function ScansTab({
                   type="button"
                   onClick={() => onApproveScan(item)}
                 >
-                  <CheckCircle2 size={18} /> Approve into signer list
+                  <CheckCircle2 size={18} /> {t("scans.review.approveSigner")}
                 </button>
                 <button
                   className="secondary-button"
@@ -375,7 +374,7 @@ export function ScansTab({
                     )
                   }
                 >
-                  Reject
+                  {t("scans.review.reject")}
                 </button>
               </div>
             </div>
@@ -383,42 +382,42 @@ export function ScansTab({
         </div>
       </Panel>
 
-      <Panel title="Imported supporters" icon={<UsersRound />}>
+      <Panel title={t("scans.imported.title")} icon={<UsersRound />}>
         <div className="activity-list">
-          {importedSupporters.length === 0 && <p>No imported supporters yet.</p>}
+          {importedSupporters.length === 0 && <p>{t("scans.imported.empty")}</p>}
           {importedSupporters.slice(0, 12).map((signer) => (
             <div className="activity-card" key={signer.id}>
               <div>
-                <strong>{signer.name || "Unnamed supporter"}</strong>
+                <strong>{signer.name || t("supporters.common.unnamed")}</strong>
                 <span>{[signer.phone, signer.district, signer.state].filter(Boolean).join(" · ")}</span>
               </div>
-              <span className="status-pill" data-status={signer.status}>{signer.status}</span>
+              <span className="status-pill" data-status={signer.status}>{t(`scans.status.${signer.status.replace(/\s/g, "").toLowerCase()}`)}</span>
             </div>
           ))}
         </div>
       </Panel>
 
-      <Panel title="Duplicates/rejected" icon={<ClipboardList />}>
+      <Panel title={t("scans.rejected.title")} icon={<ClipboardList />}>
         <div className="activity-list">
           {duplicateOrRejectedSigners.length === 0 && rejectedScanItems.length === 0 && (
-            <p>No duplicate or rejected field entries.</p>
+            <p>{t("scans.rejected.empty")}</p>
           )}
           {duplicateOrRejectedSigners.slice(0, 8).map((signer) => (
             <div className="activity-card" key={signer.id}>
               <div>
-                <strong>{signer.name || "Unnamed supporter"}</strong>
-                <span>{signer.reviewerNote || "Needs follow-up before counting as verified."}</span>
+                <strong>{signer.name || t("supporters.common.unnamed")}</strong>
+                <span>{signer.reviewerNote || t("scans.rejected.needsFollowup")}</span>
               </div>
-              <span className="status-pill" data-status={signer.status}>{signer.status}</span>
+              <span className="status-pill" data-status={signer.status}>{t(`scans.status.${signer.status.replace(/\s/g, "").toLowerCase()}`)}</span>
             </div>
           ))}
           {rejectedScanItems.slice(0, 8).map((item) => (
             <div className="activity-card" key={item.id}>
               <div>
                 <strong>{item.fileName}</strong>
-                <span>Rejected review item</span>
+                <span>{t("scans.rejected.reviewItem")}</span>
               </div>
-              <span className="status-pill" data-status="rejected">Rejected</span>
+              <span className="status-pill" data-status="rejected">{t("scans.status.rejected")}</span>
             </div>
           ))}
         </div>

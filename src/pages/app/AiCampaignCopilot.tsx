@@ -12,6 +12,7 @@ import type { Campaign } from "../../types";
 import type { AiCampaignCopilotResult, AiLanguage } from "../../ai/types";
 import { futureAiProviders, generateCampaignWithAi, previewCampaignPrompt } from "../../ai/campaignGenerator";
 import { Field } from "../../ui/Field";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface AiCampaignCopilotProps {
   campaignDraft: Campaign | null;
@@ -36,21 +37,25 @@ const reviewSections = [
   "Press Release"
 ];
 
-function getReviewSectionContent(result: AiCampaignCopilotResult, section: string) {
+function reviewSectionKey(section: string) {
+  return section.replace(/\s/g, "").replace(/^./, (value) => value.toLowerCase());
+}
+
+function getReviewSectionContent(result: AiCampaignCopilotResult, section: string, t: (key: string) => string) {
   switch (section) {
     case "Campaign Title":
       return [result.draft.title, result.draft.subtitle];
     case "Summary":
-      return [result.draft.summary, `Tags: ${result.draft.suggestedTags.join(", ")}`];
+      return [result.draft.summary, `${t("copilot.content.tags")}: ${result.draft.suggestedTags.join(", ")}`];
     case "Full Description":
-      return [result.draft.fullDescription, `Expected outcome: ${result.draft.expectedOutcome}`];
+      return [result.draft.fullDescription, `${t("copilot.content.expectedOutcome")}: ${result.draft.expectedOutcome}`];
     case "Objectives":
       return result.draft.objectives;
     case "Authority":
       return [
         result.draft.suggestedAuthority,
-        `Category: ${result.draft.suggestedCategory}`,
-        `Target: ${result.draft.suggestedTarget.toLocaleString()} supporters in ${result.draft.suggestedDurationDays} days`
+        `${t("copilot.content.category")}: ${result.draft.suggestedCategory}`,
+        `${t("copilot.content.target")}: ${result.draft.suggestedTarget.toLocaleString()} ${t("copilot.content.supportersIn")} ${result.draft.suggestedDurationDays} ${t("copilot.content.days")}`
       ];
     case "Social Posts":
       return [
@@ -64,8 +69,8 @@ function getReviewSectionContent(result: AiCampaignCopilotResult, section: strin
     case "Press Release":
       return [
         result.draft.pressRelease,
-        `Email subject: ${result.draft.emailSubject}`,
-        `QR poster: ${result.draft.qrPosterHeadline}`
+        `${t("copilot.content.emailSubject")}: ${result.draft.emailSubject}`,
+        `${t("copilot.content.qrPoster")}: ${result.draft.qrPosterHeadline}`
       ];
     default:
       return [];
@@ -94,6 +99,7 @@ export function AiCampaignCopilot({
   canUndoAiApply,
   onClose
 }: AiCampaignCopilotProps) {
+  const { t } = useTranslation();
   const [idea, setIdea] = useState("");
   const [generatedIdea, setGeneratedIdea] = useState("");
   const [language, setLanguage] = useState<AiLanguage>("English");
@@ -231,15 +237,15 @@ export function AiCampaignCopilot({
   }
 
   return (
-    <div className="ai-copilot-backdrop" role="dialog" aria-modal="true" aria-label="AI Campaign Copilot">
+    <div className="ai-copilot-backdrop" role="dialog" aria-modal="true" aria-label={t("copilot.title")}>
       <section className="ai-copilot-panel">
         <header className="ai-copilot-header">
           <div>
-            <span className="eyebrow">AI Campaign Copilot</span>
-            <h2>Create a professional campaign draft from one sentence</h2>
-            <p>Draft assistance is available in this workspace. Connected AI providers can be configured later.</p>
+            <span className="eyebrow">{t("copilot.title")}</span>
+            <h2>{t("copilot.headline")}</h2>
+            <p>{t("copilot.description")}</p>
           </div>
-          <button className="icon-button" type="button" aria-label="Close AI Copilot" onClick={onClose}>
+          <button className="icon-button" type="button" aria-label={t("copilot.close")} onClick={onClose}>
             <X size={18} />
           </button>
         </header>
@@ -247,47 +253,47 @@ export function AiCampaignCopilot({
         <div className="ai-copilot-grid">
           <div className="ai-copilot-input">
             <div className="ai-assistant-card">
-              <span className="eyebrow">Assistant workspace</span>
-              <strong>{result ? "Review and refine" : "Ready for your idea"}</strong>
+              <span className="eyebrow">{t("copilot.assistant.workspace")}</span>
+              <strong>{result ? t("copilot.assistant.reviewRefine") : t("copilot.assistant.readyIdea")}</strong>
               <p>
                 {result
-                  ? `Working from: "${generatedIdea}"`
-                  : "Write one sentence and Voiceup will draft a campaign locally."}
+                  ? `${t("copilot.assistant.workingFrom")}: "${generatedIdea}"`
+                  : t("copilot.assistant.writeSentence")}
               </p>
             </div>
-            <Field label="Campaign idea">
+            <Field label={t("copilot.fields.campaignIdea")}>
               <textarea
                 rows={4}
                 value={idea}
                 onChange={(event) => setIdea(event.target.value)}
-                placeholder="Repair potholes on Nandankanan Road"
+                placeholder={t("copilot.fields.ideaPlaceholder")}
               />
             </Field>
-            <Field label="Language">
+            <Field label={t("copilot.fields.language")}>
               <select value={language} onChange={(event) => setLanguage(event.target.value as AiLanguage)}>
-                <option>English</option>
-                <option>Hindi</option>
-                <option>Odia</option>
+                <option value="English">{t("copilot.languages.english")}</option>
+                <option value="Hindi">{t("copilot.languages.hindi")}</option>
+                <option value="Odia">{t("copilot.languages.odia")}</option>
               </select>
-              <small>Hindi and Odia drafts are available after language setup.</small>
+              <small>{t("copilot.languages.setupHelp")}</small>
             </Field>
             <div className="button-row">
               <button className="primary-button" type="button" disabled={isGenerating} onClick={generate}>
-                <Wand2 size={18} /> {isGenerating ? "Generating..." : "Generate draft"}
+                <Wand2 size={18} /> {isGenerating ? t("copilot.actions.generating") : t("copilot.actions.generate")}
               </button>
               <button className="secondary-button" type="button" disabled={!result} onClick={generate}>
-                <RefreshCcw size={18} /> Regenerate
+                <RefreshCcw size={18} /> {t("copilot.actions.regenerate")}
               </button>
             </div>
-            <div className="ai-thinking-timeline" aria-label="AI thinking timeline">
+            <div className="ai-thinking-timeline" aria-label={t("copilot.thinking.aria")}>
               {[
-                ["1", "Understanding campaign idea", generatedIdea || idea || "Waiting for input"],
-                ["2", "Detecting category", result ? result.draft.suggestedCategory : isGenerating ? "Analyzing" : "Pending"],
-                ["3", "Suggesting authorities", result ? result.draft.suggestedAuthority : isGenerating ? "Matching" : "Pending"],
-                ["4", "Drafting petition", result ? "Title, summary, description ready" : isGenerating ? "Writing" : "Pending"],
-                ["5", "Creating social content", result ? "WhatsApp, Facebook, X, LinkedIn ready" : isGenerating ? "Preparing" : "Pending"],
-                ["6", "Scoring campaign", result ? `${result.draft.qualityScore}/100` : isGenerating ? "Scoring" : "Pending"],
-                ["7", "Ready for review", result ? "Review cards are ready" : "Pending"]
+                ["1", t("copilot.thinking.understanding"), generatedIdea || idea || t("copilot.status.waitingInput")],
+                ["2", t("copilot.thinking.detectingCategory"), result ? result.draft.suggestedCategory : isGenerating ? t("copilot.status.analyzing") : t("copilot.status.pending")],
+                ["3", t("copilot.thinking.suggestingAuthorities"), result ? result.draft.suggestedAuthority : isGenerating ? t("copilot.status.matching") : t("copilot.status.pending")],
+                ["4", t("copilot.thinking.draftingPetition"), result ? t("copilot.thinking.draftReady") : isGenerating ? t("copilot.status.writing") : t("copilot.status.pending")],
+                ["5", t("copilot.thinking.socialContent"), result ? t("copilot.thinking.socialReady") : isGenerating ? t("copilot.status.preparing") : t("copilot.status.pending")],
+                ["6", t("copilot.thinking.scoringCampaign"), result ? `${result.draft.qualityScore}/100` : isGenerating ? t("copilot.status.scoring") : t("copilot.status.pending")],
+                ["7", t("copilot.thinking.readyReview"), result ? t("copilot.thinking.reviewReady") : t("copilot.status.pending")]
               ].map(([step, label, detail], index) => (
                 <div className={result || isGenerating || index === 0 ? "thinking-step active" : "thinking-step"} key={label}>
                   <span>{step}</span>
@@ -297,13 +303,13 @@ export function AiCampaignCopilot({
               ))}
             </div>
             <div className="available-after-setup-list">
-              <span className="eyebrow">Future providers</span>
+              <span className="eyebrow">{t("copilot.futureProviders")}</span>
               {futureAiProviders.map((provider) => (
                 <span key={provider}>{provider}</span>
               ))}
             </div>
             <details className="prompt-preview">
-              <summary>Prompt preview</summary>
+              <summary>{t("copilot.promptPreview")}</summary>
               <pre>{promptPreview}</pre>
             </details>
           </div>
@@ -312,19 +318,19 @@ export function AiCampaignCopilot({
             {!result ? (
               <div className="empty-state compact-empty">
                 <Sparkles size={26} />
-                <h3>Enter one sentence to generate a campaign draft.</h3>
-                <p>Example: Save Chilika Lake, Stop cow slaughter, or Repair potholes on Nandankanan Road.</p>
+                <h3>{t("copilot.empty.title")}</h3>
+                <p>{t("copilot.empty.example")}</p>
               </div>
             ) : (
               <>
                 <div className="ai-quality-card">
                   <div>
-                    <span>Campaign Quality Score</span>
+                    <span>{t("copilot.qualityScore")}</span>
                     <strong>{result.draft.qualityScore}/100</strong>
                     <small>{result.advisor[0]}</small>
                   </div>
                   <div className="ai-generated-idea">
-                    <span className="eyebrow">Generated from</span>
+                    <span className="eyebrow">{t("copilot.generatedFrom")}</span>
                     <p>{generatedIdea}</p>
                   </div>
                 </div>
@@ -337,23 +343,23 @@ export function AiCampaignCopilot({
                       <div className="ai-review-card-main">
                         <div className="ai-review-card-heading">
                           <div>
-                            <strong>{section}</strong>
-                            <small>{sectionState[section] ?? "Review pending"} - Based on "{generatedIdea}"</small>
+                            <strong>{t(`copilot.sections.${reviewSectionKey(section)}`)}</strong>
+                            <small>{t(`copilot.status.${sectionState[section] ?? "reviewPending"}`)} - {t("copilot.basedOn")} "{generatedIdea}"</small>
                           </div>
-                          <span className="confidence-pill">{confidence}% confidence</span>
+                          <span className="confidence-pill">{confidence}% {t("copilot.confidence")}</span>
                         </div>
                         <div className="ai-review-content">
-                          {getReviewSectionContent(result, section).map((item) => (
+                          {getReviewSectionContent(result, section, t).map((item) => (
                             <p key={item}>{item}</p>
                           ))}
                         </div>
-                        <div className="ai-rewrite-actions" aria-label={`Rewrite ${section}`}>
+                        <div className="ai-rewrite-actions" aria-label={`${t("copilot.rewrite")} ${t(`copilot.sections.${reviewSectionKey(section)}`)}`}>
                           {[
-                            ["shorter", "Shorter"],
-                            ["emotional", "Emotional"],
-                            ["professional", "Professional"],
-                            ["legal", "Legal tone"],
-                            ["citizen", "Citizen friendly"]
+                            ["shorter", t("copilot.tones.shorter")],
+                            ["emotional", t("copilot.tones.emotional")],
+                            ["professional", t("copilot.tones.professional")],
+                            ["legal", t("copilot.tones.legal")],
+                            ["citizen", t("copilot.tones.citizen")]
                           ].map(([tone, label]) => (
                             <button
                               key={tone}
@@ -371,35 +377,35 @@ export function AiCampaignCopilot({
                           type="button"
                           onClick={() => onApplyAiSection(result, section)}
                         >
-                          Apply section
+                          {t("copilot.actions.applySection")}
                         </button>
                         <button
                           className="secondary-button"
                           type="button"
                           onClick={() => setSectionState((current) => ({ ...current, [section]: "accepted" }))}
                         >
-                          <Check size={16} /> Accept
+                          <Check size={16} /> {t("copilot.actions.accept")}
                         </button>
                         <button
                           className="secondary-button"
                           type="button"
                           onClick={() => setSectionState((current) => ({ ...current, [section]: "rejected" }))}
                         >
-                          Reject
+                          {t("copilot.actions.reject")}
                         </button>
                         <button
                           className="secondary-button"
                           type="button"
                           onClick={() => setSectionState((current) => ({ ...current, [section]: "editing" }))}
                         >
-                          Edit
+                          {t("copilot.actions.edit")}
                         </button>
                         <button
                           className="secondary-button"
                           type="button"
                           onClick={() => regenerateSection(section)}
                         >
-                          <RefreshCcw size={16} /> Regenerate
+                          <RefreshCcw size={16} /> {t("copilot.actions.regenerate")}
                         </button>
                       </div>
                     </article>
@@ -411,7 +417,7 @@ export function AiCampaignCopilot({
                   <h3>{result.draft.title}</h3>
                   <p>{result.draft.subtitle}</p>
                   <textarea
-                    aria-label="Editable generated campaign summary"
+                    aria-label={t("copilot.fields.editableSummary")}
                     rows={3}
                     value={result.draft.summary}
                     onChange={(event) =>
@@ -419,7 +425,7 @@ export function AiCampaignCopilot({
                     }
                   />
                   <textarea
-                    aria-label="Editable generated full description"
+                    aria-label={t("copilot.fields.editableDescription")}
                     rows={5}
                     value={result.draft.fullDescription}
                     onChange={(event) =>
@@ -430,69 +436,69 @@ export function AiCampaignCopilot({
 
                 <div className="ai-advisor-grid">
                   <div>
-                    <span className="eyebrow">Campaign Advisor</span>
+                    <span className="eyebrow">{t("copilot.advisor.title")}</span>
                     {result.advisor.map((item) => <p key={item}>{item}</p>)}
                     {[
-                      result.draft.title.length > 90 ? "Shorten the title for mobile sharing." : "Title length looks good for mobile sharing.",
-                      result.draft.fullDescription.length < 240 ? "Add a little more evidence or local context." : "Description has enough substance for review.",
-                      result.draft.suggestedAuthority ? "Authority suggestion is ready to verify." : "Add an authority before publishing.",
-                      result.draft.suggestedSupporterFields.length <= 3 ? "Supporter form is conversion-friendly." : "Consider fewer required supporter fields."
+                      result.draft.title.length > 90 ? t("copilot.advisor.shortenTitle") : t("copilot.advisor.titleGood"),
+                      result.draft.fullDescription.length < 240 ? t("copilot.advisor.addEvidence") : t("copilot.advisor.descriptionGood"),
+                      result.draft.suggestedAuthority ? t("copilot.advisor.authorityReady") : t("copilot.advisor.addAuthority"),
+                      result.draft.suggestedSupporterFields.length <= 3 ? t("copilot.advisor.formFriendly") : t("copilot.advisor.fewerFields")
                     ].map((item) => <p key={item}>{item}</p>)}
                   </div>
                   <div>
-                    <span className="eyebrow">Copilot Suggestions</span>
+                    <span className="eyebrow">{t("copilot.suggestions.title")}</span>
                     {[
-                      "Add campaign location",
-                      "Upload campaign photo",
-                      "Confirm authority",
-                      "Set supporter target",
-                      "Review public signing fields",
-                      "Generate WhatsApp message"
+                      t("copilot.suggestions.addLocation"),
+                      t("copilot.suggestions.uploadPhoto"),
+                      t("copilot.suggestions.confirmAuthority"),
+                      t("copilot.suggestions.setTarget"),
+                      t("copilot.suggestions.reviewFields"),
+                      t("copilot.suggestions.generateWhatsapp")
                     ].map((suggestion) => (
                       <p key={suggestion}>{suggestion}</p>
                     ))}
                   </div>
                   <div>
-                    <span className="eyebrow">Simulator</span>
-                    <p>Potential supporters: {result.simulation.potentialSupporters.toLocaleString()}</p>
-                    <p>Authority reach: {result.simulation.authorityReach}</p>
-                    <p>Volunteer effort: {result.simulation.volunteerEffort}</p>
-                    <p>Communication effort: {result.simulation.communicationEffort}</p>
-                    <p>Estimated completion: {result.simulation.estimatedCompletion}</p>
-                    <p>Risk level: {result.simulation.riskLevel}</p>
+                    <span className="eyebrow">{t("copilot.simulator.title")}</span>
+                    <p>{t("copilot.simulator.potentialSupporters")}: {result.simulation.potentialSupporters.toLocaleString()}</p>
+                    <p>{t("copilot.simulator.authorityReach")}: {result.simulation.authorityReach}</p>
+                    <p>{t("copilot.simulator.volunteerEffort")}: {result.simulation.volunteerEffort}</p>
+                    <p>{t("copilot.simulator.communicationEffort")}: {result.simulation.communicationEffort}</p>
+                    <p>{t("copilot.simulator.estimatedCompletion")}: {result.simulation.estimatedCompletion}</p>
+                    <p>{t("copilot.simulator.riskLevel")}: {result.simulation.riskLevel}</p>
                   </div>
                 </div>
 
                 <div className="ai-follow-up-box">
-                  <span className="eyebrow">Follow-up instruction</span>
-                  <Field label="Tell Copilot what to change">
+                  <span className="eyebrow">{t("copilot.followup.title")}</span>
+                  <Field label={t("copilot.followup.label")}>
                     <textarea
                       rows={3}
                       value={followUpInstruction}
                       onChange={(event) => setFollowUpInstruction(event.target.value)}
-                      placeholder="Make it stronger, make it shorter, translate to Odia, add emotional appeal, target Municipal Commissioner"
+                      placeholder={t("copilot.followup.placeholder")}
                     />
                   </Field>
                   <div className="template-chip-row">
                     {[
-                      "Make it stronger",
-                      "Make it shorter",
-                      "Translate to Odia",
-                      "Add emotional appeal",
-                      "Target Municipal Commissioner"
-                    ].map((example) => (
-                      <button key={example} type="button" onClick={() => setFollowUpInstruction(example)}>
-                        {example}
+                      ["Make it stronger", t("copilot.followup.stronger")],
+                      ["Make it shorter", t("copilot.followup.shorter")],
+                      ["Translate to Odia", t("copilot.followup.translateOdia")],
+                      ["Add emotional appeal", t("copilot.followup.emotional")],
+                      ["Target Municipal Commissioner", t("copilot.followup.targetCommissioner")]
+                    ].map(([value, label]) => (
+                      <button key={value} type="button" onClick={() => setFollowUpInstruction(value)}>
+                        {label}
                       </button>
                     ))}
                   </div>
                   <button className="primary-button" type="button" onClick={applyFollowUpInstruction}>
-                    Apply follow-up locally
+                    {t("copilot.followup.apply")}
                   </button>
                 </div>
 
                 <div className="ai-language-panel">
-                  <span className="eyebrow">Language options</span>
+                  <span className="eyebrow">{t("copilot.languages.options")}</span>
                   <div>
                     {(["English", "Hindi", "Odia"] as AiLanguage[]).map((item) => (
                       <button
@@ -501,18 +507,18 @@ export function AiCampaignCopilot({
                         type="button"
                         onClick={() => setLanguage(item)}
                       >
-                        {item}
-                        <small>{item === "English" ? "Draft output active" : "Available after setup"}</small>
+                        {t(`copilot.languages.${item.toLowerCase()}`)}
+                        <small>{item === "English" ? t("copilot.languages.active") : t("copilot.languages.afterSetup")}</small>
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div className="ai-content-studio">
-                  <span className="eyebrow">Content Studio</span>
+                  <span className="eyebrow">{t("copilot.contentStudio.title")}</span>
                   {Object.entries(result.contentStudio).map(([label, value]) => (
                     <details key={label}>
-                      <summary>{label.replace(/([A-Z])/g, " $1")}</summary>
+                      <summary>{t(`copilot.contentStudio.${label}`)}</summary>
                       <p>{value}</p>
                     </details>
                   ))}
@@ -520,27 +526,27 @@ export function AiCampaignCopilot({
 
                 <div className="ai-workspace">
                   <div>
-                    <span className="eyebrow">Conversation</span>
+                    <span className="eyebrow">{t("copilot.workspace.conversation")}</span>
                     {history.map((item) => <p key={item}>{item}</p>)}
                   </div>
                   <div>
-                    <span className="eyebrow">Saved drafts</span>
-                    <p>{savedDrafts.length} saved in this session</p>
+                    <span className="eyebrow">{t("copilot.workspace.savedDrafts")}</span>
+                    <p>{savedDrafts.length} {t("copilot.workspace.savedThisSession")}</p>
                   </div>
                 </div>
 
                 <div className="ai-copilot-actions">
                   <button className="secondary-button" type="button" onClick={() => setSavedDrafts((current) => [result, ...current])}>
-                    <ClipboardList size={18} /> Save AI draft
+                    <ClipboardList size={18} /> {t("copilot.actions.saveDraft")}
                   </button>
                   <button className="secondary-button" type="button">
-                    <Languages size={18} /> Multi-language setup
+                    <Languages size={18} /> {t("copilot.actions.multilingualSetup")}
                   </button>
                   <button className="secondary-button" type="button" disabled={!canUndoAiApply} onClick={onUndoAiApply}>
-                    Undo AI apply
+                    {t("copilot.actions.undoApply")}
                   </button>
                   <button className="primary-button" type="button" disabled={!result || !campaignDraft} onClick={applyToDraft}>
-                    Apply accepted basics to current draft
+                    {t("copilot.actions.applyBasics")}
                   </button>
                 </div>
               </>

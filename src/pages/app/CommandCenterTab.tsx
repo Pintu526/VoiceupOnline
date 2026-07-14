@@ -26,6 +26,7 @@ import type {
 } from "../../types";
 import { Panel } from "../../ui/Panel";
 import { getCampaignGoalValue, getLocationGovernance } from "../../utils/campaign";
+import { useTranslation } from "../../i18n/useTranslation";
 
 interface CommandCenterTabProps {
   activeCampaign: Campaign | undefined;
@@ -106,6 +107,7 @@ export function CommandCenterTab({
   onOpenMovement,
   canAccessPlatformAdmin
 }: CommandCenterTabProps) {
+  const { t } = useTranslation();
   const [missionGenerated, setMissionGenerated] = useState(false);
   const campaignScanItems = activeCampaign
     ? scanItems.filter((item) => item.campaignId === activeCampaign.id)
@@ -157,74 +159,74 @@ export function CommandCenterTab({
         {
           show: Boolean(activeCampaign && activeCampaign.status !== "Published"),
           priority: "P0" as ActionPriority,
-          title: "Campaign unpublished",
-          reason: "Public momentum depends on publishing the selected campaign.",
-          owner: "Campaign owner",
+          title: t("command.actions.campaignUnpublished"),
+          reason: t("command.actions.campaignUnpublishedReason"),
+          owner: t("command.owners.campaignOwner"),
           action: onOpenCampaigns
         },
         {
           show: !authorityReady,
           priority: "P0" as ActionPriority,
-          title: "Missing authority",
-          reason: "Petition delivery needs a primary authority route.",
-          owner: "Campaign admin",
+          title: t("command.actions.missingAuthority"),
+          reason: t("command.actions.missingAuthorityReason"),
+          owner: t("command.owners.campaignAdmin"),
           action: onOpenAuthorities
         },
         {
           show: Boolean(activeCampaign && !activeCampaign.heroImage),
           priority: "P1" as ActionPriority,
-          title: "Missing banner",
-          reason: "Campaign pages convert better with a real local image.",
-          owner: "Content owner",
+          title: t("command.actions.missingBanner"),
+          reason: t("command.actions.missingBannerReason"),
+          owner: t("command.owners.contentOwner"),
           action: onOpenCampaigns
         },
         {
           show: metrics.total === 0,
           priority: "P0" as ActionPriority,
-          title: "No supporters yet",
-          reason: "Share the public link and start field collection.",
-          owner: "Campaign owner",
+          title: t("command.actions.noSupporters"),
+          reason: t("command.actions.noSupportersReason"),
+          owner: t("command.owners.campaignOwner"),
           action: onOpenEngagement
         },
         {
           show: metrics.total > 0 && verifiedSupporters < Math.ceil(metrics.total * 0.5),
           priority: "P1" as ActionPriority,
-          title: "Low verified supporters",
-          reason: "Authority submissions are stronger with verified signatures.",
-          owner: "Review lead",
+          title: t("command.actions.lowVerified"),
+          reason: t("command.actions.lowVerifiedReason"),
+          owner: t("command.owners.reviewLead"),
           action: onOpenFieldCollection
         },
         {
           show: pendingScans > 0,
           priority: "P1" as ActionPriority,
-          title: "Scans pending review",
-          reason: `${pendingScans} field collection item${pendingScans === 1 ? "" : "s"} need review.`,
-          owner: "Field ops lead",
+          title: t("command.actions.scansPending"),
+          reason: `${pendingScans} ${t(pendingScans === 1 ? "command.actions.scanItemNeedsReview" : "command.actions.scanItemsNeedReview")}`,
+          owner: t("command.owners.fieldOpsLead"),
           action: onOpenFieldCollection
         },
         {
           show: canAccessPlatformAdmin && !governanceConfigured,
           priority: "P2" as ActionPriority,
-          title: "Missing location governance",
-          reason: "SaaS geography lock is not configured.",
-          owner: "SaaS admin",
+          title: t("command.actions.missingGovernance"),
+          reason: t("command.actions.missingGovernanceReason"),
+          owner: t("command.owners.saasAdmin"),
           action: onOpenSaas
         },
         {
           show: !communicationProviderReady,
           priority: "P2" as ActionPriority,
-          title: "Communication provider not configured",
-          reason: "Bulk delivery is available after a messaging provider is configured.",
-          owner: "Workspace admin",
+          title: t("command.actions.providerMissing"),
+          reason: t("command.actions.providerMissingReason"),
+          owner: t("command.owners.workspaceAdmin"),
           action: onOpenEngagement,
           providerReady: true
         },
         {
           show: Boolean(activeCampaign && !activeCampaign.shareUrl),
           priority: "P2" as ActionPriority,
-          title: "Public link not shared",
-          reason: "Campaign link is required for public distribution.",
-          owner: "Campaign owner",
+          title: t("command.actions.linkNotShared"),
+          reason: t("command.actions.linkNotSharedReason"),
+          owner: t("command.owners.campaignOwner"),
           action: onOpenCampaigns
         }
       ].filter((item) => item.show),
@@ -241,69 +243,68 @@ export function CommandCenterTab({
       onOpenFieldCollection,
       onOpenSaas,
       pendingScans,
+      t,
       verifiedSupporters
     ]
   );
 
   const recommendedActions = [
-    actionBoard[0]?.title ?? "Share today’s campaign update",
-    authorityReady ? "Prepare authority follow-up note" : "Confirm primary authority",
-    pendingScans > 0 ? "Review pending field sheets" : "Assign new field collection locality",
-    reachableSupporters > 0 ? "Send supporter progress update" : "Collect phone/email for reachable audience",
-    activeCampaign?.heroImage ? "Recruit district coordinators" : "Upload a campaign banner"
+    actionBoard[0]?.title ?? t("command.recommendations.shareUpdate"),
+    authorityReady ? t("command.recommendations.prepareAuthority") : t("command.recommendations.confirmAuthority"),
+    pendingScans > 0 ? t("command.recommendations.reviewSheets") : t("command.recommendations.assignLocality"),
+    reachableSupporters > 0 ? t("command.recommendations.sendProgress") : t("command.recommendations.collectContacts"),
+    activeCampaign?.heroImage ? t("command.recommendations.recruitCoordinators") : t("command.recommendations.uploadBanner")
   ];
   const missionPlan = [
-    ["Field collection task", pendingScans > 0 ? "Review pending paper sheets today." : "Collect 25 new supporters from one weak locality."],
-    ["Authority task", authorityMatch ? `Prepare follow-up for ${authorityMatch.authority.name}.` : "Select and verify a primary authority."],
-    ["Communication task", reachableSupporters > 0 ? `Send update preview to ${reachableSupporters.toLocaleString()} reachable supporters.` : "Prepare WhatsApp copy and collect phone numbers."],
-    ["Volunteer task", "Assign one volunteer owner for field collection and one for sharing."],
-    ["Campaign polish task", activeCampaign?.heroImage ? "Review public page copy and QR sharing." : "Upload a clear campaign banner image."]
+    [t("command.mission.fieldTask"), pendingScans > 0 ? t("command.mission.reviewSheets") : t("command.mission.collectSupporters")],
+    [t("command.mission.authorityTask"), authorityMatch ? `${t("command.mission.prepareFollowup")} ${authorityMatch.authority.name}.` : t("command.mission.selectAuthority")],
+    [t("command.mission.communicationTask"), reachableSupporters > 0 ? `${t("command.mission.sendPreview")} ${reachableSupporters.toLocaleString()} ${t("command.mission.reachableSupporters")}.` : t("command.mission.prepareWhatsapp")],
+    [t("command.mission.volunteerTask"), t("command.mission.assignVolunteers")],
+    [t("command.mission.polishTask"), activeCampaign?.heroImage ? t("command.mission.reviewPublicPage") : t("command.mission.uploadBanner")]
   ];
   const coordinatorLevels = ["Ward", "Panchayat", "Block", "District", "State"];
 
   return (
     <section className="page-stack command-center">
-      <Panel title="Movement Command Center" icon={<Crosshair />}>
+      <Panel title={t("command.title")} icon={<Crosshair />}>
         <div className="command-hero">
           <div>
-            <span className="eyebrow">National campaign operations room</span>
-            <h2>{activeCampaign?.title ?? "Select or create a campaign to start operations"}</h2>
-            <p>
-              See what is moving, what is weak, and what action should happen next using only existing Voiceup data.
-            </p>
+            <span className="eyebrow">{t("command.hero.eyebrow")}</span>
+            <h2>{activeCampaign?.title ?? t("command.hero.selectCampaign")}</h2>
+            <p>{t("command.hero.description")}</p>
           </div>
           <div className={`command-risk-card risk-${riskLevel.toLowerCase()}`}>
-            <span>Campaign risk</span>
-            <strong>{riskLevel}</strong>
-            <small>Movement health {movementHealthScore}/100</small>
+            <span>{t("command.metrics.campaignRisk")}</span>
+            <strong>{t(`command.risk.${riskLevel.toLowerCase()}`)}</strong>
+            <small>{t("command.metrics.movementHealth")} {movementHealthScore}/100</small>
           </div>
         </div>
         <div className="command-metric-grid">
-          <CommandMetric label="Selected campaign" value={activeCampaign ? activeCampaign.status : "Setup needed"} detail={activeCampaign?.slug ? `/${activeCampaign.slug}` : "No campaign selected"} />
-          <CommandMetric label="Total supporters" value={metrics.total} detail={`${onlineSupporters} online, ${paperSupporters} paper/manual`} />
-          <CommandMetric label="Verified supporters" value={verifiedSupporters} detail={`${metrics.total ? Math.round((verifiedSupporters / Math.max(metrics.total, 1)) * 100) : 0}% verification`} />
-          <CommandMetric label="Field pending" value={pendingScans} detail="Scan/review queue" />
-          <CommandMetric label="Authority readiness" value={authorityReady ? "Ready" : "Setup needed"} detail={authorityMatch ? `${authorityMatch.score}% match` : `${authorities.length} authority rules`} />
-          <CommandMetric label="Communication" value={reachableSupporters} detail={communicationProviderReady ? "Provider configured" : "Setup needed"} />
-          <CommandMetric label="Movement health" value={`${movementHealthScore}/100`} detail="Deterministic operations score" />
-          <CommandMetric label="Campaign risk" value={riskLevel} detail="Based on weak operational signals" />
+          <CommandMetric label={t("command.metrics.selectedCampaign")} value={activeCampaign ? t(`campaignAdmin.status.${activeCampaign.status.toLowerCase()}`) : t("command.status.setupNeeded")} detail={activeCampaign?.slug ? `/${activeCampaign.slug}` : t("command.status.noCampaignSelected")} />
+          <CommandMetric label={t("command.metrics.totalSupporters")} value={metrics.total} detail={`${onlineSupporters} ${t("command.metrics.online")}, ${paperSupporters} ${t("command.metrics.paperManual")}`} />
+          <CommandMetric label={t("command.metrics.verifiedSupporters")} value={verifiedSupporters} detail={`${metrics.total ? Math.round((verifiedSupporters / Math.max(metrics.total, 1)) * 100) : 0}% ${t("command.metrics.verification")}`} />
+          <CommandMetric label={t("command.metrics.fieldPending")} value={pendingScans} detail={t("command.metrics.scanQueue")} />
+          <CommandMetric label={t("command.metrics.authorityReadiness")} value={authorityReady ? t("command.status.ready") : t("command.status.setupNeeded")} detail={authorityMatch ? `${authorityMatch.score}% ${t("command.metrics.match")}` : `${authorities.length} ${t("command.metrics.authorityRules")}`} />
+          <CommandMetric label={t("command.metrics.communication")} value={reachableSupporters} detail={communicationProviderReady ? t("command.status.providerConfigured") : t("command.status.setupNeeded")} />
+          <CommandMetric label={t("command.metrics.movementHealth")} value={`${movementHealthScore}/100`} detail={t("command.metrics.operationsScore")} />
+          <CommandMetric label={t("command.metrics.campaignRisk")} value={t(`command.risk.${riskLevel.toLowerCase()}`)} detail={t("command.metrics.riskHelp")} />
         </div>
       </Panel>
 
       <div className="two-column">
-        <Panel title="Geographic Progress" icon={<MapPin />}>
+        <Panel title={t("command.geography.title")} icon={<MapPin />}>
           <div className="command-location-grid">
-            <CommandMetric label="Location coverage" value={locationCoverage} detail="State/district/block/panchayat buckets" />
-            <CommandMetric label="Online vs paper" value={`${onlineSupporters}/${paperSupporters}`} detail="Online / paper-manual split" />
+            <CommandMetric label={t("command.geography.coverage")} value={locationCoverage} detail={t("command.geography.coverageHelp")} />
+            <CommandMetric label={t("command.geography.onlineVsPaper")} value={`${onlineSupporters}/${paperSupporters}`} detail={t("command.geography.splitHelp")} />
           </div>
           <div className="ranked-list">
-            <span className="eyebrow">Top locations</span>
-            {topLocations.length === 0 && <p className="helper-text">Setup needed: collect supporter location data.</p>}
+            <span className="eyebrow">{t("command.geography.topLocations")}</span>
+            {topLocations.length === 0 && <p className="helper-text">{t("command.geography.collectLocation")}</p>}
             {topLocations.map((item) => (
               <div key={`${item.level}-${item.label}`}>
                 <div>
                   <strong>{item.label}</strong>
-                  <small>{item.level}</small>
+                  <small>{t(`command.levels.${item.level.replace("/", "").toLowerCase()}`)}</small>
                 </div>
                 <span>{item.value.toLocaleString()}</span>
                 <div className="progress"><div style={{ width: `${Math.min(100, (item.value / Math.max(metrics.total, 1)) * 100)}%` }} /></div>
@@ -311,14 +312,14 @@ export function CommandCenterTab({
             ))}
           </div>
           <div className="ranked-list weak">
-            <span className="eyebrow">Weak locations</span>
+            <span className="eyebrow">{t("command.geography.weakLocations")}</span>
             {weakLocations.length === 0 ? (
-              <p className="helper-text">No weak location insight yet. More location data will improve this view.</p>
+              <p className="helper-text">{t("command.geography.noWeakInsight")}</p>
             ) : weakLocations.map((item) => (
               <div key={`weak-${item.level}-${item.label}`}>
                 <div>
                   <strong>{item.label}</strong>
-                  <small>{item.level} needs more supporters</small>
+                  <small>{t(`command.levels.${item.level.replace("/", "").toLowerCase()}`)} {t("command.geography.needsSupporters")}</small>
                 </div>
                 <span>{item.value.toLocaleString()}</span>
               </div>
@@ -326,20 +327,20 @@ export function CommandCenterTab({
           </div>
         </Panel>
 
-        <Panel title="Action Board" icon={<ClipboardList />}>
+        <Panel title={t("command.actionBoard.title")} icon={<ClipboardList />}>
           <div className="action-board-list">
-            {actionBoard.length === 0 && <p className="success-message">No urgent operational gaps detected.</p>}
+            {actionBoard.length === 0 && <p className="success-message">{t("command.actionBoard.noGaps")}</p>}
             {actionBoard.map((task) => (
               <article className={`action-card priority-${task.priority.toLowerCase()}`} key={task.title}>
                 <span>{task.priority}</span>
                 <div>
                   <strong>{task.title}</strong>
                   <p>{task.reason}</p>
-                  <small>Owner: {task.owner}</small>
+                  <small>{t("command.actionBoard.owner")}: {task.owner}</small>
                 </div>
-                {task.providerReady && <em>Setup needed</em>}
+                {task.providerReady && <em>{t("command.status.setupNeeded")}</em>}
                 <button className="secondary-button" type="button" onClick={task.action}>
-                  Open
+                  {t("command.actionBoard.open")}
                 </button>
               </article>
             ))}
@@ -348,11 +349,11 @@ export function CommandCenterTab({
       </div>
 
       <div className="two-column">
-        <Panel title="AI Movement Brain" icon={<Sparkles />}>
+        <Panel title={t("command.brain.title")} icon={<Sparkles />}>
           <div className="brain-card">
-            <span className="eyebrow">What should we do next?</span>
+            <span className="eyebrow">{t("command.brain.next")}</span>
             <strong>{recommendedActions[0]}</strong>
-            <p>Suggestions are based on current campaign activity and supporter data.</p>
+            <p>{t("command.brain.suggestionsHelp")}</p>
           </div>
           <div className="mission-list">
             {recommendedActions.map((action, index) => (
@@ -363,18 +364,18 @@ export function CommandCenterTab({
             ))}
           </div>
           <div className="command-insight-grid">
-            <div><span>Campaign strength</span><strong>{movementHealthScore}/100</strong></div>
-            <div><span>Risk level</span><strong>{riskLevel}</strong></div>
-            <div><span>Weak location insight</span><strong>{weakLocations[0]?.label ?? "Setup needed"}</strong></div>
-            <div><span>Authority follow-up</span><strong>{authorityMatch?.authority.name ?? "Select authority"}</strong></div>
-            <div><span>Volunteer suggestion</span><strong>Recruit local coordinators</strong></div>
-            <div><span>Communication suggestion</span><strong>{reachableSupporters ? "Send progress update" : "Build audience"}</strong></div>
+            <div><span>{t("command.brain.campaignStrength")}</span><strong>{movementHealthScore}/100</strong></div>
+            <div><span>{t("command.brain.riskLevel")}</span><strong>{t(`command.risk.${riskLevel.toLowerCase()}`)}</strong></div>
+            <div><span>{t("command.brain.weakLocation")}</span><strong>{weakLocations[0]?.label ?? t("command.status.setupNeeded")}</strong></div>
+            <div><span>{t("command.brain.authorityFollowup")}</span><strong>{authorityMatch?.authority.name ?? t("command.brain.selectAuthority")}</strong></div>
+            <div><span>{t("command.brain.volunteerSuggestion")}</span><strong>{t("command.recommendations.recruitCoordinators")}</strong></div>
+            <div><span>{t("command.brain.communicationSuggestion")}</span><strong>{reachableSupporters ? t("command.recommendations.sendProgress") : t("command.brain.buildAudience")}</strong></div>
           </div>
         </Panel>
 
-        <Panel title="Daily Mission Mode" icon={<Flag />}>
+        <Panel title={t("command.mission.title")} icon={<Flag />}>
           <button className="primary-button" type="button" onClick={() => setMissionGenerated(true)}>
-            Generate Today&apos;s Mission Plan
+            {t("command.mission.generate")}
           </button>
           {missionGenerated ? (
             <div className="mission-list">
@@ -386,39 +387,39 @@ export function CommandCenterTab({
               ))}
             </div>
           ) : (
-            <p className="helper-text">Generate a deterministic plan from today&apos;s campaign state.</p>
+            <p className="helper-text">{t("command.mission.generateHelp")}</p>
           )}
         </Panel>
       </div>
 
       <div className="two-column">
-        <Panel title="Volunteer War Room" icon={<UsersRound />}>
+        <Panel title={t("command.volunteers.title")} icon={<UsersRound />}>
           <div className="command-insight-grid">
-            <div><span>Volunteer readiness</span><strong>{metrics.total > 25 ? "Ready to recruit" : "Setup needed"}</strong></div>
-            <div><span>Top volunteer</span><strong>Setup needed</strong></div>
-            <div><span>Field upload status</span><strong>{pendingScans ? `${pendingScans} pending` : "Clear"}</strong></div>
-            <div><span>District gaps</span><strong>{Object.keys(districtTotals).length ? "Review coverage" : "Setup needed"}</strong></div>
+            <div><span>{t("command.volunteers.readiness")}</span><strong>{metrics.total > 25 ? t("command.volunteers.readyRecruit") : t("command.status.setupNeeded")}</strong></div>
+            <div><span>{t("command.volunteers.topVolunteer")}</span><strong>{t("command.status.setupNeeded")}</strong></div>
+            <div><span>{t("command.volunteers.uploadStatus")}</span><strong>{pendingScans ? `${pendingScans} ${t("command.status.pending")}` : t("command.status.clear")}</strong></div>
+            <div><span>{t("command.volunteers.districtGaps")}</span><strong>{Object.keys(districtTotals).length ? t("command.volunteers.reviewCoverage") : t("command.status.setupNeeded")}</strong></div>
           </div>
           <div className="coordinator-grid">
             {coordinatorLevels.map((level) => (
               <div key={level}>
-                <strong>{level} Coordinator</strong>
-                <small>{Object.keys(districtTotals).length ? "Assign owner" : "Setup needed"}</small>
+                <strong>{t(`command.levels.${level.toLowerCase()}`)} {t("command.volunteers.coordinator")}</strong>
+                <small>{Object.keys(districtTotals).length ? t("command.volunteers.assignOwner") : t("command.status.setupNeeded")}</small>
               </div>
             ))}
           </div>
         </Panel>
 
-        <Panel title="Authority Delivery Tracker" icon={<Landmark />}>
+        <Panel title={t("command.authority.title")} icon={<Landmark />}>
           <div className="delivery-tracker">
             {[
-              ["Primary authority", authorityMatch?.authority.name ?? "Setup needed"],
-              ["Suggested authorities", authorityReady ? `${authorities.length} available` : "Setup needed"],
-              ["Petition ready", petitionReady ? "Ready" : "Needs campaign copy"],
-              ["Export-ready", petitionReady ? "PDF/CSV available in Reports" : "Setup needed"],
-              ["Email-ready", integrations.emailProvider === "Not configured" ? "Setup needed" : integrations.emailProvider],
-              ["Follow-up due", "Setup needed"],
-              ["Response status", "Setup needed"]
+              [t("command.authority.primary"), authorityMatch?.authority.name ?? t("command.status.setupNeeded")],
+              [t("command.authority.suggested"), authorityReady ? `${authorities.length} ${t("command.status.available")}` : t("command.status.setupNeeded")],
+              [t("command.authority.petitionReady"), petitionReady ? t("command.status.ready") : t("command.authority.needsCopy")],
+              [t("command.authority.exportReady"), petitionReady ? t("command.authority.exportsAvailable") : t("command.status.setupNeeded")],
+              [t("command.authority.emailReady"), integrations.emailProvider === "Not configured" ? t("command.status.setupNeeded") : integrations.emailProvider],
+              [t("command.authority.followupDue"), t("command.status.setupNeeded")],
+              [t("command.authority.responseStatus"), t("command.status.setupNeeded")]
             ].map(([label, value]) => (
               <div key={label}>
                 <span>{label}</span>
@@ -429,19 +430,19 @@ export function CommandCenterTab({
         </Panel>
       </div>
 
-      <Panel title="Communication Readiness" icon={<MessageCircle />}>
+      <Panel title={t("command.communication.title")} icon={<MessageCircle />}>
         <div className="command-metric-grid">
-          <CommandMetric label="Reachable supporters" value={reachableSupporters} detail="Phone or email available" />
-          <CommandMetric label="Audience count" value={campaignSigners.length} detail="Selected campaign supporters" />
-          <CommandMetric label="WhatsApp" value={integrations.whatsappProvider === "Not configured" ? "Setup needed" : integrations.whatsappProvider} detail="No bulk send from this screen" />
-          <CommandMetric label="SMS" value={integrations.smsProvider === "Not configured" ? "Setup needed" : integrations.smsProvider} detail="No send action" />
-          <CommandMetric label="Email" value={integrations.emailProvider === "Not configured" ? "Setup needed" : integrations.emailProvider} detail="No send action" />
-          <CommandMetric label="IVR" value="Available after setup" detail="Future voice provider" />
+          <CommandMetric label={t("command.communication.reachable")} value={reachableSupporters} detail={t("command.communication.contactAvailable")} />
+          <CommandMetric label={t("command.communication.audienceCount")} value={campaignSigners.length} detail={t("command.communication.selectedSupporters")} />
+          <CommandMetric label="WhatsApp" value={integrations.whatsappProvider === "Not configured" ? t("command.status.setupNeeded") : integrations.whatsappProvider} detail={t("command.communication.noBulkSend")} />
+          <CommandMetric label="SMS" value={integrations.smsProvider === "Not configured" ? t("command.status.setupNeeded") : integrations.smsProvider} detail={t("command.communication.noSend")} />
+          <CommandMetric label="Email" value={integrations.emailProvider === "Not configured" ? t("command.status.setupNeeded") : integrations.emailProvider} detail={t("command.communication.noSend")} />
+          <CommandMetric label="IVR" value={t("command.status.afterSetup")} detail={t("command.communication.futureVoice") } />
         </div>
         <div className="brain-card">
-          <span className="eyebrow">Consent reminder</span>
-          <strong>Do not send messages without consent verification.</strong>
-          <p>{activeCampaign?.participantUpdateMessage || activeCampaign?.socialShareText || "Suggested message appears after campaign copy is configured."}</p>
+          <span className="eyebrow">{t("command.communication.consentReminder")}</span>
+          <strong>{t("command.communication.consentWarning")}</strong>
+          <p>{activeCampaign?.participantUpdateMessage || activeCampaign?.socialShareText || t("command.communication.messageAfterCopy")}</p>
         </div>
       </Panel>
     </section>

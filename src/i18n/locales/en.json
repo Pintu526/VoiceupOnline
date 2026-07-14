@@ -13,6 +13,56 @@
     "password": "Password",
     "submit": "Sign in"
   },
+  "storyCarousel": {
+    "common": {
+      "carousel": "carousel", "slide": "slide", "of": "of", "previous": "Previous", "next": "Next", "pause": "Pause", "resume": "Resume", "stop": "Stop", "replay": "Replay from beginning",
+      "pauseAutoplay": "Pause silent autoplay", "resumeAutoplay": "Resume silent autoplay", "goTo": "Go to slide", "progress": "Guided progress", "navigationAria": "Story navigation", "mediaAria": "Story media options",
+      "nativeNarration": "Browser narration", "videoPlaceholder": "Visual demonstration", "swipeHint": "Swipe or use the arrow keys to explore", "subtitles": "Narration subtitles",
+      "narrationUnavailable": "Narration is unavailable on this device. Subtitles will continue.", "illustrative": "Illustrative demo", "verified": "Reviewed"
+    },
+    "landing": {
+      "regionLabel": "Explore the VoiceUp campaign journey", "eyebrow": "One movement, one connected journey", "title": "See how VoiceUp turns an idea into accountable public action",
+      "subtitle": "Follow the campaign journey from creation and field collection to transparent reporting.", "playLabel": "Play guided explanation",
+      "activation": { "eyebrow": "Begin with clarity", "title": "Start with a campaign", "description": "Choose the right operating capacity as your movement grows.", "usageNote": "Communication and advanced services may depend on usage.", "cta": "Start with a campaign" },
+      "slides": {
+        "campaignCreation": { "title": "Campaign Creation", "description": "Turn a clear idea into a structured, launch-ready campaign.", "narration": "Begin with the change you want to see. VoiceUp guides the campaign structure, public appeal, authority context, and essential launch details in one clear flow." },
+        "paperDigitization": { "title": "Paper Digitization", "description": "Bring reviewed paper signatures into the same campaign journey.", "narration": "Paper support can join the digital movement. Review each record, correct the captured details, identify possible duplicates, and keep every supporter connected to the right campaign." },
+        "supporters": { "title": "Supporters", "description": "Understand every supporter as part of a growing movement.", "narration": "Support does not end with a signature. VoiceUp brings supporter records together so teams can understand participation, verify activity, and communicate with appropriate consent." },
+        "volunteers": { "title": "Volunteers", "description": "Coordinate the people expanding campaign reach.", "narration": "Volunteers carry campaigns into communities. Organize field participation, referral activity, and local follow-up so effort remains visible, coordinated, and connected to campaign outcomes." },
+        "timeline": { "title": "Timeline", "description": "Keep milestones and next steps visible from launch to resolution.", "narration": "A clear timeline turns activity into a public journey. Track important milestones, campaign updates, authority communication, and the next action without losing historical context." },
+        "transparency": { "title": "Transparency", "description": "Present progress, evidence, and accountability clearly.", "narration": "Public trust grows when progress is understandable. Present supporting context, verified participation, updates, and responsible funding information without overstating what the campaign has achieved." },
+        "reports": { "title": "Reports", "description": "Turn participation into useful operational summaries.", "narration": "Reports help campaign teams move from activity to decisions. Review supporter growth, locations, channels, and progress in formats that can support partners and authorities." },
+        "aiCopilot": { "title": "AI Campaign Copilot", "description": "Use guided AI assistance to shape clearer campaign content.", "narration": "The AI Campaign Copilot helps organize an initial idea into stronger campaign language and practical next steps. Every suggestion remains available for human review before use." }
+      }
+    },
+    "publicCampaign": {
+      "regionLabel": "Understand this public campaign", "eyebrow": "Campaign guide", "title": "Understand this campaign", "subtitle": "A concise explanation of the cause, participation, and next steps.", "playLabel": "Play 45-second explanation",
+      "slides": {
+        "objective": { "title": "Campaign objective", "description": "Understand the change this campaign is asking for.", "narration": "Start with the campaign objective. Read the organizer's published description to understand the requested change, affected community, and intended public outcome." },
+        "evidence": { "title": "Evidence and background", "description": "Review the context the organizer has made available.", "narration": "Consider the published background and any supporting material shown on this page. If evidence is not provided, seek additional context before deciding to participate." },
+        "progress": { "title": "Campaign progress", "description": "Follow verified participation toward the stated goal.", "narration": "Campaign progress reflects the participation recorded by VoiceUp. The visible goal and verified supporter count help you understand current momentum without predicting the final result." },
+        "afterSigning": { "title": "What happens after signing", "description": "Your submitted support joins the campaign review flow.", "narration": "After signing, the submitted record follows the campaign's verification flow. The campaign team can use verified participation to prepare responsible updates and authority communication." },
+        "share": { "title": "Share responsibly", "description": "Help others understand the campaign before they participate.", "narration": "Sharing can help the campaign reach more people. Use the provided campaign link, keep the original context intact, and invite others to make their own informed decision." },
+        "volunteerUpdates": { "title": "Volunteer and follow updates", "description": "Stay connected through the options the organizer provides.", "narration": "If volunteer or update options are available, use the organizer's published channels. Do not assume an activity is active unless it is clearly shown on the campaign page." }
+      }
+    },
+    "campaignAdmin": {
+      "regionLabel": "Campaign Admin guided journey", "eyebrow": "Campaign Admin guide", "title": "Grow this campaign step by step",
+      "subtitle": "Follow the next practical actions from publishing to measurable public impact.", "playLabel": "Play guided explanation",
+      "slides": {
+        "publishStrengthen": { "title": "Publish and strengthen the campaign", "description": "Review the public experience and improve campaign readiness.", "narration": "Start by reviewing the campaign message, authority, location, supporter form, and public presentation. Publish only when the request is clear and the campaign is ready.", "benefit1": "Review launch readiness", "benefit2": "Strengthen public clarity", "benefit3": "Use the existing publish flow", "cta": "Open campaign" },
+        "paperSignatures": { "title": "Digitize paper signatures", "description": "Review field records before they enter the supporter journey.", "narration": "Bring paper supporter records into the existing review flow. Correct captured details, check possible duplicates, and approve each record carefully before verification.", "benefit1": "Review captured details", "benefit2": "Identify possible duplicates", "benefit3": "Keep campaign context" },
+        "crm": { "title": "Build the supporter CRM", "description": "Organize participation and follow-up context in one place.", "narration": "Use the supporter CRM to understand who has joined, where participation is growing, and which records need review before responsible follow-up.", "benefit1": "Organize supporter records", "benefit2": "See participation context", "benefit3": "Support careful follow-up" },
+        "referrals": { "title": "Grow through referrals", "description": "Understand how trusted sharing expands campaign reach.", "narration": "Referral signals show how supporters help a campaign travel through trusted networks. Use them to recognize responsible participation without treating projected reach as guaranteed impact.", "benefit1": "Track trusted sharing", "benefit2": "Recognize participation", "benefit3": "Guide responsible growth" },
+        "volunteers": { "title": "Organize volunteers", "description": "Coordinate field participation and local campaign activity.", "narration": "Volunteer coordination connects field work with campaign outcomes. Use available activity and location context to plan collection, sharing, and follow-up responsibly.", "benefit1": "Coordinate field effort", "benefit2": "Connect local activity", "benefit3": "Clarify next actions" },
+        "reportsImpact": { "title": "Track reports and impact", "description": "Turn campaign activity into clear operational insight.", "narration": "Review reports to understand supporter activity, verification, locations, and campaign progress. Use measured results for decisions rather than relying on assumptions.", "benefit1": "Review campaign progress", "benefit2": "Understand participation", "benefit3": "Prepare clear summaries", "cta": "Open reports" },
+        "evidenceUpdates": { "title": "Publish evidence and updates", "description": "Keep the public campaign story current and accountable.", "narration": "Use the public campaign experience to present accurate context and updates. Publish only material the campaign can support, and keep dynamic campaign content under human control.", "benefit1": "Present accurate context", "benefit2": "Keep supporters informed", "benefit3": "Protect public trust", "cta": "Open public campaign" },
+        "fundraising": { "title": "Prepare transparent fundraising", "description": "Explain funding needs without overstating available services.", "narration": "When fundraising is appropriate, present the purpose, payment information, and expectations clearly. Treat transparency as essential and use only the configured campaign controls.", "benefit1": "State the funding purpose", "benefit2": "Communicate responsibly", "benefit3": "Use configured controls" },
+        "districts": { "title": "Coordinate districts", "description": "See where participation is growing and where support is needed.", "narration": "District and local participation context can guide field coordination. Compare real campaign records, identify coverage gaps, and plan outreach without inventing activity.", "benefit1": "Understand local coverage", "benefit2": "Identify participation gaps", "benefit3": "Coordinate field focus" },
+        "aiCopilot": { "title": "Use AI Campaign Copilot", "description": "Improve campaign content while keeping human review in control.", "narration": "Use the AI Campaign Copilot to improve wording and consider next steps. Review every suggestion before applying it to a live campaign.", "benefit1": "Shape clearer language", "benefit2": "Explore next actions", "benefit3": "Review before use", "cta": "Open AI Copilot" }
+      }
+    }
+  },
   "settings": {
     "title": "Settings",
     "language": "Language",

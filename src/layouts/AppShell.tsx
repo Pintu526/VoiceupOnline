@@ -1266,6 +1266,7 @@ export function AppShell({
               createCampaignBlockReason={campaignCreationBlockReason}
               canUseAiCopilot={canUseAiCopilot}
               onUpgradePlan={requestUpgradePlan}
+              isCampaignAdminRoute={isCampaignAdminRoute}
             />
           )}
 

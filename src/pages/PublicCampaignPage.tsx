@@ -34,6 +34,7 @@ import { DonationCard } from "../components/DonationCard";
 import { IndiaLocationFields } from "../components/IndiaLocationFields";
 import { GlobalLocationFields } from "../components/GlobalLocationFields";
 import { ReferralQrPreview } from "../components/ReferralQrPreview";
+import { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";
 import { blankSigner } from "../constants";
 import { LanguageSwitcher, useTranslation, type Language } from "../i18n";
 import {
@@ -628,6 +629,12 @@ export function PublicCampaignPage({
             </div>
           </div>
         </article>
+
+        <VoiceUpStoryCarousel
+          experience="publicCampaign"
+          className="voiceup-story-carousel--compact"
+          mediaBySlide={campaign.heroImage ? { objective: { imageUrl: campaign.heroImage } } : undefined}
+        />
 
         <section className="public-section public-share-panel" aria-labelledby="share-campaign-heading">
           <div className="public-section-heading">

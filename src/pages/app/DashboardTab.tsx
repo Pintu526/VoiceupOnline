@@ -23,6 +23,7 @@ import { MetricCard } from "../../ui/MetricCard";
 import { BarList } from "../../ui/BarList";
 import { Hero } from "../../components/Hero";
 import { EmptyWorkspace } from "../../components/EmptyWorkspace";
+import { VoiceUpStoryCarousel, type VoiceUpStoryAction } from "../../components/VoiceUpStoryCarousel";
 import type { Organization } from "../../types";
 import { useTranslation } from "../../i18n";
 
@@ -42,6 +43,7 @@ interface DashboardTabProps {
   createCampaignBlockReason?: string;
   canUseAiCopilot: boolean;
   onUpgradePlan: () => void;
+  isCampaignAdminRoute: boolean;
 }
 
 const organizationTypes = [
@@ -209,7 +211,8 @@ export function DashboardTab({
   onOpenReports,
   createCampaignBlockReason = "",
   canUseAiCopilot,
-  onUpgradePlan
+  onUpgradePlan,
+  isCampaignAdminRoute
 }: DashboardTabProps) {
   const { t } = useTranslation();
   const displayCampaign = activeCampaign ?? PLACEHOLDER_CAMPAIGN;
@@ -221,6 +224,26 @@ export function DashboardTab({
     [selectedOrgType]
   );
   const showQuickStart = !quickStartDismissed && campaigns.length <= 2;
+  const campaignAdminStoryActions: Partial<Record<string, VoiceUpStoryAction>> = {
+    publishStrengthen: {
+      label: t("storyCarousel.campaignAdmin.slides.publishStrengthen.cta"),
+      onClick: onOpenCampaignAdmin
+    },
+    reportsImpact: {
+      label: t("storyCarousel.campaignAdmin.slides.reportsImpact.cta"),
+      onClick: onOpenReports
+    },
+    evidenceUpdates: {
+      label: t("storyCarousel.campaignAdmin.slides.evidenceUpdates.cta"),
+      onClick: onOpenPublicCampaign
+    },
+    ...(canUseAiCopilot ? {
+      aiCopilot: {
+        label: t("storyCarousel.campaignAdmin.slides.aiCopilot.cta"),
+        onClick: onOpenAiCopilot
+      }
+    } : {})
+  };
   const quickStartItems = [
     {
       label: "Workspace profile completed",
@@ -313,6 +336,13 @@ export function DashboardTab({
         metrics={metrics}
         authority={authorityMatch?.authority}
       />
+      {isCampaignAdminRoute && (
+        <VoiceUpStoryCarousel
+          experience="campaignAdmin"
+          actions={campaignAdminStoryActions}
+          className="voiceup-story-carousel--dashboard"
+        />
+      )}
       {isTrialWorkspace && (
         <Panel title="Free Trial Focus" icon={<CheckCircle2 />}>
           <div className="quick-start-panel">

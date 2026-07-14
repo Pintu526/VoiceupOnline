@@ -29,9 +29,8 @@ import {
   Workflow
 } from "lucide-react";
 import heroImage from "../assets/voiceup-global-hero.png";
-import { subscriptionPlans } from "../data";
+import { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";
 import { LanguageSwitcher, useTranslation } from "../i18n";
-import { formatPlanLimit } from "../utils/subscription";
 import {
   OnboardingWizard,
   type OnboardingCompletionPayload,
@@ -219,7 +218,12 @@ export function MarketingHomePage({
         </motion.div>
       </section>
 
-      <section className="landing-band ai-band" id="product">
+      <section className="landing-guided-band" id="product">
+        <span className="landing-anchor" id="demo" aria-hidden="true" />
+        <VoiceUpStoryCarousel experience="landing" />
+      </section>
+
+      <section className="landing-band ai-band landing-deferred-section">
         <div className="landing-section-heading">
           <span className="eyebrow">{t("landing.product.eyebrow")}</span>
           <h2>{t("landing.product.title")}</h2>
@@ -244,13 +248,13 @@ export function MarketingHomePage({
         </div>
       </section>
 
-      <section className="landing-band studio-band">
+      <section className="landing-band studio-band landing-deferred-section">
         <div className="landing-split">
           <div>
             <span className="eyebrow">{t("landing.workflow.eyebrow")}</span>
             <h2>{t("landing.workflow.title")}</h2>
             <p>{t("landing.workflow.subtitle")}</p>
-            <div className="workflow-row" id="workflow">
+            <div className="workflow-row">
               {workflowSteps.map((step, index) => (
                 <div className="workflow-step" key={step}>
                   <span>{index + 1}</span>
@@ -272,7 +276,7 @@ export function MarketingHomePage({
         </div>
       </section>
 
-      <section className="landing-band demo-band" id="demo">
+      <section className="landing-band demo-band landing-deferred-section">
         <div className="demo-layout">
           <div>
             <span className="eyebrow">{t("landing.demo.eyebrow")}</span>
@@ -296,7 +300,7 @@ export function MarketingHomePage({
         </div>
       </section>
 
-      <section className="landing-band testimonial-band">
+      <section className="landing-band testimonial-band landing-compact-proof" id="workflow">
         <div className="landing-section-heading">
           <span className="eyebrow">{t("landing.trust.eyebrow")}</span>
           <h2>{t("landing.trust.title")}</h2>
@@ -314,37 +318,20 @@ export function MarketingHomePage({
       </section>
 
       <section className="landing-band pricing-band" id="pricing">
-        <div className="landing-section-heading">
-          <span className="eyebrow">{t("landing.pricing.eyebrow")}</span>
-          <h2>{t("landing.pricing.title")}</h2>
-          <p>{t("landing.pricing.subtitle")}</p>
+        <div className="landing-activation-copy">
+          <span className="eyebrow">{t("storyCarousel.landing.activation.eyebrow")}</span>
+          <h2>{t("storyCarousel.landing.activation.title")}</h2>
+          <p>{t("storyCarousel.landing.activation.description")}</p>
+          <small>{t("storyCarousel.landing.activation.usageNote")}</small>
         </div>
-        <div className="landing-pricing-grid">
-          {subscriptionPlans.map((plan) => (
-            <article className={plan.recommended ? "landing-price-card recommended" : "landing-price-card"} key={plan.name}>
-              {plan.recommended && <span className="recommended-pill">{t("landing.pricing.popular")}</span>}
-              <h3>{plan.name}</h3>
-              <strong>{plan.price}</strong>
-              <p>{plan.description}</p>
-              <ul>
-                <li>{formatPlanLimit(plan.campaignLimit)} {t(plan.campaignLimit === 1 ? "landing.pricing.campaign" : "landing.pricing.campaigns")}</li>
-                <li>{formatPlanLimit(plan.supporterLimit)} {t("landing.pricing.supporters")}</li>
-                <li>{plan.monthlySignatureLimit.toLocaleString()} {t("landing.pricing.signaturesPerMonth")}</li>
-                <li>{t(plan.providerReadyIntegrations ? "landing.pricing.integrationsAvailable" : "landing.pricing.upgradeIntegrations")}</li>
-              </ul>
-              <button
-                className={plan.recommended ? "primary-link-button" : "secondary-link-button"}
-                type="button"
-                onClick={onOpenOnboarding}
-              >
-                {t(plan.name === "Enterprise" ? "landing.pricing.startFreeFirst" : "landing.pricing.startPlan")}
-              </button>
-            </article>
-          ))}
+        <div className="button-row">
+          <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
+            <Rocket size={18} /> {t("storyCarousel.landing.activation.cta")}
+          </button>
         </div>
       </section>
 
-      <section className="landing-band trial-band">
+      <section className="landing-band trial-band landing-deferred-section">
         <div className="trial-panel">
           <div>
             <span className="eyebrow">{t("landing.trial.eyebrow")}</span>
@@ -370,7 +357,7 @@ export function MarketingHomePage({
           <h2>{t("landing.faq.title")}</h2>
         </div>
         <div className="faq-list">
-          {faqs.map((faq) => (
+          {faqs.slice(0, 4).map((faq) => (
             <details key={faq.key}>
               <summary>
                 <span>{t(`landing.faq.items.${faq.key}.question`)}</span>
@@ -382,7 +369,7 @@ export function MarketingHomePage({
         </div>
       </section>
 
-      <section className="landing-final-cta">
+      <section className="landing-final-cta landing-deferred-section">
         <div>
           <span className="eyebrow">{t("landing.finalCta.eyebrow")}</span>
           <h2>{t("landing.finalCta.title")}</h2>

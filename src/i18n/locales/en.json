@@ -53,5 +53,135 @@
     "whatHappensAfterSigning": "What happens after I sign?",
     "whatHappensAfterSigningAnswer": "Your verified support is counted and can be included in the campaign appeal to the selected authority.",
     "relatedCampaigns": "Related campaigns"
+  },
+  "landing": {
+    "nav": {
+      "homeAria": "Voiceup Global home",
+      "tagline": "Public campaign operating system",
+      "sectionsAria": "Marketing sections",
+      "product": "Product",
+      "workflow": "Workflow",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "toggleTheme": "Toggle color theme"
+    },
+    "actions": {
+      "watchDemo": "Watch demo",
+      "startFreeCampaign": "Start Free Campaign",
+      "createWithAi": "Create campaign with AI",
+      "viewPricing": "View pricing",
+      "startOneDay": "Start free for 1 day"
+    },
+    "hero": {
+      "eyebrow": "No credit card. Free trial. Public link ready.",
+      "title": "Create Voice Campaigns in 60 Seconds",
+      "subtitle": "Launch a public campaign from Facebook, WhatsApp, LinkedIn, Instagram, Google Ads, or a QR code without forcing visitors into an admin dashboard first.",
+      "highlightsAria": "Voiceup platform highlights",
+      "proof": {
+        "speedValue": "60 sec", "speedLabel": "campaign creation",
+        "cardValue": "No card", "cardLabel": "1-day free trial",
+        "trustValue": "Trusted", "trustLabel": "global-ready flow",
+        "viralValue": "Viral", "viralLabel": "share link + QR"
+      }
+    },
+    "product": {
+      "eyebrow": "Premium campaign stack",
+      "title": "Create and publish your campaign in 60 seconds, then grow it with proof.",
+      "subtitle": "Voiceup brings campaign creation, supporter collection, routing, operations, messaging, CRM, reporting, and clear upgrade controls into one global product."
+    },
+    "modules": {
+      "aiCopilot": {
+        "eyebrow": "Draft faster", "title": "AI Campaign Copilot",
+        "text": "Turn a rough issue into a campaign title, petition copy, authority letter, supporter update, and social post so you can publish in 60 seconds.",
+        "bullets": { "briefBuilder": "Campaign brief builder", "appealDrafts": "Appeal and petition drafts", "regionalPrompts": "Regional-language ready prompts" }
+      },
+      "campaignStudio": {
+        "eyebrow": "Launch cleanly", "title": "Campaign Studio",
+        "text": "Create a public campaign workspace with templates, location governance, signer fields, media, QR assets, and publish checks.",
+        "bullets": { "launchFlow": "60-second launch flow", "publicSigning": "Public signing page", "templateSetup": "Template-led campaign setup" }
+      },
+      "authorityIntelligence": {
+        "eyebrow": "Reach the right office", "title": "Authority Intelligence",
+        "text": "Map a campaign to the right local, city, state, national, or global authority with routing context and submission notes.",
+        "bullets": { "authorityRecommendations": "Authority recommendations", "locationRouting": "Location-aware routing", "dossierContext": "Submission dossier context" }
+      },
+      "fieldCollection": {
+        "eyebrow": "Online plus offline", "title": "Field Collection",
+        "text": "Collect signatures from phones, QR posters, paper forms, and field volunteers while keeping every supporter traceable.",
+        "bullets": { "qrHandouts": "QR handouts", "scanReview": "Scan review queue", "volunteerCollection": "Volunteer-ready collection" }
+      },
+      "movementCrm": {
+        "eyebrow": "Grow the base", "title": "Movement CRM",
+        "text": "Understand supporters, referrers, volunteers, ambassadors, and local clusters so a petition becomes an organized movement.",
+        "bullets": { "supporterGraph": "Supporter graph", "referralTracking": "Referral tracking", "volunteerSegments": "Volunteer segments" }
+      },
+      "commandCenter": {
+        "eyebrow": "Operate the push", "title": "Command Center",
+        "text": "Coordinate campaign health, local momentum, authority follow-ups, field progress, and next actions from one dashboard.",
+        "bullets": { "campaignPulse": "Live campaign pulse", "operationsChecklist": "Operations checklist", "escalationReadiness": "Escalation readiness" }
+      },
+      "communicationHub": {
+        "eyebrow": "Keep people moving", "title": "Communication Hub",
+        "text": "Prepare WhatsApp, SMS, email, and public updates for milestone announcements, volunteer nudges, and supporter follow-up.",
+        "bullets": { "messagingSetup": "Messaging setup", "milestoneUpdates": "Milestone updates", "consentCommunication": "Consent-aware communication" }
+      },
+      "reports": {
+        "eyebrow": "Show evidence", "title": "Reports and Petition Dossier",
+        "text": "Turn campaign activity into executive reports, location breakdowns, signer exports, and a petition dossier for submission.",
+        "bullets": { "exports": "PDF and CSV exports", "locationAnalytics": "Location analytics", "authorityDossier": "Authority-ready dossier" }
+      }
+    },
+    "workflow": {
+      "eyebrow": "Customer workflow", "title": "From an issue to a polished petition campaign.",
+      "subtitle": "A small team can start with a local problem, use AI to shape campaign content, publish a public link, collect support in the field, and hand a professional dossier to the right authority.",
+      "steps": { "describe": "Describe the issue", "shape": "Let AI shape the campaign", "publish": "Publish the public link", "collect": "Collect support everywhere", "route": "Route to authorities", "report": "Report impact" },
+      "panelTitle": "Campaign Studio workflow",
+      "panelText": "AI brief, location governance, signer fields, authority route, QR share, media, dossier.",
+      "mini": { "brief": "Brief", "studio": "Studio", "collect": "Collect", "route": "Route", "report": "Report" }
+    },
+    "demo": {
+      "eyebrow": "Product demo", "title": "Watch how a campaign goes from idea to public launch.",
+      "subtitle": "Preview the Voiceup operating surface: launch, supporters, authority routing, sharing, reports, and upgrade paths after the first campaign is live.",
+      "imageAlt": "Voiceup Global campaign dashboard preview", "watchAria": "Watch Voiceup Global demo"
+    },
+    "trust": {
+      "eyebrow": "Trusted globally", "title": "Designed for people who need momentum before management.",
+      "subtitle": "The first win is a working public campaign link. Admin, billing, analytics, branding, integrations, and team controls can come after users experience value.",
+      "signals": {
+        "fastCampaign": { "title": "Fast first campaign", "text": "Create and publish a campaign in 60 seconds with a public link, QR code, and share options." },
+        "publicTrust": { "title": "Built for public trust", "text": "Every campaign can show the appeal, target authority, progress, consent text, and organizer context." },
+        "simplePowerful": { "title": "Simple before powerful", "text": "Start with one working campaign, then upgrade for larger teams, branding, communication, and reporting." }
+      }
+    },
+    "pricing": {
+      "eyebrow": "Pricing that suits the pocket", "title": "Start free, grow only when the campaign needs more power.",
+      "subtitle": "Pick a plan for a small local campaign, a growing public movement, or an enterprise program. Upgrade paths support subscription, campaign-duration, supporter-count, feature-based, and custom quote models.",
+      "popular": "Popular", "campaign": "campaign", "campaigns": "campaigns", "supporters": "supporters",
+      "signaturesPerMonth": "signatures/month", "integrationsAvailable": "Integrations available", "upgradeIntegrations": "Upgrade for integrations",
+      "startFreeFirst": "Start free first", "startPlan": "Start this plan"
+    },
+    "trial": {
+      "eyebrow": "1-day free trial", "title": "Let people try Voiceup before they commit.",
+      "subtitle": "One campaign, limited supporter collection, Voiceup branding, and simple sharing tools. Ideal for a first campaign, a live launch, or testing whether the workflow fits the team.",
+      "items": { "oneCampaign": "1 campaign", "freeAccess": "1-day free access", "publicSigning": "Public signing", "basicReports": "Basic reports", "upgradeReady": "Upgrade when ready" }
+    },
+    "faq": {
+      "eyebrow": "FAQ", "title": "Built for teams that need trust before scale.",
+      "items": {
+        "quickLaunch": { "question": "Can a non-technical team launch a campaign quickly?", "answer": "Yes. Voiceup is designed around guided setup, AI-assisted copy, templates, public links, QR sharing, and publish checks so teams can move fast." },
+        "freeTrial": { "question": "Is the 1-day trial really free?", "answer": "The landing flow presents a 1-day free trial path for one campaign with Voiceup branding and limited supporter collection. Paid upgrades can be configured when the team is ready." },
+        "offlineSupport": { "question": "Can campaigns collect support offline?", "answer": "Yes. Voiceup supports online signatures, QR-based collection, and paper/scan workflows for field teams and community events." },
+        "outsideIndia": { "question": "Does Voiceup work outside India?", "answer": "Yes. Global mode supports country, state or province, city or district, locality or ward, and postal/ZIP fields while India detailed mode remains available." },
+        "smallOrganization": { "question": "Can pricing fit a small organization?", "answer": "Yes. The plan ladder starts with a free trial and Starter plan, then grows into Growth, Pro Movement, and Enterprise options as campaign scale increases." }
+      }
+    },
+    "finalCta": {
+      "eyebrow": "Ready to launch?", "title": "Launch the first campaign, show the value, then choose the plan that fits.",
+      "subtitle": "Voiceup helps people promote their campaign from a real public link: AI campaign copy, field collection, movement CRM, communication hub, and impact reports in one place."
+    },
+    "footer": {
+      "privacy": "Privacy", "terms": "Terms", "refund": "Refund policy", "dataDeletion": "Data deletion",
+      "tagline": "Voiceup Global, built for public campaigns worldwide."
+    }
   }
 }

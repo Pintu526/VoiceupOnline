@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Building2,
   CalendarDays,
@@ -46,103 +46,17 @@ interface DashboardTabProps {
   isCampaignAdminRoute: boolean;
 }
 
-const organizationTypes = [
-  {
-    label: "NGO",
-    templates: "Civic, health, education, environment",
-    fields: "Name, phone, district",
-    authorities: "Collector, department officer, municipal body",
-    channels: "WhatsApp, email, field collection"
-  },
-  {
-    label: "Political organization",
-    templates: "Citizen rights, public policy, infrastructure",
-    fields: "Name, phone, ward, booth/locality",
-    authorities: "Councillor, MLA, MP, party office",
-    channels: "WhatsApp, SMS, social media"
-  },
-  {
-    label: "Temple trust",
-    templates: "Temple development, heritage, festival",
-    fields: "Name, phone, address",
-    authorities: "Temple committee, endowments, municipal body",
-    channels: "WhatsApp, posters, QR"
-  },
-  {
-    label: "RWA",
-    templates: "Road, garbage, street light, water",
-    fields: "Name, phone, block, apartment/ward",
-    authorities: "Municipal Commissioner, engineer, councillor",
-    channels: "WhatsApp, QR, field collection"
-  },
-  {
-    label: "Student body",
-    templates: "Scholarship, library, college infrastructure",
-    fields: "Name, phone, institution",
-    authorities: "Principal, education officer, university",
-    channels: "Social media, WhatsApp, email"
-  },
-  {
-    label: "Citizen group",
-    templates: "Civic infrastructure, RTI, public policy",
-    fields: "Name, phone, district",
-    authorities: "Collector, municipal body, public grievance",
-    channels: "WhatsApp, email, press"
-  },
-  {
-    label: "Social movement",
-    templates: "Citizen rights, women safety, youth",
-    fields: "Name, phone, state, district",
-    authorities: "Collector, CM office, department secretary",
-    channels: "Social media, WhatsApp, email"
-  },
-  {
-    label: "Educational institution",
-    templates: "School improvement, teacher recruitment, library",
-    fields: "Name, phone, role",
-    authorities: "Education officer, school committee",
-    channels: "Email, WhatsApp, QR"
-  },
-  {
-    label: "Healthcare group",
-    templates: "Medical camp, hospital upgrade, ambulance",
-    fields: "Name, phone, district",
-    authorities: "CDMO, hospital superintendent, collector",
-    channels: "WhatsApp, email, field collection"
-  },
-  {
-    label: "Animal welfare group",
-    templates: "Animal shelter, veterinary support, cow protection",
-    fields: "Name, phone, locality",
-    authorities: "Veterinary officer, animal resources, collector",
-    channels: "WhatsApp, social media, posters"
-  },
-  {
-    label: "Environment group",
-    templates: "Tree plantation, river cleaning, lake restoration",
-    fields: "Name, phone, district",
-    authorities: "Forest officer, pollution board, collector",
-    channels: "Social media, WhatsApp, press"
-  }
-];
-
-const helpPanels = [
-  ["Campaign Studio", "Build the public petition page, signer form, media, and publish readiness."],
-  ["Authority Intelligence", "Choose or recommend the offices that should receive the petition."],
-  ["Field Collection", "Bring paper sheets, OCR review, and manual supporter entry into one workflow."],
-  ["Movement CRM", "Understand supporters, volunteers, referrals, and movement health."],
-  ["AI Campaign Copilot", "Turn one sentence into a professional campaign draft you can review and save."]
-];
+const helpPanels = ["studio", "authority", "field", "crm", "copilot"] as const;
 
 const quickStartSteps: Array<[string, LucideIcon]> = [
-  ["Choose organization type", Building2],
-  ["Configure location governance", Globe2],
-  ["Choose campaign template", Megaphone],
-  ["Select authorities", Landmark],
-  ["Configure supporter fields", Users],
-  ["Add campaign media", FileImage],
-  ["Publish campaign", CheckCircle2],
-  ["Share link/QR", QrCode]
+  ["organization", Building2],
+  ["location", Globe2],
+  ["template", Megaphone],
+  ["authority", Landmark],
+  ["fields", Users],
+  ["media", FileImage],
+  ["publish", CheckCircle2],
+  ["share", QrCode]
 ];
 
 const PLACEHOLDER_CAMPAIGN: Campaign = {
@@ -215,14 +129,13 @@ export function DashboardTab({
   isCampaignAdminRoute
 }: DashboardTabProps) {
   const { t } = useTranslation();
-  const displayCampaign = activeCampaign ?? PLACEHOLDER_CAMPAIGN;
+  const displayCampaign = activeCampaign ?? {
+    ...PLACEHOLDER_CAMPAIGN,
+    title: t("campaignAdmin.dashboard.freeze.placeholderTitle"),
+    description: t("campaignAdmin.dashboard.freeze.placeholderDescription")
+  };
   const isTrialWorkspace = organization.plan === "Free Trial";
   const [quickStartDismissed, setQuickStartDismissed] = useState(false);
-  const [selectedOrgType, setSelectedOrgType] = useState(organizationTypes[0].label);
-  const selectedOrgRecommendation = useMemo(
-    () => organizationTypes.find((type) => type.label === selectedOrgType) ?? organizationTypes[0],
-    [selectedOrgType]
-  );
   const showQuickStart = !quickStartDismissed && campaigns.length <= 2;
   const campaignAdminStoryActions: Partial<Record<string, VoiceUpStoryAction>> = {
     publishStrengthen: {
@@ -246,35 +159,35 @@ export function DashboardTab({
   };
   const quickStartItems = [
     {
-      label: "Workspace profile completed",
+      label: t("campaignAdmin.dashboard.freeze.checklist.workspace"),
       ready: Boolean(organization.name && organization.ownerEmail)
     },
     {
-      label: "Location governance configured",
+      label: t("campaignAdmin.dashboard.freeze.checklist.location"),
       ready: Boolean(organization.locationGovernance?.lockLevel && organization.locationGovernance.lockLevel !== "none")
     },
     {
-      label: "First campaign drafted",
+      label: t("campaignAdmin.dashboard.freeze.checklist.campaign"),
       ready: campaigns.length > 0
     },
     {
-      label: "Authority selected",
+      label: t("campaignAdmin.dashboard.freeze.checklist.authority"),
       ready: Boolean(activeCampaign?.selectedAuthorityId || authorityMatch)
     },
     {
-      label: "Public page reviewed",
+      label: t("campaignAdmin.dashboard.freeze.checklist.publicPage"),
       ready: Boolean(activeCampaign?.shareUrl)
     },
     {
-      label: "Field collection ready",
+      label: t("campaignAdmin.dashboard.freeze.checklist.field"),
       ready: Boolean(activeCampaign)
     },
     {
-      label: "Movement CRM ready",
+      label: t("campaignAdmin.dashboard.freeze.checklist.crm"),
       ready: metrics.total > 0
     },
     {
-      label: "Communication setup",
+      label: t("campaignAdmin.dashboard.freeze.checklist.communication"),
       ready: Boolean(activeCampaign?.socialShareText || activeCampaign?.thankYouMessage)
     }
   ];
@@ -290,40 +203,40 @@ export function DashboardTab({
       (activeCampaign?.shareUrl ? 20 : 0)
   );
   const lowParticipationHints = [
-    metrics.total === 0 ? "No supporters yet. Share the public campaign link first." : "",
-    metrics.verified < Math.max(1, Math.round(metrics.total * 0.5)) ? "Verification coverage is below ideal for authority submission." : "",
-    !authorityMatch ? "Authority route needs confirmation before petition delivery." : "",
-    !activeCampaign?.heroImage ? "Add a campaign image to improve public page trust." : "",
-    !activeCampaign?.socialShareText ? "Prepare WhatsApp/social copy for faster distribution." : ""
+    metrics.total === 0 ? t("campaignAdmin.dashboard.freeze.hints.noSupporters") : "",
+    metrics.verified < Math.max(1, Math.round(metrics.total * 0.5)) ? t("campaignAdmin.dashboard.freeze.hints.verification") : "",
+    !authorityMatch ? t("campaignAdmin.dashboard.freeze.hints.authority") : "",
+    !activeCampaign?.heroImage ? t("campaignAdmin.dashboard.freeze.hints.image") : "",
+    !activeCampaign?.socialShareText ? t("campaignAdmin.dashboard.freeze.hints.shareCopy") : ""
   ].filter(Boolean);
   const trialActionCards = [
     {
-      label: "Campaign",
-      detail: activeCampaign ? "Edit campaign details" : "Create your first campaign",
+      label: t("campaignAdmin.dashboard.freeze.actions.campaign"),
+      detail: activeCampaign ? t("campaignAdmin.dashboard.freeze.actions.editCampaign") : t("campaignAdmin.dashboard.freeze.actions.firstCampaign"),
       icon: Megaphone,
       action: activeCampaign ? onOpenCampaignAdmin : onCreateCampaign
     },
     {
-      label: "Share",
-      detail: activeCampaign?.shareUrl ? "Open public signing page" : "Create a campaign to get a share link",
+      label: t("campaignAdmin.dashboard.freeze.actions.share"),
+      detail: activeCampaign?.shareUrl ? t("campaignAdmin.dashboard.freeze.actions.openPublic") : t("campaignAdmin.dashboard.freeze.actions.createForLink"),
       icon: Send,
       action: activeCampaign ? onOpenPublicCampaign : onCreateCampaign
     },
     {
-      label: "Analytics",
-      detail: `${metrics.total.toLocaleString()} total supporters`,
+      label: t("campaignAdmin.dashboard.freeze.actions.analytics"),
+      detail: t("campaignAdmin.dashboard.freeze.actions.totalSupporters").replace("{count}", metrics.total.toLocaleString()),
       icon: SearchCheck,
       action: onOpenReports
     },
     {
-      label: "Supporters",
-      detail: `${metrics.verified.toLocaleString()} verified signatures`,
+      label: t("campaignAdmin.dashboard.freeze.actions.supporters"),
+      detail: t("campaignAdmin.dashboard.freeze.actions.verifiedSignatures").replace("{count}", metrics.verified.toLocaleString()),
       icon: Users,
       action: onOpenReports
     },
     {
-      label: "Upgrade",
-      detail: "Unlock more campaigns and growth tools",
+      label: t("campaignAdmin.dashboard.freeze.actions.upgrade"),
+      detail: t("campaignAdmin.dashboard.freeze.actions.upgradeHelp"),
       icon: Globe2,
       action: onUpgradePlan
     }
@@ -344,15 +257,14 @@ export function DashboardTab({
         />
       )}
       {isTrialWorkspace && (
-        <Panel title="Free Trial Focus" icon={<CheckCircle2 />}>
+        <Panel title={t("campaignAdmin.dashboard.freeze.trialFocus")} icon={<CheckCircle2 />}>
           <div className="quick-start-panel">
             <div className="quick-start-hero">
               <div>
                 <span className="eyebrow">{t("campaignAdmin.dashboard.createSixty")}</span>
                 <h2>{t("campaignAdmin.dashboard.trialTitle")}</h2>
                 <p>
-                  Your trial workspace keeps the first campaign simple: edit the campaign, share the public link,
-                  watch supporters, review analytics, and upgrade when you are ready.
+                  {t("campaignAdmin.dashboard.freeze.trialHelp")}
                 </p>
               </div>
               <div className="quick-start-score">
@@ -373,10 +285,10 @@ export function DashboardTab({
             {activeCampaign?.shareUrl && (
               <div className="button-row">
                 <a className="primary-link-button" href={activeCampaign.shareUrl} target="_blank" rel="noreferrer">
-                  <Send size={18} /> Open share link
+                  <Send size={18} /> {t("campaignAdmin.dashboard.freeze.openShareLink")}
                 </a>
                 <button className="secondary-button" type="button" onClick={onOpenCampaignAdmin}>
-                  <Megaphone size={18} /> Edit campaign
+                  <Megaphone size={18} /> {t("campaignAdmin.dashboard.freeze.editCampaign")}
                 </button>
               </div>
             )}
@@ -391,37 +303,36 @@ export function DashboardTab({
         </div>
         {createCampaignBlockReason || !canUseAiCopilot ? (
           <button className="primary-button" type="button" onClick={onUpgradePlan}>
-            <Globe2 size={18} /> Upgrade Plan
+            <Globe2 size={18} /> {t("campaignAdmin.dashboard.freeze.upgradePlan")}
           </button>
         ) : (
           <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
-            <Sparkles size={18} /> Create with AI
+            <Sparkles size={18} /> {t("campaignAdmin.dashboard.freeze.createWithAi")}
           </button>
         )}
       </div>
       )}
 
       {showQuickStart && (
-        <Panel title="Quick Start" icon={<Sparkles />}>
+        <Panel title={t("campaignAdmin.dashboard.freeze.quickStart")} icon={<Sparkles />}>
           <div className="quick-start-panel">
             <div className="quick-start-hero">
               <div>
                 <span className="eyebrow">{t("campaignAdmin.dashboard.createSixty")}</span>
                 <h2>{t("campaignAdmin.dashboard.setupTitle")}</h2>
                 <p>
-                  Follow the checklist, pick your organization type, draft a campaign, then review
-                  and save using the existing campaign workflow.
+                  {t("campaignAdmin.dashboard.freeze.quickStartHelp")}
                 </p>
               </div>
               <div className="quick-start-score">
                 <span>{t("campaignAdmin.dashboard.setupProgress")}</span>
                 <strong>{quickStartProgress}%</strong>
-                <small>{quickStartItems.filter((item) => item.ready).length} of {quickStartItems.length} ready</small>
+                <small>{t("campaignAdmin.dashboard.freeze.readyCount").replace("{ready}", String(quickStartItems.filter((item) => item.ready).length)).replace("{total}", String(quickStartItems.length))}</small>
               </div>
               <button
                 className="icon-button"
                 type="button"
-                aria-label="Dismiss Quick Start"
+                aria-label={t("campaignAdmin.dashboard.freeze.dismissQuickStart")}
                 onClick={() => setQuickStartDismissed(true)}
               >
                 <X size={18} />
@@ -429,40 +340,19 @@ export function DashboardTab({
             </div>
 
             <div className="quick-start-steps">
-              {quickStartSteps.map(([label, Icon], index) => (
-                <div className="quick-start-step" key={String(label)}>
+              {quickStartSteps.map(([key, Icon], index) => (
+                <div className="quick-start-step" key={key}>
                   <Icon size={18} />
                   <span>{index + 1}</span>
-                  <strong>{label}</strong>
+                  <strong>{t(`campaignAdmin.dashboard.freeze.steps.${key}`)}</strong>
                 </div>
               ))}
             </div>
 
-            <div className="quick-start-grid">
-              <div className="quick-start-card">
-                <span className="eyebrow">{t("campaignAdmin.dashboard.organizationType")}</span>
-                <div className="org-type-grid" role="list" aria-label="Organization type recommendations">
-                  {organizationTypes.map((type) => (
-                    <button
-                      className={selectedOrgType === type.label ? "selected" : ""}
-                      key={type.label}
-                      type="button"
-                      onClick={() => setSelectedOrgType(type.label)}
-                    >
-                      {type.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="quick-start-card recommendation-card">
-                <span className="eyebrow">{t("campaignAdmin.dashboard.recommendedSetup")}</span>
-                <strong>{selectedOrgRecommendation.label}</strong>
-                <p><b>{t("campaignAdmin.dashboard.templates")}:</b> {selectedOrgRecommendation.templates}</p>
-                <p><b>{t("campaignAdmin.dashboard.supporterFields")}:</b> {selectedOrgRecommendation.fields}</p>
-                <p><b>{t("campaignAdmin.dashboard.authorities")}:</b> {selectedOrgRecommendation.authorities}</p>
-                <p><b>{t("campaignAdmin.dashboard.channels")}:</b> {selectedOrgRecommendation.channels}</p>
-              </div>
+            <div className="quick-start-card recommendation-card">
+              <span className="eyebrow">{t("campaignAdmin.dashboard.organizationType")}</span>
+              <strong>{t("campaignAdmin.dashboard.freeze.guidedSetupTitle")}</strong>
+              <p>{t("campaignAdmin.dashboard.freeze.guidedSetupText")}</p>
             </div>
 
             <div className="guided-checklist">
@@ -477,25 +367,25 @@ export function DashboardTab({
             <div className="quick-start-actions">
               {createCampaignBlockReason ? (
                 <button className="primary-button" type="button" onClick={onUpgradePlan}>
-                  <Globe2 size={18} /> Upgrade Plan
+                  <Globe2 size={18} /> {t("campaignAdmin.dashboard.freeze.upgradePlan")}
                 </button>
               ) : (
                 <>
                   {canUseAiCopilot && (
                     <button className="primary-button" type="button" onClick={onOpenAiCopilot}>
-                      <Sparkles size={18} /> Create with AI
+                      <Sparkles size={18} /> {t("campaignAdmin.dashboard.freeze.createWithAi")}
                     </button>
                   )}
                   <button className="secondary-button" type="button" onClick={onCreateCampaign}>
-                    <Megaphone size={18} /> Create campaign
+                    <Megaphone size={18} /> {t("campaignAdmin.dashboard.freeze.createCampaign")}
                   </button>
                 </>
               )}
               <button className="secondary-button" type="button" onClick={onOpenSubscription}>
-                <Globe2 size={18} /> Configure workspace
+                <Globe2 size={18} /> {t("campaignAdmin.dashboard.freeze.configureWorkspace")}
               </button>
               <span className="helper-text">
-                Create campaign opens the existing campaign setup flow for review before saving.
+                {t("campaignAdmin.dashboard.freeze.createCampaignHelp")}
               </span>
             </div>
           </div>
@@ -507,25 +397,25 @@ export function DashboardTab({
           icon={<Users />}
           label={t("campaignAdmin.dashboard.totalSigners")}
           value={metrics.total}
-          detail={`${metrics.verified} verified`}
+          detail={t("campaignAdmin.dashboard.freeze.verifiedCount").replace("{count}", String(metrics.verified))}
         />
         <MetricCard
           icon={<Globe2 />}
           label={t("campaignAdmin.dashboard.onlineSignatures")}
           value={metrics.online}
-          detail="Collected from public page"
+          detail={t("campaignAdmin.dashboard.freeze.collectedPublic")}
         />
         <MetricCard
           icon={<FileScan />}
           label={t("campaignAdmin.dashboard.scannedRecords")}
           value={metrics.scanned}
-          detail={`${metrics.pending} awaiting review`}
+          detail={t("campaignAdmin.dashboard.freeze.awaitingReview").replace("{count}", String(metrics.pending))}
         />
         <MetricCard
           icon={<SearchCheck />}
           label={t("campaignAdmin.dashboard.duplicates")}
           value={metrics.duplicates}
-          detail="Flagged automatically"
+          detail={t("campaignAdmin.dashboard.freeze.flaggedAutomatically")}
         />
       </div>
 
@@ -541,21 +431,21 @@ export function DashboardTab({
             <div>
               <span>{t("campaignAdmin.dashboard.health")}</span>
               <strong>{t(movementBrainScore >= 70 ? "campaignAdmin.dashboard.shareReady" : "campaignAdmin.dashboard.needsAttention")}</strong>
-              <p>{activeCampaign?.title ?? "Create a campaign to unlock movement insights."}</p>
+              <p>{activeCampaign?.title ?? t("campaignAdmin.dashboard.freeze.unlockInsights")}</p>
             </div>
             <div>
               <span>{t("campaignAdmin.dashboard.lowParticipation")}</span>
-              <strong>{Object.keys(dailyTotals).length ? "Monitor daily trend" : "No trend yet"}</strong>
+              <strong>{t(Object.keys(dailyTotals).length ? "campaignAdmin.dashboard.freeze.monitorTrend" : "campaignAdmin.dashboard.freeze.noTrend")}</strong>
               <p>{t("campaignAdmin.dashboard.locationHelp")}</p>
             </div>
             <div>
               <span>{t("campaignAdmin.dashboard.authorityFollowUp")}</span>
-              <strong>{authorityMatch ? `${authorityMatch.score}% confidence` : "Needs route"}</strong>
-              <p>{authorityMatch ? authorityMatch.authority.name : "Confirm authority before petition delivery."}</p>
+              <strong>{authorityMatch ? t("campaignAdmin.dashboard.freeze.confidence").replace("{score}", String(authorityMatch.score)) : t("campaignAdmin.dashboard.freeze.needsRoute")}</strong>
+              <p>{authorityMatch ? authorityMatch.authority.name : t("campaignAdmin.dashboard.freeze.confirmAuthority")}</p>
             </div>
             <div>
               <span>{t("campaignAdmin.dashboard.nextAction")}</span>
-              <strong>{lowParticipationHints[0] ?? "Keep momentum"}</strong>
+              <strong>{lowParticipationHints[0] ?? t("campaignAdmin.dashboard.freeze.keepMomentum")}</strong>
               <p>{t("campaignAdmin.dashboard.nextActionHelp")}</p>
             </div>
           </div>
@@ -580,10 +470,10 @@ export function DashboardTab({
       {!isTrialWorkspace && (
       <Panel title={t("campaignAdmin.dashboard.contextualHelp")} icon={<SearchCheck />}>
         <div className="help-panel-grid">
-          {helpPanels.map(([title, text]) => (
-            <div className="help-panel-card" key={title}>
-              <strong>{title}</strong>
-              <p>{text}</p>
+          {helpPanels.map((key) => (
+            <div className="help-panel-card" key={key}>
+              <strong>{t(`campaignAdmin.dashboard.freeze.help.${key}.title`)}</strong>
+              <p>{t(`campaignAdmin.dashboard.freeze.help.${key}.text`)}</p>
             </div>
           ))}
         </div>
@@ -604,7 +494,7 @@ export function DashboardTab({
                 <div style={{ width: `${authorityMatch.score}%` }} />
               </div>
               <small>
-                {authorityMatch.score}% routing confidence by category, location, and postal/PIN code.
+                {t("campaignAdmin.dashboard.freeze.routingConfidence").replace("{score}", String(authorityMatch.score))}
               </small>
             </div>
           ) : (

@@ -343,8 +343,8 @@ export function PublicCampaignPage({
     ...getLockedLocationValues(campaign, signerRestrictionLevel)
   };
   const lockedLocationParts = formatLocationForCampaign(campaign, lockedLocation).split(", ").filter(Boolean);
-  const participationLabel = isGlobalMode ? `${locationLabels.district} participation` : "District participation";
-  const locationParticipation = campaign.district || restrictedPublicForm.district || "Not captured yet";
+  const participationLabel = isGlobalMode ? `${locationLabels.district} ${t("public.participation")}` : t("public.districtParticipation");
+  const locationParticipation = campaign.district || restrictedPublicForm.district || t("public.notCapturedYet");
   const requiredFields = campaign.requiredFields ?? [];
   const copy = publicSigningCopy[language];
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
@@ -401,7 +401,7 @@ export function PublicCampaignPage({
   const activeStepIndex = Math.max(0, activeSigningSteps.findIndex((step) => step.id === wizardStep));
   const heroSummary =
     campaign.description.trim() ||
-    `Support ${campaign.title} and help move this public issue toward visible action.`;
+    t("public.defaultCampaignSummary").replace("{campaign}", campaign.title);
   const authorityCards = (campaign.authoritySelectionMode === "public_choice" && publicAuthorityOptions.length > 0
     ? publicAuthorityOptions
     : [resolvedAuthority]
@@ -409,28 +409,28 @@ export function PublicCampaignPage({
   const storyCards = [
     {
       icon: <HeartHandshake size={20} />,
-      title: "The public ask",
+      title: t("public.story.publicAsk"),
       body: campaign.appealContent || campaign.description
     },
     {
       icon: <Landmark size={20} />,
-      title: "Who receives it",
+      title: t("public.story.recipient"),
       body: formatAuthorityDisplay(resolvedAuthority)
     },
     {
       icon: <CalendarDays size={20} />,
-      title: "Campaign window",
-      body: `${campaign.startDate || "Open now"} to ${campaign.endDate || "goal reached"}`
+      title: t("public.story.window"),
+      body: `${campaign.startDate || t("public.openNow")} ${t("public.to")} ${campaign.endDate || t("public.goalReached")}`
     }
   ];
   const testimonialCards = [
-    "A clear, verified signature helps the organizer show public demand.",
-    "Voiceup keeps the campaign structured so supporters know what action is being requested.",
-    "Sharing after signing helps bring the issue to more people who care."
+    t("public.trust.signature"),
+    t("public.trust.structure"),
+    t("public.trust.sharing")
   ];
   const updateCards = [
-    `${metrics.verified.toLocaleString()} verified supporters have joined this campaign.`,
-    `${metrics.progress}% of the target has been reached so far.`,
+    t("public.updates.verified").replace("{count}", metrics.verified.toLocaleString()),
+    t("public.updates.progress").replace("{progress}", String(metrics.progress)),
     `${t("public.petitionPreparedFor")} ${resolvedAuthority.name}.`
   ];
   const shareText = `${shareMessages.social}\n${personalReferralUrl}`;
@@ -530,10 +530,10 @@ export function PublicCampaignPage({
   ) {
     try {
       await navigator.clipboard.writeText(value);
-      setCopiedReferral("✓ Copied");
+      setCopiedReferral(t("public.copied"));
       onGrowthShare?.({ channel, url: value });
     } catch {
-      setCopiedReferral("Copy failed. Select and copy the link manually.");
+      setCopiedReferral(t("public.copyFailed"));
     }
   }
 
@@ -556,7 +556,7 @@ export function PublicCampaignPage({
         // User cancelled or native share failed; keep the copied fallback available.
       }
     }
-    await copyReferralText("Referral link", personalReferralUrl);
+    await copyReferralText(t("public.referralLink"), personalReferralUrl);
   }
 
   return (
@@ -576,23 +576,24 @@ export function PublicCampaignPage({
             <div className="public-hero-content">
               <div className="public-hero-kicker">
                 <span className="eyebrow">{t("public.verifiedCampaign")}</span>
-                <span className="status-pill" data-status={campaign.status}>{campaign.status}</span>
+                <span className="status-pill" data-status={campaign.status}>{t(`campaignAdmin.status.${campaign.status.toLowerCase()}`)}</span>
               </div>
               <h1>{campaign.title}</h1>
+              {language !== "en" && <span className="original-language-notice">{t("public.originalLanguageNotice")}</span>}
               <p className="public-summary">{heroSummary}</p>
               <div className="public-hero-actions">
                 <a className="primary-button" href="#public-sign-form">
-                  Sign in minutes <ArrowRight size={18} />
+                  {t("public.signInMinutes")} <ArrowRight size={18} />
                 </a>
                 <button className="secondary-button" type="button" onClick={shareNatively}>
-                  <Share2 size={18} /> Share campaign
+                  <Share2 size={18} /> {t("public.shareCampaign")}
                 </button>
               </div>
             </div>
 
-            <div className="public-progress public-progress-premium" aria-label="Campaign progress">
+            <div className="public-progress public-progress-premium" aria-label={t("public.campaignProgress")}>
               <div className="progress-header">
-                <span>Live progress</span>
+                <span>{t("public.liveProgress")}</span>
                 <strong>{metrics.progress}%</strong>
               </div>
               <div className="progress public-progress-bar">
@@ -600,19 +601,19 @@ export function PublicCampaignPage({
               </div>
               <div>
                 <strong>{metrics.verified.toLocaleString()}</strong>
-                <span>of {campaignGoal.toLocaleString()} verified signatures</span>
+                <span>{t("public.verifiedGoal").replace("{goal}", campaignGoal.toLocaleString())}</span>
               </div>
             </div>
 
             <div className="supporter-counter" aria-label={t("public.supporterCount")}>
               <div>
                 <Users size={18} />
-                <span>Total supporters</span>
+                <span>{t("public.totalSupporters")}</span>
                 <strong>{metrics.total.toLocaleString()}</strong>
               </div>
               <div>
                 <BadgeCheck size={18} />
-                <span>Verified supporters</span>
+                <span>{t("public.verifiedSupporters")}</span>
                 <strong>{metrics.verified.toLocaleString()}</strong>
               </div>
               <div>
@@ -622,10 +623,10 @@ export function PublicCampaignPage({
               </div>
             </div>
 
-            <div className="public-trust-strip" aria-label="Voiceup trust indicators">
-              <span><ShieldCheck size={16} /> Privacy respected</span>
-              <span><LockKeyhole size={16} /> OTP verified</span>
-              <span><CheckCircle2 size={16} /> Routed to authority</span>
+            <div className="public-trust-strip" aria-label={t("public.trustIndicators")}>
+              <span><ShieldCheck size={16} /> {t("public.privacyRespected")}</span>
+              <span><LockKeyhole size={16} /> {t("public.otpVerified")}</span>
+              <span><CheckCircle2 size={16} /> {t("public.routedToAuthority")}</span>
             </div>
           </div>
         </article>
@@ -638,17 +639,17 @@ export function PublicCampaignPage({
 
         <section className="public-section public-share-panel" aria-labelledby="share-campaign-heading">
           <div className="public-section-heading">
-            <span className="eyebrow">Share this campaign</span>
-            <h2 id="share-campaign-heading">Every share can create another verified supporter.</h2>
+            <span className="eyebrow">{t("public.shareThisCampaign")}</span>
+            <h2 id="share-campaign-heading">{t("public.shareImpact")}</h2>
           </div>
           <div className="share-panel-grid">
             <div className="share-qr-card">
-              <ReferralQrPreview value={personalReferralUrl} label="Campaign QR" caption={campaign.qrLabel} compact />
+              <ReferralQrPreview value={personalReferralUrl} label={t("public.campaignQr")} caption={campaign.qrLabel} compact />
               <code>{personalReferralUrl}</code>
               {copiedReferral && <span className="inline-copy-state">{copiedReferral}</span>}
             </div>
             <div className="share-actions-grid">
-              <button className="secondary-button" type="button" onClick={() => copyReferralText("Campaign link", personalReferralUrl, "copy")}>
+              <button className="secondary-button" type="button" onClick={() => copyReferralText(t("public.campaignLink"), personalReferralUrl, "copy")}>
                 <Copy size={16} /> {t("public.copyLink")}
               </button>
               <button className="secondary-button" type="button" onClick={shareNatively}>
@@ -657,15 +658,15 @@ export function PublicCampaignPage({
               <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>WhatsApp</a>
               <a className="secondary-link-button" href={shareLinks.telegram} target="_blank" rel="noreferrer" onClick={() => trackShareClick("telegram")}>Telegram</a>
               <a className="secondary-link-button" href={shareLinks.facebook} target="_blank" rel="noreferrer" onClick={() => trackShareClick("facebook")}>Facebook</a>
-              <a className="secondary-link-button" href={shareLinks.email} onClick={() => trackShareClick("email")}><Mail size={16} /> Email</a>
+              <a className="secondary-link-button" href={shareLinks.email} onClick={() => trackShareClick("email")}><Mail size={16} /> {t("public.email")}</a>
             </div>
           </div>
         </section>
 
         <section className="public-section" aria-labelledby="authority-heading">
           <div className="public-section-heading">
-            <span className="eyebrow">Authority path</span>
-            <h2 id="authority-heading">Your signature supports a clear appeal to the right decision makers.</h2>
+            <span className="eyebrow">{t("public.authorityPath")}</span>
+            <h2 id="authority-heading">{t("public.authorityPathHelp")}</h2>
           </div>
           <div className="public-card-grid authority-card-grid">
             {authorityCards.map((item) => (
@@ -681,8 +682,8 @@ export function PublicCampaignPage({
 
         <section className="public-section" aria-labelledby="story-heading">
           <div className="public-section-heading">
-            <span className="eyebrow">Campaign story</span>
-            <h2 id="story-heading">What happens when people add their voice.</h2>
+            <span className="eyebrow">{t("public.campaignStory")}</span>
+            <h2 id="story-heading">{t("public.campaignStoryHelp")}</h2>
           </div>
           <div className="public-card-grid story-card-grid">
             {storyCards.map((item) => (
@@ -698,8 +699,8 @@ export function PublicCampaignPage({
         <section className="public-section public-updates-grid" aria-labelledby="updates-heading">
           <div>
             <div className="public-section-heading">
-              <span className="eyebrow">Updates</span>
-              <h2 id="updates-heading">Live movement signals.</h2>
+              <span className="eyebrow">{t("public.updatesTitle")}</span>
+              <h2 id="updates-heading">{t("public.updatesHelp")}</h2>
             </div>
             <div className="update-stack">
               {updateCards.map((item) => (
@@ -709,8 +710,8 @@ export function PublicCampaignPage({
           </div>
           <div>
             <div className="public-section-heading">
-              <span className="eyebrow">Supporter trust</span>
-              <h2>Why people sign with confidence.</h2>
+              <span className="eyebrow">{t("public.supporterTrust")}</span>
+              <h2>{t("public.supporterTrustHelp")}</h2>
             </div>
             <div className="testimonial-grid">
               {testimonialCards.map((item) => (
@@ -744,7 +745,7 @@ export function PublicCampaignPage({
         <section className="public-section" aria-labelledby="related-heading">
           <div className="public-section-heading">
             <span className="eyebrow">{t("public.relatedCampaigns")}</span>
-            <h2 id="related-heading">More ways to support this cause.</h2>
+            <h2 id="related-heading">{t("public.moreWaysToSupport")}</h2>
           </div>
           <div className="related-campaigns-grid">
             <a href={publicUrl}>
@@ -753,9 +754,9 @@ export function PublicCampaignPage({
               <p>{formatLocationForCampaign(campaign, campaign)}</p>
             </a>
             <a href={publicUrl}>
-              <span>{organization?.name || "Voiceup"}</span>
-              <strong>Share this campaign with your network</strong>
-              <p>Help the organizer reach the next supporter milestone.</p>
+              <span>{organization?.name || "VoiceUp"}</span>
+              <strong>{t("public.shareWithNetwork")}</strong>
+              <p>{t("public.nextMilestoneHelp")}</p>
             </a>
           </div>
         </section>
@@ -763,7 +764,7 @@ export function PublicCampaignPage({
         {campaign.donationEnabled && <DonationCard campaign={campaign} compact />}
         {campaign.campaignVideoUrl && (
           <a className="video-link" href={campaign.campaignVideoUrl} target="_blank" rel="noreferrer">
-            Watch campaign video
+            {t("public.watchCampaignVideo")}
           </a>
         )}
       </div>
@@ -789,12 +790,12 @@ export function PublicCampaignPage({
               <button className="secondary-button" type="button" onClick={() => setWizardStep("profile")}>{t("public.continue")}</button>
               <button className="secondary-button" type="button" onClick={() => setWizardStep("review")}>{copy.viewSignature}</button>
               <button className="secondary-button" type="button" onClick={shareNatively}>{t("public.share")}</button>
-              <button className="secondary-button" type="button" onClick={() => copyReferralText("Campaign link", personalReferralUrl, "copy")}>{copy.referFriends}</button>
+              <button className="secondary-button" type="button" onClick={() => copyReferralText(t("public.campaignLink"), personalReferralUrl, "copy")}>{copy.referFriends}</button>
             </div>
           </div>
         )}
 
-        <ol className="wizard-steps" aria-label="Signing steps">
+        <ol className="wizard-steps" aria-label={t("public.signingSteps")}>
           {activeSigningSteps.map((step, index) => (
             <li key={step.id}>
               <button
@@ -1081,7 +1082,7 @@ export function PublicCampaignPage({
                 trackShareClick("qr");
                 downloadQrPosterSvg({
                   campaign,
-                  organizationName: organization?.name ?? "Voiceup",
+                  organizationName: organization?.name ?? "VoiceUp",
                   url: personalReferralUrl,
                   referralCode: personalReferralCode
                 });
@@ -1109,26 +1110,23 @@ export function PublicCampaignPage({
 }
 
 export function PublicCampaignNotFound({ onRetry }: { onRetry?: () => void }) {
+  const { t } = useTranslation();
   return (
     <main className="public-only-shell">
       <section className="empty-state public-not-found">
-        <span className="eyebrow">Campaign link</span>
-        <h1>This campaign is not available.</h1>
-        <p>
-          Please check the campaign link or ask the campaign organizer to publish the campaign
-          again. The public signing page shows only campaign content when a published campaign is
-          available.
-        </p>
+        <span className="eyebrow">{t("public.notFound.eyebrow")}</span>
+        <h1>{t("public.notFound.title")}</h1>
+        <p>{t("public.notFound.description")}</p>
         <div className="button-row">
           <button
             className="primary-button"
             type="button"
             onClick={onRetry ?? (() => window.location.reload())}
           >
-            Retry loading campaign
+            {t("public.notFound.retry")}
           </button>
           <a className="secondary-link-button" href="/">
-            Go to Voiceup
+            {t("public.notFound.home")}
           </a>
         </div>
       </section>
@@ -1137,11 +1135,12 @@ export function PublicCampaignNotFound({ onRetry }: { onRetry?: () => void }) {
 }
 
 export function PublicCampaignLoading({ message }: { message: string }) {
+  const { t } = useTranslation();
   return (
     <main className="public-only-shell">
       <section className="empty-state public-not-found">
-        <span className="eyebrow">Loading campaign</span>
-        <h1>Loading campaign details...</h1>
+        <span className="eyebrow">{t("public.loading.eyebrow")}</span>
+        <h1>{t("public.loading.title")}</h1>
         <p>{message}</p>
       </section>
     </main>

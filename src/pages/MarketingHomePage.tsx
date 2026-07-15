@@ -28,7 +28,7 @@ import {
   WalletCards,
   Workflow
 } from "lucide-react";
-import heroImage from "../assets/voiceup-global-hero.png";
+import heroImage from "../assets/voiceup-global-hero.jpg";
 import { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";
 import { LanguageSwitcher, useTranslation } from "../i18n";
 import {
@@ -129,6 +129,12 @@ const trustSignals = [
   }
 ];
 
+const roleOptions = [
+  { key: "organizer", icon: Megaphone },
+  { key: "supporter", icon: UsersRound },
+  { key: "fieldTeam", icon: Smartphone }
+];
+
 export function MarketingHomePage({
   theme,
   setTheme,
@@ -137,7 +143,7 @@ export function MarketingHomePage({
   onCloseOnboarding,
   onCompleteOnboarding
 }: MarketingHomePageProps) {
-  const { t } = useTranslation();
+  const { language, t } = useTranslation();
 
   return (
     <main className="marketing-home global-landing">
@@ -147,14 +153,14 @@ export function MarketingHomePage({
             <Megaphone size={24} />
           </span>
           <span>
-            <strong>Voiceup Global</strong>
-            <small>{t("landing.nav.tagline")}</small>
+            <strong>VoiceUp</strong>
+            <small>{t("landing.freeze.tagline")}</small>
           </span>
         </a>
         <nav className="global-nav-links" aria-label={t("landing.nav.sectionsAria")}>
           <a href="#product">{t("landing.nav.product")}</a>
           <a href="#workflow">{t("landing.nav.workflow")}</a>
-          <a href="#pricing">{t("landing.nav.pricing")}</a>
+          <a href="#pricing">{t("landing.freeze.getStarted")}</a>
           <a href="#faq">{t("landing.nav.faq")}</a>
         </nav>
         <div className="button-row">
@@ -177,7 +183,11 @@ export function MarketingHomePage({
         </div>
       </header>
 
-      <section className="global-hero" id="top" style={{ backgroundImage: `url(${heroImage})` }}>
+      <section
+        className="global-hero"
+        id="top"
+        style={{ backgroundImage: language === "en" ? `url(${heroImage})` : "var(--brand-gradient)" }}
+      >
         <div className="global-hero-overlay" />
         <motion.div
           className="global-hero-content"
@@ -185,9 +195,9 @@ export function MarketingHomePage({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         >
-          <span className="eyebrow">{t("landing.hero.eyebrow")}</span>
-          <h1>{t("landing.hero.title")}</h1>
-          <p>{t("landing.hero.subtitle")}</p>
+          <span className="eyebrow">{t("landing.freeze.heroEyebrow")}</span>
+          <h1>{t("landing.freeze.heroTitle")}</h1>
+          <p>{t("landing.freeze.heroSubtitle")}</p>
           <div className="global-hero-actions">
             <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
               <Rocket size={18} /> {t("landing.actions.startFreeCampaign")}
@@ -223,26 +233,39 @@ export function MarketingHomePage({
         <VoiceUpStoryCarousel experience="landing" />
       </section>
 
-      <section className="landing-band ai-band landing-deferred-section">
+      <section className="landing-band ai-band landing-product-showcase">
         <div className="landing-section-heading">
-          <span className="eyebrow">{t("landing.product.eyebrow")}</span>
-          <h2>{t("landing.product.title")}</h2>
-          <p>{t("landing.product.subtitle")}</p>
+          <span className="eyebrow">{t("landing.freeze.productEyebrow")}</span>
+          <h2>{t("landing.freeze.productTitle")}</h2>
+          <p>{t("landing.freeze.productSubtitle")}</p>
         </div>
         <div className="landing-module-grid">
-          {landingSections.map((section) => (
+          {landingSections.slice(0, 6).map((section) => (
             <article className="landing-module-card" id={section.id} key={section.id}>
               <section.icon size={24} />
               <span className="eyebrow">{t(`landing.modules.${section.key}.eyebrow`)}</span>
               <h3>{t(`landing.modules.${section.key}.title`)}</h3>
               <p>{t(`landing.modules.${section.key}.text`)}</p>
-              <ul>
-                {section.bullets.map((bullet) => (
-                  <li key={bullet}>
-                    <CheckCircle2 size={16} /> {t(`landing.modules.${section.key}.bullets.${bullet}`)}
-                  </li>
-                ))}
-              </ul>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="landing-band landing-role-band" aria-labelledby="landing-role-title">
+        <div className="landing-section-heading">
+          <span className="eyebrow">{t("landing.roles.eyebrow")}</span>
+          <h2 id="landing-role-title">{t("landing.roles.title")}</h2>
+          <p>{t("landing.roles.subtitle")}</p>
+        </div>
+        <div className="landing-role-grid">
+          {roleOptions.map(({ key, icon: Icon }) => (
+            <article className="landing-role-card" key={key}>
+              <Icon size={24} aria-hidden="true" />
+              <h3>{t(`landing.roles.${key}.title`)}</h3>
+              <p>{t(`landing.roles.${key}.text`)}</p>
+              <button className="secondary-button" type="button" onClick={onOpenOnboarding}>
+                {t(`landing.roles.${key}.action`)}
+              </button>
             </article>
           ))}
         </div>
@@ -302,9 +325,9 @@ export function MarketingHomePage({
 
       <section className="landing-band testimonial-band landing-compact-proof" id="workflow">
         <div className="landing-section-heading">
-          <span className="eyebrow">{t("landing.trust.eyebrow")}</span>
-          <h2>{t("landing.trust.title")}</h2>
-          <p>{t("landing.trust.subtitle")}</p>
+          <span className="eyebrow">{t("landing.freeze.trustEyebrow")}</span>
+          <h2>{t("landing.freeze.trustTitle")}</h2>
+          <p>{t("landing.freeze.trustSubtitle")}</p>
         </div>
         <div className="testimonial-grid">
           {trustSignals.map((signal) => (
@@ -396,7 +419,7 @@ export function MarketingHomePage({
         <a href="/terms">{t("landing.footer.terms")}</a>
         <a href="/refund">{t("landing.footer.refund")}</a>
         <a href="/data-deletion">{t("landing.footer.dataDeletion")}</a>
-        <span>{t("landing.footer.tagline")}</span>
+        <span>{t("landing.freeze.footerTagline")}</span>
       </footer>
       <OnboardingWizard
         open={onboardingOpen}

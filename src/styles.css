@@ -10110,3 +10110,170 @@ button.secondary-link-button {
     min-height: 54px;
   }
 }
+
+/* Production-freeze experience consolidation */
+:root {
+  --brand-gradient: linear-gradient(135deg, #071f4e 0%, #123a8c 58%, #0f7a3b 100%);
+  --surface-radius: 16px;
+  --control-radius: 10px;
+}
+
+:where(h1, h2, h3) {
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+:where(p, li, small) {
+  text-wrap: pretty;
+}
+
+:where(.panel, .landing-module-card, .landing-role-card, .testimonial-card, .public-section, .metric-card) {
+  border-color: var(--border);
+  border-radius: var(--surface-radius);
+  box-shadow: var(--shadow-soft);
+}
+
+:where(.primary-button, .primary-link-button, .secondary-button, .secondary-link-button, input, select, textarea) {
+  border-radius: var(--control-radius);
+}
+
+.landing-product-showcase,
+.landing-role-band,
+.landing-compact-proof,
+.global-landing .pricing-band,
+.global-landing .faq-band,
+.public-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 560px;
+}
+
+.landing-product-showcase {
+  background:
+    radial-gradient(circle at top right, rgba(18, 58, 140, 0.1), transparent 28rem),
+    var(--panel-soft);
+}
+
+.landing-product-showcase .landing-module-card {
+  min-height: 230px;
+}
+
+.landing-role-band {
+  background: var(--panel-solid);
+}
+
+.landing-role-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 auto;
+  max-width: 1180px;
+}
+
+.landing-role-card {
+  align-content: start;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: clamp(18px, 2.4vw, 26px);
+}
+
+.landing-role-card > svg {
+  color: var(--primary);
+}
+
+.landing-role-card h3,
+.landing-role-card p {
+  margin: 0;
+}
+
+.landing-role-card p {
+  color: var(--text-soft);
+  line-height: 1.65;
+}
+
+.landing-role-card .secondary-button {
+  justify-self: start;
+  margin-top: auto;
+}
+
+.original-language-notice {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.9);
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 750;
+  margin-top: 10px;
+  padding: 6px 10px;
+  width: fit-content;
+}
+
+.hero .original-language-notice {
+  background: var(--panel-soft);
+  border-color: var(--border);
+  color: var(--text-soft);
+}
+
+
+.quick-start-card.recommendation-card {
+  max-width: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :where(.landing-module-card, .landing-role-card, .testimonial-card):hover {
+    border-color: rgba(18, 58, 140, 0.24);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-2px);
+  }
+}
+
+@media (max-width: 1100px) {
+  .public-layout > .panel {
+    order: -1;
+  }
+
+  .public-story-column {
+    order: 1;
+  }
+}
+
+@media (max-width: 760px) {
+  .landing-role-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-role-card .secondary-button {
+    justify-self: stretch;
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .global-hero-content h1,
+  .global-landing .global-hero-content h1 {
+    font-size: clamp(2.15rem, 11vw, 3rem);
+  }
+
+  .global-hero-actions > *,
+  .public-hero-actions > *,
+  .wizard-actions > *,
+  .quick-start-actions > * {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .hero-proof-strip,
+  .supporter-counter {
+    grid-template-columns: 1fr;
+  }
+
+  .public-layout,
+  .public-section,
+  .public-layout > .panel {
+    min-width: 0;
+  }
+}

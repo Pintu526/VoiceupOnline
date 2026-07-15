@@ -1,12 +1,13 @@
 import type { Campaign, Signer } from "../../types";
 import {
-  createQrCells,
   downloadQrPosterSvg,
   getCampaignReferralUrl,
   getSafeReferrerLabel,
   getSupporterReferralCode,
   normalizeReferralCode
 } from "../../utils/referrals";
+import { createQrSvgFragment, isValidQrDestination } from "../../utils/qr";
+import { getCanonicalBaseUrl } from "../../utils/links";
 import { getCampaignGoalValue } from "../../utils/campaign";
 import { simulateSupporterGrowth } from "../calculator";
 import { buildSupporterGrowthAccounts } from "../contributions";
@@ -65,7 +66,7 @@ function friendlyLeaderboardLabel(filter: string) {
 }
 
 function getBaseUrl(input: SupporterGrowthPortalResolveInput) {
-  return input.baseUrl.replace(/\/$/, "");
+  return getCanonicalBaseUrl() || input.baseUrl.replace(/\/$/, "");
 }
 
 function findSupporter(input: SupporterGrowthPortalResolveInput) {
@@ -230,9 +231,15 @@ export function resolveSupporterGrowthPortal(
       recognition,
       currentRank: overallRank
     });
-  const portal =
-    existingPortal ??
-    buildSupporterGrowthPortal(code, getBaseUrl(input), campaign.slug, tree, wallet);
+  const canonicalPortal = buildSupporterGrowthPortal(code, getBaseUrl(input), campaign.slug, tree, wallet);
+  const portal = existingPortal
+    ? {
+        ...existingPortal,
+        referralLink: canonicalPortal.referralLink,
+        qrPayload: canonicalPortal.qrPayload,
+        shareActions: canonicalPortal.shareActions
+      }
+    : canonicalPortal;
   const snapshot = input.runtime.supporterSnapshots.find(
     (item) => item.campaignId === campaign.id && item.supporterId === signer.id
   );
@@ -314,10 +321,11 @@ export function resolveSupporterGrowthPortal(
 }
 
 export function downloadSupporterReferralPoster(portal: SupporterGrowthPortalViewModel) {
+  const canonicalReferralUrl = getCampaignReferralUrl(portal.organization, portal.campaign, portal.supporterCode);
   downloadQrPosterSvg({
     campaign: portal.campaign,
     organizationName: portal.organization?.name ?? "VoiceUp",
-    url: portal.portal.referralLink || getCampaignReferralUrl(portal.organization, portal.campaign, portal.supporterCode),
+    url: canonicalReferralUrl,
     referralCode: portal.supporterCode
   });
 }
@@ -331,24 +339,16 @@ export function getCampaignJourneyDisplayName(campaign: Campaign) {
 }
 
 export function downloadReferralCardSvg(options: ReferralCardDownloadOptions) {
-  const cells = createQrCells(options.referralLink, 17);
-  const activeCells = cells
-    .map((active, index) => {
-      if (!active) return "";
-      const row = Math.floor(index / 17);
-      const column = index % 17;
-      return `<rect x="${72 + column * 12}" y="${224 + row * 12}" width="8" height="8" rx="1" fill="#071f4e"/>`;
-    })
-    .join("");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="560" viewBox="0 0 360 560">
+  if (!isValidQrDestination(options.referralLink)) return false;
+  const qrGraphic = createQrSvgFragment(options.referralLink, 56, 208, 248);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1680" viewBox="0 0 360 560">
   <rect width="360" height="560" rx="28" fill="#f8fafc"/>
   <rect x="22" y="22" width="316" height="516" rx="24" fill="#ffffff" stroke="#d7dce6"/>
   <text x="44" y="70" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#0f7a3b">${escapeSvg(options.journeyDisplayName).slice(0, 34)}</text>
   <text x="44" y="112" font-family="Inter, Arial" font-size="28" font-weight="800" fill="#071f4e">${escapeSvg(options.supporterName).slice(0, 28)}</text>
   <text x="44" y="144" font-family="Inter, Arial" font-size="15" fill="#475569">${escapeSvg(options.campaignTitle).slice(0, 42)}</text>
   <text x="44" y="178" font-family="Inter, Arial" font-size="13" fill="#667085">${escapeSvg(options.currentLevelName ?? "Campaign Supporter")} - ${escapeSvg(options.supporterCode)}</text>
-  <rect x="56" y="208" width="248" height="248" rx="20" fill="#eef4ff"/>
-  ${activeCells}
+  ${qrGraphic}
   <text x="180" y="494" text-anchor="middle" font-family="Inter, Arial" font-size="13" fill="#475569">${escapeSvg(options.referralLink).slice(0, 54)}</text>
   <text x="180" y="520" text-anchor="middle" font-family="Inter, Arial" font-size="12" font-weight="800" fill="#123a8c">Scan to sign and join my referral tree</text>
 </svg>`;
@@ -359,4 +359,5 @@ export function downloadReferralCardSvg(options: ReferralCardDownloadOptions) {
   link.download = `${options.supporterCode.toLowerCase()}-referral-card.svg`;
   link.click();
   URL.revokeObjectURL(url);
+  return true;
 }

@@ -1,32 +1,80 @@
-const PRODUCTION_BASE_URL = "https://voiceup.live";
+export const PRODUCTION_PUBLIC_ORIGIN = "https://voiceup.live";
+
+export interface PublicOriginContext {
+  explicitOrigin?: string;
+  runtimeOrigin?: string;
+  runtimeHostname?: string;
+  production?: boolean;
+}
+
+function normalizeHttpOrigin(value: string | undefined): string {
+  if (!value?.trim()) return "";
+  try {
+    const parsed = new URL(value.trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+    return parsed.origin;
+  } catch {
+    return "";
+  }
+}
+
+function isLocalHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase();
+  return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1" || normalized === "[::1]";
+}
+
+export function resolvePublicOrigin(context: PublicOriginContext = {}): string {
+  const explicitOrigin = normalizeHttpOrigin(context.explicitOrigin);
+  if (explicitOrigin && !(context.production && isLocalHostname(new URL(explicitOrigin).hostname))) {
+    return explicitOrigin;
+  }
+
+  const runtimeOrigin = normalizeHttpOrigin(context.runtimeOrigin);
+  const runtimeHostname = (context.runtimeHostname || (runtimeOrigin ? new URL(runtimeOrigin).hostname : "")).toLowerCase();
+
+  if (runtimeHostname === "voiceup.live" || runtimeHostname === "www.voiceup.live") {
+    return PRODUCTION_PUBLIC_ORIGIN;
+  }
+  if (context.production && isLocalHostname(runtimeHostname)) {
+    return PRODUCTION_PUBLIC_ORIGIN;
+  }
+  if (runtimeOrigin) return runtimeOrigin;
+  return PRODUCTION_PUBLIC_ORIGIN;
+}
 
 export function getCanonicalBaseUrl(): string {
-  if (typeof window === "undefined") return PRODUCTION_BASE_URL;
+  const environment = (import.meta as ImportMeta & {
+    env?: { VITE_PUBLIC_ORIGIN?: string; VITE_SITE_URL?: string; PROD?: boolean };
+  }).env;
+  return resolvePublicOrigin({
+    explicitOrigin: environment?.VITE_PUBLIC_ORIGIN || environment?.VITE_SITE_URL,
+    runtimeOrigin: typeof window === "undefined" ? undefined : window.location.origin,
+    runtimeHostname: typeof window === "undefined" ? undefined : window.location.hostname,
+    production: environment?.PROD
+  });
+}
 
-  const { hostname, origin } = window.location;
-  const normalizedHost = hostname.toLowerCase();
-  const isLocalDev =
-    normalizedHost === "localhost" ||
-    normalizedHost === "127.0.0.1" ||
-    normalizedHost === "::1" ||
-    normalizedHost === "[::1]";
-
-  if (isLocalDev) return origin;
-  if (normalizedHost === "voiceup.live") return PRODUCTION_BASE_URL;
-
-  return PRODUCTION_BASE_URL;
+function appendPath(origin: string, path: string): string {
+  return `${origin.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }
 
 export function getSaasAdminUrl(): string {
-  return `${getCanonicalBaseUrl()}/admin`;
+  return appendPath(getCanonicalBaseUrl(), "admin");
 }
 
 export function getCampaignAdminUrl(slug: string): string {
-  return `${getCanonicalBaseUrl()}/admin/${slug}`;
+  const normalizedSlug = slug.trim();
+  return normalizedSlug ? appendPath(getCanonicalBaseUrl(), `admin/${encodeURIComponent(normalizedSlug)}`) : "";
 }
 
 export function getPublicCampaignUrl(slug: string): string {
-  return `${getCanonicalBaseUrl()}/c/${slug}`;
+  return getPublicCampaignUrlForOrigin(slug);
+}
+
+export function getPublicCampaignUrlForOrigin(slug: string, context?: PublicOriginContext): string {
+  const normalizedSlug = slug.trim();
+  const origin = context ? resolvePublicOrigin(context) : getCanonicalBaseUrl();
+  return normalizedSlug ? appendPath(origin, `c/${encodeURIComponent(normalizedSlug)}`) : "";
 }
 
 export function whatsAppLink(phone: string, message: string): string {

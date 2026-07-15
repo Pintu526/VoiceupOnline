@@ -16,6 +16,7 @@ import {
   getLocationGovernance,
   getLocationRestrictionMessage
 } from "./utils/campaign";
+import { createQrMatrix as createStandardsQrMatrix, QR_QUIET_ZONE_MODULES, type QrMatrix } from "./utils/qr";
 
 interface PetitionReportOptions {
   organization?: Organization;
@@ -988,11 +989,14 @@ function drawQrBlock(doc: jsPDF, x: number, y: number, size: number, url: string
   doc.setFillColor("#FFFFFF");
   doc.setDrawColor(BRAND_LINE);
   doc.roundedRect(x, y, size, size, 3, 3, "FD");
-  const qrMatrix = createQrMatrix(url);
+  const qrMatrix = createStandardsQrMatrix(url);
   if (qrMatrix) {
-    drawQrMatrix(doc, x + 4, y + 4, size - 8, qrMatrix);
+    drawQrMatrix(doc, x, y, size, qrMatrix);
   } else {
-    drawDeterministicMatrix(doc, x + 4, y + 4, size - 8, url);
+    doc.setTextColor(BRAND_MUTED);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.text("QR unavailable", x + size / 2, y + size / 2, { align: "center" });
   }
   doc.setTextColor(BRAND_MUTED);
   doc.setFont("helvetica", "bold");
@@ -1002,13 +1006,21 @@ function drawQrBlock(doc: jsPDF, x: number, y: number, size: number, url: string
   doc.text(doc.splitTextToSize(url, size + 18).slice(0, 2), x, y + size + 11);
 }
 
-function drawQrMatrix(doc: jsPDF, x: number, y: number, size: number, matrix: boolean[][]) {
-  const cell = size / matrix.length;
+function drawQrMatrix(doc: jsPDF, x: number, y: number, size: number, matrix: QrMatrix) {
+  const totalModules = matrix.size + QR_QUIET_ZONE_MODULES * 2;
+  const cell = size / totalModules;
   doc.setFillColor(BRAND_INK);
-  matrix.forEach((row, rowIndex) => {
-    row.forEach((dark, colIndex) => {
-      if (dark) doc.rect(x + colIndex * cell, y + rowIndex * cell, cell * 1.02, cell * 1.02, "F");
-    });
+  matrix.cells.forEach((dark, index) => {
+    if (!dark) return;
+    const row = Math.floor(index / matrix.size);
+    const column = index % matrix.size;
+    doc.rect(
+      x + (column + QR_QUIET_ZONE_MODULES) * cell,
+      y + (row + QR_QUIET_ZONE_MODULES) * cell,
+      cell * 1.01,
+      cell * 1.01,
+      "F"
+    );
   });
 }
 

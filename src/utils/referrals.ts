@@ -1,5 +1,6 @@
 import type { Campaign, Organization, Signer } from "../types";
 import { getCampaignPublicUrl } from "./campaign";
+import { createQrSvgFragment, isValidQrDestination } from "./qr";
 
 export const REFERRAL_SHARE_POINTS = 1;
 export const REFERRAL_SIGNATURE_POINTS = 10;
@@ -38,7 +39,7 @@ export function getCampaignReferralUrl(
 ): string {
   const publicUrl = getCampaignPublicUrl(organization, campaign);
   const normalizedReferral = normalizeReferralCode(referralCode);
-  return normalizedReferral ? `${publicUrl}?ref=${encodeURIComponent(normalizedReferral)}` : publicUrl;
+  return publicUrl && normalizedReferral ? `${publicUrl}?ref=${encodeURIComponent(normalizedReferral)}` : publicUrl;
 }
 
 export function maskPhone(phone: string | undefined): string {
@@ -127,33 +128,13 @@ Thank you.`,
   };
 }
 
-export function createQrCells(value: string, size = 17): boolean[] {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-
-  const cells: boolean[] = [];
-  for (let row = 0; row < size; row += 1) {
-    for (let column = 0; column < size; column += 1) {
-      const finder =
-        isFinderCell(row, column, 0, 0) ||
-        isFinderCell(row, column, 0, size - 7) ||
-        isFinderCell(row, column, size - 7, 0);
-      const valueBit = ((hash >>> ((row + column) % 24)) + row * 7 + column * 13) % 5 < 2;
-      cells.push(finder || valueBit);
-    }
-  }
-  return cells;
-}
-
 export function downloadQrPosterSvg(options: {
   campaign: Campaign;
   organizationName: string;
   url: string;
   referralCode?: string;
 }) {
+  if (!isValidQrDestination(options.url)) return false;
   const svg = buildPosterSvg(options);
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -162,6 +143,7 @@ export function downloadQrPosterSvg(options: {
   link.download = `${options.campaign.slug || "campaign"}-qr-poster.svg`;
   link.click();
   URL.revokeObjectURL(url);
+  return true;
 }
 
 function buildPosterSvg({
@@ -175,46 +157,20 @@ function buildPosterSvg({
   url: string;
   referralCode?: string;
 }) {
-  const cells = createQrCells(url, 17);
-  const cellSize = 14;
-  const qrOffsetX = 81;
-  const qrOffsetY = 292;
-  const cellRects = cells
-    .map((active, index) => {
-      if (!active) return "";
-      const row = Math.floor(index / 17);
-      const column = index % 17;
-      return `<rect x="${qrOffsetX + column * cellSize}" y="${qrOffsetY + row * cellSize}" width="10" height="10" rx="1" fill="#071f4e"/>`;
-    })
-    .join("");
+  const qrGraphic = createQrSvgFragment(url, 62, 274, 276);
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="620" viewBox="0 0 400 620">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1860" viewBox="0 0 400 620">
   <rect width="400" height="620" fill="#f8fafc"/>
   <rect x="24" y="24" width="352" height="572" rx="24" fill="#ffffff" stroke="#d7dce6"/>
   <text x="48" y="76" font-family="Inter, Arial" font-size="13" font-weight="700" fill="#0f7a3b">${escapeSvg(organizationName || "Voiceup")}</text>
   <text x="48" y="122" font-family="Inter, Arial" font-size="28" font-weight="800" fill="#071f4e">${escapeSvg(campaign.title).slice(0, 42)}</text>
   <text x="48" y="156" font-family="Inter, Arial" font-size="14" fill="#475569">${escapeSvg(campaign.description).slice(0, 94)}</text>
-  <rect x="62" y="274" width="276" height="276" rx="20" fill="#eef3ff"/>
-  ${cellRects}
+  ${qrGraphic}
   <text x="200" y="236" text-anchor="middle" font-family="Inter, Arial" font-size="22" font-weight="800" fill="#123a8c">Scan to sign</text>
   <text x="200" y="566" text-anchor="middle" font-family="Inter, Arial" font-size="12" fill="#475569">${escapeSvg(url).slice(0, 58)}</text>
   <text x="48" y="584" font-family="Inter, Arial" font-size="11" fill="#667085">${escapeSvg(campaign.category)}${referralCode ? ` - Referral ${escapeSvg(referralCode)}` : ""}</text>
   <text x="352" y="584" text-anchor="end" font-family="Inter, Arial" font-size="11" font-weight="800" fill="#123a8c">Voiceup</text>
 </svg>`;
-}
-
-function isFinderCell(row: number, column: number, startRow: number, startColumn: number): boolean {
-  const within = row >= startRow && row < startRow + 7 && column >= startColumn && column < startColumn + 7;
-  if (!within) return false;
-  const localRow = row - startRow;
-  const localColumn = column - startColumn;
-  return (
-    localRow === 0 ||
-    localRow === 6 ||
-    localColumn === 0 ||
-    localColumn === 6 ||
-    (localRow >= 2 && localRow <= 4 && localColumn >= 2 && localColumn <= 4)
-  );
 }
 
 function escapeSvg(value: string): string {

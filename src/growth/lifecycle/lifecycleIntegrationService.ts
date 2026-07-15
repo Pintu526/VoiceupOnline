@@ -1,5 +1,6 @@
 import type { Campaign, Signer } from "../../types";
-import { getCampaignReferralUrl, getSupporterReferralCode, normalizeReferralCode } from "../../utils/referrals";
+import { getSupporterReferralCode, normalizeReferralCode } from "../../utils/referrals";
+import { getPublicCampaignUrlForOrigin } from "../../utils/links";
 import { evaluateContributionAdvancement } from "../services/contributionAdvancementService";
 import { evaluateGrowthOperatingSystemActivity } from "../services/growthOperatingSystemService";
 import { evaluateAchievementPeriod } from "../achievements";
@@ -598,5 +599,7 @@ export function getCampaignGrowthShareUrl(
   supporter: Signer,
   baseUrl: string
 ) {
-  return getCampaignReferralUrl(undefined, campaign, getSupporterReferralCode(supporter)).replace(/^https?:\/\/[^/]+/, baseUrl.replace(/\/$/, ""));
+  const publicUrl = getPublicCampaignUrlForOrigin(campaign.slug, { runtimeOrigin: baseUrl });
+  const referralCode = getSupporterReferralCode(supporter);
+  return publicUrl ? `${publicUrl}?ref=${encodeURIComponent(referralCode)}` : "";
 }

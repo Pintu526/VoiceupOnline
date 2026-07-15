@@ -21,7 +21,10 @@ import {
   X
 } from "lucide-react";
 import type { Campaign, Organization } from "../types";
-import { createQrCells, downloadQrPosterSvg } from "../utils/referrals";
+import { downloadQrPosterSvg } from "../utils/referrals";
+import { downloadQrPng } from "../utils/qr";
+import { QrCodeGraphic } from "../components/QrCodeGraphic";
+import { getCampaignPublicUrl } from "../utils/campaign";
 
 const DRAFT_KEY = "voiceup-onboarding-draft-v1";
 const SESSION_KEY = "voiceup-onboarding-session-v1";
@@ -360,52 +363,11 @@ function createOtp(): string {
 }
 
 function buildShareText(result: OnboardingCompletionResult): string {
-  return `I just launched this campaign on Voiceup: ${result.campaign.title}. Add your support here: ${result.shareUrl}`;
-}
-
-function downloadQrSvg(value: string, fileName: string) {
-  const cells = createQrCells(value, 17);
-  const cellSize = 14;
-  const rects = cells
-    .map((active, index) => {
-      if (!active) return "";
-      const row = Math.floor(index / 17);
-      const column = index % 17;
-      return `<rect x="${24 + column * cellSize}" y="${24 + row * cellSize}" width="11" height="11" rx="1.5" fill="#071f4e"/>`;
-    })
-    .join("");
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="286" height="286" viewBox="0 0 286 286">
-  <rect width="286" height="286" rx="20" fill="#ffffff"/>
-  <rect x="12" y="12" width="262" height="262" rx="18" fill="#f3f7ff" stroke="#d7dce6"/>
-  ${rects}
-  <text x="143" y="268" text-anchor="middle" font-family="Inter, Arial" font-size="10" fill="#475569">${escapeSvg(value).slice(0, 42)}</text>
-</svg>`;
-  const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-function escapeSvg(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return `I just launched this campaign on Voiceup: ${result.campaign.title}. Add your support here: ${getCampaignPublicUrl(result.organization, result.campaign)}`;
 }
 
 function QrPreview({ value }: { value: string }) {
-  const cells = useMemo(() => createQrCells(value, 17), [value]);
-  return (
-    <div className="onboarding-qr" aria-label="Campaign QR code preview">
-      {cells.map((active, index) => (
-        <span key={index} className={active ? "active" : ""} />
-      ))}
-    </div>
-  );
+  return <QrCodeGraphic className="onboarding-qr" value={value} label="Campaign QR code preview" />;
 }
 
 function ProvisioningSkeleton() {
@@ -637,20 +599,21 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
 
   async function nativeShare() {
     if (!result) return;
+    const canonicalShareUrl = getCampaignPublicUrl(result.organization, result.campaign);
     trackEvent("native_share_clicked", { campaignId: result.campaign.id });
     if (navigator.share) {
       try {
         await navigator.share({
           title: result.campaign.title,
           text: result.campaign.description,
-          url: result.shareUrl
+          url: canonicalShareUrl
         });
         return;
       } catch {
         // User cancelled or share target failed. Copy fallback is below.
       }
     }
-    await copyText("Campaign link", result.shareUrl);
+    await copyText("Campaign link", canonicalShareUrl);
   }
 
   function goBack() {
@@ -661,7 +624,8 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
   if (!open) return null;
 
   const shareText = result ? buildShareText(result) : "";
-  const encodedShareUrl = result ? encodeURIComponent(result.shareUrl) : "";
+  const canonicalShareUrl = result ? getCampaignPublicUrl(result.organization, result.campaign) : "";
+  const encodedShareUrl = encodeURIComponent(canonicalShareUrl);
   const encodedShareText = encodeURIComponent(shareText);
 
   return (
@@ -918,7 +882,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                 <div className="created-campaign-grid">
                   <div className="created-link-card">
                     <span className="label">Share link</span>
-                    <code>{result.shareUrl}</code>
+                    <code>{canonicalShareUrl}</code>
                     <span className="label">Short URL</span>
                     <code>{result.shortUrl}</code>
                     <div className="button-row">
@@ -931,16 +895,16 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                       >
                         <Send size={16} /> Share on WhatsApp
                       </a>
-                      <button className="secondary-button" type="button" onClick={() => copyText("Campaign link", result.shareUrl)}>
+                      <button className="secondary-button" type="button" onClick={() => copyText("Campaign link", canonicalShareUrl)}>
                         <ClipboardCopy size={16} /> Copy Link
                       </button>
-                      <a className="secondary-link-button" href={result.shareUrl} target="_blank" rel="noreferrer">
+                      <a className="secondary-link-button" href={canonicalShareUrl} target="_blank" rel="noreferrer">
                         <ExternalLink size={16} /> Open campaign
                       </a>
                     </div>
                   </div>
                   <div className="created-qr-card">
-                    <QrPreview value={result.qrValue} />
+                    <QrPreview value={canonicalShareUrl} />
                     <strong>QR code ready</strong>
                     <span>Use it on posters, counters, events, WhatsApp, and print material.</span>
                   </div>
@@ -1011,7 +975,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                     onClick={() => downloadQrPosterSvg({
                       campaign: result.campaign,
                       organizationName: result.organization.name,
-                      url: result.shareUrl
+                      url: canonicalShareUrl
                     })}
                   >
                     <Download size={16} /> Download Poster
@@ -1019,7 +983,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                   <button
                     className="secondary-button"
                     type="button"
-                    onClick={() => downloadQrSvg(result.qrValue, `${result.campaign.slug}-qr.svg`)}
+                    onClick={() => downloadQrPng(canonicalShareUrl, `${result.campaign.slug}-qr.png`)}
                   >
                     <QrCode size={16} /> Download QR
                   </button>

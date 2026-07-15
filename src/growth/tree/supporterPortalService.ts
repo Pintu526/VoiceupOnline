@@ -1,5 +1,6 @@
 import type { GrowthWallet } from "../wallet/types";
 import type { RecognitionTreeModel, SupporterGrowthPortalModel, SupporterPortalShareAction } from "./types";
+import { getPublicCampaignUrlForOrigin } from "../../utils/links";
 
 function encode(value: string) {
   return encodeURIComponent(value);
@@ -28,9 +29,9 @@ export function buildSupporterGrowthPortal(
   tree: RecognitionTreeModel,
   wallet: GrowthWallet
 ): SupporterGrowthPortalModel {
-  const cleanBaseUrl = baseUrl.replace(/\/$/, "");
   const publicPath = `/r/${supporterCode}`;
-  const referralLink = `${cleanBaseUrl}/c/${campaignSlug}?ref=${supporterCode}`;
+  const publicCampaignUrl = getPublicCampaignUrlForOrigin(campaignSlug, { runtimeOrigin: baseUrl });
+  const referralLink = publicCampaignUrl ? `${publicCampaignUrl}?ref=${encodeURIComponent(supporterCode)}` : "";
 
   return {
     routePattern: "/r/:supporterCode",

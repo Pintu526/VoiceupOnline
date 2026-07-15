@@ -13,7 +13,6 @@ import {
   Landmark,
   Plus,
   Printer,
-  QrCode,
   Rocket,
   Save,
   Search,
@@ -49,6 +48,7 @@ import { IndiaLocationFields } from "../../components/IndiaLocationFields";
 import { GlobalLocationFields } from "../../components/GlobalLocationFields";
 import { PasswordField } from "../../ui/PasswordField";
 import { ReferralQrPreview } from "../../components/ReferralQrPreview";
+import { QrCodeGraphic } from "../../components/QrCodeGraphic";
 import { GrowthConfigurationStudio } from "../../growth/components/GrowthConfigurationStudio";
 import { categories } from "../../constants";
 import { createId } from "../../lib";
@@ -2240,7 +2240,10 @@ export function CampaignsTab({
                       <small>{campaignDraft.status} · {getCampaignGoalValue(campaignDraft).toLocaleString()} target signatures</small>
                     </div>
                     <div className="qr-preview-card">
-                      <QrCode size={64} />
+                      <QrCodeGraphic
+                        value={hasDraftSlug ? publicCampaignUrl : ""}
+                        label={t("campaignAdmin.links.publicQr")}
+                      />
                       <span>{campaignDraft.qrLabel || campaignDraft.title || "Campaign QR"}</span>
                     </div>
                   </div>

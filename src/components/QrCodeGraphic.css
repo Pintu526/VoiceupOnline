@@ -1,0 +1,46 @@
+.qr-code-graphic {
+  aspect-ratio: 1;
+  background: #ffffff;
+  border: 1px solid rgba(7, 31, 78, 0.12);
+  box-shadow: var(--shadow-subtle);
+  display: block;
+  flex: 0 0 auto;
+  height: auto;
+  max-width: 100%;
+  width: 220px;
+}
+
+.referral-qr-preview.compact .qr-code-graphic {
+  width: 220px;
+}
+
+.onboarding-qr.qr-code-graphic {
+  border: 1px solid rgba(7, 31, 78, 0.12);
+  display: block;
+  padding: 0;
+  width: 220px;
+}
+
+.qr-code-error {
+  align-items: center;
+  aspect-ratio: 1;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  color: #9a3412;
+  display: flex;
+  font-weight: 700;
+  justify-content: center;
+  max-width: 100%;
+  padding: 18px;
+  text-align: center;
+  width: 220px;
+}
+
+@media (max-width: 640px) {
+  .qr-code-graphic,
+  .referral-qr-preview.compact .qr-code-graphic,
+  .onboarding-qr.qr-code-graphic,
+  .qr-code-error {
+    width: 180px;
+  }
+}

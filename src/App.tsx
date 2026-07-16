@@ -21,7 +21,9 @@ import {
   signInWithSupabase,
   signOutSupabase,
   submitPublicSignatureSecure,
-  uploadFileToStorage
+  uploadFileToStorage,
+  uploadPrivateFileToStorage,
+  createSignedStorageUrl
 } from "./backend";
 import type { PublicCampaignPayload } from "./backend";
 import {
@@ -33,8 +35,15 @@ import {
   groupSignersByLocation,
   groupSignersByDay,
   groupSignersByWeek,
-  makePublicSigner
+  makePublicSigner,
+  parseSignerFromText
 } from "./lib";
+import { planScanApprovals, type ScanApprovalCounts } from "./scanApproval";
+import {
+  createConfirmationQueueItems,
+  getPaperSupporterConfirmationStatus
+} from "./confirmationQueue";
+import { buildPrivateScanStoragePath, validateScanImageFile } from "./mobileScanCapture";
 import {
   addLocationOverride,
   clearLocationDeletion,
@@ -52,8 +61,10 @@ import type {
   BillingPlan,
   Campaign,
   CommercialPackage,
+  ConfirmationQueueItem,
   IntegrationSettings,
   Organization,
+  ScanCaptureMetadata,
   ScanReviewItem,
   Signer
 } from "./types";
@@ -325,6 +336,10 @@ function App() {
   );
   const [scanItems, setScanItems] = usePersistentState<ScanReviewItem[]>(
     `${storagePrefix}-scan-items`,
+    []
+  );
+  const [confirmationQueue, setConfirmationQueue] = usePersistentState<ConfirmationQueueItem[]>(
+    `${storagePrefix}-confirmation-queue`,
     []
   );
   const [auditLogs, setAuditLogs] = usePersistentState<AuditLogEntry[]>(
@@ -1416,34 +1431,85 @@ function App() {
     setOtpMessage("Phone number verified.");
   }
 
-  async function uploadScan(file: File) {
-    if (!activeCampaign) { setScanMessage("Create a campaign before uploading scanned signatures."); return; }
+  async function uploadScan(file: File, metadata?: ScanCaptureMetadata): Promise<boolean> {
+    if (!activeCampaign) { setScanMessage("Create a campaign before uploading scanned signatures."); return false; }
     if (
       activeCampaign.maxScansAllowed > 0 &&
       scanItems.filter((item) => item.campaignId === activeCampaign.id).length >= activeCampaign.maxScansAllowed
     ) {
       setScanMessage("This campaign has reached its scan upload limit.");
-      return;
+      return false;
     }
     if (getMonthlyScanCount(scanItems) >= getEffectiveScanLimit(organization)) {
       setScanMessage("This organization has reached available scan credits. Upgrade or recharge the workspace plan.");
-      return;
+      return false;
     }
+    const validationError = validateScanImageFile(file);
+    if (validationError) {
+      setScanMessage(
+        validationError === "file_too_large"
+          ? "The image exceeds the 12 MB secure-upload limit."
+          : "Choose a supported image file."
+      );
+      return false;
+    }
+    if (!isSupabaseStorageAvailable || integrations.storageProvider !== "Supabase Storage") {
+      setScanMessage(
+        "Secure private upload is unavailable. Configure authenticated Supabase Storage before capturing paper evidence."
+      );
+      return false;
+    }
+
+    const capturedAt = metadata?.capturedAt || new Date().toISOString();
+    const sourceBatchId = metadata?.sourceBatchId.trim() || `batch-${capturedAt.slice(0, 10)}`;
+    const baseItem = createScanReviewItem(activeCampaign.id, file.name, scanText);
+    const privatePath = buildPrivateScanStoragePath(
+      activeCampaign.id,
+      sourceBatchId,
+      baseItem.id,
+      file.name
+    );
     setIsScanning(true);
-    setScanMessage(`Reading ${file.name} with OCR. Handwriting may need manual correction.`);
-    const scanFileUrl = await uploadCampaignAsset(file, "scan", false);
+    setScanMessage(`Securely uploading ${file.name}. Handwriting may need manual correction.`);
     try {
-      const { recognize } = await import("tesseract.js");
-      const result = await recognize(file, "eng");
-      const extractedText = result.data.text.trim() || scanText;
-      const item = { ...createScanReviewItem(activeCampaign.id, file.name, extractedText), fileUrl: scanFileUrl };
-      setScanItems((current) => [item, ...current]);
-      setScanText(extractedText);
-      setScanMessage("OCR completed. Review the extracted signer details before approval.");
-    } catch {
-      const item = { ...createScanReviewItem(activeCampaign.id, file.name, scanText), fileUrl: scanFileUrl };
-      setScanItems((current) => [item, ...current]);
-      setScanMessage("OCR could not read the file, so a manual review item was created from the text box.");
+      const uploaded = await uploadPrivateFileToStorage("campaign-private", privatePath, file);
+      const commonItem = {
+        ...baseItem,
+        filePath: uploaded.path,
+        sourceBatchId,
+        collectorId: metadata?.collectorId.trim() || undefined,
+        collectorName: metadata?.collectorName.trim() || undefined,
+        capturedAt,
+        paperConsentRecorded: metadata?.paperConsentRecorded ?? false,
+        smsConsent: metadata?.smsConsent ?? false,
+        whatsappConsent: metadata?.whatsappConsent ?? false,
+        noOngoingCommunications: metadata?.noOngoingCommunications ?? false,
+        consentPurpose: metadata?.consentPurpose.trim() || undefined,
+        consentCapturedAt: metadata?.consentCapturedAt,
+        consentCapturedBy: metadata?.consentCapturedBy?.trim() || undefined
+      };
+      try {
+        const { recognize } = await import("tesseract.js");
+        const result = await recognize(file, "eng");
+        const extractedText = result.data.text.trim() || scanText;
+        const item = {
+          ...commonItem,
+          extractedText,
+          parsedSigner: parseSignerFromText(extractedText)
+        };
+        setScanItems((current) => [item, ...current]);
+        setScanText(extractedText);
+        setScanMessage("Private upload and OCR completed. Review this signer before approval.");
+      } catch {
+        setScanItems((current) => [commonItem, ...current]);
+        setScanMessage("Private upload completed. OCR could not read the file, so the record remains ready for manual review.");
+      }
+      return true;
+    } catch (error) {
+      setScanMessage(
+        `Secure upload failed. No scan record was created. ${error instanceof Error ? error.message : "Unable to upload file."}`
+      );
+      return false;
     } finally {
       setIsScanning(false);
     }
@@ -1468,29 +1534,111 @@ function App() {
     );
   }
 
-  function approveScan(scan: ScanReviewItem) {
-    if (!activeCampaign) return;
-    const duplicate = detectDuplicate(scan.parsedSigner, campaignSigners);
-    const signer: Signer = {
-      id: createId("sig"),
-      campaignId: activeCampaign.id,
-      ...scan.parsedSigner,
-      source: "scan",
-      status: duplicate ? "duplicate" : "pending",
-      signedAt: new Date().toISOString(),
-      scanFileName: scan.fileName,
-      scanFileUrl: scan.fileUrl,
-      reviewerNote: duplicate ? `Possible duplicate of ${duplicate.name}` : "Imported from scanned hard copy."
-    };
-    const nextSigners = [signer, ...signers.filter((item) => item.id !== signer.id)];
-    setSigners(nextSigners);
-    if (signer.status !== "duplicate") {
-      recordGrowthLifecycle("supporter_signed", signer, nextSigners);
+  function approveScan(scans: ScanReviewItem | ScanReviewItem[]): ScanApprovalCounts {
+    const requestedScans = Array.isArray(scans) ? scans : [scans];
+    if (!activeCampaign) {
+      return {
+        approved: 0,
+        skippedAlreadyApproved: 0,
+        skippedDuplicate: 0,
+        failed: requestedScans.length
+      };
     }
-    addAuditLog("scan.approved", `Approved scanned signer "${signer.name}"`, activeCampaign.id);
+
+    const campaignId = activeCampaign.id;
+    const plan = planScanApprovals({
+      campaignId,
+      requestedScanItemIds: requestedScans.map((scan) => scan.id),
+      scanItems,
+      signers,
+      createSigner: (scan, currentSigners) => {
+        if (!scan.paperConsentRecorded) {
+          throw new Error("Paper consent is required before creating a digital supporter record.");
+        }
+        const duplicate = detectDuplicate(scan.parsedSigner, currentSigners);
+        const confirmationStatus = getPaperSupporterConfirmationStatus(scan, Boolean(duplicate));
+        return {
+          id: createId("sig"),
+          campaignId,
+          ...scan.parsedSigner,
+          source: "scan",
+          status: duplicate ? "duplicate" : "pending",
+          signedAt: new Date().toISOString(),
+          scanFileName: scan.fileName,
+          scanFileUrl: scan.fileUrl,
+          scanFilePath: scan.filePath,
+          sourceScanItemId: scan.id,
+          sourceBatchId: scan.sourceBatchId,
+          collectorId: scan.collectorId,
+          collectorName: scan.collectorName,
+          capturedAt: scan.capturedAt || scan.createdAt,
+          paperConsentRecorded: scan.paperConsentRecorded,
+          smsConsent: scan.smsConsent ?? false,
+          whatsappConsent: scan.whatsappConsent ?? false,
+          noOngoingCommunications: scan.noOngoingCommunications ?? false,
+          consentPurpose: scan.consentPurpose,
+          consentCapturedAt: scan.consentCapturedAt,
+          consentCapturedBy: scan.consentCapturedBy,
+          confirmationStatus,
+          reviewerNote: duplicate
+            ? `Possible duplicate of ${duplicate.name}`
+            : "Imported from scanned hard copy."
+        };
+      }
+    });
+    const approvedScanItemIds = new Set(plan.approvedScanItemIds);
+    const projectedSigners = [...plan.newSigners, ...signers];
+
+    setSigners((current) => {
+      const linkedScanItemIds = new Set(
+        current.map((signer) => signer.sourceScanItemId).filter((id): id is string => Boolean(id))
+      );
+      const additions = plan.newSigners.filter(
+        (signer) => !signer.sourceScanItemId || !linkedScanItemIds.has(signer.sourceScanItemId)
+      );
+      return additions.length > 0 ? [...additions, ...current] : current;
+    });
     setScanItems((current) =>
-      current.map((item) => (item.id === scan.id ? { ...item, status: "Approved" } : item))
+      current.map((item) =>
+        approvedScanItemIds.has(item.id) && item.status === "Needs review"
+          ? { ...item, status: "Approved" }
+          : item
+      )
     );
+    setConfirmationQueue((current) => {
+      let next = current;
+      plan.newSigners.forEach((signer) => {
+        if (signer.status === "duplicate") return;
+        const additions = createConfirmationQueueItems({
+          workspaceId: organization.id,
+          campaign: activeCampaign,
+          signer,
+          currentQueue: next,
+          createId
+        });
+        if (additions.length > 0) next = [...additions, ...next];
+      });
+      return next;
+    });
+
+    plan.newSigners.forEach((signer) => {
+      if (signer.status !== "duplicate") {
+        recordGrowthLifecycle("supporter_signed", signer, projectedSigners);
+      }
+      addAuditLog("scan.approved", `Approved scanned signer "${signer.name}"`, campaignId);
+    });
+
+    return plan.counts;
+  }
+
+  async function openPrivateScan(scan: ScanReviewItem): Promise<string> {
+    if (!scan.filePath) throw new Error("This scan does not have private evidence attached.");
+    try {
+      return await createSignedStorageUrl("campaign-private", scan.filePath, 300);
+    } catch (error) {
+      setScanMessage(error instanceof Error ? error.message : "Unable to open private evidence.");
+      throw error;
+    }
   }
 
   function updateSignerStatus(signerId: string, status: Signer["status"]) {
@@ -2186,6 +2334,7 @@ function App() {
         setOrganization={setOrganization}
         scanItems={scanItems}
         setScanItems={setScanItems}
+        confirmationQueue={confirmationQueue}
         auditLogs={auditLogs}
         integrations={integrations}
         setIntegrations={setIntegrations}
@@ -2239,6 +2388,7 @@ function App() {
         onVerifyOtp={verifyOtp}
         onGrowthShare={recordPublicShareGrowth}
         onUploadScan={uploadScan}
+        onOpenPrivateScan={openPrivateScan}
         onCreateManualScanItem={createManualScanItem}
         onUpdateScanParsedSigner={updateScanParsedSigner}
         onApproveScan={approveScan}

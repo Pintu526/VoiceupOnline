@@ -26,7 +26,7 @@ import {
   WalletCards
 } from "lucide-react";
 import type { Campaign, Organization } from "../types";
-import type { AuthorityRule, Signer, ScanReviewItem, AuditLogEntry, IntegrationSettings, CommercialPackage } from "../types";
+import type { AuthorityRule, Signer, ScanReviewItem, AuditLogEntry, IntegrationSettings, CommercialPackage, ConfirmationQueueItem, ScanCaptureMetadata } from "../types";
 import type { LocationDeletions, LocationDeletions as LD, LocationOverrides } from "../geography";
 import { NavButton, type Tab } from "../components/NavButton";
 import { CommandPalette } from "../components/CommandPalette";
@@ -41,6 +41,7 @@ import type { getCampaignMetrics } from "../lib";
 import type { BillingPlan } from "../types";
 import type { LocationDeletionLevel, LocationWithPin } from "../geography";
 import type { ScanReviewItem as SRI } from "../types";
+import type { ScanApprovalCounts } from "../scanApproval";
 import type { FormEvent } from "react";
 import { blankSigner } from "../constants";
 import type { AiCampaignCopilotResult } from "../ai/types";
@@ -183,6 +184,7 @@ interface AppShellProps {
   setOrganization: React.Dispatch<React.SetStateAction<Organization>>;
   scanItems: ScanReviewItem[];
   setScanItems: React.Dispatch<React.SetStateAction<ScanReviewItem[]>>;
+  confirmationQueue: ConfirmationQueueItem[];
   auditLogs: AuditLogEntry[];
   integrations: IntegrationSettings;
   setIntegrations: React.Dispatch<React.SetStateAction<IntegrationSettings>>;
@@ -255,14 +257,15 @@ interface AppShellProps {
   onSendOtp: () => void;
   onVerifyOtp: () => void;
   onGrowthShare: (share: GrowthShareContext) => void;
-  onUploadScan: (file: File) => void;
+  onUploadScan: (file: File, metadata?: ScanCaptureMetadata) => Promise<boolean>;
+  onOpenPrivateScan: (scan: SRI) => Promise<string>;
   onCreateManualScanItem: () => void;
   onUpdateScanParsedSigner: (
     scanId: string,
     field: keyof SRI["parsedSigner"],
     value: string
   ) => void;
-  onApproveScan: (scan: SRI) => void;
+  onApproveScan: (scan: SRI | SRI[]) => ScanApprovalCounts;
   onUpdateSignerStatus: (signerId: string, status: Signer["status"]) => void;
   onAddAuthorityRule: () => void;
   onAddAdminLocationOption: (values: LocationWithPin) => boolean | Promise<boolean>;
@@ -314,6 +317,7 @@ export function AppShell({
   setOrganization,
   scanItems,
   setScanItems,
+  confirmationQueue,
   auditLogs,
   integrations,
   setIntegrations,
@@ -367,6 +371,7 @@ export function AppShell({
   onVerifyOtp,
   onGrowthShare,
   onUploadScan,
+  onOpenPrivateScan,
   onCreateManualScanItem,
   onUpdateScanParsedSigner,
   onApproveScan,
@@ -1419,11 +1424,13 @@ export function AppShell({
                 scanItems={scanItems}
                 campaignSigners={campaignSigners}
                 setScanItems={setScanItems}
+                confirmationQueue={confirmationQueue}
                 scanText={scanText}
                 setScanText={setScanText}
                 isScanning={isScanning}
                 scanMessage={scanMessage}
                 onUploadScan={onUploadScan}
+                onOpenPrivateScan={onOpenPrivateScan}
                 onCreateManualScanItem={onCreateManualScanItem}
                 onUpdateScanParsedSigner={onUpdateScanParsedSigner}
                 onApproveScan={onApproveScan}

@@ -4,6 +4,26 @@ export type SignatureSource = "online" | "scan" | "field";
 
 export type VerificationStatus = "verified" | "pending" | "duplicate" | "rejected";
 
+export type SupporterConfirmationStatus =
+  | "pending_confirmation"
+  | "not_requested"
+  | "confirmed"
+  | "expired"
+  | "suppressed";
+
+export type ConfirmationChannel = "sms" | "whatsapp";
+
+export type ConfirmationQueueStatus =
+  | "queued"
+  | "blocked_no_consent"
+  | "blocked_invalid_mobile"
+  | "ready"
+  | "sending"
+  | "sent"
+  | "delivered"
+  | "failed"
+  | "suppressed";
+
 export type CampaignCategory =
   | "Civic"
   | "Environment"
@@ -155,6 +175,51 @@ export interface Signer {
   reviewerNote?: string;
   scanFileName?: string;
   scanFileUrl?: string;
+  scanFilePath?: string;
+  sourceScanItemId?: string;
+  sourceBatchId?: string;
+  collectorId?: string;
+  collectorName?: string;
+  capturedAt?: string;
+  paperConsentRecorded?: boolean;
+  smsConsent?: boolean;
+  whatsappConsent?: boolean;
+  noOngoingCommunications?: boolean;
+  consentPurpose?: string;
+  consentCapturedAt?: string;
+  consentCapturedBy?: string;
+  confirmationStatus?: SupporterConfirmationStatus;
+}
+
+export interface ConfirmationQueueItem {
+  id: string;
+  workspaceId: string;
+  campaignId: string;
+  supporterId: string;
+  channel: ConfirmationChannel;
+  templateKey: "paper_support_confirmation";
+  destinationMasked: string;
+  status: ConfirmationQueueStatus;
+  attemptCount: number;
+  createdAt: string;
+  sentAt?: string;
+  failedAt?: string;
+  failureReason?: string;
+  providerMessageId?: string;
+}
+
+export interface ScanCaptureMetadata {
+  sourceBatchId: string;
+  collectorId: string;
+  collectorName: string;
+  capturedAt: string;
+  paperConsentRecorded: boolean;
+  smsConsent: boolean;
+  whatsappConsent: boolean;
+  noOngoingCommunications: boolean;
+  consentPurpose: string;
+  consentCapturedAt?: string;
+  consentCapturedBy?: string;
 }
 
 export interface AuthorityRule {
@@ -284,6 +349,18 @@ export interface ScanReviewItem {
   parsedSigner: Omit<Signer, "id" | "campaignId" | "source" | "status" | "signedAt">;
   status: "Needs review" | "Approved" | "Rejected";
   createdAt: string;
+  filePath?: string;
+  sourceBatchId?: string;
+  collectorId?: string;
+  collectorName?: string;
+  capturedAt?: string;
+  paperConsentRecorded?: boolean;
+  smsConsent?: boolean;
+  whatsappConsent?: boolean;
+  noOngoingCommunications?: boolean;
+  consentPurpose?: string;
+  consentCapturedAt?: string;
+  consentCapturedBy?: string;
 }
 
 export interface SuggestedFeature {

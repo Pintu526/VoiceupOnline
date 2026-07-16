@@ -1,16 +1,34 @@
 import {
+  Camera,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   FileSpreadsheet,
   FileScan,
   FileText,
   Plus,
   QrCode,
+  RotateCw,
   SearchCheck,
+  ShieldCheck,
   Upload,
   UsersRound
 } from "lucide-react";
-import type { Campaign, ScanReviewItem, Signer } from "../../types";
+import { useEffect, useRef, useState } from "react";
+import type { Campaign, ConfirmationQueueItem, ScanCaptureMetadata, ScanReviewItem, Signer } from "../../types";
+import {
+  createScanApprovalLock,
+  type ScanApprovalCounts,
+  type ScanApprovalLock
+} from "../../scanApproval";
+import {
+  confirmationTemplatePreviews,
+  confirmationUrlFormat,
+  smsConfirmationAdapter,
+  whatsappConfirmationAdapter
+} from "../../confirmationQueue";
+import { compressScanImage, validateScanImageFile } from "../../mobileScanCapture";
 import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
@@ -21,18 +39,20 @@ interface ScansTabProps {
   scanItems: ScanReviewItem[];
   campaignSigners: Signer[];
   setScanItems: React.Dispatch<React.SetStateAction<ScanReviewItem[]>>;
+  confirmationQueue: ConfirmationQueueItem[];
   scanText: string;
   setScanText: React.Dispatch<React.SetStateAction<string>>;
   isScanning: boolean;
   scanMessage: string;
-  onUploadScan: (file: File) => void;
+  onUploadScan: (file: File, metadata?: ScanCaptureMetadata) => Promise<boolean>;
+  onOpenPrivateScan: (scan: ScanReviewItem) => Promise<string>;
   onCreateManualScanItem: () => void;
   onUpdateScanParsedSigner: (
     scanId: string,
     field: keyof ScanReviewItem["parsedSigner"],
     value: string
   ) => void;
-  onApproveScan: (scan: ScanReviewItem) => void;
+  onApproveScan: (scan: ScanReviewItem | ScanReviewItem[]) => ScanApprovalCounts;
 }
 
 export function ScansTab({
@@ -40,16 +60,46 @@ export function ScansTab({
   scanItems,
   campaignSigners,
   setScanItems,
+  confirmationQueue,
   scanText,
   setScanText,
   isScanning,
   scanMessage,
   onUploadScan,
+  onOpenPrivateScan,
   onCreateManualScanItem,
   onUpdateScanParsedSigner,
   onApproveScan
 }: ScansTabProps) {
   const { t } = useTranslation();
+  const approvalLockRef = useRef<ScanApprovalLock>(createScanApprovalLock());
+  const [approvingScanItemIds, setApprovingScanItemIds] = useState<Set<string>>(new Set());
+  const [isBatchApproving, setIsBatchApproving] = useState(false);
+  const [approvalMessage, setApprovalMessage] = useState("");
+  const [approvalMessageIsError, setApprovalMessageIsError] = useState(false);
+  const [selectedCaptureFile, setSelectedCaptureFile] = useState<File | null>(null);
+  const [capturePreviewUrl, setCapturePreviewUrl] = useState("");
+  const [captureRotation, setCaptureRotation] = useState(0);
+  const [captureProgress, setCaptureProgress] = useState(0);
+  const [captureError, setCaptureError] = useState("");
+  const [capturedAt, setCapturedAt] = useState("");
+  const [sourceBatchId, setSourceBatchId] = useState(() => `batch-${new Date().toISOString().slice(0, 10)}`);
+  const [collectorId, setCollectorId] = useState("");
+  const [collectorName, setCollectorName] = useState("");
+  const [paperConsentRecorded, setPaperConsentRecorded] = useState(false);
+  const [smsConsent, setSmsConsent] = useState(false);
+  const [whatsappConsent, setWhatsappConsent] = useState(false);
+  const [noOngoingCommunications, setNoOngoingCommunications] = useState(false);
+  const [consentPurpose, setConsentPurpose] = useState("Paper support confirmation");
+  const [reviewIndex, setReviewIndex] = useState(0);
+  const [privateEvidenceUrl, setPrivateEvidenceUrl] = useState("");
+  const [privateEvidenceError, setPrivateEvidenceError] = useState("");
+  const [showCaptureNext, setShowCaptureNext] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => () => {
+    if (capturePreviewUrl) URL.revokeObjectURL(capturePreviewUrl);
+  }, [capturePreviewUrl]);
   if (!activeCampaign) {
     return (
       <NoCampaignPanel
@@ -86,6 +136,85 @@ export function ScansTab({
   );
   const missingPhoneReviewItems = reviewQueueItems.filter((item) => !item.parsedSigner.phone.trim());
   const approvedScanItems = campaignScanItems.filter((item) => item.status === "Approved");
+  const currentReviewItem = reviewQueueItems[Math.min(reviewIndex, Math.max(0, reviewQueueItems.length - 1))];
+  const campaignConfirmationQueue = confirmationQueue.filter((item) => item.campaignId === activeCampaign.id);
+
+  function selectCaptureFile(file: File) {
+    const validationError = validateScanImageFile(file);
+    if (validationError) {
+      setCaptureError(
+        validationError === "file_too_large"
+          ? t("scans.capture.fileTooLarge")
+          : t("scans.capture.unsupportedFile")
+      );
+      return;
+    }
+    setCaptureError("");
+    setSelectedCaptureFile(file);
+    setCapturePreviewUrl(URL.createObjectURL(file));
+    setCaptureRotation(0);
+    setCaptureProgress(10);
+    setCapturedAt(new Date().toISOString());
+  }
+
+  function clearCapture() {
+    setSelectedCaptureFile(null);
+    setCapturePreviewUrl("");
+    setCaptureRotation(0);
+    setCaptureProgress(0);
+    setCaptureError("");
+  }
+
+  async function uploadSelectedCapture() {
+    if (!selectedCaptureFile) return;
+    setCaptureError("");
+    setCaptureProgress(25);
+    try {
+      const preparedFile = await compressScanImage(selectedCaptureFile, captureRotation);
+      setCaptureProgress(55);
+      const consentCapturedAt =
+        paperConsentRecorded || smsConsent || whatsappConsent ? new Date().toISOString() : undefined;
+      const uploaded = await onUploadScan(preparedFile, {
+        sourceBatchId,
+        collectorId,
+        collectorName,
+        capturedAt: capturedAt || new Date().toISOString(),
+        paperConsentRecorded,
+        smsConsent: noOngoingCommunications ? false : smsConsent,
+        whatsappConsent: noOngoingCommunications ? false : whatsappConsent,
+        noOngoingCommunications,
+        consentPurpose,
+        consentCapturedAt,
+        consentCapturedBy: collectorName || collectorId
+      });
+      if (!uploaded) {
+        setCaptureProgress(0);
+        setCaptureError(t("scans.capture.uploadFailed"));
+        return;
+      }
+      setCaptureProgress(100);
+      clearCapture();
+    } catch {
+      setCaptureProgress(0);
+      setCaptureError(t("scans.capture.uploadFailed"));
+    }
+  }
+
+  function updateScanMetadata(scanId: string, updates: Partial<ScanReviewItem>) {
+    setScanItems((current) =>
+      current.map((item) => item.id === scanId ? { ...item, ...updates } : item)
+    );
+  }
+
+  async function openPrivateEvidence(item: ScanReviewItem) {
+    setPrivateEvidenceError("");
+    try {
+      setPrivateEvidenceUrl(await onOpenPrivateScan(item));
+    } catch {
+      setPrivateEvidenceUrl("");
+      setPrivateEvidenceError(t("scans.capture.privateOpenFailed"));
+    }
+  }
 
   function batchUpdateReviewItems(status: ScanReviewItem["status"]) {
     setScanItems((current) =>
@@ -97,8 +226,63 @@ export function ScansTab({
     );
   }
 
-  function batchApproveReviewItems() {
-    reviewQueueItems.forEach((item) => onApproveScan(item));
+  function formatApprovalCounts(counts: ScanApprovalCounts) {
+    return [
+      `${t("scans.review.approvedCount")}: ${counts.approved}`,
+      `${t("scans.review.alreadyApprovedCount")}: ${counts.skippedAlreadyApproved}`,
+      `${t("scans.review.skippedDuplicateCount")}: ${counts.skippedDuplicate}`,
+      `${t("scans.review.failedCount")}: ${counts.failed}`
+    ].join(" · ");
+  }
+
+  async function approveReviewItem(item: ScanReviewItem) {
+    if (!approvalLockRef.current.startSingle(item.id)) return;
+    setApprovingScanItemIds((current) => new Set(current).add(item.id));
+    setApprovalMessageIsError(false);
+    setApprovalMessage(t("scans.review.processing"));
+    try {
+      await Promise.resolve();
+      const counts = onApproveScan(item);
+      setShowCaptureNext(counts.approved > 0);
+      setApprovalMessageIsError(counts.failed > 0);
+      setApprovalMessage(
+        counts.skippedAlreadyApproved > 0 || counts.skippedDuplicate > 0
+          ? t("scans.review.alreadyApprovedMessage")
+          : formatApprovalCounts(counts)
+      );
+    } catch {
+      setApprovalMessageIsError(true);
+      setApprovalMessage(t("scans.review.approvalFailed"));
+    } finally {
+      approvalLockRef.current.finishSingle(item.id);
+      setApprovingScanItemIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }
+
+  async function batchApproveReviewItems() {
+    const scanItemIds = reviewQueueItems.map((item) => item.id);
+    if (!approvalLockRef.current.startBatch(scanItemIds)) return;
+    setIsBatchApproving(true);
+    setApprovingScanItemIds(new Set(scanItemIds));
+    setApprovalMessageIsError(false);
+    setApprovalMessage(t("scans.review.batchProcessing"));
+    try {
+      await Promise.resolve();
+      const counts = onApproveScan(reviewQueueItems);
+      setApprovalMessageIsError(counts.failed > 0);
+      setApprovalMessage(formatApprovalCounts(counts));
+    } catch {
+      setApprovalMessageIsError(true);
+      setApprovalMessage(t("scans.review.approvalFailed"));
+    } finally {
+      approvalLockRef.current.finishBatch();
+      setApprovingScanItemIds(new Set());
+      setIsBatchApproving(false);
+    }
   }
 
   return (
@@ -128,7 +312,7 @@ export function ScansTab({
               accept="image/*"
               onChange={(event) => {
                 const file = event.target.files?.[0];
-                if (file) onUploadScan(file);
+                if (file) selectCaptureFile(file);
               }}
             />
           </label>
@@ -195,31 +379,93 @@ export function ScansTab({
       </Panel>
 
       <Panel title={t("scans.upload.title")} icon={<Upload />}>
-        <div className="scan-grid">
-          <label className="drop-zone">
-            <FileScan size={34} />
-            <strong>{t("scans.upload.image")}</strong>
-            <span>{t("scans.upload.imageHelp")}</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) onUploadScan(file);
-              }}
-            />
-          </label>
+        <div className="mobile-capture-stack">
+          <div className="mobile-capture-actions">
+            <label className="primary-button mobile-file-button">
+              <Camera size={20} /> {t("scans.capture.takePhoto")}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) selectCaptureFile(file);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            <label className="secondary-button mobile-file-button">
+              <FileScan size={20} /> {t("scans.capture.chooseImage")}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) selectCaptureFile(file);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+          </div>
+
+          {capturePreviewUrl && (
+            <div className="mobile-capture-preview">
+              <img
+                src={capturePreviewUrl}
+                alt={t("scans.capture.previewAlt")}
+                style={{ transform: `rotate(${captureRotation}deg)` }}
+              />
+              <div className="button-row">
+                <button className="secondary-button" type="button" onClick={() => setCaptureRotation((value) => (value + 90) % 360)}>
+                  <RotateCw size={18} /> {t("scans.capture.rotate")}
+                </button>
+                <button className="secondary-button" type="button" onClick={() => { clearCapture(); cameraInputRef.current?.click(); }}>
+                  {t("scans.capture.retake")}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="form-grid compact mobile-capture-metadata">
+            <Field label={t("scans.capture.batchId")}>
+              <input value={sourceBatchId} onChange={(event) => setSourceBatchId(event.target.value)} />
+            </Field>
+            <Field label={t("scans.capture.collectorId")}>
+              <input value={collectorId} onChange={(event) => setCollectorId(event.target.value)} />
+            </Field>
+            <Field label={t("scans.capture.collectorName")}>
+              <input value={collectorName} onChange={(event) => setCollectorName(event.target.value)} />
+            </Field>
+            <Field label={t("scans.capture.consentPurpose")}>
+              <input value={consentPurpose} onChange={(event) => setConsentPurpose(event.target.value)} />
+            </Field>
+          </div>
+
+          <div className="scan-consent-card">
+            <strong>{t("scans.capture.consentTitle")}</strong>
+            <label><input type="checkbox" checked={paperConsentRecorded} onChange={(event) => setPaperConsentRecorded(event.target.checked)} /> {t("scans.capture.paperConsent")}</label>
+            <label><input type="checkbox" checked={smsConsent} disabled={noOngoingCommunications} onChange={(event) => setSmsConsent(event.target.checked)} /> {t("scans.capture.smsConsent")}</label>
+            <label><input type="checkbox" checked={whatsappConsent} disabled={noOngoingCommunications} onChange={(event) => setWhatsappConsent(event.target.checked)} /> {t("scans.capture.whatsappConsent")}</label>
+            <label><input type="checkbox" checked={noOngoingCommunications} onChange={(event) => {
+              setNoOngoingCommunications(event.target.checked);
+              if (event.target.checked) { setSmsConsent(false); setWhatsappConsent(false); }
+            }} /> {t("scans.capture.noOngoing")}</label>
+          </div>
+
           <div>
             <span className="label">{t("scans.upload.manualCorrection")}</span>
-            <textarea
-              rows={8}
-              value={scanText}
-              onChange={(e) => setScanText(e.target.value)}
-            />
+            <textarea rows={6} value={scanText} onChange={(event) => setScanText(event.target.value)} />
           </div>
+          {selectedCaptureFile && (
+            <button className="primary-button mobile-upload-button" type="button" disabled={isScanning} onClick={() => void uploadSelectedCapture()}>
+              <ShieldCheck size={19} /> {isScanning ? t("scans.capture.uploading") : t("scans.capture.secureUpload")}
+            </button>
+          )}
+          {(isScanning || captureProgress > 0) && <progress className="scan-upload-progress" max={100} value={isScanning ? Math.max(captureProgress, 60) : captureProgress} />}
+          {captureError && <p className="error-message">{captureError}</p>}
+          {scanMessage && <p className={scanMessage.toLowerCase().includes("failed") || scanMessage.toLowerCase().includes("unavailable") ? "error-message" : "info-message"}>{scanMessage}</p>}
         </div>
-        {isScanning && <p className="info-message">{t("scans.upload.processing")}</p>}
-        {scanMessage && <p className="success-message">{scanMessage}</p>}
       </Panel>
 
       <Panel title={t("scans.manual.title")} icon={<Plus />}>
@@ -250,22 +496,36 @@ export function ScansTab({
             <button
               className="primary-button"
               type="button"
-              disabled={reviewQueueItems.length === 0}
+              disabled={
+                reviewQueueItems.length === 0 ||
+                isBatchApproving ||
+                approvalLockRef.current.hasSingleLocks()
+              }
               onClick={batchApproveReviewItems}
             >
-              {t("scans.review.batchApprove")}
+              {isBatchApproving ? t("scans.review.batchProcessing") : t("scans.review.batchApprove")}
             </button>
             <button
               className="secondary-button"
               type="button"
-              disabled={reviewQueueItems.length === 0}
+              disabled={reviewQueueItems.length === 0 || approvingScanItemIds.size > 0}
               onClick={() => batchUpdateReviewItems("Rejected")}
             >
               {t("scans.review.batchReject")}
             </button>
           </div>
         </div>
-        {reviewQueueItems.length > 0 && (
+        {approvalMessage && (
+          <p className={approvalMessageIsError ? "error-message" : "info-message"}>
+            {approvalMessage}
+          </p>
+        )}
+        {showCaptureNext && (
+          <button className="secondary-button capture-next-button" type="button" onClick={() => { setShowCaptureNext(false); cameraInputRef.current?.click(); }}>
+            <Camera size={18} /> {t("scans.capture.captureNext")}
+          </button>
+        )}
+        {false && reviewQueueItems.length > 0 && (
           <div className="manual-correction-table table-wrap">
             <table>
               <thead>
@@ -320,9 +580,20 @@ export function ScansTab({
             </table>
           </div>
         )}
+        {currentReviewItem && (
+          <div className="single-review-navigator">
+            <button className="secondary-button" type="button" disabled={reviewIndex <= 0} onClick={() => setReviewIndex((value) => Math.max(0, value - 1))}>
+              <ChevronLeft size={18} /> {t("scans.review.previous")}
+            </button>
+            <strong>{Math.min(reviewIndex + 1, reviewQueueItems.length)} / {reviewQueueItems.length}</strong>
+            <button className="secondary-button" type="button" disabled={reviewIndex >= reviewQueueItems.length - 1} onClick={() => setReviewIndex((value) => Math.min(reviewQueueItems.length - 1, value + 1))}>
+              {t("scans.review.next")} <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
         <div className="review-list">
           {reviewQueueItems.length === 0 && <p>{t("scans.review.empty")}</p>}
-          {reviewQueueItems.map((item) => (
+          {(currentReviewItem ? [currentReviewItem] : []).map((item) => (
             <div className="review-card" key={item.id}>
               <div>
                 <strong>{item.fileName}</strong>
@@ -351,6 +622,52 @@ export function ScansTab({
                   </Field>
                 ))}
               </div>
+              <div className="form-grid compact mobile-capture-metadata">
+                <Field label={t("scans.capture.batchId")}>
+                  <input value={item.sourceBatchId ?? ""} onChange={(event) => updateScanMetadata(item.id, { sourceBatchId: event.target.value })} />
+                </Field>
+                <Field label={t("scans.capture.collectorId")}>
+                  <input value={item.collectorId ?? ""} onChange={(event) => updateScanMetadata(item.id, { collectorId: event.target.value })} />
+                </Field>
+                <Field label={t("scans.capture.collectorName")}>
+                  <input value={item.collectorName ?? ""} onChange={(event) => updateScanMetadata(item.id, { collectorName: event.target.value })} />
+                </Field>
+                <Field label={t("scans.capture.consentPurpose")}>
+                  <input value={item.consentPurpose ?? ""} onChange={(event) => updateScanMetadata(item.id, { consentPurpose: event.target.value })} />
+                </Field>
+              </div>
+              <div className="scan-consent-card">
+                <strong>{t("scans.capture.consentTitle")}</strong>
+                <label><input type="checkbox" checked={item.paperConsentRecorded ?? false} onChange={(event) => updateScanMetadata(item.id, {
+                  paperConsentRecorded: event.target.checked,
+                  consentCapturedAt: event.target.checked ? new Date().toISOString() : item.consentCapturedAt,
+                  consentCapturedBy: item.collectorName || item.collectorId
+                })} /> {t("scans.capture.paperConsent")}</label>
+                <label><input type="checkbox" checked={item.smsConsent ?? false} disabled={item.noOngoingCommunications ?? false} onChange={(event) => updateScanMetadata(item.id, {
+                  smsConsent: event.target.checked,
+                  consentCapturedAt: event.target.checked ? new Date().toISOString() : item.consentCapturedAt,
+                  consentCapturedBy: item.collectorName || item.collectorId
+                })} /> {t("scans.capture.smsConsent")}</label>
+                <label><input type="checkbox" checked={item.whatsappConsent ?? false} disabled={item.noOngoingCommunications ?? false} onChange={(event) => updateScanMetadata(item.id, {
+                  whatsappConsent: event.target.checked,
+                  consentCapturedAt: event.target.checked ? new Date().toISOString() : item.consentCapturedAt,
+                  consentCapturedBy: item.collectorName || item.collectorId
+                })} /> {t("scans.capture.whatsappConsent")}</label>
+                <label><input type="checkbox" checked={item.noOngoingCommunications ?? false} onChange={(event) => updateScanMetadata(item.id, {
+                  noOngoingCommunications: event.target.checked,
+                  smsConsent: event.target.checked ? false : item.smsConsent,
+                  whatsappConsent: event.target.checked ? false : item.whatsappConsent
+                })} /> {t("scans.capture.noOngoing")}</label>
+              </div>
+              {item.filePath && (
+                <div className="private-evidence-card">
+                  <button className="secondary-button" type="button" onClick={() => void openPrivateEvidence(item)}>
+                    <ShieldCheck size={18} /> {t("scans.capture.openPrivateEvidence")}
+                  </button>
+                  {privateEvidenceUrl && <img src={privateEvidenceUrl} alt={t("scans.capture.privateEvidenceAlt")} />}
+                  {privateEvidenceError && <p className="error-message">{privateEvidenceError}</p>}
+                </div>
+              )}
               <details>
                 <summary>{t("scans.review.extractedText")}</summary>
                 <pre>{item.extractedText}</pre>
@@ -359,13 +676,18 @@ export function ScansTab({
                 <button
                   className="primary-button"
                   type="button"
-                  onClick={() => onApproveScan(item)}
+                  disabled={isBatchApproving || approvingScanItemIds.has(item.id)}
+                  aria-busy={approvingScanItemIds.has(item.id)}
+                  onClick={() => void approveReviewItem(item)}
                 >
-                  <CheckCircle2 size={18} /> {t("scans.review.approveSigner")}
+                  <CheckCircle2 size={18} /> {approvingScanItemIds.has(item.id)
+                    ? t("scans.review.processing")
+                    : t("scans.review.approveSigner")}
                 </button>
                 <button
                   className="secondary-button"
                   type="button"
+                  disabled={isBatchApproving || approvingScanItemIds.has(item.id)}
                   onClick={() =>
                     setScanItems((current) =>
                       current.map((s) =>
@@ -378,6 +700,39 @@ export function ScansTab({
                 </button>
               </div>
             </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title={t("scans.confirmation.title")} icon={<ShieldCheck />}>
+        <div className="confirmation-preview-grid">
+          <div className="confirmation-preview-card">
+            <span>{t("scans.confirmation.senderIdentity")}</span>
+            <strong>VoiceUp</strong>
+            <small>{t("scans.confirmation.providersDisabled")}</small>
+          </div>
+          <div className="confirmation-preview-card">
+            <span>{t("scans.confirmation.campaignName")}</span>
+            <strong>{activeCampaign.title}</strong>
+            <small>{confirmationUrlFormat.replace("{campaignSlug}", activeCampaign.slug)}</small>
+          </div>
+          <div className="confirmation-preview-card">
+            <span>{t("scans.confirmation.queue")}</span>
+            <strong>{campaignConfirmationQueue.length}</strong>
+            <small>{t("scans.confirmation.localOnly")}</small>
+          </div>
+          <div className="confirmation-preview-card">
+            <span>{t("scans.confirmation.estimatedCost")}</span>
+            <strong>{t("scans.confirmation.costPlaceholder")}</strong>
+            <small>SMS: {smsConfirmationAdapter.enabled ? t("scans.confirmation.enabled") : t("scans.confirmation.disabled")} · WhatsApp: {whatsappConfirmationAdapter.enabled ? t("scans.confirmation.enabled") : t("scans.confirmation.disabled")}</small>
+          </div>
+        </div>
+        <div className="confirmation-template-list">
+          {Object.entries(confirmationTemplatePreviews).map(([language, template]) => (
+            <article key={language}>
+              <strong>{language.toUpperCase()}</strong>
+              <p>{template.replace("{campaignName}", activeCampaign.title).replace("{confirmationUrl}", confirmationUrlFormat.replace("{campaignSlug}", activeCampaign.slug))}</p>
+            </article>
           ))}
         </div>
       </Panel>

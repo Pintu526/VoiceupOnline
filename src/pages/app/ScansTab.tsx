@@ -24,7 +24,6 @@ import {
 } from "../../scanApproval";
 import {
   confirmationTemplatePreviews,
-  confirmationUrlFormat,
   smsConfirmationAdapter,
   whatsappConfirmationAdapter
 } from "../../confirmationQueue";
@@ -33,6 +32,7 @@ import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { useTranslation } from "../../i18n/useTranslation";
+import { getPublicCampaignUrlForOrigin } from "../../utils/links";
 
 interface ScansTabProps {
   activeCampaign: Campaign | undefined;
@@ -44,6 +44,8 @@ interface ScansTabProps {
   setScanText: React.Dispatch<React.SetStateAction<string>>;
   isScanning: boolean;
   scanMessage: string;
+  secureFieldUploadAvailable: boolean;
+  secureFieldUploadMessage: string;
   onUploadScan: (file: File, metadata?: ScanCaptureMetadata) => Promise<boolean>;
   onOpenPrivateScan: (scan: ScanReviewItem) => Promise<string>;
   onCreateManualScanItem: () => void;
@@ -65,6 +67,8 @@ export function ScansTab({
   setScanText,
   isScanning,
   scanMessage,
+  secureFieldUploadAvailable,
+  secureFieldUploadMessage,
   onUploadScan,
   onOpenPrivateScan,
   onCreateManualScanItem,
@@ -110,6 +114,9 @@ export function ScansTab({
   }
 
   const activeCampaignId = activeCampaign.id;
+  const confirmationPreviewUrl = `${getPublicCampaignUrlForOrigin(activeCampaign.slug, {
+    explicitOrigin: "https://voiceup.live"
+  })}?confirm=<opaque-one-time-token>`;
   const campaignScanItems = scanItems.filter((item) => item.campaignId === activeCampaign.id);
   const reviewQueueItems = campaignScanItems.filter((item) => item.status === "Needs review");
   const importedSupporters = campaignSigners.filter((signer) => signer.source === "scan");
@@ -167,6 +174,10 @@ export function ScansTab({
 
   async function uploadSelectedCapture() {
     if (!selectedCaptureFile) return;
+    if (!secureFieldUploadAvailable) {
+      setCaptureError(secureFieldUploadMessage);
+      return;
+    }
     setCaptureError("");
     setCaptureProgress(25);
     try {
@@ -458,10 +469,11 @@ export function ScansTab({
             <textarea rows={6} value={scanText} onChange={(event) => setScanText(event.target.value)} />
           </div>
           {selectedCaptureFile && (
-            <button className="primary-button mobile-upload-button" type="button" disabled={isScanning} onClick={() => void uploadSelectedCapture()}>
+            <button className="primary-button mobile-upload-button" type="button" disabled={isScanning || !secureFieldUploadAvailable} onClick={() => void uploadSelectedCapture()}>
               <ShieldCheck size={19} /> {isScanning ? t("scans.capture.uploading") : t("scans.capture.secureUpload")}
             </button>
           )}
+          {!secureFieldUploadAvailable && <p className="error-message">{secureFieldUploadMessage}</p>}
           {(isScanning || captureProgress > 0) && <progress className="scan-upload-progress" max={100} value={isScanning ? Math.max(captureProgress, 60) : captureProgress} />}
           {captureError && <p className="error-message">{captureError}</p>}
           {scanMessage && <p className={scanMessage.toLowerCase().includes("failed") || scanMessage.toLowerCase().includes("unavailable") ? "error-message" : "info-message"}>{scanMessage}</p>}
@@ -661,7 +673,7 @@ export function ScansTab({
               </div>
               {item.filePath && (
                 <div className="private-evidence-card">
-                  <button className="secondary-button" type="button" onClick={() => void openPrivateEvidence(item)}>
+                  <button className="secondary-button" type="button" disabled={!secureFieldUploadAvailable} onClick={() => void openPrivateEvidence(item)}>
                     <ShieldCheck size={18} /> {t("scans.capture.openPrivateEvidence")}
                   </button>
                   {privateEvidenceUrl && <img src={privateEvidenceUrl} alt={t("scans.capture.privateEvidenceAlt")} />}
@@ -714,7 +726,7 @@ export function ScansTab({
           <div className="confirmation-preview-card">
             <span>{t("scans.confirmation.campaignName")}</span>
             <strong>{activeCampaign.title}</strong>
-            <small>{confirmationUrlFormat.replace("{campaignSlug}", activeCampaign.slug)}</small>
+            <small>{confirmationPreviewUrl}</small>
           </div>
           <div className="confirmation-preview-card">
             <span>{t("scans.confirmation.queue")}</span>
@@ -731,7 +743,7 @@ export function ScansTab({
           {Object.entries(confirmationTemplatePreviews).map(([language, template]) => (
             <article key={language}>
               <strong>{language.toUpperCase()}</strong>
-              <p>{template.replace("{campaignName}", activeCampaign.title).replace("{confirmationUrl}", confirmationUrlFormat.replace("{campaignSlug}", activeCampaign.slug))}</p>
+              <p>{template.replace("{campaignName}", activeCampaign.title).replace("{confirmationUrl}", confirmationPreviewUrl)}</p>
             </article>
           ))}
         </div>

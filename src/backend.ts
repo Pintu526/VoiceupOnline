@@ -10,6 +10,10 @@ import type {
   Signer
 } from "./types";
 import type { LocationDeletions, LocationOverrides } from "./geography";
+import {
+  evaluateSecureFieldUploadAccess,
+  type SecureFieldUploadAccess
+} from "./secureFieldUploadAuth";
 
 export interface VoiceupRemoteState {
   campaigns: Campaign[];
@@ -253,6 +257,10 @@ function readWorkspaceId(): string {
   return window.localStorage.getItem(customerWorkspaceKey) || fallbackWorkspaceId;
 }
 
+export function getCurrentWorkspaceId(): string {
+  return readWorkspaceId();
+}
+
 interface WorkspaceMembershipContext {
   workspaceId: string;
   workspaceMember: boolean;
@@ -343,6 +351,51 @@ export async function getCurrentAuthUser() {
   const { data, error } = await supabase.auth.getUser();
   if (error) return null;
   return data.user;
+}
+
+export async function verifySecureFieldUploadAccess(
+  expectedWorkspaceId: string,
+  storageProvider: string
+): Promise<SecureFieldUploadAccess> {
+  const user = await getCurrentAuthUser();
+  if (!supabase || !user) {
+    return evaluateSecureFieldUploadAccess({
+      supabaseConfigured: Boolean(supabase),
+      storageProvider,
+      userId: user?.id,
+      currentWorkspaceId: expectedWorkspaceId
+    });
+  }
+
+  const { data: membership, error } = await supabase
+    .from("voiceup_workspace_members")
+    .select("workspace_id,role,active")
+    .eq("workspace_id", expectedWorkspaceId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  return evaluateSecureFieldUploadAccess({
+    supabaseConfigured: true,
+    storageProvider,
+    userId: user.id,
+    currentWorkspaceId: expectedWorkspaceId,
+    membership: error || !membership
+      ? null
+      : {
+          workspaceId: membership.workspace_id,
+          role: membership.role,
+          active: membership.active !== false
+        }
+  });
+}
+
+async function resolveSecureStorageWorkspaceId(): Promise<string | null> {
+  const expectedWorkspaceId = readWorkspaceId();
+  const access = await verifySecureFieldUploadAccess(
+    expectedWorkspaceId,
+    "Supabase Storage"
+  );
+  return access.available ? access.workspaceId : null;
 }
 
 export async function getAuthContext(): Promise<VoiceupAccessContext> {
@@ -801,4 +854,48 @@ export async function uploadFileToStorage(bucket: string, path: string, file: Fi
     path: workspaceScopedPath,
     publicUrl: data.publicUrl
   };
+}
+
+export async function uploadPrivateFileToStorage(bucket: string, path: string, file: File) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const user = await getCurrentAuthUser();
+  if (!user) {
+    throw new Error("Authenticated workspace access is required before uploading files.");
+  }
+
+  const workspaceId = await resolveSecureStorageWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("Authenticated user does not have a workspace membership.");
+  }
+  const workspaceScopedPath = path.startsWith(`${workspaceId}/`)
+    ? path
+    : `${workspaceId}/${path}`;
+
+  const { error } = await supabase.storage.from(bucket).upload(workspaceScopedPath, file, {
+    cacheControl: "3600",
+    contentType: file.type || "application/octet-stream",
+    upsert: false
+  });
+  if (error) throw new Error(error.message);
+
+  return { path: workspaceScopedPath };
+}
+
+export async function createSignedStorageUrl(bucket: string, path: string, expiresInSeconds = 300) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error("Authenticated workspace access is required before opening files.");
+  const workspaceId = await resolveSecureStorageWorkspaceId();
+  if (!workspaceId || !path.startsWith(`${workspaceId}/`)) {
+    throw new Error("The requested file is outside the authenticated workspace.");
+  }
+
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(path, Math.max(60, Math.min(expiresInSeconds, 600)));
+  if (error || !data?.signedUrl) throw new Error(error?.message || "Unable to create signed file URL.");
+  return data.signedUrl;
 }

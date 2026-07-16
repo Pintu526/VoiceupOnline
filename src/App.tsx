@@ -12,6 +12,8 @@ import {
   clearCustomerSessionToken,
   createTrialWorkspace,
   getAuthContext,
+  getCurrentAuthUser,
+  getCurrentWorkspaceId,
   isBackendConfigured,
   isSupabaseAuthAvailable,
   isSupabaseStorageAvailable,
@@ -23,7 +25,8 @@ import {
   submitPublicSignatureSecure,
   uploadFileToStorage,
   uploadPrivateFileToStorage,
-  createSignedStorageUrl
+  createSignedStorageUrl,
+  verifySecureFieldUploadAccess
 } from "./backend";
 import type { PublicCampaignPayload } from "./backend";
 import {
@@ -44,6 +47,12 @@ import {
   getPaperSupporterConfirmationStatus
 } from "./confirmationQueue";
 import { buildPrivateScanStoragePath, validateScanImageFile } from "./mobileScanCapture";
+import {
+  evaluateSecureFieldUploadAccess,
+  SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE,
+  shouldSignOutCampaignAdminSupabaseSession,
+  type SecureFieldUploadAccess
+} from "./secureFieldUploadAuth";
 import {
   addLocationOverride,
   clearLocationDeletion,
@@ -91,6 +100,7 @@ import {
 } from "./utils/routing";
 import { updateSeoMetadata } from "./utils/seo";
 import {
+  clearCampaignAdminSupabaseSession,
   clearPlatformAdminSession,
   createAdminPasscode,
   getCampaignAdminEmail,
@@ -100,6 +110,8 @@ import {
   hasRestoredPlatformAdminSession,
   matchesConfiguredPlatformAdminCredentials,
   readAuthenticatedAdminSlugs,
+  readCampaignAdminSupabaseSession,
+  writeCampaignAdminSupabaseSession,
   writePlatformAdminSession,
   writeAuthenticatedAdminSlugs
 } from "./utils/auth";
@@ -417,6 +429,14 @@ function App() {
   const [authenticatedAdminSlugs, setAuthenticatedAdminSlugs] = useState<
     Record<string, boolean>
   >(() => readAuthenticatedAdminSlugs());
+  const [secureFieldUploadAccess, setSecureFieldUploadAccess] = useState<SecureFieldUploadAccess>(
+    () => evaluateSecureFieldUploadAccess({
+      supabaseConfigured: isBackendConfigured,
+      storageProvider: initialIntegrationSettings.storageProvider,
+      currentWorkspaceId: getCurrentWorkspaceId()
+    })
+  );
+  const [campaignAdminSupabaseSessionOwned, setCampaignAdminSupabaseSessionOwned] = useState(false);
 
   // ─── Derived / memoised ──────────────────────────────────────────────────
   const activeCampaign = useMemo(() => {
@@ -433,6 +453,10 @@ function App() {
     }
     return campaigns.find((c) => c.id === activeCampaignId) ?? campaigns[0];
   }, [activeCampaignId, campaignDraft, campaignFormMode, campaigns, publicCampaignPayload]);
+  const secureFieldUploadAvailable =
+    secureFieldUploadAccess.available &&
+    isSupabaseStorageAvailable &&
+    integrations.storageProvider === "Supabase Storage";
   const campaignSigners = useMemo(
     () => {
       if (!activeCampaign) return [];
@@ -648,6 +672,47 @@ function App() {
       isCancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const campaignAdminAccessActive = Boolean(
+      activeCampaign && authenticatedAdminSlugs[activeCampaign.slug]
+    );
+    if (!activeCampaign || (isCampaignAdminRoute && !campaignAdminAccessActive)) {
+      setSecureFieldUploadAccess(
+        evaluateSecureFieldUploadAccess({
+          supabaseConfigured: isBackendConfigured,
+          storageProvider: integrations.storageProvider,
+          currentWorkspaceId: getCurrentWorkspaceId()
+        })
+      );
+      setCampaignAdminSupabaseSessionOwned(false);
+      return;
+    }
+
+    const activeCampaignSlug = activeCampaign.slug;
+    let isCancelled = false;
+    async function refreshSecureFieldUploadAccess() {
+      const access = await verifySecureFieldUploadAccess(
+        getCurrentWorkspaceId(),
+        integrations.storageProvider
+      );
+      if (isCancelled) return;
+      setSecureFieldUploadAccess(access);
+      if (isCampaignAdminRoute) {
+        const marker = readCampaignAdminSupabaseSession(activeCampaignSlug);
+        setCampaignAdminSupabaseSessionOwned(
+          shouldSignOutCampaignAdminSupabaseSession(marker, access)
+        );
+      } else {
+        setCampaignAdminSupabaseSessionOwned(false);
+      }
+    }
+
+    void refreshSecureFieldUploadAccess();
+    return () => {
+      isCancelled = true;
+    };
+  }, [activeCampaign, authenticatedAdminSlugs, integrations.storageProvider]);
 
   useEffect(() => {
     if (!isBackendConfigured) return;
@@ -1453,10 +1518,8 @@ function App() {
       );
       return false;
     }
-    if (!isSupabaseStorageAvailable || integrations.storageProvider !== "Supabase Storage") {
-      setScanMessage(
-        "Secure private upload is unavailable. Configure authenticated Supabase Storage before capturing paper evidence."
-      );
+    if (!secureFieldUploadAvailable) {
+      setScanMessage(secureFieldUploadAccess.message || SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
       return false;
     }
 
@@ -1633,6 +1696,13 @@ function App() {
 
   async function openPrivateScan(scan: ScanReviewItem): Promise<string> {
     if (!scan.filePath) throw new Error("This scan does not have private evidence attached.");
+    if (!secureFieldUploadAvailable) {
+      const error = new Error(
+        secureFieldUploadAccess.message || SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE
+      );
+      setScanMessage(error.message);
+      throw error;
+    }
     try {
       return await createSignedStorageUrl("campaign-private", scan.filePath, 300);
     } catch (error) {
@@ -2013,9 +2083,11 @@ function App() {
     recordGrowthLifecycle("share_completed", lastSignedSigner, nextSigners, share);
   }
 
-  function submitCampaignAdminLogin(event: FormEvent) {
+  async function submitCampaignAdminLogin(event: FormEvent) {
     event.preventDefault();
     if (!activeCampaign) return;
+    const submittedEmail = adminLogin.email.trim();
+    const submittedPasscode = adminLogin.passcode.trim();
     const expectedEmail = getCampaignAdminEmail(activeCampaign);
     const expectedPasscode = getCampaignAdminPasscode(activeCampaign);
     if (!expectedEmail || !expectedPasscode) {
@@ -2024,8 +2096,8 @@ function App() {
       );
       return;
     }
-    const emailMatches = adminLogin.email.trim().toLowerCase() === expectedEmail.trim().toLowerCase();
-    const passcodeMatches = adminLogin.passcode.trim() === expectedPasscode.trim();
+    const emailMatches = submittedEmail.toLowerCase() === expectedEmail.trim().toLowerCase();
+    const passcodeMatches = submittedPasscode === expectedPasscode.trim();
     if (!emailMatches || !passcodeMatches) {
       setAdminLoginMessage("Invalid campaign admin email or passcode.");
       return;
@@ -2035,13 +2107,89 @@ function App() {
     writeAuthenticatedAdminSlugs(nextAuth);
     setAdminLogin(blankAdminLogin);
     setAdminLoginMessage("");
+
+    const workspaceId = getCurrentWorkspaceId();
+    if (!isSupabaseAuthAvailable || integrations.storageProvider !== "Supabase Storage") {
+      const access = evaluateSecureFieldUploadAccess({
+        supabaseConfigured: isSupabaseAuthAvailable,
+        storageProvider: integrations.storageProvider,
+        currentWorkspaceId: workspaceId
+      });
+      setSecureFieldUploadAccess(access);
+      setCampaignAdminSupabaseSessionOwned(false);
+      setScanMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
+      setBackendMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
+      return;
+    }
+
+    let establishedCampaignAdminSession = false;
+    try {
+      const existingUser = await getCurrentAuthUser();
+      if (!existingUser) {
+        await signInWithSupabase(submittedEmail, submittedPasscode);
+        establishedCampaignAdminSession = true;
+      }
+
+      const access = await verifySecureFieldUploadAccess(
+        workspaceId,
+        integrations.storageProvider
+      );
+      const existingMarker = readCampaignAdminSupabaseSession(activeCampaign.slug);
+      const campaignAdminOwnsSession =
+        establishedCampaignAdminSession ||
+        shouldSignOutCampaignAdminSupabaseSession(existingMarker, access);
+      if (!access.available) {
+        if (campaignAdminOwnsSession) await signOutSupabase();
+        clearCampaignAdminSupabaseSession(activeCampaign.slug);
+        setSecureFieldUploadAccess(access);
+        setCampaignAdminSupabaseSessionOwned(false);
+        setScanMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
+        setBackendMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
+        return;
+      }
+
+      setSecureFieldUploadAccess(access);
+      setCampaignAdminSupabaseSessionOwned(campaignAdminOwnsSession);
+      if (establishedCampaignAdminSession) {
+        writeCampaignAdminSupabaseSession({
+          slug: activeCampaign.slug,
+          userId: access.userId,
+          workspaceId: access.workspaceId
+        });
+      }
+      setScanMessage(access.message);
+      setBackendMessage(access.message);
+    } catch {
+      if (establishedCampaignAdminSession) await signOutSupabase();
+      clearCampaignAdminSupabaseSession(activeCampaign.slug);
+      setSecureFieldUploadAccess(
+        evaluateSecureFieldUploadAccess({
+          supabaseConfigured: true,
+          storageProvider: integrations.storageProvider,
+          currentWorkspaceId: workspaceId
+        })
+      );
+      setCampaignAdminSupabaseSessionOwned(false);
+      setScanMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
+      setBackendMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
+    }
   }
 
-  function logoutCampaignAdmin() {
+  async function logoutCampaignAdmin() {
     if (!activeCampaign) return;
     const nextAuth = { ...authenticatedAdminSlugs, [activeCampaign.slug]: false };
     setAuthenticatedAdminSlugs(nextAuth);
     writeAuthenticatedAdminSlugs(nextAuth);
+    clearCampaignAdminSupabaseSession(activeCampaign.slug);
+    setSecureFieldUploadAccess(
+      evaluateSecureFieldUploadAccess({
+        supabaseConfigured: isBackendConfigured,
+        storageProvider: integrations.storageProvider,
+        currentWorkspaceId: getCurrentWorkspaceId()
+      })
+    );
+    if (campaignAdminSupabaseSessionOwned) await signOutSupabase();
+    setCampaignAdminSupabaseSessionOwned(false);
   }
 
   async function submitAppLogin(event: FormEvent) {
@@ -2366,6 +2514,8 @@ function App() {
         setScanText={setScanText}
         isScanning={isScanning}
         scanMessage={scanMessage}
+        secureFieldUploadAvailable={secureFieldUploadAvailable}
+        secureFieldUploadMessage={secureFieldUploadAccess.message}
         broadcastMessage={broadcastMessage}
         setBroadcastMessage={setBroadcastMessage}
         copiedMessage={copiedMessage}

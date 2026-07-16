@@ -1,6 +1,8 @@
 import type { Campaign } from "../types";
+import type { CampaignAdminSupabaseSessionMarker } from "../secureFieldUploadAuth";
 
 const platformAdminSessionKey = "voiceup-platform-admin-session-v1";
+const campaignAdminSupabaseSessionKey = "voiceup-campaign-admin-supabase-session-v1";
 const configuredPlatformAdminEmail = import.meta.env.VITE_VOICEUP_APP_ADMIN_EMAIL as string | undefined;
 const configuredPlatformAdminPasscode = import.meta.env.VITE_VOICEUP_APP_ADMIN_PASSCODE as string | undefined;
 
@@ -38,6 +40,52 @@ export function readAuthenticatedAdminSlugs(): Record<string, boolean> {
 export function writeAuthenticatedAdminSlugs(values: Record<string, boolean>): void {
   if (typeof window === "undefined") return;
   window.sessionStorage.setItem("voiceup-campaign-admin-auth", JSON.stringify(values));
+}
+
+export function readCampaignAdminSupabaseSession(
+  slug: string
+): CampaignAdminSupabaseSessionMarker | null {
+  if (typeof window === "undefined" || !slug) return null;
+  try {
+    const markers = JSON.parse(
+      window.sessionStorage.getItem(campaignAdminSupabaseSessionKey) ?? "{}"
+    ) as Record<string, CampaignAdminSupabaseSessionMarker>;
+    return markers[slug] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeCampaignAdminSupabaseSession(
+  marker: CampaignAdminSupabaseSessionMarker
+): void {
+  if (typeof window === "undefined" || !marker.slug) return;
+  let markers: Record<string, CampaignAdminSupabaseSessionMarker> = {};
+  try {
+    markers = JSON.parse(
+      window.sessionStorage.getItem(campaignAdminSupabaseSessionKey) ?? "{}"
+    ) as Record<string, CampaignAdminSupabaseSessionMarker>;
+  } catch {
+    markers = {};
+  }
+  window.sessionStorage.setItem(
+    campaignAdminSupabaseSessionKey,
+    JSON.stringify({ ...markers, [marker.slug]: marker })
+  );
+}
+
+export function clearCampaignAdminSupabaseSession(slug: string): void {
+  if (typeof window === "undefined" || !slug) return;
+  let markers: Record<string, CampaignAdminSupabaseSessionMarker> = {};
+  try {
+    markers = JSON.parse(
+      window.sessionStorage.getItem(campaignAdminSupabaseSessionKey) ?? "{}"
+    ) as Record<string, CampaignAdminSupabaseSessionMarker>;
+  } catch {
+    return;
+  }
+  delete markers[slug];
+  window.sessionStorage.setItem(campaignAdminSupabaseSessionKey, JSON.stringify(markers));
 }
 
 export function hasConfiguredPlatformAdminFallback(): boolean {

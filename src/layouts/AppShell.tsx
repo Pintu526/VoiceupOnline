@@ -257,6 +257,8 @@ interface AppShellProps {
   onSendOtp: () => void;
   onVerifyOtp: () => void;
   onGrowthShare: (share: GrowthShareContext) => void;
+  secureFieldUploadAvailable: boolean;
+  secureFieldUploadMessage: string;
   onUploadScan: (file: File, metadata?: ScanCaptureMetadata) => Promise<boolean>;
   onOpenPrivateScan: (scan: SRI) => Promise<string>;
   onCreateManualScanItem: () => void;
@@ -370,6 +372,8 @@ export function AppShell({
   onSendOtp,
   onVerifyOtp,
   onGrowthShare,
+  secureFieldUploadAvailable,
+  secureFieldUploadMessage,
   onUploadScan,
   onOpenPrivateScan,
   onCreateManualScanItem,
@@ -1429,6 +1433,8 @@ export function AppShell({
                 setScanText={setScanText}
                 isScanning={isScanning}
                 scanMessage={scanMessage}
+                secureFieldUploadAvailable={secureFieldUploadAvailable}
+                secureFieldUploadMessage={secureFieldUploadMessage}
                 onUploadScan={onUploadScan}
                 onOpenPrivateScan={onOpenPrivateScan}
                 onCreateManualScanItem={onCreateManualScanItem}

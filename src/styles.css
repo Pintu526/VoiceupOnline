@@ -40,6 +40,119 @@
   --transition-smooth: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.mobile-capture-stack,
+.confirmation-template-list {
+  display: grid;
+  gap: 16px;
+}
+
+.mobile-capture-actions,
+.single-review-navigator {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.mobile-file-button {
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.mobile-file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mobile-capture-preview,
+.private-evidence-card,
+.scan-consent-card,
+.confirmation-preview-card,
+.confirmation-template-list article {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-soft);
+  overflow: hidden;
+}
+
+.mobile-capture-preview img,
+.private-evidence-card img {
+  display: block;
+  width: 100%;
+  max-height: 460px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.scan-consent-card label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 44px;
+  padding: 10px 0;
+}
+
+.scan-consent-card input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.mobile-upload-button,
+.capture-next-button,
+.single-review-navigator button {
+  min-height: 44px;
+}
+
+.scan-upload-progress {
+  width: 100%;
+  min-height: 10px;
+}
+
+.confirmation-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.confirmation-preview-card small,
+.confirmation-template-list p {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .mobile-capture-actions,
+  .single-review-navigator,
+  .confirmation-preview-grid,
+  .mobile-capture-metadata {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .mobile-capture-actions > *,
+  .single-review-navigator > *,
+  .mobile-upload-button,
+  .capture-next-button {
+    width: 100%;
+  }
+
+  .review-card,
+  .mobile-capture-stack,
+  .private-evidence-card {
+    min-width: 0;
+    overflow-x: hidden;
+  }
+}
+
 :root[data-theme="dark"] {
   color: #f8fafc;
   background:

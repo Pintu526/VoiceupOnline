@@ -407,6 +407,7 @@ on conflict (id) do nothing;
 drop policy if exists "Public can read campaign public storage" on storage.objects;
 drop policy if exists "Authenticated can manage campaign storage" on storage.objects;
 drop policy if exists "Anonymous can read published campaign assets" on storage.objects;
+drop policy if exists "Authenticated can read private campaign assets" on storage.objects;
 drop policy if exists "Authenticated can upload campaign assets" on storage.objects;
 drop policy if exists "Authenticated can update campaign assets" on storage.objects;
 drop policy if exists "Authenticated can delete campaign assets" on storage.objects;
@@ -416,6 +417,15 @@ create policy "Anonymous can read published campaign assets"
   for select
   to anon, authenticated
   using (bucket_id in ('campaign-public', 'voiceup-campaign-media'));
+
+create policy "Authenticated can read private campaign assets"
+  on storage.objects
+  for select
+  to authenticated
+  using (
+    bucket_id = 'campaign-private'
+    and public.voiceup_is_workspace_member(coalesce((storage.foldername(name))[1], ''))
+  );
 
 create policy "Authenticated can upload campaign assets"
   on storage.objects

@@ -64,14 +64,38 @@ export function evaluateSecureFieldUploadAccess({
     role
   });
 
-  if (!supabaseConfigured) return unavailable("supabase_unavailable");
-  if (storageProvider !== "Supabase Storage") return unavailable("storage_provider_unavailable");
-  if (!userId) return unavailable("unauthenticated");
-  if (!currentWorkspaceId) return unavailable("workspace_unresolved");
-  if (!membership) return unavailable("membership_missing");
-  if (!membership.active) return unavailable("membership_inactive");
-  if (membership.workspaceId !== currentWorkspaceId) return unavailable("workspace_mismatch");
-  if (!isSecureFieldUploadRole(membership.role)) return unavailable("role_denied");
+  if (!supabaseConfigured) {
+    console.debug("DENIAL:\nSUPABASE");
+    return unavailable("supabase_unavailable");
+  }
+  if (storageProvider !== "Supabase Storage") {
+    console.debug("DENIAL:\nPROVIDER");
+    return unavailable("storage_provider_unavailable");
+  }
+  if (!userId) {
+    console.debug("DENIAL:\nNO_SESSION");
+    return unavailable("unauthenticated");
+  }
+  if (!currentWorkspaceId) {
+    console.debug("DENIAL:\nNO_WORKSPACE");
+    return unavailable("workspace_unresolved");
+  }
+  if (!membership) {
+    console.debug("DENIAL:\nNO_MEMBERSHIP");
+    return unavailable("membership_missing");
+  }
+  if (!membership.active) {
+    console.debug("DENIAL:\nINACTIVE");
+    return unavailable("membership_inactive");
+  }
+  if (membership.workspaceId !== currentWorkspaceId) {
+    console.debug("DENIAL:\nWORKSPACE_MISMATCH");
+    return unavailable("workspace_mismatch");
+  }
+  if (!isSecureFieldUploadRole(membership.role)) {
+    console.debug("DENIAL:\nROLE_REJECTED");
+    return unavailable("role_denied");
+  }
 
   return {
     available: true,

@@ -347,10 +347,57 @@ function writeLocalOtpChallenges(challenges: LocalOtpChallenge[]) {
 }
 
 export async function getCurrentAuthUser() {
-  if (!supabase) return null;
+  if (!supabase) {
+    console.debug("[auth diagnostics] getCurrentAuthUser", {
+      sessionExists: false,
+      userId: "",
+      email: ""
+    });
+    return null;
+  }
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   const { data, error } = await supabase.auth.getUser();
+  console.debug("[auth diagnostics] getCurrentAuthUser", {
+    sessionExists: Boolean(sessionData.session),
+    userId: data.user?.id ?? "",
+    email: data.user?.email ?? "",
+    sessionError: sessionError?.message ?? "",
+    userError: error?.message ?? ""
+  });
   if (error) return null;
   return data.user;
+}
+
+export async function debugSupabaseAuthBeforeVerification() {
+  if (!supabase) {
+    console.debug("[auth diagnostics] before verifySecureFieldUploadAccess", {
+      getSession: { sessionExists: false, userId: "", email: "", error: "Supabase unavailable" },
+      getUser: { userId: "", email: "", error: "Supabase unavailable" }
+    });
+    return;
+  }
+
+  try {
+    const sessionResult = await supabase.auth.getSession();
+    const userResult = await supabase.auth.getUser();
+    console.debug("[auth diagnostics] before verifySecureFieldUploadAccess", {
+      getSession: {
+        sessionExists: Boolean(sessionResult.data.session),
+        userId: sessionResult.data.session?.user.id ?? "",
+        email: sessionResult.data.session?.user.email ?? "",
+        error: sessionResult.error?.message ?? ""
+      },
+      getUser: {
+        userId: userResult.data.user?.id ?? "",
+        email: userResult.data.user?.email ?? "",
+        error: userResult.error?.message ?? ""
+      }
+    });
+  } catch (error) {
+    console.debug("[auth diagnostics] before verifySecureFieldUploadAccess", {
+      diagnosticError: error instanceof Error ? error.message : String(error)
+    });
+  }
 }
 
 export async function verifySecureFieldUploadAccess(
@@ -358,7 +405,19 @@ export async function verifySecureFieldUploadAccess(
   storageProvider: string
 ): Promise<SecureFieldUploadAccess> {
   const user = await getCurrentAuthUser();
+  console.debug("[auth diagnostics] verifySecureFieldUploadAccess input", {
+    userId: user?.id ?? "",
+    workspaceId: expectedWorkspaceId,
+    membershipQueryInput: {
+      workspace_id: expectedWorkspaceId,
+      user_id: user?.id ?? ""
+    }
+  });
   if (!supabase || !user) {
+    console.debug("[auth diagnostics] verifySecureFieldUploadAccess membership", {
+      membership: null,
+      membershipError: "Membership query skipped because Supabase or the authenticated user is unavailable."
+    });
     return evaluateSecureFieldUploadAccess({
       supabaseConfigured: Boolean(supabase),
       storageProvider,
@@ -373,6 +432,17 @@ export async function verifySecureFieldUploadAccess(
     .eq("workspace_id", expectedWorkspaceId)
     .eq("user_id", user.id)
     .maybeSingle();
+
+  console.debug("[auth diagnostics] verifySecureFieldUploadAccess membership", {
+    userId: user.id,
+    workspaceId: expectedWorkspaceId,
+    membershipQueryInput: {
+      workspace_id: expectedWorkspaceId,
+      user_id: user.id
+    },
+    membership,
+    membershipError: error?.message ?? ""
+  });
 
   return evaluateSecureFieldUploadAccess({
     supabaseConfigured: true,
@@ -442,6 +512,10 @@ export async function signInWithSupabase(email: string, password: string) {
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  console.debug("[auth diagnostics] signInWithPassword", {
+    sessionUserId: data.session?.user.id ?? "",
+    sessionUserEmail: data.session?.user.email ?? ""
+  });
   if (error) {
     throw new Error(error.message);
   }

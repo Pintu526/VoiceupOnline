@@ -11,6 +11,7 @@ import {
 import {
   clearCustomerSessionToken,
   createTrialWorkspace,
+  debugSupabaseAuthBeforeVerification,
   getAuthContext,
   getCurrentAuthUser,
   getCurrentWorkspaceId,
@@ -692,6 +693,7 @@ function App() {
     const activeCampaignSlug = activeCampaign.slug;
     let isCancelled = false;
     async function refreshSecureFieldUploadAccess() {
+      await debugSupabaseAuthBeforeVerification();
       const access = await verifySecureFieldUploadAccess(
         getCurrentWorkspaceId(),
         integrations.storageProvider
@@ -2130,6 +2132,7 @@ function App() {
         establishedCampaignAdminSession = true;
       }
 
+      await debugSupabaseAuthBeforeVerification();
       const access = await verifySecureFieldUploadAccess(
         workspaceId,
         integrations.storageProvider

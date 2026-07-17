@@ -1,6 +1,37 @@
 export const SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE =
   "Campaign Admin access is active, but secure field-upload access has not been provisioned.";
 
+export interface SecureFieldUploadVerificationCoordinator {
+  /** Call before starting a new async verification. Returns this request's generation id. */
+  beginVerification(): number;
+  /** Call after an async verification resolves, before applying its result to state. */
+  isCurrent(requestId: number): boolean;
+  /** Call for any synchronous, authoritative reset (login guard, logout, error). Invalidates any in-flight request. */
+  reset(): void;
+}
+
+/**
+ * Coordinates ordering between the two independent callers of secure-upload verification
+ * (the login handler and the restore/refresh effect) so that only the latest-started
+ * verification is ever applied to state, and any synchronous reset (e.g. logout) cannot be
+ * overwritten by an older async result resolving afterward.
+ */
+export function createSecureFieldUploadVerificationCoordinator(): SecureFieldUploadVerificationCoordinator {
+  let generation = 0;
+  return {
+    beginVerification() {
+      generation += 1;
+      return generation;
+    },
+    isCurrent(requestId: number) {
+      return requestId === generation;
+    },
+    reset() {
+      generation += 1;
+    }
+  };
+}
+
 export const secureFieldUploadRoles = [
   "platform_owner",
   "workspace_admin",

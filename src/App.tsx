@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import * as Toast from "@radix-ui/react-toast";
 import {
   initialAuthorities,
@@ -48,6 +48,7 @@ import {
 } from "./confirmationQueue";
 import { buildPrivateScanStoragePath, validateScanImageFile } from "./mobileScanCapture";
 import {
+  createSecureFieldUploadVerificationCoordinator,
   evaluateSecureFieldUploadAccess,
   isSupabaseSessionOwnedBy,
   resolveSupabaseSessionOwnership,
@@ -442,6 +443,28 @@ function App() {
     })
   );
   const [campaignAdminSupabaseSessionOwned, setCampaignAdminSupabaseSessionOwned] = useState(false);
+  // Single source of truth for ordering secure-upload verification writes: every write to
+  // secureFieldUploadAccess (sync reset or async verification) is coordinated by generation id.
+  // A synchronous reset always invalidates any in-flight async verification so a stale result
+  // can never overwrite a newer/authoritative state.
+  const verificationCoordinatorRef = useRef(createSecureFieldUploadVerificationCoordinator());
+
+  function resetSecureFieldUploadAccess(access: SecureFieldUploadAccess) {
+    verificationCoordinatorRef.current.reset();
+    setSecureFieldUploadAccess(access);
+    setCampaignAdminSupabaseSessionOwned(false);
+  }
+
+  async function verifyAndApplySecureFieldUploadAccess(
+    workspaceId: string
+  ): Promise<{ access: SecureFieldUploadAccess; applied: boolean }> {
+    const requestId = verificationCoordinatorRef.current.beginVerification();
+    const access = await verifySecureFieldUploadAccess(workspaceId, integrations.storageProvider);
+    const applied = verificationCoordinatorRef.current.isCurrent(requestId);
+    if (applied) setSecureFieldUploadAccess(access);
+    return { access, applied };
+  }
+
   const [platformAdminSupabaseSessionOwned, setPlatformAdminSupabaseSessionOwned] = useState(
     () => readSupabaseSessionOwnership()?.source === "platform_admin"
   );
@@ -686,26 +709,20 @@ function App() {
       activeCampaign && authenticatedAdminSlugs[activeCampaign.slug]
     );
     if (!activeCampaign || (isCampaignAdminRoute && !campaignAdminAccessActive)) {
-      setSecureFieldUploadAccess(
+      resetSecureFieldUploadAccess(
         evaluateSecureFieldUploadAccess({
           supabaseConfigured: isBackendConfigured,
           storageProvider: integrations.storageProvider,
           currentWorkspaceId: getCurrentWorkspaceId()
         })
       );
-      setCampaignAdminSupabaseSessionOwned(false);
       return;
     }
 
     const activeCampaignSlug = activeCampaign.slug;
-    let isCancelled = false;
     async function refreshSecureFieldUploadAccess() {
-      const access = await verifySecureFieldUploadAccess(
-        getCurrentWorkspaceId(),
-        integrations.storageProvider
-      );
-      if (isCancelled) return;
-      setSecureFieldUploadAccess(access);
+      const { access, applied } = await verifyAndApplySecureFieldUploadAccess(getCurrentWorkspaceId());
+      if (!applied) return;
       if (isCampaignAdminRoute) {
         const marker = readCampaignAdminSupabaseSession(activeCampaignSlug);
         setCampaignAdminSupabaseSessionOwned(
@@ -717,9 +734,6 @@ function App() {
     }
 
     void refreshSecureFieldUploadAccess();
-    return () => {
-      isCancelled = true;
-    };
   }, [activeCampaign, authenticatedAdminSlugs, integrations.storageProvider]);
 
   useEffect(() => {
@@ -2118,13 +2132,13 @@ function App() {
 
     const workspaceId = getCurrentWorkspaceId();
     if (!isSupabaseAuthAvailable || integrations.storageProvider !== "Supabase Storage") {
-      const access = evaluateSecureFieldUploadAccess({
-        supabaseConfigured: isSupabaseAuthAvailable,
-        storageProvider: integrations.storageProvider,
-        currentWorkspaceId: workspaceId
-      });
-      setSecureFieldUploadAccess(access);
-      setCampaignAdminSupabaseSessionOwned(false);
+      resetSecureFieldUploadAccess(
+        evaluateSecureFieldUploadAccess({
+          supabaseConfigured: isSupabaseAuthAvailable,
+          storageProvider: integrations.storageProvider,
+          currentWorkspaceId: workspaceId
+        })
+      );
       setScanMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
       setBackendMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
       return;
@@ -2148,10 +2162,7 @@ function App() {
       );
       if (sessionOwnership) writeSupabaseSessionOwnership(sessionOwnership);
 
-      const access = await verifySecureFieldUploadAccess(
-        workspaceId,
-        integrations.storageProvider
-      );
+      const { access, applied } = await verifyAndApplySecureFieldUploadAccess(workspaceId);
       const existingMarker = readCampaignAdminSupabaseSession(activeCampaign.slug);
       if (establishedCampaignAdminSession && authenticatedUser?.id) {
         sessionOwnership = { source: "campaign_admin", userId: authenticatedUser.id };
@@ -2175,15 +2186,13 @@ function App() {
           );
         }
         clearCampaignAdminSupabaseSession(activeCampaign.slug);
-        setSecureFieldUploadAccess(access);
-        setCampaignAdminSupabaseSessionOwned(false);
+        if (applied) setCampaignAdminSupabaseSessionOwned(false);
         setScanMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
         setBackendMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
         return;
       }
 
-      setSecureFieldUploadAccess(access);
-      setCampaignAdminSupabaseSessionOwned(campaignAdminOwnsSession);
+      if (applied) setCampaignAdminSupabaseSessionOwned(campaignAdminOwnsSession);
       if (establishedCampaignAdminSession) {
         writeCampaignAdminSupabaseSession({
           slug: activeCampaign.slug,
@@ -2206,14 +2215,13 @@ function App() {
         clearSupabaseSessionOwnership("campaign_admin", sessionOwnership?.userId ?? "");
       }
       clearCampaignAdminSupabaseSession(activeCampaign.slug);
-      setSecureFieldUploadAccess(
+      resetSecureFieldUploadAccess(
         evaluateSecureFieldUploadAccess({
           supabaseConfigured: true,
           storageProvider: integrations.storageProvider,
           currentWorkspaceId: workspaceId
         })
       );
-      setCampaignAdminSupabaseSessionOwned(false);
       setScanMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
       setBackendMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
     }
@@ -2225,7 +2233,7 @@ function App() {
     setAuthenticatedAdminSlugs(nextAuth);
     writeAuthenticatedAdminSlugs(nextAuth);
     clearCampaignAdminSupabaseSession(activeCampaign.slug);
-    setSecureFieldUploadAccess(
+    resetSecureFieldUploadAccess(
       evaluateSecureFieldUploadAccess({
         supabaseConfigured: isBackendConfigured,
         storageProvider: integrations.storageProvider,

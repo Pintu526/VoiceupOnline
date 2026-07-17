@@ -347,15 +347,17 @@ export async function verifySecureFieldUploadAccess(
   const { data: membership, error } = await supabase
     .from("voiceup_workspace_members")
     .select("workspace_id,user_id,role,active")
-    .eq("workspace_id", expectedWorkspaceId)
     .eq("user_id", user.id)
+    .limit(1)
     .maybeSingle();
+
+  const resolvedWorkspaceId = membership?.workspace_id || expectedWorkspaceId;
 
   return evaluateSecureFieldUploadAccess({
     supabaseConfigured: true,
     storageProvider,
     userId: user.id,
-    currentWorkspaceId: expectedWorkspaceId,
+    currentWorkspaceId: resolvedWorkspaceId,
     membership: error || !membership
       ? null
       : {

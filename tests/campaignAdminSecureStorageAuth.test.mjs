@@ -21,6 +21,7 @@ const baseInput = {
 function membership(role, overrides = {}) {
   return {
     workspaceId,
+    userId: baseInput.userId,
     role,
     active: true,
     ...overrides
@@ -76,6 +77,43 @@ test("campaign admin for the current workspace can upload", () => {
     membership: membership("campaign_admin")
   });
   assert.equal(access.available, true);
+});
+
+test("Campaign Admin secure upload requires active to be explicitly true", () => {
+  const activeAccess = evaluateSecureFieldUploadAccess({
+    ...baseInput,
+    membership: membership("campaign_admin", { active: true })
+  });
+  const inactiveAccess = evaluateSecureFieldUploadAccess({
+    ...baseInput,
+    membership: membership("campaign_admin", { active: false })
+  });
+  const missingActiveMembership = membership("campaign_admin");
+  delete missingActiveMembership.active;
+  const missingActiveAccess = evaluateSecureFieldUploadAccess({
+    ...baseInput,
+    membership: missingActiveMembership
+  });
+
+  assert.equal(activeAccess.available, true);
+  assert.equal(inactiveAccess.available, false);
+  assert.equal(inactiveAccess.reason, "membership_inactive");
+  assert.equal(missingActiveAccess.available, false);
+  assert.equal(missingActiveAccess.reason, "membership_inactive");
+});
+
+test("secure-upload membership query projects and maps every authorization field", () => {
+  const backendSource = readFileSync(new URL("../src/backend.ts", import.meta.url), "utf8");
+  const verificationSource = backendSource.slice(
+    backendSource.indexOf("export async function verifySecureFieldUploadAccess"),
+    backendSource.indexOf("async function resolveSecureStorageWorkspaceId")
+  );
+
+  assert.match(verificationSource, /\.select\("workspace_id,user_id,role,active"\)/);
+  assert.match(verificationSource, /workspaceId: membership\.workspace_id/);
+  assert.match(verificationSource, /userId: membership\.user_id/);
+  assert.match(verificationSource, /role: membership\.role/);
+  assert.match(verificationSource, /active: membership\.active === true/);
 });
 
 test("authorised field officer for the current workspace can upload", () => {

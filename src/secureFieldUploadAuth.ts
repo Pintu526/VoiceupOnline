@@ -23,6 +23,7 @@ export type SecureFieldUploadReason =
 
 export interface SecureFieldUploadMembership {
   workspaceId: string;
+  userId: string;
   role: string;
   active: boolean;
 }

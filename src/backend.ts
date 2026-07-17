@@ -346,7 +346,7 @@ export async function verifySecureFieldUploadAccess(
 
   const { data: membership, error } = await supabase
     .from("voiceup_workspace_members")
-    .select("workspace_id,role,active")
+    .select("workspace_id,user_id,role,active")
     .eq("workspace_id", expectedWorkspaceId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -360,8 +360,9 @@ export async function verifySecureFieldUploadAccess(
       ? null
       : {
           workspaceId: membership.workspace_id,
+          userId: membership.user_id,
           role: membership.role,
-          active: membership.active !== false
+          active: membership.active === true
         }
   });
 }

@@ -370,7 +370,7 @@ export async function getCurrentAuthUser() {
 
 export async function debugSupabaseAuthBeforeVerification() {
   if (!supabase) {
-    console.debug("[auth diagnostics] before verifySecureFieldUploadAccess", {
+    console.debug("[AUTH FLOW] verify called", {
       getSession: { sessionExists: false, userId: "", email: "", error: "Supabase unavailable" },
       getUser: { userId: "", email: "", error: "Supabase unavailable" }
     });
@@ -380,7 +380,7 @@ export async function debugSupabaseAuthBeforeVerification() {
   try {
     const sessionResult = await supabase.auth.getSession();
     const userResult = await supabase.auth.getUser();
-    console.debug("[auth diagnostics] before verifySecureFieldUploadAccess", {
+    console.debug("[AUTH FLOW] verify called", {
       getSession: {
         sessionExists: Boolean(sessionResult.data.session),
         userId: sessionResult.data.session?.user.id ?? "",
@@ -394,8 +394,37 @@ export async function debugSupabaseAuthBeforeVerification() {
       }
     });
   } catch (error) {
-    console.debug("[auth diagnostics] before verifySecureFieldUploadAccess", {
+    console.debug("[AUTH FLOW] verify called", {
       diagnosticError: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+export async function debugSupabaseSessionTiming(label: string) {
+  if (!supabase) {
+    console.debug(label, {
+      sessionExists: false,
+      userId: "",
+      email: "",
+      error: "Supabase unavailable"
+    });
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    console.debug(label, {
+      sessionExists: Boolean(data.session),
+      userId: data.session?.user.id ?? "",
+      email: data.session?.user.email ?? "",
+      error: error?.message ?? ""
+    });
+  } catch (error) {
+    console.debug(label, {
+      sessionExists: false,
+      userId: "",
+      email: "",
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 }
@@ -461,6 +490,7 @@ export async function verifySecureFieldUploadAccess(
 
 async function resolveSecureStorageWorkspaceId(): Promise<string | null> {
   const expectedWorkspaceId = readWorkspaceId();
+  await debugSupabaseAuthBeforeVerification();
   const access = await verifySecureFieldUploadAccess(
     expectedWorkspaceId,
     "Supabase Storage"
@@ -506,12 +536,27 @@ export async function getAuthContext(): Promise<VoiceupAccessContext> {
   };
 }
 
+let latestSignInResult = {
+  sessionExists: false,
+  userId: "",
+  email: ""
+};
+
+export function getLatestSignInResult() {
+  return { ...latestSignInResult };
+}
+
 export async function signInWithSupabase(email: string, password: string) {
   if (!supabase) {
     throw new Error("Supabase Auth is required for platform administration.");
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  latestSignInResult = {
+    sessionExists: Boolean(data.session),
+    userId: data.user?.id ?? "",
+    email: data.user?.email ?? ""
+  };
   console.debug("[auth diagnostics] signInWithPassword", {
     sessionUserId: data.session?.user.id ?? "",
     sessionUserEmail: data.session?.user.email ?? ""
@@ -524,6 +569,8 @@ export async function signInWithSupabase(email: string, password: string) {
 
 export async function signOutSupabase() {
   if (!supabase) return;
+  console.debug("[AUTH FLOW] SIGN OUT CALLED");
+  console.trace();
   await supabase.auth.signOut();
 }
 

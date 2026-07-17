@@ -12,9 +12,11 @@ import {
   clearCustomerSessionToken,
   createTrialWorkspace,
   debugSupabaseAuthBeforeVerification,
+  debugSupabaseSessionTiming,
   getAuthContext,
   getCurrentAuthUser,
   getCurrentWorkspaceId,
+  getLatestSignInResult,
   isBackendConfigured,
   isSupabaseAuthAvailable,
   isSupabaseStorageAvailable,
@@ -2128,7 +2130,17 @@ function App() {
     try {
       const existingUser = await getCurrentAuthUser();
       if (!existingUser) {
-        await signInWithSupabase(submittedEmail, submittedPasscode);
+        console.debug("[AUTH FLOW] before signIn");
+        const signedInUser = await signInWithSupabase(submittedEmail, submittedPasscode);
+        const signInResult = getLatestSignInResult();
+        console.debug("[AUTH FLOW] after signIn", {
+          returnedUserId: signedInUser?.id ?? "",
+          returnedEmail: signedInUser?.email ?? "",
+          returnedSessionExists: signInResult.sessionExists
+        });
+        await debugSupabaseSessionTiming("[AUTH FLOW] post-signIn getSession");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await debugSupabaseSessionTiming("[AUTH FLOW] delayed getSession");
         establishedCampaignAdminSession = true;
       }
 
@@ -2213,7 +2225,17 @@ function App() {
 
     if (isSupabaseAuthAvailable) {
       try {
+        console.debug("[AUTH FLOW] before signIn");
         supabaseUser = await signInWithSupabase(email, passcode);
+        const signInResult = getLatestSignInResult();
+        console.debug("[AUTH FLOW] after signIn", {
+          returnedUserId: supabaseUser?.id ?? "",
+          returnedEmail: supabaseUser?.email ?? "",
+          returnedSessionExists: signInResult.sessionExists
+        });
+        await debugSupabaseSessionTiming("[AUTH FLOW] post-signIn getSession");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await debugSupabaseSessionTiming("[AUTH FLOW] delayed getSession");
       } catch (error) {
         authFailureMessage = error instanceof Error ? error.message : "Unable to login with Supabase Auth";
       }

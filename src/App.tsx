@@ -13,6 +13,7 @@ import {
   createTrialWorkspace,
   debugSupabaseAuthBeforeVerification,
   debugSupabaseSessionTiming,
+  debugSecureFieldUploadVerificationResult,
   getAuthContext,
   getCurrentAuthUser,
   getCurrentWorkspaceId,
@@ -695,11 +696,19 @@ function App() {
     const activeCampaignSlug = activeCampaign.slug;
     let isCancelled = false;
     async function refreshSecureFieldUploadAccess() {
-      await debugSupabaseAuthBeforeVerification();
+      const verificationTrace = await debugSupabaseAuthBeforeVerification({
+        callerLabel: "VERIFY_CALLER: APP_BOOTSTRAP_USE_EFFECT",
+        callerName: "App.refreshSecureFieldUploadAccess",
+        sourceFile: "src/App.tsx",
+        sourceLine: 707,
+        campaignAdminLoginState: campaignAdminAccessActive ? "active" : "inactive",
+        workspaceId: getCurrentWorkspaceId()
+      });
       const access = await verifySecureFieldUploadAccess(
         getCurrentWorkspaceId(),
         integrations.storageProvider
       );
+      debugSecureFieldUploadVerificationResult(verificationTrace, access);
       if (isCancelled) return;
       setSecureFieldUploadAccess(access);
       if (isCampaignAdminRoute) {
@@ -2144,17 +2153,30 @@ function App() {
         establishedCampaignAdminSession = true;
       }
 
-      await debugSupabaseAuthBeforeVerification();
+      const verificationTrace = await debugSupabaseAuthBeforeVerification({
+        callerLabel: "VERIFY_CALLER: CAMPAIGN_ADMIN_LOGIN",
+        callerName: "App.submitCampaignAdminLogin",
+        sourceFile: "src/App.tsx",
+        sourceLine: 2164,
+        campaignAdminLoginState: "local_credentials_accepted",
+        workspaceId
+      });
       const access = await verifySecureFieldUploadAccess(
         workspaceId,
         integrations.storageProvider
       );
+      debugSecureFieldUploadVerificationResult(verificationTrace, access);
       const existingMarker = readCampaignAdminSupabaseSession(activeCampaign.slug);
       const campaignAdminOwnsSession =
         establishedCampaignAdminSession ||
         shouldSignOutCampaignAdminSupabaseSession(existingMarker, access);
       if (!access.available) {
-        if (campaignAdminOwnsSession) await signOutSupabase();
+        if (campaignAdminOwnsSession) {
+          await signOutSupabase(
+            "SIGN_OUT_CALLER: CAMPAIGN_ADMIN_LOGIN",
+            `verifySecureFieldUploadAccess denied: ${access.reason}`
+          );
+        }
         clearCampaignAdminSupabaseSession(activeCampaign.slug);
         setSecureFieldUploadAccess(access);
         setCampaignAdminSupabaseSessionOwned(false);
@@ -2175,7 +2197,12 @@ function App() {
       setScanMessage(access.message);
       setBackendMessage(access.message);
     } catch {
-      if (establishedCampaignAdminSession) await signOutSupabase();
+      if (establishedCampaignAdminSession) {
+        await signOutSupabase(
+          "SIGN_OUT_CALLER: CAMPAIGN_ADMIN_LOGIN",
+          "Campaign Admin login exception after Supabase sign-in"
+        );
+      }
       clearCampaignAdminSupabaseSession(activeCampaign.slug);
       setSecureFieldUploadAccess(
         evaluateSecureFieldUploadAccess({
@@ -2203,7 +2230,12 @@ function App() {
         currentWorkspaceId: getCurrentWorkspaceId()
       })
     );
-    if (campaignAdminSupabaseSessionOwned) await signOutSupabase();
+    if (campaignAdminSupabaseSessionOwned) {
+      await signOutSupabase(
+        "SIGN_OUT_CALLER: CAMPAIGN_ADMIN_LOGOUT",
+        "User requested Campaign Admin logout"
+      );
+    }
     setCampaignAdminSupabaseSessionOwned(false);
   }
 
@@ -2255,7 +2287,10 @@ function App() {
           return;
         }
 
-        await signOutSupabase();
+        await signOutSupabase(
+          "SIGN_OUT_CALLER: PLATFORM_ADMIN_LOGIN",
+          "Authenticated Supabase user is not platform_owner"
+        );
         if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
           writePlatformAdminSession(email);
           setIsPlatformAdminAuthenticated(true);
@@ -2275,7 +2310,10 @@ function App() {
         );
         return;
       } catch (error) {
-        await signOutSupabase();
+        await signOutSupabase(
+          "SIGN_OUT_CALLER: PLATFORM_ADMIN_LOGIN",
+          "Platform Admin role verification exception"
+        );
         if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
           writePlatformAdminSession(email);
           setIsPlatformAdminAuthenticated(true);
@@ -2312,14 +2350,24 @@ function App() {
 
   async function logoutAppAdmin() {
     if (isSaasAdminRoute) {
-      if (isSupabaseAuthAvailable) await signOutSupabase();
+      if (isSupabaseAuthAvailable) {
+        await signOutSupabase(
+          "SIGN_OUT_CALLER: SAAS_ADMIN_LOGOUT",
+          "User requested SaaS Admin logout"
+        );
+      }
       clearPlatformAdminSession();
       clearCustomerSessionToken();
       setIsPlatformAdminAuthenticated(false);
       window.location.assign("/");
       return;
     }
-    if (isSupabaseAuthAvailable) await signOutSupabase();
+    if (isSupabaseAuthAvailable) {
+      await signOutSupabase(
+        "SIGN_OUT_CALLER: APP_ADMIN_LOGOUT",
+        "User requested application admin logout"
+      );
+    }
     clearPlatformAdminSession();
     clearCustomerSessionToken();
     setIsCustomerWorkspaceAuthenticated(false);

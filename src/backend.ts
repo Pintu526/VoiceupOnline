@@ -400,36 +400,151 @@ export async function getCurrentAuthUser() {
   return data.user;
 }
 
-export async function debugSupabaseAuthBeforeVerification() {
+export interface VerifyCallerDiagnosticInput {
+  callerLabel: string;
+  callerName: string;
+  sourceFile: string;
+  sourceLine: number;
+  campaignAdminLoginState?: string;
+  workspaceId: string;
+}
+
+export interface VerifyCallerTrace {
+  traceId: string;
+  callerLabel: string;
+  callerName: string;
+  startedAt: string;
+  signInCompletedAtCall: string;
+}
+
+let nextVerifyCallerTraceId = 1;
+
+function readCampaignAdminLoginStateForDiagnostics(): string {
+  if (typeof window === "undefined") return "non-browser";
+  try {
+    const states = JSON.parse(
+      window.sessionStorage.getItem("voiceup-campaign-admin-auth") ?? "{}"
+    ) as Record<string, boolean>;
+    const activeSlugs = Object.entries(states)
+      .filter(([, active]) => active)
+      .map(([slug]) => slug);
+    return activeSlugs.length > 0 ? `active:${activeSlugs.join(",")}` : "inactive";
+  } catch {
+    return "unreadable";
+  }
+}
+
+export async function debugSupabaseAuthBeforeVerification(
+  input: VerifyCallerDiagnosticInput
+): Promise<VerifyCallerTrace> {
+  const startedAt = new Date().toISOString();
+  const traceId = `verify-${nextVerifyCallerTraceId}`;
+  nextVerifyCallerTraceId += 1;
+  const currentRoute = typeof window === "undefined"
+    ? "non-browser"
+    : `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const callStack = new Error("verifySecureFieldUploadAccess caller").stack ?? "unavailable";
+  const signInCompletedAtCall = latestSignInResult.completedAt;
+  const campaignAdminLoginState = input.campaignAdminLoginState
+    ?? readCampaignAdminLoginStateForDiagnostics();
+  const trace: VerifyCallerTrace = {
+    traceId,
+    callerLabel: input.callerLabel,
+    callerName: input.callerName,
+    startedAt,
+    signInCompletedAtCall
+  };
   if (!supabase) {
-    console.debug("[AUTH FLOW] verify called", {
-      getSession: { sessionExists: false, userId: "", email: "", error: "Supabase unavailable" },
-      getUser: { userId: "", email: "", error: "Supabase unavailable" }
-    });
-    return;
+    console.debug(`--------------------------------
+${input.callerLabel}
+TRACE ID: ${traceId}
+CALLER NAME: ${input.callerName}
+SOURCE FILE AND LINE: ${input.sourceFile}:${input.sourceLine}
+CALL STACK:
+${callStack}
+TIMESTAMP: ${startedAt}
+CURRENT ROUTE: ${currentRoute}
+CURRENT CAMPAIGN-ADMIN LOGIN STATE: ${campaignAdminLoginState}
+CURRENT AUTH USER: none
+SESSION EXISTS: false
+CURRENT WORKSPACE ID: ${input.workspaceId}
+SIGN-IN COMPLETION STATE: ${signInCompletedAtCall ? `after:${signInCompletedAtCall}` : "before"}
+--------------------------------`);
+    return trace;
   }
 
   try {
     const sessionResult = await supabase.auth.getSession();
     const userResult = await supabase.auth.getUser();
-    console.debug("[AUTH FLOW] verify called", {
-      getSession: {
-        sessionExists: Boolean(sessionResult.data.session),
-        userId: sessionResult.data.session?.user.id ?? "",
-        email: sessionResult.data.session?.user.email ?? "",
-        error: sessionResult.error?.message ?? ""
-      },
-      getUser: {
-        userId: userResult.data.user?.id ?? "",
-        email: userResult.data.user?.email ?? "",
-        error: userResult.error?.message ?? ""
-      }
+    const currentUser = userResult.data.user
+      ? `${userResult.data.user.id} ${userResult.data.user.email ?? ""}`.trim()
+      : "none";
+    console.debug(`--------------------------------
+${input.callerLabel}
+TRACE ID: ${traceId}
+CALLER NAME: ${input.callerName}
+SOURCE FILE AND LINE: ${input.sourceFile}:${input.sourceLine}
+CALL STACK:
+${callStack}
+TIMESTAMP: ${startedAt}
+CURRENT ROUTE: ${currentRoute}
+CURRENT CAMPAIGN-ADMIN LOGIN STATE: ${campaignAdminLoginState}
+CURRENT AUTH USER: ${currentUser}
+SESSION EXISTS: ${Boolean(sessionResult.data.session)}
+CURRENT WORKSPACE ID: ${input.workspaceId}
+SIGN-IN COMPLETION STATE: ${signInCompletedAtCall ? `after:${signInCompletedAtCall}` : "before"}
+--------------------------------`, {
+      sessionError: sessionResult.error?.message ?? "",
+      userError: userResult.error?.message ?? ""
     });
   } catch (error) {
-    console.debug("[AUTH FLOW] verify called", {
+    console.debug(`--------------------------------
+${input.callerLabel}
+TRACE ID: ${traceId}
+CALLER NAME: ${input.callerName}
+SOURCE FILE AND LINE: ${input.sourceFile}:${input.sourceLine}
+CALL STACK:
+${callStack}
+TIMESTAMP: ${startedAt}
+CURRENT ROUTE: ${currentRoute}
+CURRENT CAMPAIGN-ADMIN LOGIN STATE: ${campaignAdminLoginState}
+CURRENT AUTH USER: unavailable
+SESSION EXISTS: unavailable
+CURRENT WORKSPACE ID: ${input.workspaceId}
+SIGN-IN COMPLETION STATE: ${signInCompletedAtCall ? `after:${signInCompletedAtCall}` : "before"}
+--------------------------------`, {
       diagnosticError: error instanceof Error ? error.message : String(error)
     });
   }
+  return trace;
+}
+
+export function debugSecureFieldUploadVerificationResult(
+  trace: VerifyCallerTrace,
+  access: SecureFieldUploadAccess
+) {
+  const completedAt = new Date().toISOString();
+  const latestSignInCompletedAt = latestSignInResult.completedAt;
+  const staleAsyncCompletion = Boolean(
+    !trace.signInCompletedAtCall
+      && latestSignInCompletedAt
+      && Date.parse(latestSignInCompletedAt) >= Date.parse(trace.startedAt)
+  );
+  console.debug("[VERIFY RESULT]", {
+    traceId: trace.traceId,
+    callerLabel: trace.callerLabel,
+    callerName: trace.callerName,
+    startedAt: trace.startedAt,
+    completedAt,
+    signInCompletedAtCall: trace.signInCompletedAtCall,
+    latestSignInCompletedAt,
+    staleAsyncCompletion,
+    accessAvailable: access.available,
+    denialReason: access.available ? "" : access.reason,
+    userId: access.userId,
+    workspaceId: access.workspaceId,
+    role: access.role
+  });
 }
 
 export async function debugSupabaseSessionTiming(label: string) {
@@ -523,11 +638,18 @@ export async function verifySecureFieldUploadAccess(
 
 async function resolveSecureStorageWorkspaceId(): Promise<string | null> {
   const expectedWorkspaceId = readWorkspaceId();
-  await debugSupabaseAuthBeforeVerification();
+  const verificationTrace = await debugSupabaseAuthBeforeVerification({
+    callerLabel: "VERIFY_CALLER: FIELD_UPLOAD_GATE",
+    callerName: "backend.resolveSecureStorageWorkspaceId",
+    sourceFile: "src/backend.ts",
+    sourceLine: 648,
+    workspaceId: expectedWorkspaceId
+  });
   const access = await verifySecureFieldUploadAccess(
     expectedWorkspaceId,
     "Supabase Storage"
   );
+  debugSecureFieldUploadVerificationResult(verificationTrace, access);
   return access.available ? access.workspaceId : null;
 }
 
@@ -572,7 +694,8 @@ export async function getAuthContext(): Promise<VoiceupAccessContext> {
 let latestSignInResult = {
   sessionExists: false,
   userId: "",
-  email: ""
+  email: "",
+  completedAt: ""
 };
 
 export function getLatestSignInResult() {
@@ -589,7 +712,8 @@ export async function signInWithSupabase(email: string, password: string) {
   latestSignInResult = {
     sessionExists: Boolean(data.session),
     userId: data.user?.id ?? "",
-    email: data.user?.email ?? ""
+    email: data.user?.email ?? "",
+    completedAt: new Date().toISOString()
   };
   console.debug("[auth diagnostics] signInWithPassword", {
     sessionUserId: data.session?.user.id ?? "",
@@ -601,10 +725,21 @@ export async function signInWithSupabase(email: string, password: string) {
   return data.user;
 }
 
-export async function signOutSupabase() {
+export async function signOutSupabase(callerLabel = "SIGN_OUT_CALLER: UNKNOWN", reason = "unspecified") {
   if (!supabase) return;
-  console.debug("[AUTH FLOW] SIGN OUT CALLED");
-  console.trace();
+  const { data, error } = await supabase.auth.getSession();
+  console.debug("[AUTH FLOW] SIGN OUT CALLED", {
+    callerLabel,
+    reason,
+    timestamp: new Date().toISOString(),
+    currentRoute: typeof window === "undefined"
+      ? "non-browser"
+      : `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    sessionExistsBeforeSignOut: Boolean(data.session),
+    userIdBeforeSignOut: data.session?.user.id ?? "",
+    sessionError: error?.message ?? ""
+  });
+  console.trace("[AUTH FLOW] SIGN OUT CALLED", { callerLabel, reason });
   await supabase.auth.signOut();
 }
 

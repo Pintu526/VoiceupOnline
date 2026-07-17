@@ -64,38 +64,14 @@ export function evaluateSecureFieldUploadAccess({
     role
   });
 
-  if (!supabaseConfigured) {
-    console.debug("DENIAL:\nSUPABASE");
-    return unavailable("supabase_unavailable");
-  }
-  if (storageProvider !== "Supabase Storage") {
-    console.debug("DENIAL:\nPROVIDER");
-    return unavailable("storage_provider_unavailable");
-  }
-  if (!userId) {
-    console.debug("DENIAL:\nNO_SESSION");
-    return unavailable("unauthenticated");
-  }
-  if (!currentWorkspaceId) {
-    console.debug("DENIAL:\nNO_WORKSPACE");
-    return unavailable("workspace_unresolved");
-  }
-  if (!membership) {
-    console.debug("DENIAL:\nNO_MEMBERSHIP");
-    return unavailable("membership_missing");
-  }
-  if (!membership.active) {
-    console.debug("DENIAL:\nINACTIVE");
-    return unavailable("membership_inactive");
-  }
-  if (membership.workspaceId !== currentWorkspaceId) {
-    console.debug("DENIAL:\nWORKSPACE_MISMATCH");
-    return unavailable("workspace_mismatch");
-  }
-  if (!isSecureFieldUploadRole(membership.role)) {
-    console.debug("DENIAL:\nROLE_REJECTED");
-    return unavailable("role_denied");
-  }
+  if (!supabaseConfigured) return unavailable("supabase_unavailable");
+  if (storageProvider !== "Supabase Storage") return unavailable("storage_provider_unavailable");
+  if (!userId) return unavailable("unauthenticated");
+  if (!currentWorkspaceId) return unavailable("workspace_unresolved");
+  if (!membership) return unavailable("membership_missing");
+  if (!membership.active) return unavailable("membership_inactive");
+  if (membership.workspaceId !== currentWorkspaceId) return unavailable("workspace_mismatch");
+  if (!isSecureFieldUploadRole(membership.role)) return unavailable("role_denied");
 
   return {
     available: true,
@@ -119,6 +95,43 @@ export interface CampaignAdminSupabaseSessionMarker {
   slug: string;
   userId: string;
   workspaceId: string;
+}
+
+export type SupabaseSessionSource =
+  | "campaign_admin"
+  | "platform_admin"
+  | "unrelated_existing_session";
+
+export interface SupabaseSessionOwnership {
+  source: SupabaseSessionSource;
+  userId: string;
+}
+
+export function resolveSupabaseSessionOwnership(
+  existingUserId: string,
+  authenticatedUserId: string,
+  requestedSource: Exclude<SupabaseSessionSource, "unrelated_existing_session">,
+  existingOwnership: SupabaseSessionOwnership | null
+): SupabaseSessionOwnership | null {
+  if (!authenticatedUserId) return null;
+  if (!existingUserId || existingUserId !== authenticatedUserId) {
+    return { source: requestedSource, userId: authenticatedUserId };
+  }
+  if (existingOwnership?.userId === authenticatedUserId) return existingOwnership;
+  return { source: "unrelated_existing_session", userId: authenticatedUserId };
+}
+
+export function isSupabaseSessionOwnedBy(
+  ownership: SupabaseSessionOwnership | null,
+  source: Exclude<SupabaseSessionSource, "unrelated_existing_session">,
+  userId: string
+) {
+  return Boolean(
+    ownership
+      && userId
+      && ownership.source === source
+      && ownership.userId === userId
+  );
 }
 
 export function shouldSignOutCampaignAdminSupabaseSession(

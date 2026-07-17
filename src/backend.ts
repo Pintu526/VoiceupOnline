@@ -76,38 +76,6 @@ const customerWorkspaceKey = "voiceup-customer-workspace-v1";
 export const isBackendConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 const supabase = isBackendConfigured ? createClient(supabaseUrl!, supabaseAnonKey!) : null;
-const supabaseClientIdentityIds = new WeakMap<object, number>();
-let nextSupabaseClientIdentityId = 1;
-let signInSupabaseClientReference: typeof supabase = null;
-let verifySupabaseClientReference: typeof supabase = null;
-
-function getSupabaseClientIdentityId(client: typeof supabase): number | null {
-  if (!client) return null;
-  const existingIdentityId = supabaseClientIdentityIds.get(client);
-  if (existingIdentityId) return existingIdentityId;
-  const identityId = nextSupabaseClientIdentityId;
-  nextSupabaseClientIdentityId += 1;
-  supabaseClientIdentityIds.set(client, identityId);
-  return identityId;
-}
-
-function logSupabaseClientIdentity(context: "signInWithSupabase" | "verifySecureFieldUploadAccess") {
-  const client = supabase;
-  if (context === "signInWithSupabase") signInSupabaseClientReference = client;
-  if (context === "verifySecureFieldUploadAccess") verifySupabaseClientReference = client;
-
-  const identityId = getSupabaseClientIdentityId(client);
-  console.debug("[AUTH CLIENT IDENTITY]", {
-    context,
-    clientIdentity: identityId === null ? "null" : `SupabaseClient#${identityId}`,
-    memoryReference: identityId === null ? "null" : `WeakMapReference#${identityId}`,
-    constructor: client?.constructor?.name ?? "null",
-    signInClientIdentity: getSupabaseClientIdentityId(signInSupabaseClientReference),
-    verifyClientIdentity: getSupabaseClientIdentityId(verifySupabaseClientReference),
-    objectIsComparison: Object.is(signInSupabaseClientReference, verifySupabaseClientReference),
-    strictEqualityComparison: signInSupabaseClientReference === verifySupabaseClientReference
-  });
-}
 
 export const isSupabaseAuthAvailable = Boolean(supabase);
 export const isSupabaseStorageAvailable = Boolean(supabase);
@@ -226,29 +194,6 @@ async function loadWorkspaceStateById(workspaceId: string): Promise<VoiceupRemot
     .maybeSingle();
   if (error) throw new Error(error.message);
   return (data?.data as VoiceupRemoteState | null) ?? null;
-}
-
-async function inspectWorkspaceStateById(workspaceId: string): Promise<{
-  rowFound: boolean;
-  campaignCount: number;
-  campaignIds: string[];
-}> {
-  const client = requireSupabase();
-  const { data, error } = await client
-    .from("voiceup_workspaces")
-    .select("data")
-    .eq("id", workspaceId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-
-  const state = (data?.data as VoiceupRemoteState | null) ?? null;
-  const campaigns = Array.isArray(state?.campaigns) ? state.campaigns : [];
-
-  return {
-    rowFound: Boolean(data),
-    campaignCount: campaigns.length,
-    campaignIds: campaigns.map((campaign) => campaign.id)
-  };
 }
 
 async function saveWorkspaceState(workspaceId: string, state: VoiceupRemoteState): Promise<void> {
@@ -379,222 +324,18 @@ function writeLocalOtpChallenges(challenges: LocalOtpChallenge[]) {
 }
 
 export async function getCurrentAuthUser() {
-  if (!supabase) {
-    console.debug("[auth diagnostics] getCurrentAuthUser", {
-      sessionExists: false,
-      userId: "",
-      email: ""
-    });
-    return null;
-  }
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
-  console.debug("[auth diagnostics] getCurrentAuthUser", {
-    sessionExists: Boolean(sessionData.session),
-    userId: data.user?.id ?? "",
-    email: data.user?.email ?? "",
-    sessionError: sessionError?.message ?? "",
-    userError: error?.message ?? ""
-  });
   if (error) return null;
   return data.user;
-}
-
-export interface VerifyCallerDiagnosticInput {
-  callerLabel: string;
-  callerName: string;
-  sourceFile: string;
-  sourceLine: number;
-  campaignAdminLoginState?: string;
-  workspaceId: string;
-}
-
-export interface VerifyCallerTrace {
-  traceId: string;
-  callerLabel: string;
-  callerName: string;
-  startedAt: string;
-  signInCompletedAtCall: string;
-}
-
-let nextVerifyCallerTraceId = 1;
-
-function readCampaignAdminLoginStateForDiagnostics(): string {
-  if (typeof window === "undefined") return "non-browser";
-  try {
-    const states = JSON.parse(
-      window.sessionStorage.getItem("voiceup-campaign-admin-auth") ?? "{}"
-    ) as Record<string, boolean>;
-    const activeSlugs = Object.entries(states)
-      .filter(([, active]) => active)
-      .map(([slug]) => slug);
-    return activeSlugs.length > 0 ? `active:${activeSlugs.join(",")}` : "inactive";
-  } catch {
-    return "unreadable";
-  }
-}
-
-export async function debugSupabaseAuthBeforeVerification(
-  input: VerifyCallerDiagnosticInput
-): Promise<VerifyCallerTrace> {
-  const startedAt = new Date().toISOString();
-  const traceId = `verify-${nextVerifyCallerTraceId}`;
-  nextVerifyCallerTraceId += 1;
-  const currentRoute = typeof window === "undefined"
-    ? "non-browser"
-    : `${window.location.pathname}${window.location.search}${window.location.hash}`;
-  const callStack = new Error("verifySecureFieldUploadAccess caller").stack ?? "unavailable";
-  const signInCompletedAtCall = latestSignInResult.completedAt;
-  const campaignAdminLoginState = input.campaignAdminLoginState
-    ?? readCampaignAdminLoginStateForDiagnostics();
-  const trace: VerifyCallerTrace = {
-    traceId,
-    callerLabel: input.callerLabel,
-    callerName: input.callerName,
-    startedAt,
-    signInCompletedAtCall
-  };
-  if (!supabase) {
-    console.debug(`--------------------------------
-${input.callerLabel}
-TRACE ID: ${traceId}
-CALLER NAME: ${input.callerName}
-SOURCE FILE AND LINE: ${input.sourceFile}:${input.sourceLine}
-CALL STACK:
-${callStack}
-TIMESTAMP: ${startedAt}
-CURRENT ROUTE: ${currentRoute}
-CURRENT CAMPAIGN-ADMIN LOGIN STATE: ${campaignAdminLoginState}
-CURRENT AUTH USER: none
-SESSION EXISTS: false
-CURRENT WORKSPACE ID: ${input.workspaceId}
-SIGN-IN COMPLETION STATE: ${signInCompletedAtCall ? `after:${signInCompletedAtCall}` : "before"}
---------------------------------`);
-    return trace;
-  }
-
-  try {
-    const sessionResult = await supabase.auth.getSession();
-    const userResult = await supabase.auth.getUser();
-    const currentUser = userResult.data.user
-      ? `${userResult.data.user.id} ${userResult.data.user.email ?? ""}`.trim()
-      : "none";
-    console.debug(`--------------------------------
-${input.callerLabel}
-TRACE ID: ${traceId}
-CALLER NAME: ${input.callerName}
-SOURCE FILE AND LINE: ${input.sourceFile}:${input.sourceLine}
-CALL STACK:
-${callStack}
-TIMESTAMP: ${startedAt}
-CURRENT ROUTE: ${currentRoute}
-CURRENT CAMPAIGN-ADMIN LOGIN STATE: ${campaignAdminLoginState}
-CURRENT AUTH USER: ${currentUser}
-SESSION EXISTS: ${Boolean(sessionResult.data.session)}
-CURRENT WORKSPACE ID: ${input.workspaceId}
-SIGN-IN COMPLETION STATE: ${signInCompletedAtCall ? `after:${signInCompletedAtCall}` : "before"}
---------------------------------`, {
-      sessionError: sessionResult.error?.message ?? "",
-      userError: userResult.error?.message ?? ""
-    });
-  } catch (error) {
-    console.debug(`--------------------------------
-${input.callerLabel}
-TRACE ID: ${traceId}
-CALLER NAME: ${input.callerName}
-SOURCE FILE AND LINE: ${input.sourceFile}:${input.sourceLine}
-CALL STACK:
-${callStack}
-TIMESTAMP: ${startedAt}
-CURRENT ROUTE: ${currentRoute}
-CURRENT CAMPAIGN-ADMIN LOGIN STATE: ${campaignAdminLoginState}
-CURRENT AUTH USER: unavailable
-SESSION EXISTS: unavailable
-CURRENT WORKSPACE ID: ${input.workspaceId}
-SIGN-IN COMPLETION STATE: ${signInCompletedAtCall ? `after:${signInCompletedAtCall}` : "before"}
---------------------------------`, {
-      diagnosticError: error instanceof Error ? error.message : String(error)
-    });
-  }
-  return trace;
-}
-
-export function debugSecureFieldUploadVerificationResult(
-  trace: VerifyCallerTrace,
-  access: SecureFieldUploadAccess
-) {
-  const completedAt = new Date().toISOString();
-  const latestSignInCompletedAt = latestSignInResult.completedAt;
-  const staleAsyncCompletion = Boolean(
-    !trace.signInCompletedAtCall
-      && latestSignInCompletedAt
-      && Date.parse(latestSignInCompletedAt) >= Date.parse(trace.startedAt)
-  );
-  console.debug("[VERIFY RESULT]", {
-    traceId: trace.traceId,
-    callerLabel: trace.callerLabel,
-    callerName: trace.callerName,
-    startedAt: trace.startedAt,
-    completedAt,
-    signInCompletedAtCall: trace.signInCompletedAtCall,
-    latestSignInCompletedAt,
-    staleAsyncCompletion,
-    accessAvailable: access.available,
-    denialReason: access.available ? "" : access.reason,
-    userId: access.userId,
-    workspaceId: access.workspaceId,
-    role: access.role
-  });
-}
-
-export async function debugSupabaseSessionTiming(label: string) {
-  if (!supabase) {
-    console.debug(label, {
-      sessionExists: false,
-      userId: "",
-      email: "",
-      error: "Supabase unavailable"
-    });
-    return;
-  }
-
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    console.debug(label, {
-      sessionExists: Boolean(data.session),
-      userId: data.session?.user.id ?? "",
-      email: data.session?.user.email ?? "",
-      error: error?.message ?? ""
-    });
-  } catch (error) {
-    console.debug(label, {
-      sessionExists: false,
-      userId: "",
-      email: "",
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
 }
 
 export async function verifySecureFieldUploadAccess(
   expectedWorkspaceId: string,
   storageProvider: string
 ): Promise<SecureFieldUploadAccess> {
-  logSupabaseClientIdentity("verifySecureFieldUploadAccess");
   const user = await getCurrentAuthUser();
-  console.debug("[auth diagnostics] verifySecureFieldUploadAccess input", {
-    userId: user?.id ?? "",
-    workspaceId: expectedWorkspaceId,
-    membershipQueryInput: {
-      workspace_id: expectedWorkspaceId,
-      user_id: user?.id ?? ""
-    }
-  });
   if (!supabase || !user) {
-    console.debug("[auth diagnostics] verifySecureFieldUploadAccess membership", {
-      membership: null,
-      membershipError: "Membership query skipped because Supabase or the authenticated user is unavailable."
-    });
     return evaluateSecureFieldUploadAccess({
       supabaseConfigured: Boolean(supabase),
       storageProvider,
@@ -609,17 +350,6 @@ export async function verifySecureFieldUploadAccess(
     .eq("workspace_id", expectedWorkspaceId)
     .eq("user_id", user.id)
     .maybeSingle();
-
-  console.debug("[auth diagnostics] verifySecureFieldUploadAccess membership", {
-    userId: user.id,
-    workspaceId: expectedWorkspaceId,
-    membershipQueryInput: {
-      workspace_id: expectedWorkspaceId,
-      user_id: user.id
-    },
-    membership,
-    membershipError: error?.message ?? ""
-  });
 
   return evaluateSecureFieldUploadAccess({
     supabaseConfigured: true,
@@ -638,18 +368,10 @@ export async function verifySecureFieldUploadAccess(
 
 async function resolveSecureStorageWorkspaceId(): Promise<string | null> {
   const expectedWorkspaceId = readWorkspaceId();
-  const verificationTrace = await debugSupabaseAuthBeforeVerification({
-    callerLabel: "VERIFY_CALLER: FIELD_UPLOAD_GATE",
-    callerName: "backend.resolveSecureStorageWorkspaceId",
-    sourceFile: "src/backend.ts",
-    sourceLine: 648,
-    workspaceId: expectedWorkspaceId
-  });
   const access = await verifySecureFieldUploadAccess(
     expectedWorkspaceId,
     "Supabase Storage"
   );
-  debugSecureFieldUploadVerificationResult(verificationTrace, access);
   return access.available ? access.workspaceId : null;
 }
 
@@ -691,117 +413,28 @@ export async function getAuthContext(): Promise<VoiceupAccessContext> {
   };
 }
 
-let latestSignInResult = {
-  sessionExists: false,
-  userId: "",
-  email: "",
-  completedAt: ""
-};
-
-export function getLatestSignInResult() {
-  return { ...latestSignInResult };
-}
-
 export async function signInWithSupabase(email: string, password: string) {
-  logSupabaseClientIdentity("signInWithSupabase");
   if (!supabase) {
     throw new Error("Supabase Auth is required for platform administration.");
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  latestSignInResult = {
-    sessionExists: Boolean(data.session),
-    userId: data.user?.id ?? "",
-    email: data.user?.email ?? "",
-    completedAt: new Date().toISOString()
-  };
-  console.debug("[auth diagnostics] signInWithPassword", {
-    sessionUserId: data.session?.user.id ?? "",
-    sessionUserEmail: data.session?.user.email ?? ""
-  });
   if (error) {
     throw new Error(error.message);
   }
   return data.user;
 }
 
-export async function signOutSupabase(callerLabel = "SIGN_OUT_CALLER: UNKNOWN", reason = "unspecified") {
+export async function signOutSupabase() {
   if (!supabase) return;
-  const { data, error } = await supabase.auth.getSession();
-  console.debug("[AUTH FLOW] SIGN OUT CALLED", {
-    callerLabel,
-    reason,
-    timestamp: new Date().toISOString(),
-    currentRoute: typeof window === "undefined"
-      ? "non-browser"
-      : `${window.location.pathname}${window.location.search}${window.location.hash}`,
-    sessionExistsBeforeSignOut: Boolean(data.session),
-    userIdBeforeSignOut: data.session?.user.id ?? "",
-    sessionError: error?.message ?? ""
-  });
-  console.trace("[AUTH FLOW] SIGN OUT CALLED", { callerLabel, reason });
   await supabase.auth.signOut();
 }
 
 export async function loadRemoteState() {
-  if (!supabase) {
-    console.info("[loadRemoteState]", {
-      authenticatedUserId: "",
-      authenticatedEmail: "",
-      organizationId: "",
-      workspaceIdRequested: "",
-      workspaceRowFound: false,
-      campaignCount: 0,
-      campaignIds: [],
-      nullReason: "supabase-not-configured"
-    });
-    return null;
-  }
-
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  const user = userError ? null : userData.user;
-  const authenticatedUserId = user?.id ?? "";
-  const authenticatedEmail = user?.email ?? "";
+  if (!supabase) return null;
 
   const workspaceId = await resolveWorkspaceId();
-  let organizationId = "";
-
-  if (user) {
-    const { data: orgMembership, error: orgError } = await requireSupabase()
-      .from("organization_members")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    if (orgError) throw new Error(orgError.message);
-    organizationId = orgMembership?.organization_id ?? "";
-  }
-
-  if (!workspaceId) {
-    console.info("[loadRemoteState]", {
-      authenticatedUserId,
-      authenticatedEmail,
-      organizationId,
-      workspaceIdRequested: "",
-      workspaceRowFound: false,
-      campaignCount: 0,
-      campaignIds: [],
-      nullReason: user ? "workspace-membership-missing" : "workspace-id-unresolved"
-    });
-    return null;
-  }
-
-  const workspaceTrace = await inspectWorkspaceStateById(workspaceId);
-  console.info("[loadRemoteState]", {
-    authenticatedUserId,
-    authenticatedEmail,
-    organizationId,
-    workspaceIdRequested: workspaceId,
-    workspaceRowFound: workspaceTrace.rowFound,
-    campaignCount: workspaceTrace.campaignCount,
-    campaignIds: workspaceTrace.campaignIds,
-    nullReason: workspaceTrace.rowFound ? "" : "workspace-row-not-found"
-  });
+  if (!workspaceId) return null;
 
   return loadWorkspaceStateById(workspaceId);
 }

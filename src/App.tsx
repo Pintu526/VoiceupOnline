@@ -11,13 +11,9 @@ import {
 import {
   clearCustomerSessionToken,
   createTrialWorkspace,
-  debugSupabaseAuthBeforeVerification,
-  debugSupabaseSessionTiming,
-  debugSecureFieldUploadVerificationResult,
   getAuthContext,
   getCurrentAuthUser,
   getCurrentWorkspaceId,
-  getLatestSignInResult,
   isBackendConfigured,
   isSupabaseAuthAvailable,
   isSupabaseStorageAvailable,
@@ -53,6 +49,8 @@ import {
 import { buildPrivateScanStoragePath, validateScanImageFile } from "./mobileScanCapture";
 import {
   evaluateSecureFieldUploadAccess,
+  isSupabaseSessionOwnedBy,
+  resolveSupabaseSessionOwnership,
   SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE,
   shouldSignOutCampaignAdminSupabaseSession,
   type SecureFieldUploadAccess
@@ -106,6 +104,7 @@ import { updateSeoMetadata } from "./utils/seo";
 import {
   clearCampaignAdminSupabaseSession,
   clearPlatformAdminSession,
+  clearSupabaseSessionOwnership,
   createAdminPasscode,
   getCampaignAdminEmail,
   getCampaignAdminPasscode,
@@ -115,8 +114,10 @@ import {
   matchesConfiguredPlatformAdminCredentials,
   readAuthenticatedAdminSlugs,
   readCampaignAdminSupabaseSession,
+  readSupabaseSessionOwnership,
   writeCampaignAdminSupabaseSession,
   writePlatformAdminSession,
+  writeSupabaseSessionOwnership,
   writeAuthenticatedAdminSlugs
 } from "./utils/auth";
 import { fileToDataUrl } from "./utils/files";
@@ -441,6 +442,9 @@ function App() {
     })
   );
   const [campaignAdminSupabaseSessionOwned, setCampaignAdminSupabaseSessionOwned] = useState(false);
+  const [platformAdminSupabaseSessionOwned, setPlatformAdminSupabaseSessionOwned] = useState(
+    () => readSupabaseSessionOwnership()?.source === "platform_admin"
+  );
 
   // ─── Derived / memoised ──────────────────────────────────────────────────
   const activeCampaign = useMemo(() => {
@@ -696,19 +700,10 @@ function App() {
     const activeCampaignSlug = activeCampaign.slug;
     let isCancelled = false;
     async function refreshSecureFieldUploadAccess() {
-      const verificationTrace = await debugSupabaseAuthBeforeVerification({
-        callerLabel: "VERIFY_CALLER: APP_BOOTSTRAP_USE_EFFECT",
-        callerName: "App.refreshSecureFieldUploadAccess",
-        sourceFile: "src/App.tsx",
-        sourceLine: 707,
-        campaignAdminLoginState: campaignAdminAccessActive ? "active" : "inactive",
-        workspaceId: getCurrentWorkspaceId()
-      });
       const access = await verifySecureFieldUploadAccess(
         getCurrentWorkspaceId(),
         integrations.storageProvider
       );
-      debugSecureFieldUploadVerificationResult(verificationTrace, access);
       if (isCancelled) return;
       setSecureFieldUploadAccess(access);
       if (isCampaignAdminRoute) {
@@ -2136,45 +2131,47 @@ function App() {
     }
 
     let establishedCampaignAdminSession = false;
+    let sessionOwnership = readSupabaseSessionOwnership();
     try {
       const existingUser = await getCurrentAuthUser();
+      let authenticatedUser = existingUser;
       if (!existingUser) {
-        console.debug("[AUTH FLOW] before signIn");
-        const signedInUser = await signInWithSupabase(submittedEmail, submittedPasscode);
-        const signInResult = getLatestSignInResult();
-        console.debug("[AUTH FLOW] after signIn", {
-          returnedUserId: signedInUser?.id ?? "",
-          returnedEmail: signedInUser?.email ?? "",
-          returnedSessionExists: signInResult.sessionExists
-        });
-        await debugSupabaseSessionTiming("[AUTH FLOW] post-signIn getSession");
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        await debugSupabaseSessionTiming("[AUTH FLOW] delayed getSession");
+        authenticatedUser = await signInWithSupabase(submittedEmail, submittedPasscode);
         establishedCampaignAdminSession = true;
       }
 
-      const verificationTrace = await debugSupabaseAuthBeforeVerification({
-        callerLabel: "VERIFY_CALLER: CAMPAIGN_ADMIN_LOGIN",
-        callerName: "App.submitCampaignAdminLogin",
-        sourceFile: "src/App.tsx",
-        sourceLine: 2164,
-        campaignAdminLoginState: "local_credentials_accepted",
-        workspaceId
-      });
+      sessionOwnership = resolveSupabaseSessionOwnership(
+        existingUser?.id ?? "",
+        authenticatedUser?.id ?? "",
+        "campaign_admin",
+        sessionOwnership
+      );
+      if (sessionOwnership) writeSupabaseSessionOwnership(sessionOwnership);
+
       const access = await verifySecureFieldUploadAccess(
         workspaceId,
         integrations.storageProvider
       );
-      debugSecureFieldUploadVerificationResult(verificationTrace, access);
       const existingMarker = readCampaignAdminSupabaseSession(activeCampaign.slug);
-      const campaignAdminOwnsSession =
-        establishedCampaignAdminSession ||
-        shouldSignOutCampaignAdminSupabaseSession(existingMarker, access);
+      if (establishedCampaignAdminSession && authenticatedUser?.id) {
+        sessionOwnership = { source: "campaign_admin", userId: authenticatedUser.id };
+        writeSupabaseSessionOwnership(sessionOwnership);
+      }
+      if (shouldSignOutCampaignAdminSupabaseSession(existingMarker, access)) {
+        sessionOwnership = { source: "campaign_admin", userId: access.userId };
+        writeSupabaseSessionOwnership(sessionOwnership);
+      }
+      const campaignAdminOwnsSession = isSupabaseSessionOwnedBy(
+        sessionOwnership,
+        "campaign_admin",
+        access.userId || authenticatedUser?.id || ""
+      );
       if (!access.available) {
         if (campaignAdminOwnsSession) {
-          await signOutSupabase(
-            "SIGN_OUT_CALLER: CAMPAIGN_ADMIN_LOGIN",
-            `verifySecureFieldUploadAccess denied: ${access.reason}`
+          await signOutSupabase();
+          clearSupabaseSessionOwnership(
+            "campaign_admin",
+            sessionOwnership?.userId ?? access.userId
           );
         }
         clearCampaignAdminSupabaseSession(activeCampaign.slug);
@@ -2197,11 +2194,16 @@ function App() {
       setScanMessage(access.message);
       setBackendMessage(access.message);
     } catch {
-      if (establishedCampaignAdminSession) {
-        await signOutSupabase(
-          "SIGN_OUT_CALLER: CAMPAIGN_ADMIN_LOGIN",
-          "Campaign Admin login exception after Supabase sign-in"
-        );
+      if (
+        establishedCampaignAdminSession
+        && isSupabaseSessionOwnedBy(
+          sessionOwnership,
+          "campaign_admin",
+          sessionOwnership?.userId ?? ""
+        )
+      ) {
+        await signOutSupabase();
+        clearSupabaseSessionOwnership("campaign_admin", sessionOwnership?.userId ?? "");
       }
       clearCampaignAdminSupabaseSession(activeCampaign.slug);
       setSecureFieldUploadAccess(
@@ -2231,10 +2233,12 @@ function App() {
       })
     );
     if (campaignAdminSupabaseSessionOwned) {
-      await signOutSupabase(
-        "SIGN_OUT_CALLER: CAMPAIGN_ADMIN_LOGOUT",
-        "User requested Campaign Admin logout"
-      );
+      const currentUser = await getCurrentAuthUser();
+      const ownership = readSupabaseSessionOwnership();
+      if (isSupabaseSessionOwnedBy(ownership, "campaign_admin", currentUser?.id ?? "")) {
+        await signOutSupabase();
+        clearSupabaseSessionOwnership("campaign_admin", currentUser?.id ?? "");
+      }
     }
     setCampaignAdminSupabaseSessionOwned(false);
   }
@@ -2254,20 +2258,25 @@ function App() {
 
     let supabaseUser = null;
     let authFailureMessage = "";
+    let platformSessionOwnership = readSupabaseSessionOwnership();
+    let platformLoginOwnsSession = false;
 
     if (isSupabaseAuthAvailable) {
       try {
-        console.debug("[AUTH FLOW] before signIn");
+        const existingUser = await getCurrentAuthUser();
         supabaseUser = await signInWithSupabase(email, passcode);
-        const signInResult = getLatestSignInResult();
-        console.debug("[AUTH FLOW] after signIn", {
-          returnedUserId: supabaseUser?.id ?? "",
-          returnedEmail: supabaseUser?.email ?? "",
-          returnedSessionExists: signInResult.sessionExists
-        });
-        await debugSupabaseSessionTiming("[AUTH FLOW] post-signIn getSession");
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        await debugSupabaseSessionTiming("[AUTH FLOW] delayed getSession");
+        platformSessionOwnership = resolveSupabaseSessionOwnership(
+          existingUser?.id ?? "",
+          supabaseUser?.id ?? "",
+          "platform_admin",
+          platformSessionOwnership
+        );
+        if (platformSessionOwnership) writeSupabaseSessionOwnership(platformSessionOwnership);
+        platformLoginOwnsSession = isSupabaseSessionOwnedBy(
+          platformSessionOwnership,
+          "platform_admin",
+          supabaseUser?.id ?? ""
+        );
       } catch (error) {
         authFailureMessage = error instanceof Error ? error.message : "Unable to login with Supabase Auth";
       }
@@ -2278,6 +2287,7 @@ function App() {
         const context = await getAuthContext();
         if (context.platformAdmin) {
           clearPlatformAdminSession();
+          setPlatformAdminSupabaseSessionOwned(platformLoginOwnsSession);
           setIsPlatformAdminAuthenticated(true);
           setIsCustomerWorkspaceAuthenticated(Boolean(context.workspaceMember || context.customerWorkspace));
           setActiveTab("dashboard");
@@ -2287,10 +2297,11 @@ function App() {
           return;
         }
 
-        await signOutSupabase(
-          "SIGN_OUT_CALLER: PLATFORM_ADMIN_LOGIN",
-          "Authenticated Supabase user is not platform_owner"
-        );
+        if (platformLoginOwnsSession) {
+          await signOutSupabase();
+          clearSupabaseSessionOwnership("platform_admin", supabaseUser.id);
+        }
+        setPlatformAdminSupabaseSessionOwned(false);
         if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
           writePlatformAdminSession(email);
           setIsPlatformAdminAuthenticated(true);
@@ -2310,10 +2321,11 @@ function App() {
         );
         return;
       } catch (error) {
-        await signOutSupabase(
-          "SIGN_OUT_CALLER: PLATFORM_ADMIN_LOGIN",
-          "Platform Admin role verification exception"
-        );
+        if (platformLoginOwnsSession) {
+          await signOutSupabase();
+          clearSupabaseSessionOwnership("platform_admin", supabaseUser.id);
+        }
+        setPlatformAdminSupabaseSessionOwned(false);
         if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
           writePlatformAdminSession(email);
           setIsPlatformAdminAuthenticated(true);
@@ -2332,6 +2344,7 @@ function App() {
 
     if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
       writePlatformAdminSession(email);
+      setPlatformAdminSupabaseSessionOwned(false);
       setIsPlatformAdminAuthenticated(true);
       setIsCustomerWorkspaceAuthenticated(false);
       setActiveTab("dashboard");
@@ -2350,27 +2363,33 @@ function App() {
 
   async function logoutAppAdmin() {
     if (isSaasAdminRoute) {
-      if (isSupabaseAuthAvailable) {
-        await signOutSupabase(
-          "SIGN_OUT_CALLER: SAAS_ADMIN_LOGOUT",
-          "User requested SaaS Admin logout"
-        );
+      if (isSupabaseAuthAvailable && platformAdminSupabaseSessionOwned) {
+        const currentUser = await getCurrentAuthUser();
+        const ownership = readSupabaseSessionOwnership();
+        if (isSupabaseSessionOwnedBy(ownership, "platform_admin", currentUser?.id ?? "")) {
+          await signOutSupabase();
+          clearSupabaseSessionOwnership("platform_admin", currentUser?.id ?? "");
+        }
       }
       clearPlatformAdminSession();
       clearCustomerSessionToken();
+      setPlatformAdminSupabaseSessionOwned(false);
       setIsPlatformAdminAuthenticated(false);
       window.location.assign("/");
       return;
     }
-    if (isSupabaseAuthAvailable) {
-      await signOutSupabase(
-        "SIGN_OUT_CALLER: APP_ADMIN_LOGOUT",
-        "User requested application admin logout"
-      );
+    if (isSupabaseAuthAvailable && platformAdminSupabaseSessionOwned) {
+      const currentUser = await getCurrentAuthUser();
+      const ownership = readSupabaseSessionOwnership();
+      if (isSupabaseSessionOwnedBy(ownership, "platform_admin", currentUser?.id ?? "")) {
+        await signOutSupabase();
+        clearSupabaseSessionOwnership("platform_admin", currentUser?.id ?? "");
+      }
     }
     clearPlatformAdminSession();
     clearCustomerSessionToken();
     setIsCustomerWorkspaceAuthenticated(false);
+    setPlatformAdminSupabaseSessionOwned(false);
     setIsPlatformAdminAuthenticated(false);
     setCampaigns(initialCampaigns);
     setSigners(initialSigners);

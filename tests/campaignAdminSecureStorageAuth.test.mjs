@@ -3,8 +3,10 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
   evaluateSecureFieldUploadAccess,
+  isSupabaseSessionOwnedBy,
   isStoragePathWithinWorkspace,
   preserveCampaignAdminAccess,
+  resolveSupabaseSessionOwnership,
   shouldSignOutCampaignAdminSupabaseSession
 } from "../src/secureFieldUploadAuth.ts";
 
@@ -109,6 +111,103 @@ test("logout owns and removes only the Supabase session created by Campaign Admi
     }),
     false
   );
+});
+
+test("Campaign Admin login creates campaign-owned Supabase session state", () => {
+  const ownership = resolveSupabaseSessionOwnership(
+    "",
+    "auth-user-1",
+    "campaign_admin",
+    null
+  );
+  assert.deepEqual(ownership, { source: "campaign_admin", userId: "auth-user-1" });
+  assert.equal(isSupabaseSessionOwnedBy(ownership, "campaign_admin", "auth-user-1"), true);
+});
+
+test("Platform Admin guard does not own or sign out a Campaign Admin session", () => {
+  const campaignOwnership = { source: "campaign_admin", userId: "auth-user-1" };
+  const ownershipAfterPlatformAttempt = resolveSupabaseSessionOwnership(
+    "auth-user-1",
+    "auth-user-1",
+    "platform_admin",
+    campaignOwnership
+  );
+  assert.deepEqual(ownershipAfterPlatformAttempt, campaignOwnership);
+  assert.equal(
+    isSupabaseSessionOwnedBy(ownershipAfterPlatformAttempt, "platform_admin", "auth-user-1"),
+    false
+  );
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const platformLoginSource = appSource.slice(
+    appSource.indexOf("async function submitAppLogin"),
+    appSource.indexOf("async function logoutAppAdmin")
+  );
+  assert.match(platformLoginSource, /if \(platformLoginOwnsSession\) \{\s*await signOutSupabase\(\)/);
+});
+
+test("failed Platform Admin login preserves an unrelated existing session", () => {
+  const ownership = resolveSupabaseSessionOwnership(
+    "auth-user-1",
+    "auth-user-1",
+    "platform_admin",
+    null
+  );
+  assert.deepEqual(ownership, {
+    source: "unrelated_existing_session",
+    userId: "auth-user-1"
+  });
+  assert.equal(isSupabaseSessionOwnedBy(ownership, "platform_admin", "auth-user-1"), false);
+});
+
+test("a new Platform Admin login owns its session and real logout may clear it", () => {
+  const ownership = resolveSupabaseSessionOwnership(
+    "",
+    "platform-owner-1",
+    "platform_admin",
+    null
+  );
+  assert.deepEqual(ownership, { source: "platform_admin", userId: "platform-owner-1" });
+  assert.equal(isSupabaseSessionOwnedBy(ownership, "platform_admin", "platform-owner-1"), true);
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const logoutSource = appSource.slice(appSource.indexOf("async function logoutAppAdmin"));
+  assert.match(logoutSource, /isSupabaseSessionOwnedBy\(ownership, "platform_admin", currentUser\?\.id \?\? ""\)/);
+  assert.match(logoutSource, /await signOutSupabase\(\)/);
+});
+
+test("Campaign Admin logout owns only its matching campaign session", () => {
+  const ownership = { source: "campaign_admin", userId: "auth-user-1" };
+  assert.equal(isSupabaseSessionOwnedBy(ownership, "campaign_admin", "auth-user-1"), true);
+  assert.equal(isSupabaseSessionOwnedBy(ownership, "platform_admin", "auth-user-1"), false);
+  assert.equal(isSupabaseSessionOwnedBy(ownership, "campaign_admin", "other-user"), false);
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const logoutSource = appSource.slice(
+    appSource.indexOf("async function logoutCampaignAdmin"),
+    appSource.indexOf("async function submitAppLogin")
+  );
+  assert.match(logoutSource, /isSupabaseSessionOwnedBy\(ownership, "campaign_admin", currentUser\?\.id \?\? ""\)/);
+  assert.match(logoutSource, /await signOutSupabase\(\)/);
+});
+
+test("Campaign Admin membership enables upload but never grants Platform Admin access", () => {
+  const access = evaluateSecureFieldUploadAccess({
+    ...baseInput,
+    membership: membership("campaign_admin")
+  });
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  assert.equal(access.available, true);
+  assert.match(appSource, /if \(context\.platformAdmin\)/);
+  assert.match(appSource, /setIsPlatformAdminAuthenticated\(false\)/);
+  assert.doesNotMatch(appSource, /if \(context\.role === "campaign_admin"\)[\s\S]*setIsPlatformAdminAuthenticated\(true\)/);
+});
+
+test("temporary authentication diagnostics are removed", () => {
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const backendSource = readFileSync(new URL("../src/backend.ts", import.meta.url), "utf8");
+  const authSource = readFileSync(new URL("../src/secureFieldUploadAuth.ts", import.meta.url), "utf8");
+  for (const source of [appSource, backendSource, authSource]) {
+    assert.doesNotMatch(source, /\[AUTH FLOW\]|\[AUTH CLIENT IDENTITY\]|VERIFY_CALLER|\[VERIFY RESULT\]/);
+    assert.doesNotMatch(source, /console\.(debug|trace)/);
+  }
 });
 
 test("private evidence paths are denied outside the authenticated workspace", () => {

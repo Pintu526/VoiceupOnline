@@ -76,6 +76,38 @@ const customerWorkspaceKey = "voiceup-customer-workspace-v1";
 export const isBackendConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 const supabase = isBackendConfigured ? createClient(supabaseUrl!, supabaseAnonKey!) : null;
+const supabaseClientIdentityIds = new WeakMap<object, number>();
+let nextSupabaseClientIdentityId = 1;
+let signInSupabaseClientReference: typeof supabase = null;
+let verifySupabaseClientReference: typeof supabase = null;
+
+function getSupabaseClientIdentityId(client: typeof supabase): number | null {
+  if (!client) return null;
+  const existingIdentityId = supabaseClientIdentityIds.get(client);
+  if (existingIdentityId) return existingIdentityId;
+  const identityId = nextSupabaseClientIdentityId;
+  nextSupabaseClientIdentityId += 1;
+  supabaseClientIdentityIds.set(client, identityId);
+  return identityId;
+}
+
+function logSupabaseClientIdentity(context: "signInWithSupabase" | "verifySecureFieldUploadAccess") {
+  const client = supabase;
+  if (context === "signInWithSupabase") signInSupabaseClientReference = client;
+  if (context === "verifySecureFieldUploadAccess") verifySupabaseClientReference = client;
+
+  const identityId = getSupabaseClientIdentityId(client);
+  console.debug("[AUTH CLIENT IDENTITY]", {
+    context,
+    clientIdentity: identityId === null ? "null" : `SupabaseClient#${identityId}`,
+    memoryReference: identityId === null ? "null" : `WeakMapReference#${identityId}`,
+    constructor: client?.constructor?.name ?? "null",
+    signInClientIdentity: getSupabaseClientIdentityId(signInSupabaseClientReference),
+    verifyClientIdentity: getSupabaseClientIdentityId(verifySupabaseClientReference),
+    objectIsComparison: Object.is(signInSupabaseClientReference, verifySupabaseClientReference),
+    strictEqualityComparison: signInSupabaseClientReference === verifySupabaseClientReference
+  });
+}
 
 export const isSupabaseAuthAvailable = Boolean(supabase);
 export const isSupabaseStorageAvailable = Boolean(supabase);
@@ -433,6 +465,7 @@ export async function verifySecureFieldUploadAccess(
   expectedWorkspaceId: string,
   storageProvider: string
 ): Promise<SecureFieldUploadAccess> {
+  logSupabaseClientIdentity("verifySecureFieldUploadAccess");
   const user = await getCurrentAuthUser();
   console.debug("[auth diagnostics] verifySecureFieldUploadAccess input", {
     userId: user?.id ?? "",
@@ -547,6 +580,7 @@ export function getLatestSignInResult() {
 }
 
 export async function signInWithSupabase(email: string, password: string) {
+  logSupabaseClientIdentity("signInWithSupabase");
   if (!supabase) {
     throw new Error("Supabase Auth is required for platform administration.");
   }

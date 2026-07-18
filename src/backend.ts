@@ -332,9 +332,13 @@ export async function getCurrentAuthUser() {
 
 export async function verifySecureFieldUploadAccess(
   expectedWorkspaceId: string,
-  storageProvider: string
+  storageProvider: string,
+  knownUser?: { id: string } | null
 ): Promise<SecureFieldUploadAccess> {
-  const user = await getCurrentAuthUser();
+  // When the caller just established (or already holds) the authenticated user from
+  // signInWithPassword()/getCurrentAuthUser(), use it directly instead of issuing a second,
+  // redundant getUser() round-trip immediately after sign-in.
+  const user = knownUser !== undefined ? knownUser : await getCurrentAuthUser();
   if (!supabase || !user) {
     return evaluateSecureFieldUploadAccess({
       supabaseConfigured: Boolean(supabase),

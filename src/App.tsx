@@ -448,6 +448,12 @@ function App() {
   // A synchronous reset always invalidates any in-flight async verification so a stale result
   // can never overwrite a newer/authoritative state.
   const verificationCoordinatorRef = useRef(createSecureFieldUploadVerificationCoordinator());
+  // Set while submitCampaignAdminLogin() is running its own (correctly-authenticated) secure
+  // field-upload verification. Prevents the unrelated restore/refresh effect below -- which
+  // reacts to the authenticatedAdminSlugs update fired at the start of login -- from racing
+  // ahead with a stale getCurrentAuthUser() lookup (made before sign-in resolves) and briefly
+  // or permanently overwriting the login handler's correct result with "unauthenticated".
+  const campaignAdminLoginInFlightRef = useRef(false);
 
   function resetSecureFieldUploadAccess(access: SecureFieldUploadAccess) {
     verificationCoordinatorRef.current.reset();
@@ -456,10 +462,11 @@ function App() {
   }
 
   async function verifyAndApplySecureFieldUploadAccess(
-    workspaceId: string
+    workspaceId: string,
+    knownUser?: { id: string } | null
   ): Promise<{ access: SecureFieldUploadAccess; applied: boolean }> {
     const requestId = verificationCoordinatorRef.current.beginVerification();
-    const access = await verifySecureFieldUploadAccess(workspaceId, integrations.storageProvider);
+    const access = await verifySecureFieldUploadAccess(workspaceId, integrations.storageProvider, knownUser);
     const applied = verificationCoordinatorRef.current.isCurrent(requestId);
     if (applied) setSecureFieldUploadAccess(access);
     return { access, applied };
@@ -718,6 +725,8 @@ function App() {
       );
       return;
     }
+
+    if (campaignAdminLoginInFlightRef.current) return;
 
     const activeCampaignSlug = activeCampaign.slug;
     async function refreshSecureFieldUploadAccess() {
@@ -2124,6 +2133,7 @@ function App() {
       setAdminLoginMessage("Invalid campaign admin email or passcode.");
       return;
     }
+    campaignAdminLoginInFlightRef.current = true;
     const nextAuth = { ...authenticatedAdminSlugs, [activeCampaign.slug]: true };
     setAuthenticatedAdminSlugs(nextAuth);
     writeAuthenticatedAdminSlugs(nextAuth);
@@ -2141,6 +2151,7 @@ function App() {
       );
       setScanMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
       setBackendMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
+      campaignAdminLoginInFlightRef.current = false;
       return;
     }
 
@@ -2162,7 +2173,7 @@ function App() {
       );
       if (sessionOwnership) writeSupabaseSessionOwnership(sessionOwnership);
 
-      const { access, applied } = await verifyAndApplySecureFieldUploadAccess(workspaceId);
+      const { access, applied } = await verifyAndApplySecureFieldUploadAccess(workspaceId, authenticatedUser);
       const existingMarker = readCampaignAdminSupabaseSession(activeCampaign.slug);
       if (establishedCampaignAdminSession && authenticatedUser?.id) {
         sessionOwnership = { source: "campaign_admin", userId: authenticatedUser.id };
@@ -2224,6 +2235,8 @@ function App() {
       );
       setScanMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
       setBackendMessage(SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
+    } finally {
+      campaignAdminLoginInFlightRef.current = false;
     }
   }
 

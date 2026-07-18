@@ -398,7 +398,7 @@ test("secure-upload verification runs after Supabase session and authenticatedAd
 
   const slugUpdateIndex = loginSource.indexOf("setAuthenticatedAdminSlugs(nextAuth)");
   const signInIndex = loginSource.indexOf("signInWithSupabase(submittedEmail, submittedPasscode)");
-  const verifyIndex = loginSource.indexOf("verifyAndApplySecureFieldUploadAccess(workspaceId)");
+  const verifyIndex = loginSource.indexOf("verifyAndApplySecureFieldUploadAccess(workspaceId, authenticatedUser)");
 
   assert.ok(slugUpdateIndex >= 0);
   assert.ok(signInIndex > slugUpdateIndex);
@@ -413,4 +413,69 @@ test("logout clears secure-upload access through the canonical reset path", () =
   );
 
   assert.match(logoutSource, /resetSecureFieldUploadAccess\(/);
+});
+
+test("verifySecureFieldUploadAccess accepts an already-authenticated user instead of re-deriving one", () => {
+  const backendSource = readFileSync(new URL("../src/backend.ts", import.meta.url), "utf8");
+  const verificationSource = backendSource.slice(
+    backendSource.indexOf("export async function verifySecureFieldUploadAccess"),
+    backendSource.indexOf("async function resolveSecureStorageWorkspaceId")
+  );
+
+  // The optional knownUser parameter lets a caller that just completed sign-in (and already
+  // holds the authenticated user) skip a second, redundant getUser() round-trip that could
+  // otherwise race with session propagation immediately after signInWithPassword() resolves.
+  assert.match(verificationSource, /knownUser\?:\s*\{\s*id:\s*string\s*\}\s*\|\s*null/);
+  assert.match(
+    verificationSource,
+    /const user = knownUser !== undefined \? knownUser : await getCurrentAuthUser\(\);/
+  );
+});
+
+test("Campaign Admin login passes its freshly authenticated user directly into secure verification", () => {
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const loginSource = appSource.slice(
+    appSource.indexOf("async function submitCampaignAdminLogin"),
+    appSource.indexOf("async function logoutCampaignAdmin")
+  );
+
+  // authenticatedUser already holds either the pre-existing session's user or the user
+  // returned directly by signInWithSupabase() -- verification must reuse it rather than
+  // re-fetching the user from Supabase a second time immediately after login.
+  assert.match(loginSource, /verifyAndApplySecureFieldUploadAccess\(workspaceId, authenticatedUser\)/);
+});
+
+test("the restore/refresh effect still resolves its own user independently of the login handler", () => {
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const refreshSource = appSource.slice(
+    appSource.indexOf("async function refreshSecureFieldUploadAccess"),
+    appSource.indexOf("void refreshSecureFieldUploadAccess();")
+  );
+
+  // This caller has no already-authenticated user in hand, so it must keep calling with a
+  // single argument and fall back to verifySecureFieldUploadAccess's own getCurrentAuthUser() lookup.
+  assert.match(refreshSource, /verifyAndApplySecureFieldUploadAccess\(getCurrentWorkspaceId\(\)\)/);
+});
+
+test("a truly unauthenticated caller (no known user, no session) is still denied", () => {
+  const access = evaluateSecureFieldUploadAccess({
+    ...baseInput,
+    userId: ""
+  });
+  assert.equal(access.available, false);
+  assert.equal(access.reason, "unauthenticated");
+});
+
+test("a fresh login verification cannot be overwritten by a slower stale verification", () => {
+  const coordinator = createSecureFieldUploadVerificationCoordinator();
+
+  // Simulates the exact regression scenario: the restore/refresh effect (triggered by the
+  // same authenticatedAdminSlugs state update the login handler just made) begins an older
+  // verification, then the login handler's own (now-fixed, immediately-correct) verification
+  // begins and resolves first.
+  const refreshEffectRequestId = coordinator.beginVerification();
+  const loginHandlerRequestId = coordinator.beginVerification();
+
+  assert.equal(coordinator.isCurrent(loginHandlerRequestId), true);
+  assert.equal(coordinator.isCurrent(refreshEffectRequestId), false);
 });

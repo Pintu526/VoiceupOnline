@@ -479,3 +479,52 @@ test("a fresh login verification cannot be overwritten by a slower stale verific
   assert.equal(coordinator.isCurrent(loginHandlerRequestId), true);
   assert.equal(coordinator.isCurrent(refreshEffectRequestId), false);
 });
+
+test("unavailable state renders one red message only", () => {
+  const scansTabSource = readFileSync(new URL("../src/pages/app/ScansTab.tsx", import.meta.url), "utf8");
+
+  // The single authoritative secure field-upload status line renders the failure message with
+  // error-message styling whenever secureFieldUploadAvailable is false, and it is the only
+  // place this exact status text is emitted (see the duplicate-suppression test below).
+  assert.match(
+    scansTabSource,
+    /secureFieldUploadMessage && \(\s*<p className=\{secureFieldUploadAvailable \? "success-message" : "error-message"\}>/
+  );
+});
+
+test("available state renders one green success message only", () => {
+  const scansTabSource = readFileSync(new URL("../src/pages/app/ScansTab.tsx", import.meta.url), "utf8");
+
+  // When available, the unified status line must render the exact success copy with
+  // success-message (green) styling -- not the raw backend message, and not info-message.
+  assert.match(
+    scansTabSource,
+    /secureFieldUploadAvailable \? "Secure field-upload access is active\." : secureFieldUploadMessage/
+  );
+});
+
+test("the unavailable message can never receive success styling", () => {
+  const scansTabSource = readFileSync(new URL("../src/pages/app/ScansTab.tsx", import.meta.url), "utf8");
+
+  // The status className must be a direct ternary on the authoritative secureFieldUploadAvailable
+  // boolean, never a substring heuristic on message text (which previously missed the exact
+  // "has not been provisioned" phrase and mis-classified it as informational).
+  const statusBlockStart = scansTabSource.indexOf("secureFieldUploadMessage && (");
+  const statusBlock = scansTabSource.slice(statusBlockStart, statusBlockStart + 220);
+  assert.match(statusBlock, /secureFieldUploadAvailable \? "success-message" : "error-message"/);
+  assert.doesNotMatch(statusBlock, /includes\("failed"\)|includes\("unavailable"\)/);
+});
+
+test("duplicate status banners cannot render", () => {
+  const scansTabSource = readFileSync(new URL("../src/pages/app/ScansTab.tsx", import.meta.url), "utf8");
+
+  // The generic scanMessage banner must explicitly skip rendering when it duplicates the
+  // secure field-upload status text, so the same status is never shown twice.
+  assert.match(
+    scansTabSource,
+    /\{scanMessage && scanMessage !== secureFieldUploadMessage && \(/
+  );
+  // The old unconditional duplicate ("!secureFieldUploadAvailable &&" guarding a second,
+  // independently-styled copy of the same text) must be gone.
+  assert.doesNotMatch(scansTabSource, /\{!secureFieldUploadAvailable && <p className="error-message">\{secureFieldUploadMessage\}<\/p>\}/);
+});

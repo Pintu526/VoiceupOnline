@@ -473,10 +473,16 @@ export function ScansTab({
               <ShieldCheck size={19} /> {isScanning ? t("scans.capture.uploading") : t("scans.capture.secureUpload")}
             </button>
           )}
-          {!secureFieldUploadAvailable && <p className="error-message">{secureFieldUploadMessage}</p>}
+          {secureFieldUploadMessage && (
+            <p className={secureFieldUploadAvailable ? "success-message" : "error-message"}>
+              {secureFieldUploadAvailable ? "Secure field-upload access is active." : secureFieldUploadMessage}
+            </p>
+          )}
           {(isScanning || captureProgress > 0) && <progress className="scan-upload-progress" max={100} value={isScanning ? Math.max(captureProgress, 60) : captureProgress} />}
           {captureError && <p className="error-message">{captureError}</p>}
-          {scanMessage && <p className={scanMessage.toLowerCase().includes("failed") || scanMessage.toLowerCase().includes("unavailable") ? "error-message" : "info-message"}>{scanMessage}</p>}
+          {scanMessage && scanMessage !== secureFieldUploadMessage && (
+            <p className={scanMessage.toLowerCase().includes("failed") || scanMessage.toLowerCase().includes("unavailable") ? "error-message" : "info-message"}>{scanMessage}</p>
+          )}
         </div>
       </Panel>
 

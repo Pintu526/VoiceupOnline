@@ -286,8 +286,14 @@ test("upload, OCR, review creation, public signing and authentication remain iso
   );
   const publicSource = readFileSync(new URL("../src/pages/PublicCampaignPage.tsx", import.meta.url), "utf8");
   const authSource = readFileSync(new URL("../src/utils/auth.ts", import.meta.url), "utf8");
+  const providerSource = readFileSync(
+    new URL("../src/documentIntelligence/providers/tesseract.ts", import.meta.url),
+    "utf8"
+  );
   assert.match(uploadSource, /uploadPrivateFileToStorage\("campaign-private"/);
-  assert.match(uploadSource, /import\("tesseract\.js"\)/);
+  assert.match(uploadSource, /analyzeBusinessOsDocument\(file, ocrDiagnosticId\)/);
+  assert.doesNotMatch(uploadSource, /tesseract\.js|recognize\(/);
+  assert.match(providerSource, /import\("tesseract\.js"\)/);
   assert.match(uploadSource, /createScanReviewItem/);
   assert.doesNotMatch(publicSource, /approve_voiceup_scan_review_item|voiceup_scan_review_items/);
   assert.doesNotMatch(authSource, /approve_voiceup_scan_review_item|voiceup_scan_review_items/);

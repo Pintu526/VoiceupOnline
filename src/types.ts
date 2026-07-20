@@ -283,6 +283,7 @@ export interface ConfirmationQueueItem {
 }
 
 export interface ScanCaptureMetadata {
+  ocrDiagnosticId?: string;
   sourceBatchId: string;
   collectorId: string;
   collectorName: string;

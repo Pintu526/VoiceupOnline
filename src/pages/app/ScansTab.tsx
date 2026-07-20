@@ -36,6 +36,7 @@ import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { useTranslation } from "../../i18n/useTranslation";
 import { getPublicCampaignUrlForOrigin } from "../../utils/links";
+import { createDocumentDiagnosticId, logDocumentIntelligenceStage } from "../../documentIntelligence";
 
 interface ScansTabProps {
   activeCampaign: Campaign | undefined;
@@ -129,6 +130,7 @@ export function ScansTab({
   const [showCaptureNext, setShowCaptureNext] = useState(false);
   const [fieldCollectionStep, setFieldCollectionStep] = useState<1 | 2 | 3 | 4>(1);
   const [wizardApprovalSuccess, setWizardApprovalSuccess] = useState(false);
+  const [ocrDiagnosticId, setOcrDiagnosticId] = useState("");
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => {
@@ -193,6 +195,13 @@ export function ScansTab({
   }
 
   function selectCaptureFile(file: File) {
+    const nextDiagnosticId = createDocumentDiagnosticId(file.name);
+    logDocumentIntelligenceStage(nextDiagnosticId, "1. Image received", {
+      fileName: file.name,
+      fileType: file.type,
+      fileSizeBytes: file.size,
+      lastModified: file.lastModified
+    });
     const validationError = validateScanImageFile(file);
     if (validationError) {
       setCaptureError(
@@ -203,6 +212,7 @@ export function ScansTab({
       return;
     }
     setCaptureError("");
+    setOcrDiagnosticId(nextDiagnosticId);
     setSelectedCaptureFile(file);
     setCapturePreviewUrl(URL.createObjectURL(file));
     setCaptureRotation(0);
@@ -218,6 +228,7 @@ export function ScansTab({
     setCaptureRotation(0);
     setCaptureProgress(0);
     setCaptureError("");
+    setOcrDiagnosticId("");
   }
 
   async function uploadSelectedCapture() {
@@ -228,12 +239,27 @@ export function ScansTab({
     }
     setCaptureError("");
     setCaptureProgress(25);
+    const activeDiagnosticId = ocrDiagnosticId || createDocumentDiagnosticId(selectedCaptureFile.name);
+    let preprocessingCompleted = false;
     try {
       const preparedFile = await compressScanImage(selectedCaptureFile, captureRotation);
+      preprocessingCompleted = true;
+      logDocumentIntelligenceStage(activeDiagnosticId, "2. Image preprocessing completed", {
+        succeeded: true,
+        inputFileName: selectedCaptureFile.name,
+        inputType: selectedCaptureFile.type,
+        inputSizeBytes: selectedCaptureFile.size,
+        outputFileName: preparedFile.name,
+        outputType: preparedFile.type,
+        outputSizeBytes: preparedFile.size,
+        rotationDegrees: captureRotation,
+        transformed: preparedFile !== selectedCaptureFile
+      });
       setCaptureProgress(55);
       const consentCapturedAt =
         paperConsentRecorded || smsConsent || whatsappConsent ? new Date().toISOString() : undefined;
       const uploaded = await onUploadScan(preparedFile, {
+        ocrDiagnosticId: activeDiagnosticId,
         sourceBatchId,
         collectorId,
         collectorName,
@@ -255,7 +281,15 @@ export function ScansTab({
       clearCapture();
       setReviewIndex(0);
       setFieldCollectionStep(2);
-    } catch {
+    } catch (preprocessingOrUploadError) {
+      if (!preprocessingCompleted) {
+        logDocumentIntelligenceStage(activeDiagnosticId, "2. Image preprocessing completed", {
+          succeeded: false,
+          error: preprocessingOrUploadError instanceof Error
+            ? preprocessingOrUploadError.message
+            : "Unknown image preprocessing error"
+        });
+      }
       setCaptureProgress(0);
       setCaptureError(t("scans.capture.uploadFailed"));
     }

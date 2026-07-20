@@ -65,6 +65,11 @@ import {
 } from "./confirmationQueue";
 import { buildPrivateScanStoragePath, validateScanImageFile } from "./mobileScanCapture";
 import {
+  analyzeBusinessOsDocument,
+  createDocumentDiagnosticId,
+  logDocumentIntelligenceStage
+} from "./documentIntelligence";
+import {
   buildApprovalKey,
   buildSourceRowFingerprint,
   buildUploadFingerprint,
@@ -1796,6 +1801,7 @@ function App() {
     }
 
     const capturedAt = metadata?.capturedAt || new Date().toISOString();
+    const ocrDiagnosticId = metadata?.ocrDiagnosticId || createDocumentDiagnosticId(file.name);
     const sourceBatchId = metadata?.sourceBatchId.trim() || `batch-${capturedAt.slice(0, 10)}`;
     const baseItem = createScanReviewItem(activeCampaign.id, file.name, scanText);
     const workspaceId = secureFieldUploadAccess.workspaceId || getCurrentWorkspaceId();
@@ -1840,18 +1846,55 @@ function App() {
         consentCapturedBy: metadata?.consentCapturedBy?.trim() || undefined
       };
       try {
-        const { recognize } = await import("tesseract.js");
-        const result = await recognize(file, "eng");
-        const extractedText = result.data.text.trim() || scanText;
+        const documentResult = await analyzeBusinessOsDocument(file, ocrDiagnosticId);
+        const extractedText = documentResult.rawText.trim() || scanText;
+        const legacyParsedSigner = parseSignerFromText(documentResult.normalizedText);
+        const parsedSigner = {
+          ...legacyParsedSigner,
+          name: documentResult.fields.name,
+          phone: documentResult.fields.mobile,
+          address: documentResult.fields.village,
+          panchayat: documentResult.fields.village,
+          district: documentResult.fields.district,
+          state: documentResult.fields.state
+        };
         const item = {
           ...commonItem,
           extractedText,
-          parsedSigner: parseSignerFromText(extractedText)
+          parsedSigner
         };
+        logDocumentIntelligenceStage(ocrDiagnosticId, "10. Final object passed to Human Verify", {
+          reviewItem: item,
+          documentIntelligence: documentResult
+        });
         setScanItems((current) => [item, ...current]);
         setScanText(extractedText);
         setScanMessage("Private upload and OCR completed. Review this signer before approval.");
-      } catch {
+      } catch (ocrError) {
+        const failureMessage = ocrError instanceof Error ? ocrError.message : "Unknown OCR execution error";
+        logDocumentIntelligenceStage(ocrDiagnosticId, "6. Raw OCR text (first 500 characters)", {
+          rawText: "",
+          rawTextLength: 0,
+          unavailableReason: "OCR_EXECUTION_FAILED",
+          error: failureMessage
+        });
+        logDocumentIntelligenceStage(ocrDiagnosticId, "7. OCR confidence", {
+          confidence: null,
+          unavailableReason: "OCR_EXECUTION_FAILED"
+        });
+        logDocumentIntelligenceStage(ocrDiagnosticId, "8-9. Parsed fields and extraction reasons", {
+          fields: {
+            name: { value: "", reason: "OCR_EXECUTION_FAILED" },
+            mobile: { value: "", reason: "OCR_EXECUTION_FAILED" },
+            village: { value: "", reason: "OCR_EXECUTION_FAILED" },
+            district: { value: "", reason: "OCR_EXECUTION_FAILED" },
+            state: { value: "", reason: "OCR_EXECUTION_FAILED" }
+          },
+          fallbackSource: "Existing scan text template because OCR execution failed"
+        });
+        logDocumentIntelligenceStage(ocrDiagnosticId, "10. Final object passed to Human Verify", {
+          reviewItem: commonItem
+        });
         setScanItems((current) => [commonItem, ...current]);
         setScanMessage("Private upload completed. OCR could not read the file, so the record remains ready for manual review.");
       }

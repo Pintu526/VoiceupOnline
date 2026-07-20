@@ -16,6 +16,20 @@ import type {
 
 const commandCenterListLimit = 5;
 
+export const coordinatorLifecycleStages = [
+  "draft",
+  "invite_ready",
+  "mobile_verified",
+  "active",
+  "transferred",
+  "suspended",
+  "reactivated",
+  "archived"
+] as const;
+
+export type CoordinatorLifecycleStage = (typeof coordinatorLifecycleStages)[number];
+export type CoordinatorLifecycleAction = "verify_mobile" | "activate" | "transfer" | "suspend" | "reactivate" | "archive";
+
 function timestamp(value: string): number {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -122,6 +136,11 @@ export function getCoordinatorCommandCenter(snapshot: CoordinatorNetworkSnapshot
     .filter((activity) => activity.action === "coordinator.status_changed")
     .sort((left, right) => timestamp(right.createdAt) - timestamp(left.createdAt))
     .slice(0, commandCenterListLimit);
+  const archivedCoordinatorIds = new Set(
+    snapshot.activity
+      .filter((activity) => activity.action === "coordinator.deleted" && activity.coordinatorId)
+      .map((activity) => activity.coordinatorId as string)
+  );
 
   return {
     metrics,
@@ -135,7 +154,97 @@ export function getCoordinatorCommandCenter(snapshot: CoordinatorNetworkSnapshot
     },
     recentActivity,
     recentlyAdded,
-    recentStatusChanges
+    recentStatusChanges,
+    lifecycle: {
+      active: metrics.active,
+      suspended: statusCounts.get("suspended") ?? 0,
+      verified: metrics.mobileVerified,
+      pending: statusCounts.get("invited") ?? 0,
+      archived: archivedCoordinatorIds.size
+    }
+  };
+}
+
+function statusStage(status: unknown): CoordinatorLifecycleStage | "inactive" | undefined {
+  return status === "invited"
+    ? "invite_ready"
+    : status === "active"
+      ? "active"
+      : status === "suspended"
+        ? "suspended"
+        : status === "inactive"
+          ? "inactive"
+          : undefined;
+}
+
+export function getCoordinatorLifecycle(
+  snapshot: CoordinatorNetworkSnapshot,
+  coordinatorId: string
+) {
+  const coordinator = snapshot.coordinators.find((item) => item.id === coordinatorId);
+  if (!coordinator) return null;
+  const activity = snapshot.activity
+    .filter((entry) => entry.coordinatorId === coordinatorId)
+    .sort((left, right) => timestamp(left.createdAt) - timestamp(right.createdAt));
+  const statusChanges = activity.filter((entry) => entry.action === "coordinator.status_changed");
+  const activation = statusChanges.find((entry) => entry.metadata.to === "active");
+  const suspension = [...statusChanges].reverse().find((entry) => entry.metadata.to === "suspended");
+  const reactivation = [...statusChanges].reverse().find(
+    (entry) => entry.metadata.from === "suspended" && entry.metadata.to === "active"
+  );
+  const archived = [...activity].reverse().find((entry) => entry.action === "coordinator.deleted");
+  const latestStatusChange = statusChanges[statusChanges.length - 1];
+  const currentStage: CoordinatorLifecycleStage | "inactive" = archived
+    ? "archived"
+    : coordinator.status === "active" && reactivation
+      ? "reactivated"
+      : coordinator.status === "invited" && coordinator.mobileVerifiedAt
+        ? "mobile_verified"
+        : statusStage(coordinator.status) ?? "inactive";
+  const previousStage = latestStatusChange
+    ? statusStage(latestStatusChange.metadata.from)
+    : currentStage === "mobile_verified"
+      ? "invite_ready"
+      : currentStage === "invite_ready"
+        ? "draft"
+        : undefined;
+
+  const validActions: CoordinatorLifecycleAction[] = coordinator.status === "invited"
+    ? coordinator.mobileVerifiedAt ? ["activate", "archive"] : ["verify_mobile", "archive"]
+    : coordinator.status === "active"
+      ? ["transfer", "suspend", "archive"]
+      : coordinator.status === "suspended"
+        ? ["reactivate", "archive"]
+        : coordinator.mobileVerifiedAt
+          ? ["reactivate", "archive"]
+          : ["verify_mobile", "archive"];
+  const actions = snapshot.canManage ? validActions : [];
+
+  const completed = new Set<CoordinatorLifecycleStage>(["draft", "invite_ready"]);
+  if (coordinator.mobileVerifiedAt) completed.add("mobile_verified");
+  if (activation || coordinator.status === "active") completed.add("active");
+  if (suspension || coordinator.status === "suspended") completed.add("suspended");
+  if (reactivation) completed.add("reactivated");
+  if (archived) completed.add("archived");
+
+  return {
+    currentStage,
+    previousStage,
+    actions,
+    milestones: coordinatorLifecycleStages.map((stage) => ({
+      stage,
+      completed: completed.has(stage),
+      current: stage === currentStage
+    })),
+    dates: {
+      created: coordinator.createdAt,
+      verified: coordinator.mobileVerifiedAt,
+      activated: activation?.createdAt,
+      suspended: suspension?.createdAt,
+      reactivated: reactivation?.createdAt,
+      archived: archived?.createdAt,
+      updated: coordinator.updatedAt
+    }
   };
 }
 

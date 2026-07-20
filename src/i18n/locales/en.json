@@ -3100,5 +3100,159 @@
       "paused": "Paused",
       "closed": "Closed"
     }
+  },
+  "coordinatorLifecycle": {
+    "notRecorded": "Not recorded",
+    "commandCenter": {
+      "title": "Lifecycle overview",
+      "active": "Active",
+      "suspended": "Suspended",
+      "verified": "Mobile verified",
+      "pending": "Pending activation",
+      "archived": "Archived",
+      "auditWindow": "Archived count is derived from real deletion events available in the current audit snapshot."
+    },
+    "timeline": {
+      "title": "Lifecycle timeline",
+      "previous": "Previous state",
+      "current": "Current state",
+      "next": "Next possible action",
+      "none": "No transition available",
+      "ariaLabel": "Coordinator lifecycle stages",
+      "sourceNote": "Completed milestones are derived only from the coordinator record and server audit events."
+    },
+    "stages": {
+      "draft": "Draft",
+      "invite_ready": "Invite ready",
+      "mobile_verified": "Mobile verified",
+      "active": "Active",
+      "transferred": "Transferred",
+      "suspended": "Suspended",
+      "reactivated": "Reactivated",
+      "archived": "Archived",
+      "inactive": "Inactive"
+    },
+    "card": {
+      "title": "Lifecycle card",
+      "currentStatus": "Current status",
+      "created": "Created",
+      "verified": "Verified",
+      "activated": "Activated",
+      "lastUpdated": "Last updated",
+      "manager": "Current manager",
+      "geography": "Current geography"
+    },
+    "transitions": {
+      "title": "Status transitions",
+      "help": "Only valid actions for the current persisted state are available. Server authorization and optimistic locking remain mandatory.",
+      "readOnly": "You have read-only access. Lifecycle transitions are unavailable."
+    },
+    "actions": {
+      "manage": "Manage lifecycle",
+      "verify_mobile": "Verify mobile",
+      "activate": "Activate",
+      "transfer": "Transfer",
+      "suspend": "Suspend",
+      "reactivate": "Reactivate",
+      "archive": "Archive"
+    },
+    "actionHelp": {
+      "verify_mobile": "Use the existing OTP verification flow",
+      "activate": "Review requirements and activate",
+      "transfer": "Change manager, geography, or campaigns",
+      "suspend": "Temporarily prevent active operation",
+      "reactivate": "Return to active operation",
+      "archive": "Soft archive this coordinator"
+    },
+    "form": {
+      "statusManaged": "Status changes are managed from the lifecycle panel.",
+      "inviteReadyOnSave": "A new coordinator enters the invite-ready lifecycle after verified save."
+    },
+    "wizard": {
+      "eyebrow": "Guided lifecycle action",
+      "titles": {
+        "verify_mobile": "Mobile verification",
+        "activate": "Activation wizard",
+        "transfer": "Transfer wizard",
+        "suspend": "Suspend coordinator",
+        "reactivate": "Reactivate coordinator",
+        "archive": "Archive coordinator"
+      },
+      "close": "Close lifecycle wizard",
+      "progress": "Lifecycle action progress",
+      "steps": {
+        "verification": "Verification",
+        "validation": "Validation",
+        "review": "Review",
+        "complete": "Complete",
+        "manager": "Manager",
+        "geography": "Geography",
+        "campaign": "Campaigns",
+        "confirmation": "Confirmation",
+        "reason": "Reason",
+        "warning": "Warning"
+      },
+      "reasonAuditNote": "The reason is used for operator confirmation; the existing server audit records the lifecycle action.",
+      "done": "Done",
+      "undo": "Undo suspension",
+      "back": "Back",
+      "cancel": "Cancel",
+      "processing": "Processing…",
+      "confirm": "Confirm action",
+      "continue": "Continue"
+    },
+    "validation": {
+      "mobile": "Mobile verification",
+      "geography": "Assigned geography",
+      "manager": "Reporting manager",
+      "ready": "Ready",
+      "missing": "Required information is missing",
+      "noManager": "No reporting manager assigned"
+    },
+    "transfer": {
+      "manager": "Reporting manager",
+      "noManager": "No reporting manager",
+      "geography": "Assigned geography",
+      "campaigns": "Campaign assignments",
+      "noCampaigns": "No campaigns are available"
+    },
+    "suspend": {
+      "reason": "Reason for suspension"
+    },
+    "archive": {
+      "reason": "Reason for archive confirmation",
+      "directReportsBlock": "Reassign direct reports before archiving this coordinator."
+    },
+    "confirmation": {
+      "coordinator": "Coordinator",
+      "verify_mobile": "Confirm mobile verification",
+      "activate": "Confirm activation",
+      "transfer": "Confirm transfer",
+      "suspend": "Confirm suspension",
+      "reactivate": "Confirm reactivation",
+      "archive": "This soft archive cannot be undone with the current Coordinator Network contract."
+    },
+    "review": {
+      "verify_mobile": "Review mobile verification",
+      "activate": "Review activation",
+      "transfer": "Review transfer",
+      "suspend": "Review suspension",
+      "reactivate": "Review reactivation",
+      "archive": "Review archive",
+      "serverValidation": "The existing server authorization, validation, audit, and version checks will run when confirmed."
+    },
+    "success": {
+      "verify_mobile": "Mobile verification completed",
+      "activate": "Coordinator activated",
+      "transfer": "Coordinator transfer saved",
+      "suspend": "Coordinator suspended",
+      "reactivate": "Coordinator reactivated",
+      "archive": "Coordinator archived",
+      "auditRecorded": "The profile and command center now reflect the refreshed server snapshot."
+    },
+    "errors": {
+      "geographyRequired": "Select a valid geography.",
+      "actionFailed": "The lifecycle action could not be completed."
+    }
   }
 }

@@ -6,6 +6,7 @@ import {
   coordinatorMatchesSearch,
   getCoordinatorCommandCenter,
   getCoordinatorDashboardMetrics,
+  getCoordinatorLifecycle,
   getCoordinatorProfileWorkspace
 } from "../src/coordinators/network.ts";
 import {
@@ -226,6 +227,71 @@ test("Coordinator 360 profile derives hierarchy, coverage, assignments, activity
   assert.equal(getCoordinatorProfileWorkspace(snapshot, "missing"), null);
 });
 
+test("Coordinator lifecycle exposes only valid transitions and derives milestones from persisted facts", () => {
+  const baseSnapshot = {
+    workspaceId: "workspace-1",
+    canManage: true,
+    coordinators: [],
+    geographies: [],
+    campaignLinks: [],
+    referrals: [],
+    activity: []
+  };
+  const invited = coordinator("invited", { status: "invited", mobileVerifiedAt: undefined });
+  const verified = coordinator("verified", { status: "invited" });
+  const active = coordinator("active", { status: "active" });
+  const suspended = coordinator("suspended", { status: "suspended" });
+
+  assert.deepEqual(getCoordinatorLifecycle({ ...baseSnapshot, coordinators: [invited] }, invited.id).actions, ["verify_mobile", "archive"]);
+  assert.equal(getCoordinatorLifecycle({ ...baseSnapshot, coordinators: [invited] }, invited.id).currentStage, "invite_ready");
+  assert.deepEqual(getCoordinatorLifecycle({ ...baseSnapshot, coordinators: [verified] }, verified.id).actions, ["activate", "archive"]);
+  assert.equal(getCoordinatorLifecycle({ ...baseSnapshot, coordinators: [verified] }, verified.id).currentStage, "mobile_verified");
+  assert.deepEqual(getCoordinatorLifecycle({ ...baseSnapshot, coordinators: [active] }, active.id).actions, ["transfer", "suspend", "archive"]);
+  assert.deepEqual(getCoordinatorLifecycle({ ...baseSnapshot, coordinators: [suspended] }, suspended.id).actions, ["reactivate", "archive"]);
+  assert.deepEqual(getCoordinatorLifecycle({ ...baseSnapshot, canManage: false, coordinators: [active] }, active.id).actions, []);
+
+  const reactivated = getCoordinatorLifecycle({
+    ...baseSnapshot,
+    coordinators: [active],
+    activity: [
+      { id: 1, coordinatorId: active.id, action: "coordinator.status_changed", metadata: { from: "active", to: "suspended" }, createdAt: "2026-07-20T08:00:00.000Z" },
+      { id: 2, coordinatorId: active.id, action: "coordinator.status_changed", metadata: { from: "suspended", to: "active" }, createdAt: "2026-07-20T09:00:00.000Z" }
+    ]
+  }, active.id);
+  assert.equal(reactivated.currentStage, "reactivated");
+  assert.equal(reactivated.previousStage, "suspended");
+  assert.equal(reactivated.dates.reactivated, "2026-07-20T09:00:00.000Z");
+  assert.equal(reactivated.milestones.find((item) => item.stage === "transferred").completed, false);
+  assert.equal(getCoordinatorLifecycle(baseSnapshot, "missing"), null);
+});
+
+test("command center lifecycle counts current states and only real archived audit events", () => {
+  const snapshot = {
+    workspaceId: "workspace-1",
+    canManage: true,
+    coordinators: [
+      coordinator("active", { status: "active" }),
+      coordinator("pending", { status: "invited", mobileVerifiedAt: undefined }),
+      coordinator("suspended", { status: "suspended" })
+    ],
+    geographies: [],
+    campaignLinks: [],
+    referrals: [],
+    activity: [
+      { id: 1, coordinatorId: "archived-1", action: "coordinator.deleted", metadata: {}, createdAt: "2026-07-20T08:00:00.000Z" },
+      { id: 2, coordinatorId: "archived-1", action: "coordinator.deleted", metadata: {}, createdAt: "2026-07-20T09:00:00.000Z" },
+      { id: 3, coordinatorId: "active", action: "coordinator.updated", metadata: {}, createdAt: "2026-07-20T10:00:00.000Z" }
+    ]
+  };
+  assert.deepEqual(getCoordinatorCommandCenter(snapshot).lifecycle, {
+    active: 1,
+    suspended: 1,
+    verified: 2,
+    pending: 1,
+    archived: 1
+  });
+});
+
 test("migration creates the complete network model, indexes, read RLS, and RPC-only writes", () => {
   for (const table of [
     "voiceup_coordinator_geographies",
@@ -360,7 +426,7 @@ test("Phase 3 renders an operational profile with existing actions and memoized 
     /coordinator-profile-timeline/,
     /coordinator-profile-scorecard/,
     /openEditForm\(selectedProfile\.coordinator\)/,
-    /updateStatus\(selectedProfile\.coordinator/,
+    /openLifecycleWizard\(action, selectedProfile\.coordinator\)/,
     /showProfilePhoto\(selectedProfile\.manager!\)/,
     /scrollProfileSection\("hierarchy"\)/,
     /scrollProfileSection\("activity"\)/
@@ -387,6 +453,53 @@ test("Coordinator profile translations have exact English, Hindi, and Odia key p
   for (const locale of [englishLocale, hindiLocale, odiaLocale]) {
     for (const path of englishPaths) {
       const value = path.split(".").reduce((current, key) => current[key], locale.coordinatorProfile);
+      assert.equal(typeof value, "string");
+      assert.ok(value.trim().length > 0, `${path} must be translated`);
+    }
+  }
+});
+
+test("Phase 4 lifecycle uses guided, permissioned server mutations without invalid status jumps", () => {
+  for (const evidence of [
+    /getCoordinatorLifecycle\(snapshot, selectedCoordinatorId\)/,
+    /coordinator-lifecycle-timeline/,
+    /coordinator-lifecycle-card-grid/,
+    /coordinator-lifecycle-actions/,
+    /coordinator-lifecycle-dialog/,
+    /coordinator-lifecycle-progress/,
+    /lifecycleWizard\.action === "transfer"/,
+    /lifecycleWizard\.action === "suspend"/,
+    /lifecycleWizard\.action === "archive"/,
+    /if \(!snapshot\?\.canManage\) return/,
+    /snapshot\.canManage \? \(/,
+    /changeCoordinatorStatus\(\{/,
+    /saveCoordinator\(snapshot\.workspaceId/,
+    /removeCoordinator\(\{/,
+    /expectedVersion: coordinator\.version/,
+    /await refreshNetwork\(\)/
+  ]) assert.match(uiSource, evidence);
+
+  assert.doesNotMatch(uiSource, /onChange=\{\(event\) => void updateStatus|function deleteCoordinator/);
+  assert.doesNotMatch(uiSource, />Lifecycle timeline<|>Status transitions<|>Activation wizard<|>Transfer wizard<|>Suspend coordinator<|>Archive coordinator</);
+
+  for (const evidence of [
+    /\.coordinator-lifecycle-actions button[\s\S]*?min-height: 58px/,
+    /\.coordinator-lifecycle-dialog-actions[\s\S]*?position: sticky/,
+    /\.coordinator-lifecycle-dialog-actions button[\s\S]*?min-height: 44px/,
+    /@media \(max-width: 700px\)[\s\S]*?\.coordinator-lifecycle-dialog/,
+    /@media \(max-width: 390px\)[\s\S]*?\.coordinator-lifecycle-card-grid/,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.coordinator-lifecycle-dialog/
+  ]) assert.match(stylesSource, evidence);
+});
+
+test("Coordinator lifecycle translations have exact English, Hindi, and Odia key parity", () => {
+  const englishPaths = translationPaths(englishLocale.coordinatorLifecycle).sort();
+  assert.deepEqual(translationPaths(hindiLocale.coordinatorLifecycle).sort(), englishPaths);
+  assert.deepEqual(translationPaths(odiaLocale.coordinatorLifecycle).sort(), englishPaths);
+  assert.ok(englishPaths.length >= 95);
+  for (const locale of [englishLocale, hindiLocale, odiaLocale]) {
+    for (const path of englishPaths) {
+      const value = path.split(".").reduce((current, key) => current[key], locale.coordinatorLifecycle);
       assert.equal(typeof value, "string");
       assert.ok(value.trim().length > 0, `${path} must be translated`);
     }

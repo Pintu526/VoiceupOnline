@@ -39,6 +39,7 @@ import {
   coordinatorRoles,
   coordinatorStatuses,
   getCoordinatorCommandCenter,
+  getCoordinatorLifecycle,
   getCoordinatorProfileWorkspace,
   getCoordinatorRoleLevel,
   validateCoordinatorDraft,
@@ -46,6 +47,7 @@ import {
   type CoordinatorActivity,
   type CoordinatorDraft,
   type CoordinatorGeography,
+  type CoordinatorLifecycleAction,
   type CoordinatorNetworkSnapshot,
   type CoordinatorRole,
   type CoordinatorStatus,
@@ -65,6 +67,18 @@ interface CoordinatorNetworkTabProps {
 }
 
 type CoordinatorView = "dashboard" | "directory" | "profile" | "tree" | "activity";
+
+interface LifecycleWizardState {
+  action: CoordinatorLifecycleAction;
+  step: number;
+  reason: string;
+  managerId: string;
+  geographyId: string;
+  campaignIds: string[];
+  processing: boolean;
+  complete: boolean;
+  error: string;
+}
 
 const coordinatorViews: Exclude<CoordinatorView, "profile">[] = ["dashboard", "directory", "tree", "activity"];
 
@@ -241,6 +255,7 @@ export function CoordinatorNetworkTab({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [selectedCoordinatorId, setSelectedCoordinatorId] = useState("");
   const [profilePhotoUrl, setProfilePhotoUrl] = useState("");
+  const [lifecycleWizard, setLifecycleWizard] = useState<LifecycleWizardState | null>(null);
 
   async function refreshNetwork() {
     setLoading(true);
@@ -281,6 +296,10 @@ export function CoordinatorNetworkTab({
   );
   const selectedProfile = useMemo(
     () => snapshot ? getCoordinatorProfileWorkspace(snapshot, selectedCoordinatorId) : null,
+    [selectedCoordinatorId, snapshot]
+  );
+  const selectedLifecycle = useMemo(
+    () => snapshot ? getCoordinatorLifecycle(snapshot, selectedCoordinatorId) : null,
     [selectedCoordinatorId, snapshot]
   );
   const commandCenter = useMemo(
@@ -374,6 +393,103 @@ export function CoordinatorNetworkTab({
     void showProfilePhoto(coordinator);
   }
 
+  function openLifecycleWizard(action: CoordinatorLifecycleAction, coordinator: Coordinator) {
+    if (!snapshot?.canManage) return;
+    if (action === "verify_mobile") {
+      openEditForm(coordinator);
+      return;
+    }
+    setLifecycleWizard({
+      action,
+      step: 0,
+      reason: "",
+      managerId: coordinator.reportsToCoordinatorId ?? "",
+      geographyId: coordinator.geographyId,
+      campaignIds: [...(campaignIdsByCoordinator.get(coordinator.id) ?? [])],
+      processing: false,
+      complete: false,
+      error: ""
+    });
+  }
+
+  function lifecycleWizardSteps(action: CoordinatorLifecycleAction) {
+    const keys: Record<CoordinatorLifecycleAction, string[]> = {
+      verify_mobile: ["verification"],
+      activate: ["validation", "review", "complete"],
+      transfer: ["manager", "geography", "campaign", "confirmation", "complete"],
+      suspend: ["reason", "confirmation", "complete"],
+      reactivate: ["review", "confirmation", "complete"],
+      archive: ["warning", "confirmation", "complete"]
+    };
+    return keys[action];
+  }
+
+  function canAdvanceLifecycleWizard() {
+    if (!lifecycleWizard || !selectedProfile) return false;
+    if ((lifecycleWizard.action === "suspend" || lifecycleWizard.action === "archive")
+      && lifecycleWizard.step === 0
+      && lifecycleWizard.reason.trim().length < 3) return false;
+    if (lifecycleWizard.action === "archive" && selectedProfile.directReports.length > 0) return false;
+    if (lifecycleWizard.action === "activate" && !selectedProfile.coordinator.mobileVerifiedAt) return false;
+    if (lifecycleWizard.action === "transfer" && lifecycleWizard.step === 1 && !lifecycleWizard.geographyId) return false;
+    return true;
+  }
+
+  async function completeLifecycleAction() {
+    if (!lifecycleWizard || !selectedProfile || !snapshot?.canManage) return;
+    const coordinator = selectedProfile.coordinator;
+    setLifecycleWizard((current) => current ? { ...current, processing: true, error: "" } : current);
+    try {
+      if (lifecycleWizard.action === "transfer") {
+        const geography = snapshot.geographies.find((item) => item.id === lifecycleWizard.geographyId);
+        if (!geography) throw new Error(t("coordinatorLifecycle.errors.geographyRequired"));
+        await saveCoordinator(snapshot.workspaceId, {
+          ...draftForCoordinator(coordinator, snapshot),
+          reportsToCoordinatorId: lifecycleWizard.managerId,
+          geography: geographyInputFor(geography.id, snapshot.geographies, coordinator.postalCode),
+          campaignIds: lifecycleWizard.campaignIds
+        });
+      } else if (lifecycleWizard.action === "archive") {
+        await removeCoordinator({
+          workspaceId: snapshot.workspaceId,
+          coordinatorId: coordinator.id,
+          expectedVersion: coordinator.version
+        });
+        await refreshNetwork();
+        setLifecycleWizard(null);
+        setView("directory");
+        setMessage(t("coordinatorLifecycle.success.archive"));
+        return;
+      } else {
+        const status: CoordinatorStatus = lifecycleWizard.action === "suspend" ? "suspended" : "active";
+        await changeCoordinatorStatus({
+          workspaceId: snapshot.workspaceId,
+          coordinatorId: coordinator.id,
+          status,
+          expectedVersion: coordinator.version
+        });
+      }
+      await refreshNetwork();
+      setLifecycleWizard((current) => current ? { ...current, processing: false, complete: true, step: lifecycleWizardSteps(current.action).length - 1 } : current);
+    } catch (lifecycleError) {
+      setLifecycleWizard((current) => current ? {
+        ...current,
+        processing: false,
+        error: lifecycleError instanceof Error ? lifecycleError.message : t("coordinatorLifecycle.errors.actionFailed")
+      } : current);
+    }
+  }
+
+  async function advanceLifecycleWizard() {
+    if (!lifecycleWizard || !canAdvanceLifecycleWizard()) return;
+    const confirmationStep = lifecycleWizardSteps(lifecycleWizard.action).length - 2;
+    if (lifecycleWizard.step >= confirmationStep) {
+      await completeLifecycleAction();
+      return;
+    }
+    setLifecycleWizard({ ...lifecycleWizard, step: lifecycleWizard.step + 1, error: "" });
+  }
+
   function scrollProfileSection(section: "hierarchy" | "activity") {
     const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
     document.getElementById(`coordinator-profile-${section}`)?.scrollIntoView({ behavior, block: "start" });
@@ -462,37 +578,6 @@ export function CoordinatorNetworkTab({
       setError(saveError instanceof Error ? saveError.message : "Coordinator could not be saved.");
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function updateStatus(coordinator: Coordinator, status: CoordinatorStatus) {
-    if (!snapshot) return;
-    setError("");
-    try {
-      await changeCoordinatorStatus({
-        workspaceId: snapshot.workspaceId,
-        coordinatorId: coordinator.id,
-        status,
-        expectedVersion: coordinator.version
-      });
-      await refreshNetwork();
-    } catch (statusError) {
-      setError(statusError instanceof Error ? statusError.message : "Status could not be updated.");
-    }
-  }
-
-  async function deleteCoordinator(coordinator: Coordinator) {
-    if (!snapshot || !window.confirm(`Delete ${coordinator.fullName}? This preserves the audit history.`)) return;
-    setError("");
-    try {
-      await removeCoordinator({
-        workspaceId: snapshot.workspaceId,
-        coordinatorId: coordinator.id,
-        expectedVersion: coordinator.version
-      });
-      await refreshNetwork();
-    } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Coordinator could not be deleted.");
     }
   }
 
@@ -624,10 +709,11 @@ export function CoordinatorNetworkTab({
               </select>
               <small>Required geography: {getCoordinatorRoleLevel(draft.role) ?? "deepest assigned area"}</small>
             </Field>
-            <Field label="Status *">
-              <select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as CoordinatorStatus })}>
-                {coordinatorStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
-              </select>
+            <Field label={t("coordinatorLifecycle.card.currentStatus")}>
+              <div className="coordinator-lifecycle-form-status">
+                <span className="status-pill" data-status={draft.status}>{t(`coordinatorProfile.statuses.${draft.status}`)}</span>
+                <small>{draft.version ? t("coordinatorLifecycle.form.statusManaged") : t("coordinatorLifecycle.form.inviteReadyOnSave")}</small>
+              </div>
             </Field>
             <Field label="Reports to">
               <select value={draft.reportsToCoordinatorId} onChange={(event) => setDraft({ ...draft, reportsToCoordinatorId: event.target.value })}>
@@ -744,6 +830,18 @@ export function CoordinatorNetworkTab({
             <MetricCard icon={<GitBranch />} label="Campaign linked" value={commandCenter.metrics.linkedToCampaign} detail="Assigned coordinators" />
             <MetricCard icon={<Network />} label="Referrals" value={commandCenter.metrics.referralLinks} detail="Accepted coordinator referrals" />
           </div>
+
+          <Panel title={t("coordinatorLifecycle.commandCenter.title")} icon={<BadgeCheck />}>
+            <div className="coordinator-lifecycle-metrics">
+              {(["active", "suspended", "verified", "pending", "archived"] as const).map((metric) => (
+                <div key={metric}>
+                  <strong>{commandCenter.lifecycle[metric]}</strong>
+                  <span>{t(`coordinatorLifecycle.commandCenter.${metric}`)}</span>
+                </div>
+              ))}
+            </div>
+            <p className="coordinator-lifecycle-source-note">{t("coordinatorLifecycle.commandCenter.auditWindow")}</p>
+          </Panel>
 
           <Panel title="Quick actions" icon={<ShieldCheck />}>
             <div className="coordinator-quick-actions" aria-label="Coordinator quick actions">
@@ -933,10 +1031,7 @@ export function CoordinatorNetworkTab({
                     {snapshot.canManage && (
                       <div className="button-row coordinator-card-actions">
                         <button className="secondary-button" type="button" onClick={() => openEditForm(coordinator)}>Edit</button>
-                        <select aria-label={`Change status for ${coordinator.fullName}`} value={coordinator.status} onChange={(event) => void updateStatus(coordinator, event.target.value as CoordinatorStatus)}>
-                          {coordinatorStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                        </select>
-                        <button className="danger-button icon-button" type="button" aria-label={`Delete ${coordinator.fullName}`} onClick={() => void deleteCoordinator(coordinator)}><Trash2 size={17} /></button>
+                        <button className="secondary-button" type="button" onClick={() => void showProfilePhoto(coordinator)}>{t("coordinatorLifecycle.actions.manage")}</button>
                       </div>
                     )}
                   </article>
@@ -1005,19 +1100,62 @@ export function CoordinatorNetworkTab({
               </div>
               <div className="button-row coordinator-profile-quick-actions" aria-label={t("coordinatorProfile.quickActions")}>
                 {snapshot.canManage && <button className="primary-button" type="button" onClick={() => openEditForm(selectedProfile.coordinator)}>{t("coordinatorProfile.actions.edit")}</button>}
-                {snapshot.canManage && (
-                  <label className="coordinator-profile-status-action">
-                    <span>{t("coordinatorProfile.actions.status")}</span>
-                    <select value={selectedProfile.coordinator.status} onChange={(event) => void updateStatus(selectedProfile.coordinator, event.target.value as CoordinatorStatus)}>
-                      {coordinatorStatuses.map((status) => <option key={status} value={status}>{t(`coordinatorProfile.statuses.${status}`)}</option>)}
-                    </select>
-                  </label>
-                )}
                 <button className="secondary-button" type="button" onClick={() => scrollProfileSection("hierarchy")}><GitBranch size={18} /> {t("coordinatorProfile.actions.viewHierarchy")}</button>
                 <button className="secondary-button" type="button" onClick={() => scrollProfileSection("activity")}><Activity size={18} /> {t("coordinatorProfile.actions.viewActivity")}</button>
               </div>
             </div>
           </section>
+
+          {selectedLifecycle && (
+            <>
+              <div className="coordinator-profile-section-grid coordinator-lifecycle-overview">
+                <Panel title={t("coordinatorLifecycle.timeline.title")} icon={<GitBranch />}>
+                  <div className="coordinator-lifecycle-context">
+                    <div><span>{t("coordinatorLifecycle.timeline.previous")}</span><strong>{selectedLifecycle.previousStage ? t(`coordinatorLifecycle.stages.${selectedLifecycle.previousStage}`) : t("coordinatorLifecycle.notRecorded")}</strong></div>
+                    <div><span>{t("coordinatorLifecycle.timeline.current")}</span><strong>{t(`coordinatorLifecycle.stages.${selectedLifecycle.currentStage}`)}</strong></div>
+                    <div><span>{t("coordinatorLifecycle.timeline.next")}</span><strong>{selectedLifecycle.actions.length ? selectedLifecycle.actions.map((action) => t(`coordinatorLifecycle.actions.${action}`)).join(" · ") : t("coordinatorLifecycle.timeline.none")}</strong></div>
+                  </div>
+                  <ol className="coordinator-lifecycle-timeline" aria-label={t("coordinatorLifecycle.timeline.ariaLabel")}>
+                    {selectedLifecycle.milestones.map((milestone) => (
+                      <li className={milestone.current ? "current" : milestone.completed ? "completed" : ""} key={milestone.stage}>
+                        <span aria-hidden="true">{milestone.completed ? "✓" : ""}</span>
+                        <strong>{t(`coordinatorLifecycle.stages.${milestone.stage}`)}</strong>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="coordinator-lifecycle-source-note">{t("coordinatorLifecycle.timeline.sourceNote")}</p>
+                </Panel>
+
+                <Panel title={t("coordinatorLifecycle.card.title")} icon={<BadgeCheck />}>
+                  <div className="coordinator-lifecycle-card-grid">
+                    <div><span>{t("coordinatorLifecycle.card.currentStatus")}</span><strong>{t(`coordinatorLifecycle.stages.${selectedLifecycle.currentStage}`)}</strong></div>
+                    <div><span>{t("coordinatorLifecycle.card.created")}</span><strong>{formatProfileDate(selectedLifecycle.dates.created, language)}</strong></div>
+                    <div><span>{t("coordinatorLifecycle.card.verified")}</span><strong>{selectedLifecycle.dates.verified ? formatProfileDate(selectedLifecycle.dates.verified, language) : t("coordinatorLifecycle.notRecorded")}</strong></div>
+                    <div><span>{t("coordinatorLifecycle.card.activated")}</span><strong>{selectedLifecycle.dates.activated ? formatProfileDate(selectedLifecycle.dates.activated, language) : t("coordinatorLifecycle.notRecorded")}</strong></div>
+                    <div><span>{t("coordinatorLifecycle.card.lastUpdated")}</span><strong>{formatProfileDate(selectedLifecycle.dates.updated, language)}</strong></div>
+                    <div><span>{t("coordinatorLifecycle.card.manager")}</span><strong>{selectedProfile.manager?.fullName ?? t("coordinatorLifecycle.notRecorded")}</strong></div>
+                    <div className="coordinator-lifecycle-card-wide"><span>{t("coordinatorLifecycle.card.geography")}</span><strong>{selectedProfile.geography?.path.join(" › ") ?? t("coordinatorLifecycle.notRecorded")}</strong></div>
+                  </div>
+                </Panel>
+              </div>
+
+              <Panel title={t("coordinatorLifecycle.transitions.title")} icon={<ShieldCheck />}>
+                <p className="coordinator-lifecycle-source-note">{t("coordinatorLifecycle.transitions.help")}</p>
+                {snapshot.canManage ? (
+                  <div className="coordinator-lifecycle-actions">
+                    {selectedLifecycle.actions.map((action) => (
+                      <button className={action === "archive" ? "danger-button" : action === "activate" || action === "reactivate" ? "primary-button" : "secondary-button"} type="button" key={action} onClick={() => openLifecycleWizard(action, selectedProfile.coordinator)}>
+                        {action === "archive" ? <Trash2 size={18} /> : action === "transfer" ? <GitBranch size={18} /> : <BadgeCheck size={18} />}
+                        <span><strong>{t(`coordinatorLifecycle.actions.${action}`)}</strong><small>{t(`coordinatorLifecycle.actionHelp.${action}`)}</small></span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="coordinator-lifecycle-readonly"><ShieldCheck size={18} /> {t("coordinatorLifecycle.transitions.readOnly")}</p>
+                )}
+              </Panel>
+            </>
+          )}
 
           <div className="coordinator-profile-section-grid">
             <Panel title={t("coordinatorProfile.sections.summary")} icon={<CircleUserRound />}>
@@ -1104,6 +1242,120 @@ export function CoordinatorNetworkTab({
               </div>
             </Panel>
           </div>
+
+          {lifecycleWizard && selectedLifecycle && (
+            <div className="coordinator-lifecycle-dialog-backdrop" role="presentation">
+              <section className="coordinator-lifecycle-dialog" role="dialog" aria-modal="true" aria-labelledby="coordinator-lifecycle-dialog-title">
+                <header>
+                  <div>
+                    <span className="eyebrow">{t("coordinatorLifecycle.wizard.eyebrow")}</span>
+                    <h2 id="coordinator-lifecycle-dialog-title">{t(`coordinatorLifecycle.wizard.titles.${lifecycleWizard.action}`)}</h2>
+                  </div>
+                  <button className="secondary-button icon-button" type="button" aria-label={t("coordinatorLifecycle.wizard.close")} disabled={lifecycleWizard.processing} onClick={() => setLifecycleWizard(null)}>×</button>
+                </header>
+
+                <ol className="coordinator-lifecycle-progress" aria-label={t("coordinatorLifecycle.wizard.progress")}>
+                  {lifecycleWizardSteps(lifecycleWizard.action).map((step, index) => (
+                    <li className={index === lifecycleWizard.step ? "current" : index < lifecycleWizard.step ? "complete" : ""} key={step}>
+                      <span>{index < lifecycleWizard.step ? "✓" : index + 1}</span>
+                      <strong>{t(`coordinatorLifecycle.wizard.steps.${step}`)}</strong>
+                    </li>
+                  ))}
+                </ol>
+
+                <div className="coordinator-lifecycle-dialog-body">
+                  {lifecycleWizard.complete ? (
+                    <div className="coordinator-lifecycle-success" role="status">
+                      <BadgeCheck size={38} />
+                      <h3>{t(`coordinatorLifecycle.success.${lifecycleWizard.action}`)}</h3>
+                      <p>{t("coordinatorLifecycle.success.auditRecorded")}</p>
+                    </div>
+                  ) : lifecycleWizard.action === "activate" && lifecycleWizard.step === 0 ? (
+                    <div className="coordinator-lifecycle-checklist">
+                      <div data-ready={Boolean(selectedProfile.coordinator.mobileVerifiedAt)}><BadgeCheck size={19} /><span><strong>{t("coordinatorLifecycle.validation.mobile")}</strong><small>{selectedProfile.coordinator.mobileVerifiedAt ? t("coordinatorLifecycle.validation.ready") : t("coordinatorLifecycle.validation.missing")}</small></span></div>
+                      <div data-ready={Boolean(selectedProfile.geography)}><MapPin size={19} /><span><strong>{t("coordinatorLifecycle.validation.geography")}</strong><small>{selectedProfile.geography?.path.join(" › ") ?? t("coordinatorLifecycle.validation.missing")}</small></span></div>
+                      <div data-ready><GitBranch size={19} /><span><strong>{t("coordinatorLifecycle.validation.manager")}</strong><small>{selectedProfile.manager?.fullName ?? t("coordinatorLifecycle.validation.noManager")}</small></span></div>
+                    </div>
+                  ) : lifecycleWizard.action === "transfer" && lifecycleWizard.step === 0 ? (
+                    <Field label={t("coordinatorLifecycle.transfer.manager")}>
+                      <select value={lifecycleWizard.managerId} onChange={(event) => setLifecycleWizard({ ...lifecycleWizard, managerId: event.target.value })}>
+                        <option value="">{t("coordinatorLifecycle.transfer.noManager")}</option>
+                        {snapshot.coordinators
+                          .filter((item) => item.id !== selectedProfile.coordinator.id && roleRank[item.role] > roleRank[selectedProfile.coordinator.role])
+                          .map((item) => <option key={item.id} value={item.id}>{item.fullName} · {t(`coordinatorProfile.roles.${item.role}`)}</option>)}
+                      </select>
+                    </Field>
+                  ) : lifecycleWizard.action === "transfer" && lifecycleWizard.step === 1 ? (
+                    <Field label={t("coordinatorLifecycle.transfer.geography")}>
+                      <select value={lifecycleWizard.geographyId} onChange={(event) => setLifecycleWizard({ ...lifecycleWizard, geographyId: event.target.value })}>
+                        {snapshot.geographies
+                          .filter((geography) => geography.level === getCoordinatorRoleLevel(selectedProfile.coordinator.role))
+                          .map((geography) => <option key={geography.id} value={geography.id}>{geography.path.join(" › ")}</option>)}
+                      </select>
+                    </Field>
+                  ) : lifecycleWizard.action === "transfer" && lifecycleWizard.step === 2 ? (
+                    <fieldset className="coordinator-lifecycle-campaign-options">
+                      <legend>{t("coordinatorLifecycle.transfer.campaigns")}</legend>
+                      {campaigns.length ? campaigns.map((campaign) => (
+                        <label key={campaign.id}>
+                          <input type="checkbox" checked={lifecycleWizard.campaignIds.includes(campaign.id)} onChange={(event) => setLifecycleWizard({
+                            ...lifecycleWizard,
+                            campaignIds: event.target.checked
+                              ? [...lifecycleWizard.campaignIds, campaign.id]
+                              : lifecycleWizard.campaignIds.filter((id) => id !== campaign.id)
+                          })} />
+                          <span><strong>{campaign.title}</strong><small>{t(`coordinatorProfile.campaignStatuses.${campaign.status.toLowerCase()}`)}</small></span>
+                        </label>
+                      )) : <p>{t("coordinatorLifecycle.transfer.noCampaigns")}</p>}
+                    </fieldset>
+                  ) : (lifecycleWizard.action === "suspend" || lifecycleWizard.action === "archive") && lifecycleWizard.step === 0 ? (
+                    <Field label={t(`coordinatorLifecycle.${lifecycleWizard.action}.reason`)}>
+                      <textarea autoFocus rows={4} maxLength={500} value={lifecycleWizard.reason} onChange={(event) => setLifecycleWizard({ ...lifecycleWizard, reason: event.target.value })} />
+                      <small>{t("coordinatorLifecycle.wizard.reasonAuditNote")}</small>
+                      {lifecycleWizard.action === "archive" && selectedProfile.directReports.length > 0 && <span className="field-error">{t("coordinatorLifecycle.archive.directReportsBlock")}</span>}
+                    </Field>
+                  ) : lifecycleWizard.step === lifecycleWizardSteps(lifecycleWizard.action).length - 2 ? (
+                    <div className="coordinator-lifecycle-confirmation">
+                      <AlertCircle size={30} />
+                      <h3>{t(`coordinatorLifecycle.confirmation.${lifecycleWizard.action}`)}</h3>
+                      <dl>
+                        <div><dt>{t("coordinatorLifecycle.confirmation.coordinator")}</dt><dd>{selectedProfile.coordinator.fullName}</dd></div>
+                        <div><dt>{t("coordinatorLifecycle.card.currentStatus")}</dt><dd>{t(`coordinatorLifecycle.stages.${selectedLifecycle.currentStage}`)}</dd></div>
+                        {lifecycleWizard.action === "transfer" && <div><dt>{t("coordinatorLifecycle.transfer.geography")}</dt><dd>{snapshot.geographies.find((item) => item.id === lifecycleWizard.geographyId)?.path.join(" › ") ?? t("coordinatorLifecycle.notRecorded")}</dd></div>}
+                      </dl>
+                    </div>
+                  ) : (
+                    <div className="coordinator-lifecycle-review">
+                      <BadgeCheck size={30} />
+                      <h3>{t(`coordinatorLifecycle.review.${lifecycleWizard.action}`)}</h3>
+                      <p>{t("coordinatorLifecycle.review.serverValidation")}</p>
+                    </div>
+                  )}
+                  {lifecycleWizard.error && <p className="error-message" role="alert">{lifecycleWizard.error}</p>}
+                </div>
+
+                <footer className="coordinator-lifecycle-dialog-actions">
+                  {lifecycleWizard.complete ? (
+                    <>
+                      {lifecycleWizard.action === "suspend" && (
+                        <button className="secondary-button" type="button" onClick={() => openLifecycleWizard("reactivate", selectedProfile.coordinator)}>{t("coordinatorLifecycle.wizard.undo")}</button>
+                      )}
+                      <button className="primary-button" type="button" onClick={() => setLifecycleWizard(null)}>{t("coordinatorLifecycle.wizard.done")}</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="secondary-button" type="button" disabled={lifecycleWizard.processing} onClick={() => lifecycleWizard.step > 0 ? setLifecycleWizard({ ...lifecycleWizard, step: lifecycleWizard.step - 1, error: "" }) : setLifecycleWizard(null)}>
+                        {lifecycleWizard.step > 0 ? t("coordinatorLifecycle.wizard.back") : t("coordinatorLifecycle.wizard.cancel")}
+                      </button>
+                      <button className={lifecycleWizard.action === "archive" ? "danger-button" : "primary-button"} type="button" disabled={lifecycleWizard.processing || !canAdvanceLifecycleWizard()} onClick={() => void advanceLifecycleWizard()}>
+                        {lifecycleWizard.processing ? t("coordinatorLifecycle.wizard.processing") : lifecycleWizard.step === lifecycleWizardSteps(lifecycleWizard.action).length - 2 ? t("coordinatorLifecycle.wizard.confirm") : t("coordinatorLifecycle.wizard.continue")}
+                      </button>
+                    </>
+                  )}
+                </footer>
+              </section>
+            </div>
+          )}
         </div>
       )}
 

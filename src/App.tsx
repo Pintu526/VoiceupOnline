@@ -67,7 +67,9 @@ import { buildPrivateScanStoragePath, validateScanImageFile } from "./mobileScan
 import {
   analyzeBusinessOsDocument,
   createDocumentDiagnosticId,
-  logDocumentIntelligenceStage
+  DOCUMENT_CAMERA_RECOMMENDATION_MESSAGE,
+  logDocumentIntelligenceStage,
+  logFieldCollectionTrace
 } from "./documentIntelligence";
 import {
   buildApprovalKey,
@@ -1863,13 +1865,25 @@ function App() {
           extractedText,
           parsedSigner
         };
+        logFieldCollectionTrace("REVIEW_OBJECT_BEFORE_SAVE", {
+          diagnosticId: ocrDiagnosticId,
+          ocrTextLength: documentResult.rawText.length,
+          extractedName: parsedSigner.name,
+          extractedMobile: parsedSigner.phone,
+          reviewItemId: item.id,
+          reviewItem: item
+        });
         logDocumentIntelligenceStage(ocrDiagnosticId, "10. Final object passed to Human Verify", {
           reviewItem: item,
           documentIntelligence: documentResult
         });
         setScanItems((current) => [item, ...current]);
         setScanText(extractedText);
-        setScanMessage("Private upload and OCR completed. Review this signer before approval.");
+        setScanMessage(
+          documentResult.cameraRecommended
+            ? DOCUMENT_CAMERA_RECOMMENDATION_MESSAGE
+            : "Private upload and OCR completed. Review this signer before approval."
+        );
       } catch (ocrError) {
         const failureMessage = ocrError instanceof Error ? ocrError.message : "Unknown OCR execution error";
         logDocumentIntelligenceStage(ocrDiagnosticId, "6. Raw OCR text (first 500 characters)", {

@@ -1,4 +1,8 @@
-import { fieldDiagnosticSummary, logDocumentIntelligenceStage } from "./diagnostics.ts";
+import {
+  fieldDiagnosticSummary,
+  logDocumentIntelligenceStage,
+  logFieldCollectionTrace
+} from "./diagnostics.ts";
 import { extractStructuredDocumentFields } from "./extraction.ts";
 import { normalizeDocumentText } from "./normalization.ts";
 import type {
@@ -44,10 +48,22 @@ export async function analyzeDocument(
   }
 
   const normalized = normalizeDocumentText(providerResult.rawText, options.languagePacks);
+  logFieldCollectionTrace("OCR_RAW_TEXT", {
+    diagnosticId: options.diagnosticId,
+    ocrTextLength: providerResult.rawText.length,
+    rawText: providerResult.rawText
+  });
   const extraction = extractStructuredDocumentFields(normalized.normalizedText, {
     languagePacks: options.languagePacks,
     referenceData: options.referenceData,
     providerConfidence: providerResult.confidence
+  });
+  logFieldCollectionTrace("STRUCTURED_EXTRACTION_RESULT", {
+    diagnosticId: options.diagnosticId,
+    ocrTextLength: providerResult.rawText.length,
+    extractedName: extraction.fields.name,
+    extractedMobile: extraction.fields.mobile,
+    extractionResult: extraction
   });
   const completedAt = new Date();
   const output: DocumentIntelligenceOutput = {

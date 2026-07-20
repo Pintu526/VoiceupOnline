@@ -36,7 +36,13 @@ import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { useTranslation } from "../../i18n/useTranslation";
 import { getPublicCampaignUrlForOrigin } from "../../utils/links";
-import { createDocumentDiagnosticId, logDocumentIntelligenceStage } from "../../documentIntelligence";
+import {
+  createDocumentDiagnosticId,
+  DOCUMENT_CAMERA_RECOMMENDATION_MESSAGE,
+  logDocumentIntelligenceStage,
+  logFieldCollectionTrace
+} from "../../documentIntelligence";
+import { DocumentCamera } from "../../documentCamera";
 
 interface ScansTabProps {
   activeCampaign: Campaign | undefined;
@@ -131,11 +137,20 @@ export function ScansTab({
   const [fieldCollectionStep, setFieldCollectionStep] = useState<1 | 2 | 3 | 4>(1);
   const [wizardApprovalSuccess, setWizardApprovalSuccess] = useState(false);
   const [ocrDiagnosticId, setOcrDiagnosticId] = useState("");
+  const [documentCameraOpen, setDocumentCameraOpen] = useState(false);
+  const [cameraAutoUploadPending, setCameraAutoUploadPending] = useState(false);
+  const lastUploadedDiagnosticIdRef = useRef("");
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => {
     if (capturePreviewUrl) URL.revokeObjectURL(capturePreviewUrl);
   }, [capturePreviewUrl]);
+
+  useEffect(() => {
+    if (!cameraAutoUploadPending || !selectedCaptureFile) return;
+    setCameraAutoUploadPending(false);
+    void uploadSelectedCapture();
+  }, [cameraAutoUploadPending, selectedCaptureFile]);
   if (!activeCampaign) {
     return (
       <NoCampaignPanel
@@ -183,6 +198,7 @@ export function ScansTab({
         getFieldConfidence(field, currentReviewItem.parsedSigner[field]).level !== "high"
       )?.[0]
     : undefined;
+  const cameraRecommended = scanMessage === DOCUMENT_CAMERA_RECOMMENDATION_MESSAGE;
 
   function updateManualReviewField(label: string, value: string) {
     setScanText((current) => {
@@ -222,6 +238,12 @@ export function ScansTab({
     setFieldCollectionStep(1);
   }
 
+  function acceptDocumentCameraCapture(file: File) {
+    selectCaptureFile(file);
+    setDocumentCameraOpen(false);
+    setCameraAutoUploadPending(true);
+  }
+
   function clearCapture() {
     setSelectedCaptureFile(null);
     setCapturePreviewUrl("");
@@ -240,6 +262,7 @@ export function ScansTab({
     setCaptureError("");
     setCaptureProgress(25);
     const activeDiagnosticId = ocrDiagnosticId || createDocumentDiagnosticId(selectedCaptureFile.name);
+    lastUploadedDiagnosticIdRef.current = activeDiagnosticId;
     let preprocessingCompleted = false;
     try {
       const preparedFile = await compressScanImage(selectedCaptureFile, captureRotation);
@@ -402,6 +425,23 @@ export function ScansTab({
     }
   }
 
+  if (fieldCollectionStep === 3 && currentReviewItem) {
+    logFieldCollectionTrace("HUMAN_VERIFY_BEFORE_RENDER", {
+      diagnosticId: lastUploadedDiagnosticIdRef.current,
+      ocrTextLength: currentReviewItem.extractedText.length,
+      extractedName: currentReviewItem.parsedSigner.name,
+      extractedMobile: currentReviewItem.parsedSigner.phone,
+      reviewItemId: currentReviewItem.id,
+      humanVerifyValues: {
+        name: currentReviewItem.parsedSigner.name,
+        mobile: currentReviewItem.parsedSigner.phone,
+        village: currentReviewItem.parsedSigner.address,
+        district: currentReviewItem.parsedSigner.district,
+        state: currentReviewItem.parsedSigner.state
+      }
+    });
+  }
+
   return (
     <section className="page-stack">
       <Panel title={t("scans.workflow.title")} icon={<FileScan />}>
@@ -439,6 +479,9 @@ export function ScansTab({
                 </div>
               </div>
               <div className="mobile-capture-actions">
+                <button className="primary-button" type="button" onClick={() => setDocumentCameraOpen(true)}>
+                  <Camera size={20} /> Open Document Camera
+                </button>
                 <label className="primary-button mobile-file-button">
                   <Camera size={20} /> {t("scans.capture.takePhoto")}
                   <input
@@ -511,6 +554,15 @@ export function ScansTab({
                 <p className="helper-text">{t("scans.review.empty")}</p>
               ) : (
                 <>
+                  {cameraRecommended && (
+                    <div className="document-camera-recommendation" role="alert">
+                      <strong>Document quality is too low for reliable automatic extraction.</strong>
+                      <span>Recommended: Retake using VoiceUp Document Camera.</span>
+                      <button className="primary-button" type="button" onClick={() => setDocumentCameraOpen(true)}>
+                        <Camera size={20} /> Open Camera
+                      </button>
+                    </div>
+                  )}
                   <div className="field-collection-ai-fields">
                     {guidedReviewFields.map(([field, label]) => {
                       const confidence = getFieldConfidence(field, currentReviewItem.parsedSigner[field]);
@@ -626,6 +678,13 @@ export function ScansTab({
           )}
         </div>
       </Panel>
+
+      {documentCameraOpen && (
+        <DocumentCamera
+          onCapture={acceptDocumentCameraCapture}
+          onClose={() => setDocumentCameraOpen(false)}
+        />
+      )}
 
       <details className="field-collection-advanced">
         <summary>{t("scans.workflow.advanced")}</summary>

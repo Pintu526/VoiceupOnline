@@ -1,6 +1,7 @@
 import type { DocumentFieldName, DocumentIntelligenceOutput } from "./types.ts";
 
 export const DOCUMENT_INTELLIGENCE_DIAGNOSTIC_PREFIX = "[BUSINESS OS DOCUMENT INTELLIGENCE]";
+export const FIELD_COLLECTION_TRACE_PREFIX = "[FIELD COLLECTION TRACE]";
 
 export function createDocumentDiagnosticId(fileName: string, now = Date.now()): string {
   const safeName = fileName.trim().replace(/[^a-zA-Z0-9._-]/g, "-") || "image";
@@ -20,6 +21,18 @@ export function logDocumentIntelligenceStage(
   });
 }
 
+export function logFieldCollectionTrace(
+  stage: string,
+  details: Record<string, unknown>
+): void {
+  if (!import.meta.env?.DEV) return;
+  console.debug(FIELD_COLLECTION_TRACE_PREFIX, {
+    stage,
+    timestamp: new Date().toISOString(),
+    ...details
+  });
+}
+
 export function fieldDiagnosticSummary(output: DocumentIntelligenceOutput): Record<
   DocumentFieldName,
   { value: string; confidence: number; source: string; reason: string }
@@ -31,4 +44,3 @@ export function fieldDiagnosticSummary(output: DocumentIntelligenceOutput): Reco
     reason: output.fieldSource[field].reason
   }])) as Record<DocumentFieldName, { value: string; confidence: number; source: string; reason: string }>;
 }
-

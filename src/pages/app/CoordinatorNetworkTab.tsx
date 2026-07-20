@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } 
 import {
   Activity,
   AlertCircle,
+  ArrowLeft,
   BadgeCheck,
   Camera,
   ChevronRight,
@@ -14,6 +15,7 @@ import {
   RefreshCw,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   Trash2,
   UserCheck,
   UsersRound
@@ -36,10 +38,12 @@ import {
   coordinatorMatchesSearch,
   coordinatorRoles,
   coordinatorStatuses,
-  getCoordinatorDashboardMetrics,
+  getCoordinatorCommandCenter,
+  getCoordinatorProfileWorkspace,
   getCoordinatorRoleLevel,
   validateCoordinatorDraft,
   type Coordinator,
+  type CoordinatorActivity,
   type CoordinatorDraft,
   type CoordinatorGeography,
   type CoordinatorNetworkSnapshot,
@@ -47,6 +51,7 @@ import {
   type CoordinatorStatus,
   type CoordinatorTreeNode
 } from "../../coordinators";
+import { useTranslation } from "../../i18n";
 import { IndiaLocationFields } from "../../components/IndiaLocationFields";
 import { normalizeIndianPhone } from "../../shared/deduplication/supporterIdentity";
 import { Field } from "../../ui/Field";
@@ -59,9 +64,9 @@ interface CoordinatorNetworkTabProps {
   locationDeletions: LocationDeletions;
 }
 
-type CoordinatorView = "dashboard" | "directory" | "tree" | "activity";
+type CoordinatorView = "dashboard" | "directory" | "profile" | "tree" | "activity";
 
-const coordinatorViews: CoordinatorView[] = ["dashboard", "directory", "tree", "activity"];
+const coordinatorViews: Exclude<CoordinatorView, "profile">[] = ["dashboard", "directory", "tree", "activity"];
 
 const roleLabels: Record<CoordinatorRole, string> = {
   national_coordinator: "National Coordinator",
@@ -160,20 +165,47 @@ function formatActivity(action: string) {
   return action.replace("coordinator.", "").replace(/_/g, " ").replace(/^./, (value: string) => value.toUpperCase());
 }
 
-function CoordinatorTreeBranch({ node, depth = 0 }: { node: CoordinatorTreeNode; depth?: number }) {
+function formatGeographyLevel(level: string) {
+  return level.replace(/_/g, " ").replace(/^./, (value: string) => value.toUpperCase());
+}
+
+function formatCoordinatorDate(value: string) {
+  return new Date(value).toLocaleString();
+}
+
+function formatProfileDate(value: string, language: "en" | "hi" | "or") {
+  const locale = language === "hi" ? "hi-IN" : language === "or" ? "or-IN" : "en-IN";
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+}
+
+function formatStatusChange(activity: CoordinatorActivity) {
+  const from = typeof activity.metadata.from === "string" ? activity.metadata.from : "Previous status";
+  const to = typeof activity.metadata.to === "string" ? activity.metadata.to : "Updated";
+  return `${from} → ${to}`;
+}
+
+function CoordinatorTreeBranch({
+  node,
+  onOpenProfile,
+  depth = 0
+}: {
+  node: CoordinatorTreeNode;
+  onOpenProfile: (coordinator: Coordinator) => void;
+  depth?: number;
+}) {
   return (
     <li className="coordinator-tree-node" role="treeitem" aria-expanded={node.children.length > 0 ? true : undefined}>
-      <div className="coordinator-tree-card" style={{ "--coordinator-tree-depth": depth } as CSSProperties}>
+      <button className="coordinator-tree-card" type="button" onClick={() => onOpenProfile(node.coordinator)} style={{ "--coordinator-tree-depth": depth } as CSSProperties}>
         <CircleUserRound size={20} />
         <span>
           <strong>{node.coordinator.fullName}</strong>
           <small>{formatRole(node.coordinator.role)} · {node.coordinator.status}</small>
         </span>
-      </div>
+      </button>
       {node.children.length > 0 && (
         <ul role="group">
           {node.children.map((child) => (
-            <CoordinatorTreeBranch key={child.coordinator.id} node={child} depth={depth + 1} />
+            <CoordinatorTreeBranch key={child.coordinator.id} node={child} onOpenProfile={onOpenProfile} depth={depth + 1} />
           ))}
         </ul>
       )}
@@ -186,6 +218,7 @@ export function CoordinatorNetworkTab({
   locationOverrides,
   locationDeletions
 }: CoordinatorNetworkTabProps) {
+  const { language, t } = useTranslation();
   const [snapshot, setSnapshot] = useState<CoordinatorNetworkSnapshot | null>(null);
   const [view, setView] = useState<CoordinatorView>("dashboard");
   const [loading, setLoading] = useState(true);
@@ -231,10 +264,29 @@ export function CoordinatorNetworkTab({
     void refreshNetwork();
   }, []);
 
-  const selectedCoordinator = snapshot?.coordinators.find((item) => item.id === selectedCoordinatorId);
-  const metrics = snapshot
-    ? getCoordinatorDashboardMetrics(snapshot.coordinators, snapshot.campaignLinks, snapshot.referrals)
-    : null;
+  const coordinatorById = useMemo(
+    () => new Map((snapshot?.coordinators ?? []).map((coordinator) => [coordinator.id, coordinator])),
+    [snapshot?.coordinators]
+  );
+  const campaignIdsByCoordinator = useMemo(() => {
+    const links = new Map<string, string[]>();
+    for (const link of snapshot?.campaignLinks ?? []) {
+      links.set(link.coordinatorId, [...(links.get(link.coordinatorId) ?? []), link.campaignId]);
+    }
+    return links;
+  }, [snapshot?.campaignLinks]);
+  const campaignById = useMemo(
+    () => new Map(campaigns.map((campaign) => [campaign.id, campaign])),
+    [campaigns]
+  );
+  const selectedProfile = useMemo(
+    () => snapshot ? getCoordinatorProfileWorkspace(snapshot, selectedCoordinatorId) : null,
+    [selectedCoordinatorId, snapshot]
+  );
+  const commandCenter = useMemo(
+    () => snapshot ? getCoordinatorCommandCenter(snapshot) : null,
+    [snapshot]
+  );
   const reportingTree = useMemo(
     () => buildCoordinatorTree(snapshot?.coordinators ?? []),
     [snapshot?.coordinators]
@@ -243,16 +295,14 @@ export function CoordinatorNetworkTab({
     if (!snapshot) return [];
     return snapshot.coordinators.filter((coordinator) => {
       const geography = coordinatorGeographyLabel(coordinator, snapshot.geographies);
-      const linkedCampaigns = snapshot.campaignLinks
-        .filter((link) => link.coordinatorId === coordinator.id)
-        .map((link) => link.campaignId);
+      const linkedCampaigns = campaignIdsByCoordinator.get(coordinator.id) ?? [];
       return coordinatorMatchesSearch(coordinator, geography, search)
         && (roleFilter === "all" || coordinator.role === roleFilter)
         && (statusFilter === "all" || coordinator.status === statusFilter)
         && (campaignFilter === "all" || linkedCampaigns.includes(campaignFilter))
         && (geographyFilter === "all" || coordinator.geographyId === geographyFilter);
     });
-  }, [campaignFilter, geographyFilter, roleFilter, search, snapshot, statusFilter]);
+  }, [campaignFilter, campaignIdsByCoordinator, geographyFilter, roleFilter, search, snapshot, statusFilter]);
 
   function openCreateForm() {
     setDraft(createCoordinatorDraft());
@@ -268,7 +318,7 @@ export function CoordinatorNetworkTab({
     setMessage("");
   }
 
-  function handleViewKeyDown(event: KeyboardEvent<HTMLButtonElement>, currentView: CoordinatorView) {
+  function handleViewKeyDown(event: KeyboardEvent<HTMLButtonElement>, currentView: Exclude<CoordinatorView, "profile">) {
     const currentIndex = coordinatorViews.indexOf(currentView);
     const nextIndex = event.key === "Home"
       ? 0
@@ -286,6 +336,47 @@ export function CoordinatorNetworkTab({
     event.currentTarget.parentElement
       ?.querySelector<HTMLButtonElement>(`[data-coordinator-view="${nextView}"]`)
       ?.focus();
+  }
+
+  function openDirectoryControl(controlId: string) {
+    setView("directory");
+    requestAnimationFrame(() => document.getElementById(controlId)?.focus());
+  }
+
+  function showStatusDirectory(status: CoordinatorStatus) {
+    setSearch("");
+    setRoleFilter("all");
+    setStatusFilter(status);
+    setCampaignFilter("all");
+    setGeographyFilter("all");
+    setView("directory");
+  }
+
+  function showRoleDirectory(role: CoordinatorRole) {
+    setSearch("");
+    setRoleFilter(role);
+    setStatusFilter("all");
+    setCampaignFilter("all");
+    setGeographyFilter("all");
+    setView("directory");
+  }
+
+  function showGeographyDirectory(geographyId: string) {
+    setSearch("");
+    setRoleFilter("all");
+    setStatusFilter("all");
+    setCampaignFilter("all");
+    setGeographyFilter(geographyId);
+    setView("directory");
+  }
+
+  function showCoordinatorDirectory(coordinator: Coordinator) {
+    void showProfilePhoto(coordinator);
+  }
+
+  function scrollProfileSection(section: "hierarchy" | "activity") {
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    document.getElementById(`coordinator-profile-${section}`)?.scrollIntoView({ behavior, block: "start" });
   }
 
   function openEditForm(coordinator: Coordinator) {
@@ -407,6 +498,7 @@ export function CoordinatorNetworkTab({
 
   async function showProfilePhoto(coordinator: Coordinator) {
     setSelectedCoordinatorId(coordinator.id);
+    setView("profile");
     setProfilePhotoUrl("");
     if (!coordinator.photoPath) return;
     try {
@@ -476,11 +568,11 @@ export function CoordinatorNetworkTab({
           {coordinatorViews.map((item) => (
             <button
               aria-controls={`coordinator-${item}-panel`}
-              aria-selected={view === item}
-              className={view === item ? "active" : ""}
+              aria-selected={view === item || (view === "profile" && item === "directory")}
+              className={view === item || (view === "profile" && item === "directory") ? "active" : ""}
               data-coordinator-view={item}
               role="tab"
-              tabIndex={view === item ? 0 : -1}
+              tabIndex={view === item || (view === "profile" && item === "directory") ? 0 : -1}
               type="button"
               key={item}
               onClick={() => setView(item)}
@@ -634,30 +726,137 @@ export function CoordinatorNetworkTab({
         </Panel>
       )}
 
-      {view === "dashboard" && metrics && (
+      {view === "dashboard" && commandCenter && (
         <div className="coordinator-view-panel coordinator-dashboard" id="coordinator-dashboard-panel" role="tabpanel">
-          <div className="metric-grid coordinator-metric-grid">
-            <MetricCard icon={<UsersRound />} label="Coordinators" value={metrics.total} detail="Persisted profiles" />
-            <MetricCard icon={<BadgeCheck />} label="Active" value={metrics.active} detail="Operational status" />
-            <MetricCard icon={<Phone />} label="Mobile verified" value={metrics.mobileVerified} detail="OTP-verified profiles" />
-            <MetricCard icon={<MapPin />} label="Geographies" value={metrics.geographyCoverage} detail="Assigned coverage areas" />
-            <MetricCard icon={<GitBranch />} label="Campaign linked" value={metrics.linkedToCampaign} detail="Assigned coordinators" />
-            <MetricCard icon={<Network />} label="Referrals" value={metrics.referralLinks} detail="Accepted coordinator referrals" />
+          <div className="coordinator-command-heading">
+            <div>
+              <span className="eyebrow">Operational command center</span>
+              <h2>Coordinator network at a glance</h2>
+              <p>Live workspace totals, coverage, and activity derived from the current Coordinator Network snapshot.</p>
+            </div>
+            <span className="coordinator-live-indicator"><span /> Live workspace data</span>
           </div>
+          <div className="metric-grid coordinator-metric-grid">
+            <MetricCard icon={<UsersRound />} label="Coordinators" value={commandCenter.metrics.total} detail="Persisted profiles" />
+            <MetricCard icon={<BadgeCheck />} label="Active" value={commandCenter.metrics.active} detail="Operational status" />
+            <MetricCard icon={<Phone />} label="Mobile verified" value={commandCenter.metrics.mobileVerified} detail="OTP-verified profiles" />
+            <MetricCard icon={<MapPin />} label="Geographies" value={commandCenter.metrics.geographyCoverage} detail="Directly assigned areas" />
+            <MetricCard icon={<GitBranch />} label="Campaign linked" value={commandCenter.metrics.linkedToCampaign} detail="Assigned coordinators" />
+            <MetricCard icon={<Network />} label="Referrals" value={commandCenter.metrics.referralLinks} detail="Accepted coordinator referrals" />
+          </div>
+
+          <Panel title="Quick actions" icon={<ShieldCheck />}>
+            <div className="coordinator-quick-actions" aria-label="Coordinator quick actions">
+              {snapshot.canManage && (
+                <button className="coordinator-quick-action primary" type="button" onClick={openCreateForm}>
+                  <Plus size={20} /><span><strong>Create coordinator</strong><small>Add a verified network member</small></span>
+                </button>
+              )}
+              <button className="coordinator-quick-action" type="button" onClick={() => openDirectoryControl("coordinator-directory-search")}>
+                <Search size={20} /><span><strong>Search directory</strong><small>Find a coordinator or geography</small></span>
+              </button>
+              <button className="coordinator-quick-action" type="button" onClick={() => openDirectoryControl("coordinator-directory-role-filter")}>
+                <SlidersHorizontal size={20} /><span><strong>Filter network</strong><small>Narrow by role, status, or assignment</small></span>
+              </button>
+              <button className="coordinator-quick-action" type="button" disabled={loading} onClick={() => void refreshNetwork()}>
+                <RefreshCw size={20} /><span><strong>{loading ? "Refreshing…" : "Refresh data"}</strong><small>Reload the workspace snapshot</small></span>
+              </button>
+            </div>
+          </Panel>
+
           <div className="two-column coordinator-dashboard-overview">
-            <Panel title="Status overview" icon={<BadgeCheck />}>
-              <div className="coordinator-summary-list">
-                {coordinatorStatuses.map((status) => (
-                  <div key={status}><span>{status}</span><strong>{snapshot.coordinators.filter((item) => item.status === status).length}</strong></div>
+            <Panel title="Status distribution" icon={<BadgeCheck />}>
+              <div className="coordinator-distribution-list">
+                {commandCenter.statusDistribution.map((item) => (
+                  <button type="button" key={item.status} onClick={() => showStatusDirectory(item.status)}>
+                    <span className="coordinator-distribution-heading"><strong>{formatGeographyLevel(item.status)}</strong><span>{item.count} · {item.percentage}%</span></span>
+                    <span className="coordinator-distribution-track" aria-hidden="true"><span style={{ width: `${item.percentage}%` }} /></span>
+                  </button>
                 ))}
               </div>
             </Panel>
-            <Panel title="Role coverage" icon={<MapPin />}>
-              <div className="coordinator-summary-list">
-                {coordinatorRoles.map((role) => (
-                  <div key={role}><span>{formatRole(role)}</span><strong>{snapshot.coordinators.filter((item) => item.role === role).length}</strong></div>
+            <Panel title="Role distribution" icon={<UsersRound />}>
+              <div className="coordinator-distribution-list">
+                {commandCenter.roleDistribution.map((item) => (
+                  <button type="button" key={item.role} onClick={() => showRoleDirectory(item.role)}>
+                    <span className="coordinator-distribution-heading"><strong>{formatRole(item.role)}</strong><span>{item.count} · {item.percentage}%</span></span>
+                    <span className="coordinator-distribution-track" aria-hidden="true"><span style={{ width: `${item.percentage}%` }} /></span>
+                  </button>
                 ))}
               </div>
+            </Panel>
+          </div>
+
+          <Panel title="Geographic coverage" icon={<MapPin />}>
+            {commandCenter.coverage.known === 0 ? (
+              <div className="empty-state compact-empty"><span className="coordinator-state-icon" aria-hidden="true"><MapPin size={26} /></span><h3>No saved geography hierarchy yet</h3><p>Coverage will appear after coordinators are assigned to saved areas.</p></div>
+            ) : (
+              <div className="coordinator-coverage-layout">
+                <div className="coordinator-coverage-summary">
+                  <strong>{commandCenter.coverage.covered}<span> / {commandCenter.coverage.known}</span></strong>
+                  <p>Known geography nodes covered by at least one coordinator in that branch.</p>
+                </div>
+                <div className="coordinator-coverage-levels">
+                  {commandCenter.coverage.byLevel.map((item) => {
+                    const coveragePercentage = Math.round((item.covered / item.known) * 100);
+                    return (
+                      <div key={item.level}>
+                        <span className="coordinator-distribution-heading"><strong>{formatGeographyLevel(item.level)}</strong><span>{item.covered}/{item.known} covered · {item.coordinators} assigned</span></span>
+                        <span className="coordinator-distribution-track" aria-hidden="true"><span style={{ width: `${coveragePercentage}%` }} /></span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className={`coordinator-coverage-gaps${commandCenter.coverage.gaps.length > 0 ? " has-gaps" : ""}`}>
+                  <strong>{commandCenter.coverage.gaps.length > 0 ? "Coverage gaps in known areas" : "Known hierarchy covered"}</strong>
+                  {commandCenter.coverage.gaps.length > 0 ? (
+                    <div>
+                      {commandCenter.coverage.gaps.slice(0, 8).map((geography) => (
+                        <button type="button" key={geography.id} onClick={() => showGeographyDirectory(geography.id)}>{geography.path.join(" › ")}</button>
+                      ))}
+                      {commandCenter.coverage.gaps.length > 8 && <small>+{commandCenter.coverage.gaps.length - 8} more known areas</small>}
+                    </div>
+                  ) : <p>Every saved geography branch has at least one coordinator assignment.</p>}
+                </div>
+              </div>
+            )}
+          </Panel>
+
+          <div className="coordinator-command-activity-grid">
+            <Panel title="Recent activity" icon={<Activity />}>
+              {commandCenter.recentActivity.length === 0 ? (
+                <p className="coordinator-command-empty">No coordinator activity has been recorded.</p>
+              ) : (
+                <div className="coordinator-command-list">
+                  {commandCenter.recentActivity.map((entry) => {
+                    const coordinator = entry.coordinatorId ? coordinatorById.get(entry.coordinatorId) : undefined;
+                    return <article key={entry.id}><span className="coordinator-state-icon" aria-hidden="true"><Activity size={17} /></span><div><strong>{formatActivity(entry.action)}</strong><span>{coordinator?.fullName ?? "Coordinator Network"}</span><time dateTime={entry.createdAt}>{formatCoordinatorDate(entry.createdAt)}</time></div></article>;
+                  })}
+                </div>
+              )}
+            </Panel>
+            <Panel title="Recently added" icon={<UserCheck />}>
+              {commandCenter.recentlyAdded.length === 0 ? (
+                <p className="coordinator-command-empty">No coordinators have been added yet.</p>
+              ) : (
+                <div className="coordinator-command-list">
+                  {commandCenter.recentlyAdded.map((coordinator) => (
+                    <button type="button" key={coordinator.id} onClick={() => showCoordinatorDirectory(coordinator)}><span className="coordinator-state-icon" aria-hidden="true"><CircleUserRound size={17} /></span><span><strong>{coordinator.fullName}</strong><small>{formatRole(coordinator.role)}</small><time dateTime={coordinator.createdAt}>{formatCoordinatorDate(coordinator.createdAt)}</time></span><ChevronRight size={17} aria-hidden="true" /></button>
+                  ))}
+                </div>
+              )}
+            </Panel>
+            <Panel title="Recent status changes" icon={<BadgeCheck />}>
+              {commandCenter.recentStatusChanges.length === 0 ? (
+                <p className="coordinator-command-empty">No status changes have been recorded.</p>
+              ) : (
+                <div className="coordinator-command-list">
+                  {commandCenter.recentStatusChanges.map((entry) => {
+                    const coordinator = entry.coordinatorId ? coordinatorById.get(entry.coordinatorId) : undefined;
+                    return <article key={entry.id}><span className="coordinator-state-icon" aria-hidden="true"><BadgeCheck size={17} /></span><div><strong>{coordinator?.fullName ?? "Coordinator"}</strong><span>{formatStatusChange(entry)}</span><time dateTime={entry.createdAt}>{formatCoordinatorDate(entry.createdAt)}</time></div></article>;
+                  })}
+                </div>
+              )}
             </Panel>
           </div>
         </div>
@@ -671,12 +870,12 @@ export function CoordinatorNetworkTab({
                 <Field label="Search coordinators">
                   <div className="coordinator-search-control">
                     <Search size={18} aria-hidden="true" />
-                    <input placeholder="Name, mobile, email, referral, geography" value={search} onChange={(event) => setSearch(event.target.value)} />
+                    <input id="coordinator-directory-search" placeholder="Name, mobile, email, referral, geography" value={search} onChange={(event) => setSearch(event.target.value)} />
                   </div>
                 </Field>
               </div>
               <Field label="Role">
-                <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as "all" | CoordinatorRole)}>
+                <select id="coordinator-directory-role-filter" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as "all" | CoordinatorRole)}>
                   <option value="all">All roles</option>
                   {coordinatorRoles.map((role) => <option value={role} key={role}>{formatRole(role)}</option>)}
                 </select>
@@ -745,25 +944,166 @@ export function CoordinatorNetworkTab({
               </div>
             )}
           </Panel>
-          {selectedCoordinator && (
-            <Panel title="Coordinator profile" icon={<CircleUserRound />}>
-              <div className="coordinator-profile" aria-live="polite">
-                <div className="coordinator-profile-photo">
-                  {profilePhotoUrl ? <img src={profilePhotoUrl} alt={`${selectedCoordinator.fullName} profile`} /> : <CircleUserRound size={72} />}
-                  {selectedCoordinator.photoPath && <button className="secondary-button" type="button" onClick={() => void showProfilePhoto(selectedCoordinator)}><Camera size={17} /> Open photo</button>}
-                </div>
-                <div className="coordinator-profile-details">
-                  <h3>{selectedCoordinator.fullName}</h3>
-                  <p>{formatRole(selectedCoordinator.role)} · {selectedCoordinator.status}</p>
-                  <div><span>Mobile</span><strong>{selectedCoordinator.phone}</strong></div>
-                  <div><span>Email</span><strong>{selectedCoordinator.email || "Not provided"}</strong></div>
-                  <div><span>Geography</span><strong>{coordinatorGeographyLabel(selectedCoordinator, snapshot.geographies)}</strong></div>
-                  <div><span>Referral code</span><strong>{selectedCoordinator.referralCode}</strong></div>
-                  <div><span>Campaigns</span><strong>{snapshot.campaignLinks.filter((link) => link.coordinatorId === selectedCoordinator.id).length}</strong></div>
-                </div>
+        </div>
+      )}
+
+      {view === "profile" && selectedProfile && (
+        <div className="coordinator-view-panel coordinator-profile-workspace" id="coordinator-profile-panel" role="tabpanel">
+          <div className="coordinator-profile-sticky">
+            <button className="secondary-button" type="button" onClick={() => setView("directory")}>
+              <ArrowLeft size={18} /> {t("coordinatorProfile.actions.back")}
+            </button>
+            <div className="coordinator-profile-sticky-identity">
+              <CircleUserRound size={22} />
+              <span>
+                <strong>{selectedProfile.coordinator.fullName}</strong>
+                <small>{t(`coordinatorProfile.roles.${selectedProfile.coordinator.role}`)}</small>
+              </span>
+            </div>
+            <div className="coordinator-profile-sticky-actions">
+              <button className="secondary-button" type="button" onClick={() => openDirectoryControl("coordinator-directory-search")}>
+                <Search size={18} /> {t("coordinatorProfile.actions.search")}
+              </button>
+              {snapshot.canManage && (
+                <button className="primary-button" type="button" onClick={() => openEditForm(selectedProfile.coordinator)}>
+                  {t("coordinatorProfile.actions.edit")}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <section className="coordinator-profile-hero" aria-labelledby="coordinator-profile-name">
+            <div className="coordinator-profile-hero-photo">
+              {profilePhotoUrl ? (
+                <img src={profilePhotoUrl} alt={`${selectedProfile.coordinator.fullName} ${t("coordinatorProfile.photoAlt")}`} />
+              ) : (
+                <CircleUserRound size={92} aria-hidden="true" />
+              )}
+              {selectedProfile.coordinator.photoPath && (
+                <button className="secondary-button" type="button" onClick={() => void showProfilePhoto(selectedProfile.coordinator)}>
+                  <Camera size={17} /> {t("coordinatorProfile.actions.openPhoto")}
+                </button>
+              )}
+            </div>
+            <div className="coordinator-profile-hero-main">
+              <span className="eyebrow">{t("coordinatorProfile.workspace")}</span>
+              <h2 id="coordinator-profile-name">{selectedProfile.coordinator.fullName}</h2>
+              <div className="coordinator-profile-badges">
+                <span>{t(`coordinatorProfile.roles.${selectedProfile.coordinator.role}`)}</span>
+                <span className="status-pill" data-status={selectedProfile.coordinator.status}>
+                  {t(`coordinatorProfile.statuses.${selectedProfile.coordinator.status}`)}
+                </span>
+                {selectedProfile.coordinator.mobileVerifiedAt && (
+                  <span className="coordinator-verified-badge"><BadgeCheck size={15} /> {t("coordinatorProfile.summary.verified")}</span>
+                )}
+              </div>
+              <div className="coordinator-profile-hero-facts">
+                <div><span>{t("coordinatorProfile.hero.reportingManager")}</span><strong>{selectedProfile.manager?.fullName ?? t("coordinatorProfile.hero.noManager")}</strong></div>
+                <div><span>{t("coordinatorProfile.hero.assignedGeography")}</span><strong>{selectedProfile.geography?.path.join(" › ") ?? t("coordinatorProfile.notRecorded")}</strong></div>
+                <div><span>{t("coordinatorProfile.hero.campaigns")}</span><strong>{selectedProfile.campaignLinks.length}</strong></div>
+                <div><span>{t("coordinatorProfile.hero.lastActivity")}</span><strong>{selectedProfile.lastActivityAt ? formatProfileDate(selectedProfile.lastActivityAt, language) : t("coordinatorProfile.hero.noActivity")}</strong></div>
+              </div>
+              <div className="button-row coordinator-profile-quick-actions" aria-label={t("coordinatorProfile.quickActions")}>
+                {snapshot.canManage && <button className="primary-button" type="button" onClick={() => openEditForm(selectedProfile.coordinator)}>{t("coordinatorProfile.actions.edit")}</button>}
+                {snapshot.canManage && (
+                  <label className="coordinator-profile-status-action">
+                    <span>{t("coordinatorProfile.actions.status")}</span>
+                    <select value={selectedProfile.coordinator.status} onChange={(event) => void updateStatus(selectedProfile.coordinator, event.target.value as CoordinatorStatus)}>
+                      {coordinatorStatuses.map((status) => <option key={status} value={status}>{t(`coordinatorProfile.statuses.${status}`)}</option>)}
+                    </select>
+                  </label>
+                )}
+                <button className="secondary-button" type="button" onClick={() => scrollProfileSection("hierarchy")}><GitBranch size={18} /> {t("coordinatorProfile.actions.viewHierarchy")}</button>
+                <button className="secondary-button" type="button" onClick={() => scrollProfileSection("activity")}><Activity size={18} /> {t("coordinatorProfile.actions.viewActivity")}</button>
+              </div>
+            </div>
+          </section>
+
+          <div className="coordinator-profile-section-grid">
+            <Panel title={t("coordinatorProfile.sections.summary")} icon={<CircleUserRound />}>
+              <div className="coordinator-profile-fact-grid">
+                <div className="coordinator-profile-fact"><span>{t("coordinatorProfile.summary.fullName")}</span><strong>{selectedProfile.coordinator.fullName}</strong></div>
+                <div className="coordinator-profile-fact"><span>{t("coordinatorProfile.summary.mobile")}</span><strong>{selectedProfile.coordinator.phone}</strong></div>
+                <div className="coordinator-profile-fact"><span>{t("coordinatorProfile.summary.email")}</span><strong>{selectedProfile.coordinator.email || t("coordinatorProfile.summary.notProvided")}</strong></div>
+                <div className="coordinator-profile-fact"><span>{t("coordinatorProfile.summary.verification")}</span><strong>{selectedProfile.coordinator.mobileVerifiedAt ? t("coordinatorProfile.summary.verified") : t("coordinatorProfile.summary.notVerified")}</strong></div>
+                <div className="coordinator-profile-fact"><span>{t("coordinatorProfile.summary.referralCode")}</span><strong>{selectedProfile.coordinator.referralCode}</strong></div>
+                <div className="coordinator-profile-fact"><span>{t("coordinatorProfile.summary.accountStatus")}</span><strong>{t(`coordinatorProfile.statuses.${selectedProfile.coordinator.status}`)}</strong></div>
+                <div className="coordinator-profile-fact coordinator-profile-fact-wide"><span>{t("coordinatorProfile.summary.reportingChain")}</span><strong>{selectedProfile.reportingChain.length ? [...selectedProfile.reportingChain.map((item) => item.fullName), selectedProfile.coordinator.fullName].join(" › ") : t("coordinatorProfile.summary.noReportingChain")}</strong></div>
               </div>
             </Panel>
-          )}
+
+            <Panel title={t("coordinatorProfile.sections.geography")} icon={<MapPin />}>
+              <div className="coordinator-profile-fact-grid">
+                {(["country", "state", "district", "block", "panchayat", "ward"] as const).map((level) => (
+                  <div className="coordinator-profile-fact" key={level}>
+                    <span>{t(`coordinatorProfile.geography.${level}`)}</span>
+                    <strong>{selectedProfile.geographyChain.find((item) => item.level === level)?.name ?? t("coordinatorProfile.notRecorded")}</strong>
+                  </div>
+                ))}
+                <div className="coordinator-profile-fact"><span>{t("coordinatorProfile.geography.village")}</span><strong>{t("coordinatorProfile.notRecorded")}</strong></div>
+                <div className="coordinator-profile-fact coordinator-profile-fact-wide"><span>{t("coordinatorProfile.geography.coverageHierarchy")}</span><strong>{selectedProfile.geographyChain.length ? selectedProfile.geographyChain.map((item) => item.name).join(" › ") : t("coordinatorProfile.notRecorded")}</strong></div>
+              </div>
+            </Panel>
+          </div>
+
+          <Panel title={t("coordinatorProfile.sections.campaigns")} icon={<ShieldCheck />}>
+            {selectedProfile.campaignLinks.length === 0 ? (
+              <div className="empty-state compact-empty"><GitBranch size={25} aria-hidden="true" /><h3>{t("coordinatorProfile.campaigns.noCampaigns")}</h3></div>
+            ) : (
+              <div className="coordinator-profile-campaigns">
+                {selectedProfile.campaignLinks.map((link) => {
+                  const campaign = campaignById.get(link.campaignId);
+                  return (
+                    <article key={`${link.campaignId}-${link.assignedAt}`}>
+                      <div><strong>{campaign?.title ?? link.campaignId}</strong><span>{campaign ? t(`coordinatorProfile.campaignStatuses.${String(campaign.status).toLowerCase()}`) : t("coordinatorProfile.notAvailable")}</span></div>
+                      <time dateTime={link.assignedAt}>{t("coordinatorProfile.campaigns.assignedOn")} {formatProfileDate(link.assignedAt, language)}</time>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
+
+          <Panel title={t("coordinatorProfile.sections.hierarchy")} icon={<GitBranch />}>
+            <div className="coordinator-profile-hierarchy" id="coordinator-profile-hierarchy">
+              <div><span>{t("coordinatorProfile.hierarchy.manager")}</span>{selectedProfile.manager ? <button type="button" onClick={() => void showProfilePhoto(selectedProfile.manager!)}>{selectedProfile.manager.fullName}<small>{t(`coordinatorProfile.roles.${selectedProfile.manager.role}`)}</small></button> : <strong>{t("coordinatorProfile.hierarchy.noManager")}</strong>}</div>
+              <div className="coordinator-profile-hierarchy-current"><span>{t("coordinatorProfile.hierarchy.currentCoordinator")}</span><strong>{selectedProfile.coordinator.fullName}</strong></div>
+              <div><span>{t("coordinatorProfile.hierarchy.directReports")}</span>{selectedProfile.directReports.length ? selectedProfile.directReports.map((report) => <button type="button" key={report.id} onClick={() => void showProfilePhoto(report)}>{report.fullName}<small>{t(`coordinatorProfile.roles.${report.role}`)}</small></button>) : <strong>{t("coordinatorProfile.hierarchy.noDirectReports")}</strong>}</div>
+            </div>
+          </Panel>
+
+          <div className="coordinator-profile-section-grid">
+            <Panel title={t("coordinatorProfile.sections.activity")} icon={<Activity />}>
+              <div id="coordinator-profile-activity">
+                {selectedProfile.timeline.length === 0 ? (
+                  <div className="empty-state compact-empty"><Activity size={25} aria-hidden="true" /><h3>{t("coordinatorProfile.activity.noActivity")}</h3></div>
+                ) : (
+                  <div className="coordinator-profile-timeline">
+                    {selectedProfile.timeline.map((item) => {
+                      const campaign = item.kind === "assignment" ? campaignById.get(item.campaignLink.campaignId) : undefined;
+                      const activityKey = item.kind === "audit" ? item.activity.action.replace("coordinator.", "") : "assignment";
+                      return (
+                        <article key={item.id}>
+                          <span aria-hidden="true" />
+                          <div><strong>{t(`coordinatorProfile.activity.actions.${activityKey}`)}</strong>{item.kind === "assignment" && <small>{campaign?.title ?? item.campaignLink.campaignId}</small>}<time dateTime={item.createdAt}>{formatProfileDate(item.createdAt, language)}</time></div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </Panel>
+
+            <Panel title={t("coordinatorProfile.sections.performance")} icon={<BadgeCheck />}>
+              <p className="coordinator-profile-performance-note">{t("coordinatorProfile.performance.factualHelp")}</p>
+              <div className="coordinator-profile-scorecard">
+                <div><strong>{selectedProfile.scorecard.assignments}</strong><span>{t("coordinatorProfile.performance.assignments")}</span></div>
+                <div><strong>{selectedProfile.scorecard.activityEvents}</strong><span>{t("coordinatorProfile.performance.events")}</span></div>
+                <div><strong>{selectedProfile.scorecard.coverageLevels}</strong><span>{t("coordinatorProfile.performance.levels")}</span></div>
+                <div><strong>{selectedProfile.scorecard.directReports}</strong><span>{t("coordinatorProfile.performance.reports")}</span></div>
+              </div>
+            </Panel>
+          </div>
         </div>
       )}
 
@@ -775,7 +1115,7 @@ export function CoordinatorNetworkTab({
               <div className="empty-state compact-empty"><span className="coordinator-state-icon" aria-hidden="true"><GitBranch size={26} /></span><h3>No reporting hierarchy yet</h3><p>Add coordinators and assign reporting parents.</p></div>
             ) : (
               <ul className="coordinator-tree" role="tree" aria-label="Coordinator reporting hierarchy">
-                {reportingTree.map((node) => <CoordinatorTreeBranch key={node.coordinator.id} node={node} />)}
+                {reportingTree.map((node) => <CoordinatorTreeBranch key={node.coordinator.id} node={node} onOpenProfile={(coordinator) => void showProfilePhoto(coordinator)} />)}
               </ul>
             )}
           </Panel>

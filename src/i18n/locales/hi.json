@@ -2938,5 +2938,115 @@
         }
       }
     }
+  },
+  "coordinatorProfile": {
+    "workspace": "समन्वयक 360° प्रोफ़ाइल",
+    "photoAlt": "प्रोफ़ाइल फ़ोटो",
+    "notRecorded": "समन्वयक नेटवर्क में दर्ज नहीं",
+    "notAvailable": "उपलब्ध नहीं",
+    "quickActions": "समन्वयक प्रोफ़ाइल त्वरित कार्य",
+    "sections": {
+      "summary": "समन्वयक सारांश",
+      "geography": "भौगोलिक क्षेत्र",
+      "campaigns": "निर्धारित अभियान",
+      "hierarchy": "रिपोर्टिंग पदानुक्रम",
+      "activity": "गतिविधि समयरेखा",
+      "performance": "प्रदर्शन"
+    },
+    "hero": {
+      "reportingManager": "रिपोर्टिंग प्रबंधक",
+      "noManager": "कोई रिपोर्टिंग प्रबंधक नहीं",
+      "assignedGeography": "निर्धारित क्षेत्र",
+      "campaigns": "अभियान संख्या",
+      "lastActivity": "अंतिम गतिविधि",
+      "noActivity": "कोई दर्ज गतिविधि नहीं"
+    },
+    "summary": {
+      "fullName": "पूरा नाम",
+      "mobile": "मोबाइल",
+      "email": "ईमेल",
+      "verification": "मोबाइल सत्यापन",
+      "verified": "सत्यापित",
+      "notVerified": "सत्यापित नहीं",
+      "referralCode": "रेफ़रल कोड",
+      "accountStatus": "खाता स्थिति",
+      "reportingChain": "रिपोर्टिंग श्रृंखला",
+      "noReportingChain": "कोई रिपोर्टिंग श्रृंखला नहीं",
+      "notProvided": "उपलब्ध नहीं कराया गया"
+    },
+    "geography": {
+      "country": "देश",
+      "state": "राज्य",
+      "district": "ज़िला",
+      "block": "ब्लॉक",
+      "panchayat": "ग्राम पंचायत",
+      "village": "गाँव",
+      "ward": "वार्ड",
+      "coverageHierarchy": "कवरेज पदानुक्रम"
+    },
+    "campaigns": {
+      "noCampaigns": "कोई अभियान निर्धारित नहीं है",
+      "assignedOn": "निर्धारित"
+    },
+    "hierarchy": {
+      "manager": "प्रबंधक",
+      "noManager": "कोई प्रबंधक निर्धारित नहीं",
+      "currentCoordinator": "वर्तमान समन्वयक",
+      "directReports": "प्रत्यक्ष रिपोर्ट",
+      "noDirectReports": "कोई प्रत्यक्ष रिपोर्ट नहीं"
+    },
+    "activity": {
+      "noActivity": "कोई गतिविधि दर्ज नहीं की गई है",
+      "actions": {
+        "assignment": "अभियान निर्धारित",
+        "created": "समन्वयक बनाया गया",
+        "updated": "समन्वयक अपडेट किया गया",
+        "status_changed": "स्थिति बदली गई",
+        "deleted": "समन्वयक हटाया गया",
+        "mobile_verified": "मोबाइल सत्यापित",
+        "photo_updated": "प्रोफ़ाइल फ़ोटो अपडेट हुई",
+        "campaigns_changed": "अभियान निर्धारण अपडेट हुए",
+        "referral_linked": "रेफ़रल जोड़ा गया",
+        "geography_created": "भौगोलिक क्षेत्र बनाया गया",
+        "geography_archived": "भौगोलिक क्षेत्र संग्रहित किया गया"
+      }
+    },
+    "performance": {
+      "factualHelp": "केवल इस समन्वयक के मौजूदा निर्धारण, दर्ज गतिविधि, कवरेज पदानुक्रम और प्रत्यक्ष रिपोर्ट से प्राप्त।",
+      "assignments": "निर्धारण",
+      "events": "दर्ज घटनाएँ",
+      "levels": "कवरेज स्तर",
+      "reports": "प्रत्यक्ष रिपोर्ट"
+    },
+    "actions": {
+      "edit": "संपादित करें",
+      "status": "स्थिति",
+      "viewHierarchy": "पदानुक्रम देखें",
+      "viewActivity": "गतिविधि देखें",
+      "search": "खोजें",
+      "back": "वापस",
+      "openPhoto": "फ़ोटो खोलें"
+    },
+    "roles": {
+      "national_coordinator": "राष्ट्रीय समन्वयक",
+      "state_coordinator": "राज्य समन्वयक",
+      "district_coordinator": "ज़िला समन्वयक",
+      "block_coordinator": "ब्लॉक समन्वयक",
+      "panchayat_coordinator": "पंचायत समन्वयक",
+      "ward_coordinator": "वार्ड समन्वयक",
+      "field_coordinator": "क्षेत्र समन्वयक"
+    },
+    "statuses": {
+      "invited": "आमंत्रित",
+      "active": "सक्रिय",
+      "inactive": "निष्क्रिय",
+      "suspended": "निलंबित"
+    },
+    "campaignStatuses": {
+      "draft": "मसौदा",
+      "published": "प्रकाशित",
+      "paused": "रोका गया",
+      "closed": "बंद"
+    }
   }
 }

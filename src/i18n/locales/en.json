@@ -2990,5 +2990,115 @@
         }
       }
     }
+  },
+  "coordinatorProfile": {
+    "workspace": "Coordinator 360° Profile",
+    "photoAlt": "profile photo",
+    "notRecorded": "Not recorded in Coordinator Network",
+    "notAvailable": "Not available",
+    "quickActions": "Coordinator profile quick actions",
+    "sections": {
+      "summary": "Coordinator summary",
+      "geography": "Geography",
+      "campaigns": "Assigned campaigns",
+      "hierarchy": "Reporting hierarchy",
+      "activity": "Activity timeline",
+      "performance": "Performance"
+    },
+    "hero": {
+      "reportingManager": "Reporting manager",
+      "noManager": "No reporting manager",
+      "assignedGeography": "Assigned geography",
+      "campaigns": "Campaign count",
+      "lastActivity": "Last activity",
+      "noActivity": "No recorded activity"
+    },
+    "summary": {
+      "fullName": "Full name",
+      "mobile": "Mobile",
+      "email": "Email",
+      "verification": "Mobile verification",
+      "verified": "Verified",
+      "notVerified": "Not verified",
+      "referralCode": "Referral code",
+      "accountStatus": "Account status",
+      "reportingChain": "Reporting chain",
+      "noReportingChain": "No reporting chain",
+      "notProvided": "Not provided"
+    },
+    "geography": {
+      "country": "Country",
+      "state": "State",
+      "district": "District",
+      "block": "Block",
+      "panchayat": "GP",
+      "village": "Village",
+      "ward": "Ward",
+      "coverageHierarchy": "Coverage hierarchy"
+    },
+    "campaigns": {
+      "noCampaigns": "No campaigns are assigned",
+      "assignedOn": "Assigned"
+    },
+    "hierarchy": {
+      "manager": "Manager",
+      "noManager": "No manager assigned",
+      "currentCoordinator": "Current coordinator",
+      "directReports": "Direct reports",
+      "noDirectReports": "No direct reports"
+    },
+    "activity": {
+      "noActivity": "No activity has been recorded",
+      "actions": {
+        "assignment": "Campaign assigned",
+        "created": "Coordinator created",
+        "updated": "Coordinator updated",
+        "status_changed": "Status changed",
+        "deleted": "Coordinator removed",
+        "mobile_verified": "Mobile verified",
+        "photo_updated": "Profile photo updated",
+        "campaigns_changed": "Campaign assignments updated",
+        "referral_linked": "Referral linked",
+        "geography_created": "Geography created",
+        "geography_archived": "Geography archived"
+      }
+    },
+    "performance": {
+      "factualHelp": "Derived only from this coordinator's current assignments, recorded activity, coverage hierarchy, and direct reports.",
+      "assignments": "Assignments",
+      "events": "Recorded events",
+      "levels": "Coverage levels",
+      "reports": "Direct reports"
+    },
+    "actions": {
+      "edit": "Edit",
+      "status": "Status",
+      "viewHierarchy": "View hierarchy",
+      "viewActivity": "View activity",
+      "search": "Search",
+      "back": "Back",
+      "openPhoto": "Open photo"
+    },
+    "roles": {
+      "national_coordinator": "National Coordinator",
+      "state_coordinator": "State Coordinator",
+      "district_coordinator": "District Coordinator",
+      "block_coordinator": "Block Coordinator",
+      "panchayat_coordinator": "Panchayat Coordinator",
+      "ward_coordinator": "Ward Coordinator",
+      "field_coordinator": "Field Coordinator"
+    },
+    "statuses": {
+      "invited": "Invited",
+      "active": "Active",
+      "inactive": "Inactive",
+      "suspended": "Suspended"
+    },
+    "campaignStatuses": {
+      "draft": "Draft",
+      "published": "Published",
+      "paused": "Paused",
+      "closed": "Closed"
+    }
   }
 }

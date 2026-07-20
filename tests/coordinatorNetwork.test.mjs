@@ -4,7 +4,9 @@ import test from "node:test";
 import {
   buildCoordinatorTree,
   coordinatorMatchesSearch,
-  getCoordinatorDashboardMetrics
+  getCoordinatorCommandCenter,
+  getCoordinatorDashboardMetrics,
+  getCoordinatorProfileWorkspace
 } from "../src/coordinators/network.ts";
 import {
   geographyForRole,
@@ -19,6 +21,16 @@ const backendSource = readFileSync(new URL("../src/backend.ts", import.meta.url)
 const otpSource = readFileSync(new URL("../supabase/functions/voiceup-otp/index.ts", import.meta.url), "utf8");
 const uiSource = readFileSync(new URL("../src/pages/app/CoordinatorNetworkTab.tsx", import.meta.url), "utf8");
 const stylesSource = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+const englishLocale = JSON.parse(readFileSync(new URL("../src/i18n/locales/en.json", import.meta.url), "utf8"));
+const hindiLocale = JSON.parse(readFileSync(new URL("../src/i18n/locales/hi.json", import.meta.url), "utf8"));
+const odiaLocale = JSON.parse(readFileSync(new URL("../src/i18n/locales/or.json", import.meta.url), "utf8"));
+
+function translationPaths(value, prefix = "") {
+  return Object.entries(value).flatMap(([key, child]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    return child && typeof child === "object" ? translationPaths(child, path) : [path];
+  });
+}
 
 function coordinator(id, overrides = {}) {
   return {
@@ -120,6 +132,100 @@ test("search and dashboard metrics operate on persisted network rows", () => {
   });
 });
 
+test("command center reconciles distributions, hierarchy coverage, and recency from one snapshot", () => {
+  const snapshot = {
+    workspaceId: "workspace-1",
+    canManage: true,
+    coordinators: [
+      coordinator("one", {
+        fullName: "Asha Das",
+        role: "district_coordinator",
+        geographyId: "district-khordha",
+        createdAt: "2026-07-18T09:00:00.000Z"
+      }),
+      coordinator("two", {
+        fullName: "Bimal Roy",
+        role: "state_coordinator",
+        status: "inactive",
+        geographyId: "state-odisha",
+        createdAt: "2026-07-20T09:00:00.000Z"
+      })
+    ],
+    geographies: [
+      { id: "country-india", workspaceId: "workspace-1", level: "country", name: "India", path: ["India"], depth: 0 },
+      { id: "state-odisha", workspaceId: "workspace-1", parentId: "country-india", level: "state", name: "Odisha", path: ["India", "Odisha"], depth: 1 },
+      { id: "district-khordha", workspaceId: "workspace-1", parentId: "state-odisha", level: "district", name: "Khordha", path: ["India", "Odisha", "Khordha"], depth: 2 },
+      { id: "district-cuttack", workspaceId: "workspace-1", parentId: "state-odisha", level: "district", name: "Cuttack", path: ["India", "Odisha", "Cuttack"], depth: 2 }
+    ],
+    campaignLinks: [{ coordinatorId: "one", campaignId: "campaign-1", assignedAt: "2026-07-18T00:00:00.000Z" }],
+    referrals: [],
+    activity: [
+      { id: 1, coordinatorId: "one", action: "coordinator.created", metadata: {}, createdAt: "2026-07-18T09:00:00.000Z" },
+      { id: 2, coordinatorId: "two", action: "coordinator.status_changed", metadata: { from: "active", to: "inactive" }, createdAt: "2026-07-20T10:00:00.000Z" }
+    ]
+  };
+
+  const commandCenter = getCoordinatorCommandCenter(snapshot);
+  assert.equal(commandCenter.metrics.total, 2);
+  assert.deepEqual(commandCenter.statusDistribution.map(({ status, count, percentage }) => ({ status, count, percentage })), [
+    { status: "invited", count: 0, percentage: 0 },
+    { status: "active", count: 1, percentage: 50 },
+    { status: "inactive", count: 1, percentage: 50 },
+    { status: "suspended", count: 0, percentage: 0 }
+  ]);
+  assert.deepEqual(commandCenter.coverage.byLevel.map(({ level, known, covered }) => ({ level, known, covered })), [
+    { level: "country", known: 1, covered: 1 },
+    { level: "state", known: 1, covered: 1 },
+    { level: "district", known: 2, covered: 1 }
+  ]);
+  assert.deepEqual(commandCenter.coverage.gaps.map((geography) => geography.id), ["district-cuttack"]);
+  assert.equal(commandCenter.recentlyAdded[0].id, "two");
+  assert.equal(commandCenter.recentActivity[0].id, 2);
+  assert.deepEqual(commandCenter.recentStatusChanges.map((activity) => activity.id), [2]);
+});
+
+test("Coordinator 360 profile derives hierarchy, coverage, assignments, activity, and scorecard from one snapshot", () => {
+  const snapshot = {
+    workspaceId: "workspace-1",
+    canManage: true,
+    coordinators: [
+      coordinator("manager", { fullName: "Mira Manager", role: "state_coordinator", geographyId: "state-odisha" }),
+      coordinator("profile", { fullName: "Asha Das", role: "district_coordinator", geographyId: "district-khordha", reportsToCoordinatorId: "manager" }),
+      coordinator("report", { fullName: "Bimal Roy", role: "block_coordinator", geographyId: "district-khordha", reportsToCoordinatorId: "profile" })
+    ],
+    geographies: [
+      { id: "country-india", workspaceId: "workspace-1", level: "country", name: "India", path: ["India"], depth: 0 },
+      { id: "state-odisha", workspaceId: "workspace-1", parentId: "country-india", level: "state", name: "Odisha", path: ["India", "Odisha"], depth: 1 },
+      { id: "district-khordha", workspaceId: "workspace-1", parentId: "state-odisha", level: "district", name: "Khordha", path: ["India", "Odisha", "Khordha"], depth: 2 }
+    ],
+    campaignLinks: [
+      { coordinatorId: "profile", campaignId: "campaign-1", assignedAt: "2026-07-20T08:00:00.000Z" }
+    ],
+    referrals: [],
+    activity: [
+      { id: 9, coordinatorId: "profile", action: "coordinator.status_changed", metadata: { from: "invited", to: "active" }, createdAt: "2026-07-20T09:00:00.000Z" },
+      { id: 8, coordinatorId: "manager", action: "coordinator.updated", metadata: {}, createdAt: "2026-07-20T10:00:00.000Z" }
+    ]
+  };
+
+  const profile = getCoordinatorProfileWorkspace(snapshot, "profile");
+  assert.equal(profile.coordinator.fullName, "Asha Das");
+  assert.equal(profile.manager.id, "manager");
+  assert.deepEqual(profile.reportingChain.map((item) => item.id), ["manager"]);
+  assert.deepEqual(profile.directReports.map((item) => item.id), ["report"]);
+  assert.deepEqual(profile.geographyChain.map((item) => item.name), ["India", "Odisha", "Khordha"]);
+  assert.deepEqual(profile.timeline.map((item) => item.kind), ["audit", "assignment"]);
+  assert.equal(profile.lastActivityAt, "2026-07-20T09:00:00.000Z");
+  assert.deepEqual(profile.scorecard, {
+    assignments: 1,
+    activityEvents: 1,
+    coverageLevels: 3,
+    directReports: 1,
+    mobileVerified: true
+  });
+  assert.equal(getCoordinatorProfileWorkspace(snapshot, "missing"), null);
+});
+
 test("migration creates the complete network model, indexes, read RLS, and RPC-only writes", () => {
   for (const table of [
     "voiceup_coordinator_geographies",
@@ -171,7 +277,7 @@ test("React feature provides real CRUD, filters, hierarchy, profile, campaign, r
     /removeCoordinator\(/,
     /Search and filters/,
     /Reporting hierarchy/,
-    /Coordinator profile/,
+    /coordinatorProfile/,
     /Linked campaigns/,
     /Referred by code/,
     /Profile photo/,
@@ -190,8 +296,8 @@ test("Phase 1 keeps Coordinator Network mobile-first, accessible, and behavior-n
     /coordinator-state-icon/,
     /role="tablist"/,
     /role="tabpanel"/,
-    /aria-selected=\{view === item\}/,
-    /tabIndex=\{view === item \? 0 : -1\}/,
+    /aria-selected=\{view === item \|\| \(view === "profile" && item === "directory"\)\}/,
+    /tabIndex=\{view === item \|\| \(view === "profile" && item === "directory"\) \? 0 : -1\}/,
     /handleViewKeyDown\(event, item\)/,
     /aria-busy=\{loading\}/,
     /aria-label="Coordinator reporting hierarchy"/,
@@ -206,6 +312,83 @@ test("Phase 1 keeps Coordinator Network mobile-first, accessible, and behavior-n
     /@media \(max-width: 390px\)/,
     /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.coordinator-view-panel/,
     /\.coordinator-directory-view[\s\S]*?grid-template-columns/,
-    /\.coordinator-tree-node > div[\s\S]*?--coordinator-tree-depth/
+    /\.coordinator-tree-card[\s\S]*?--coordinator-tree-depth/
   ]) assert.match(stylesSource, evidence);
+});
+
+test("Phase 2 command center uses the existing snapshot and drills into the authoritative directory", () => {
+  for (const evidence of [
+    /getCoordinatorCommandCenter\(snapshot\)/,
+    /Operational command center/,
+    /Status distribution/,
+    /Role distribution/,
+    /Geographic coverage/,
+    /Recent activity/,
+    /Recently added/,
+    /Recent status changes/,
+    /Create coordinator/,
+    /Search directory/,
+    /Filter network/,
+    /Refresh data/,
+    /showStatusDirectory\(item\.status\)/,
+    /showRoleDirectory\(item\.role\)/,
+    /showGeographyDirectory\(geography\.id\)/,
+    /coordinatorById = useMemo/,
+    /campaignIdsByCoordinator = useMemo/
+  ]) assert.match(uiSource, evidence);
+
+  for (const evidence of [
+    /\.coordinator-quick-actions[\s\S]*?grid-template-columns/,
+    /\.coordinator-coverage-layout[\s\S]*?grid-template-columns/,
+    /\.coordinator-command-activity-grid[\s\S]*?grid-template-columns/,
+    /\.coordinator-quick-action:focus-visible/,
+    /\.coordinator-distribution-list button[\s\S]*?min-height: 52px/,
+    /@media \(max-width: 700px\)[\s\S]*?\.coordinator-quick-actions/,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.coordinator-quick-action/
+  ]) assert.match(stylesSource, evidence);
+});
+
+test("Phase 3 renders an operational profile with existing actions and memoized snapshot derivation", () => {
+  for (const evidence of [
+    /getCoordinatorProfileWorkspace\(snapshot, selectedCoordinatorId\)/,
+    /const selectedProfile = useMemo/,
+    /view === "profile" && selectedProfile/,
+    /coordinator-profile-hero/,
+    /coordinator-profile-sticky/,
+    /coordinator-profile-campaigns/,
+    /coordinator-profile-hierarchy/,
+    /coordinator-profile-timeline/,
+    /coordinator-profile-scorecard/,
+    /openEditForm\(selectedProfile\.coordinator\)/,
+    /updateStatus\(selectedProfile\.coordinator/,
+    /showProfilePhoto\(selectedProfile\.manager!\)/,
+    /scrollProfileSection\("hierarchy"\)/,
+    /scrollProfileSection\("activity"\)/
+  ]) assert.match(uiSource, evidence);
+
+  for (const evidence of [
+    /\.coordinator-profile-sticky[\s\S]*?position: sticky/,
+    /\.coordinator-profile-hero[\s\S]*?grid-template-columns/,
+    /\.coordinator-profile-hierarchy[\s\S]*?grid-template-columns/,
+    /\.coordinator-profile-quick-actions > button[\s\S]*?min-height: 44px/,
+    /@media \(max-width: 700px\)[\s\S]*?\.coordinator-profile-hero/,
+    /@media \(max-width: 390px\)[\s\S]*?\.coordinator-profile-scorecard/,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.coordinator-profile-hero/
+  ]) assert.match(stylesSource, evidence);
+
+  assert.doesNotMatch(uiSource, />Coordinator 360° Profile<|>Coordinator summary<|>Assigned campaigns<|>Activity timeline</);
+});
+
+test("Coordinator profile translations have exact English, Hindi, and Odia key parity", () => {
+  const englishPaths = translationPaths(englishLocale.coordinatorProfile).sort();
+  assert.deepEqual(translationPaths(hindiLocale.coordinatorProfile).sort(), englishPaths);
+  assert.deepEqual(translationPaths(odiaLocale.coordinatorProfile).sort(), englishPaths);
+  assert.ok(englishPaths.length >= 70);
+  for (const locale of [englishLocale, hindiLocale, odiaLocale]) {
+    for (const path of englishPaths) {
+      const value = path.split(".").reduce((current, key) => current[key], locale.coordinatorProfile);
+      assert.equal(typeof value, "string");
+      assert.ok(value.trim().length > 0, `${path} must be translated`);
+    }
+  }
 });

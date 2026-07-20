@@ -2938,5 +2938,115 @@
         }
       }
     }
+  },
+  "coordinatorProfile": {
+    "workspace": "ସଂଯୋଜକ 360° ପ୍ରୋଫାଇଲ୍",
+    "photoAlt": "ପ୍ରୋଫାଇଲ୍ ଫଟୋ",
+    "notRecorded": "ସଂଯୋଜକ ନେଟୱର୍କରେ ରେକର୍ଡ ହୋଇନାହିଁ",
+    "notAvailable": "ଉପଲବ୍ଧ ନାହିଁ",
+    "quickActions": "ସଂଯୋଜକ ପ୍ରୋଫାଇଲ୍ ଦ୍ରୁତ କାର୍ଯ୍ୟ",
+    "sections": {
+      "summary": "ସଂଯୋଜକ ସାରାଂଶ",
+      "geography": "ଭୌଗୋଳିକ କ୍ଷେତ୍ର",
+      "campaigns": "ନିର୍ଦ୍ଧାରିତ ଅଭିଯାନ",
+      "hierarchy": "ରିପୋର୍ଟିଂ କ୍ରମ",
+      "activity": "କାର୍ଯ୍ୟକଳାପ ସମୟରେଖା",
+      "performance": "କାର୍ଯ୍ୟଦକ୍ଷତା"
+    },
+    "hero": {
+      "reportingManager": "ରିପୋର୍ଟିଂ ପରିଚାଳକ",
+      "noManager": "କୌଣସି ରିପୋର୍ଟିଂ ପରିଚାଳକ ନାହାନ୍ତି",
+      "assignedGeography": "ନିର୍ଦ୍ଧାରିତ କ୍ଷେତ୍ର",
+      "campaigns": "ଅଭିଯାନ ସଂଖ୍ୟା",
+      "lastActivity": "ଶେଷ କାର୍ଯ୍ୟକଳାପ",
+      "noActivity": "କୌଣସି ରେକର୍ଡ କାର୍ଯ୍ୟକଳାପ ନାହିଁ"
+    },
+    "summary": {
+      "fullName": "ପୂର୍ଣ୍ଣ ନାମ",
+      "mobile": "ମୋବାଇଲ୍",
+      "email": "ଇମେଲ୍",
+      "verification": "ମୋବାଇଲ୍ ଯାଞ୍ଚ",
+      "verified": "ଯାଞ୍ଚ ହୋଇଛି",
+      "notVerified": "ଯାଞ୍ଚ ହୋଇନାହିଁ",
+      "referralCode": "ରେଫରାଲ୍ କୋଡ୍",
+      "accountStatus": "ଖାତା ସ୍ଥିତି",
+      "reportingChain": "ରିପୋର୍ଟିଂ ଶୃଙ୍ଖଳା",
+      "noReportingChain": "କୌଣସି ରିପୋର୍ଟିଂ ଶୃଙ୍ଖଳା ନାହିଁ",
+      "notProvided": "ପ୍ରଦାନ କରାଯାଇନାହିଁ"
+    },
+    "geography": {
+      "country": "ଦେଶ",
+      "state": "ରାଜ୍ୟ",
+      "district": "ଜିଲ୍ଲା",
+      "block": "ବ୍ଲକ୍",
+      "panchayat": "ଗ୍ରାମ ପଞ୍ଚାୟତ",
+      "village": "ଗ୍ରାମ",
+      "ward": "ୱାର୍ଡ",
+      "coverageHierarchy": "କଭରେଜ୍ କ୍ରମ"
+    },
+    "campaigns": {
+      "noCampaigns": "କୌଣସି ଅଭିଯାନ ନିର୍ଦ୍ଧାରିତ ନାହିଁ",
+      "assignedOn": "ନିର୍ଦ୍ଧାରିତ"
+    },
+    "hierarchy": {
+      "manager": "ପରିଚାଳକ",
+      "noManager": "କୌଣସି ପରିଚାଳକ ନିର୍ଦ୍ଧାରିତ ନାହାନ୍ତି",
+      "currentCoordinator": "ବର୍ତ୍ତମାନର ସଂଯୋଜକ",
+      "directReports": "ସିଧାସଳଖ ରିପୋର୍ଟ",
+      "noDirectReports": "କୌଣସି ସିଧାସଳଖ ରିପୋର୍ଟ ନାହିଁ"
+    },
+    "activity": {
+      "noActivity": "କୌଣସି କାର୍ଯ୍ୟକଳାପ ରେକର୍ଡ ହୋଇନାହିଁ",
+      "actions": {
+        "assignment": "ଅଭିଯାନ ନିର୍ଦ୍ଧାରିତ",
+        "created": "ସଂଯୋଜକ ତିଆରି ହୋଇଛନ୍ତି",
+        "updated": "ସଂଯୋଜକ ଅଦ୍ୟତନ ହୋଇଛନ୍ତି",
+        "status_changed": "ସ୍ଥିତି ବଦଳିଛି",
+        "deleted": "ସଂଯୋଜକ ଅପସାରିତ",
+        "mobile_verified": "ମୋବାଇଲ୍ ଯାଞ୍ଚ ହୋଇଛି",
+        "photo_updated": "ପ୍ରୋଫାଇଲ୍ ଫଟୋ ଅଦ୍ୟତନ ହୋଇଛି",
+        "campaigns_changed": "ଅଭିଯାନ ନିର୍ଦ୍ଧାରଣ ଅଦ୍ୟତନ ହୋଇଛି",
+        "referral_linked": "ରେଫରାଲ୍ ସଂଯୁକ୍ତ ହୋଇଛି",
+        "geography_created": "ଭୌଗୋଳିକ କ୍ଷେତ୍ର ତିଆରି ହୋଇଛି",
+        "geography_archived": "ଭୌଗୋଳିକ କ୍ଷେତ୍ର ସଂରକ୍ଷିତ ହୋଇଛି"
+      }
+    },
+    "performance": {
+      "factualHelp": "କେବଳ ଏହି ସଂଯୋଜକଙ୍କ ବର୍ତ୍ତମାନ ନିର୍ଦ୍ଧାରଣ, ରେକର୍ଡ କାର୍ଯ୍ୟକଳାପ, କଭରେଜ୍ କ୍ରମ ଏବଂ ସିଧାସଳଖ ରିପୋର୍ଟରୁ ପ୍ରାପ୍ତ।",
+      "assignments": "ନିର୍ଦ୍ଧାରଣ",
+      "events": "ରେକର୍ଡ ଘଟଣା",
+      "levels": "କଭରେଜ୍ ସ୍ତର",
+      "reports": "ସିଧାସଳଖ ରିପୋର୍ଟ"
+    },
+    "actions": {
+      "edit": "ସମ୍ପାଦନା",
+      "status": "ସ୍ଥିତି",
+      "viewHierarchy": "କ୍ରମ ଦେଖନ୍ତୁ",
+      "viewActivity": "କାର୍ଯ୍ୟକଳାପ ଦେଖନ୍ତୁ",
+      "search": "ସନ୍ଧାନ",
+      "back": "ପଛକୁ",
+      "openPhoto": "ଫଟୋ ଖୋଲନ୍ତୁ"
+    },
+    "roles": {
+      "national_coordinator": "ଜାତୀୟ ସଂଯୋଜକ",
+      "state_coordinator": "ରାଜ୍ୟ ସଂଯୋଜକ",
+      "district_coordinator": "ଜିଲ୍ଲା ସଂଯୋଜକ",
+      "block_coordinator": "ବ୍ଲକ୍ ସଂଯୋଜକ",
+      "panchayat_coordinator": "ପଞ୍ଚାୟତ ସଂଯୋଜକ",
+      "ward_coordinator": "ୱାର୍ଡ ସଂଯୋଜକ",
+      "field_coordinator": "କ୍ଷେତ୍ର ସଂଯୋଜକ"
+    },
+    "statuses": {
+      "invited": "ଆମନ୍ତ୍ରିତ",
+      "active": "ସକ୍ରିୟ",
+      "inactive": "ନିଷ୍କ୍ରିୟ",
+      "suspended": "ନିଲମ୍ବିତ"
+    },
+    "campaignStatuses": {
+      "draft": "ଖସଡ଼ା",
+      "published": "ପ୍ରକାଶିତ",
+      "paused": "ସ୍ଥଗିତ",
+      "closed": "ବନ୍ଦ"
+    }
   }
 }

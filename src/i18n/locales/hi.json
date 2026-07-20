@@ -1777,6 +1777,30 @@
     "common": {
       "rows": "पंक्तियाँ"
     },
+    "workflow": {
+      "title": "फील्ड संग्रह",
+      "progressLabel": "फील्ड संग्रह कार्यप्रवाह",
+      "stepLabel": "चरण",
+      "steps": {
+        "captureUpload": "कैप्चर / अपलोड",
+        "aiReview": "AI समीक्षा",
+        "humanVerify": "मानव सत्यापन",
+        "approve": "स्वीकृत करें"
+      },
+      "notDetected": "नहीं मिला",
+      "confidence": {
+        "high": "उच्च विश्वास",
+        "low": "कम विश्वास",
+        "missing": "अनुपस्थित"
+      },
+      "verifyFields": "फ़ील्ड सत्यापित करें",
+      "continueToApprove": "स्वीकृति पर जाएँ",
+      "approveSupporter": "समर्थक स्वीकृत करें",
+      "supporterAdded": "✓ 1 समर्थक जोड़ा गया",
+      "nextReview": "अगली समीक्षा",
+      "back": "वापस",
+      "advanced": "उन्नत"
+    },
     "noCampaign": {
       "title": "स्कैन के लिए कोई अभियान नहीं",
       "description": "कागज़ी हस्ताक्षर या OCR स्कैन बैच आयात करने से पहले अभियान बनाएँ।"
@@ -1797,6 +1821,7 @@
     "fields": {
       "name": "नाम",
       "phone": "फ़ोन",
+      "mobile": "मोबाइल",
       "email": "ईमेल",
       "state": "राज्य",
       "district": "जिला",
@@ -1882,7 +1907,7 @@
     },
     "manual": {
       "title": "मैन्युअल प्रविष्टि",
-      "description": "टाइप किए समर्थक विवरण या सुधारा OCR पाठ पेस्ट करें, फिर स्वीकृति से पहले समीक्षा आइटम बनाएँ।",
+      "description": "समर्थक विवरण दर्ज करें, फिर स्वीकृति से पहले समीक्षा आइटम बनाएँ।",
       "createReview": "समीक्षा आइटम बनाएँ"
     },
     "review": {
@@ -1895,6 +1920,10 @@
       "batchReject": "बैच अस्वीकार करें",
       "empty": "कोई फील्ड संग्रह आइटम समीक्षा की प्रतीक्षा में नहीं है।",
       "extractedText": "निकाला गया पाठ",
+      "supporterDetails": "समर्थक का विवरण",
+      "supporterDetailsHelp": "अनुमोदन से पहले OCR से भरे गए फ़ील्ड की पुष्टि करें।",
+      "additionalFields": "अतिरिक्त फ़ील्ड",
+      "viewOcrText": "OCR टेक्स्ट देखें",
       "approveSigner": "हस्ताक्षरकर्ता सूची में स्वीकृत करें",
       "alreadyApprovedMessage": "यह कागज़ी रिकॉर्ड पहले ही स्वीकृत किया जा चुका है।",
       "approvalFailed": "स्वीकृति पूरी नहीं हो सकी। कागज़ी रिकॉर्ड समीक्षा में बना हुआ है।",
@@ -2501,6 +2530,7 @@
       "campaignAdmin": "अभियान एडमिन",
       "publicSigning": "सार्वजनिक हस्ताक्षर",
       "movementCrm": "आंदोलन CRM",
+      "coordinatorNetwork": "समन्वयक नेटवर्क",
       "growthEngine": "ग्रोथ इंजन",
       "fieldCollection": "मैदानी संग्रह",
       "reports": "रिपोर्ट",

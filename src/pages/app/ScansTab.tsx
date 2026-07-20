@@ -12,7 +12,9 @@ import {
   RotateCw,
   SearchCheck,
   ShieldCheck,
+  Sparkles,
   Upload,
+  UserCheck,
   UsersRound
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -28,6 +30,7 @@ import {
   whatsappConfirmationAdapter
 } from "../../confirmationQueue";
 import { compressScanImage, validateScanImageFile } from "../../mobileScanCapture";
+import { parseSignerFromText } from "../../lib";
 import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
@@ -55,6 +58,31 @@ interface ScansTabProps {
     value: string
   ) => void;
   onApproveScan: (scan: ScanReviewItem | ScanReviewItem[]) => Promise<ScanApprovalCounts>;
+}
+
+const guidedReviewFields = [
+  ["name", "name"],
+  ["phone", "mobile"],
+  ["address", "village"],
+  ["district", "district"],
+  ["state", "state"]
+] as const;
+
+type GuidedReviewField = (typeof guidedReviewFields)[number][0];
+
+function getFieldConfidence(field: GuidedReviewField, value: string) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return { level: "missing", score: 0 } as const;
+  if (field === "phone") {
+    const digits = trimmedValue.replace(/\D/g, "").replace(/^91(?=\d{10}$)/, "");
+    return /^\d{10}$/.test(digits)
+      ? { level: "high", score: 94 } as const
+      : { level: "low", score: 42 } as const;
+  }
+  if (field === "name" && trimmedValue.length < 3) {
+    return { level: "low", score: 48 } as const;
+  }
+  return { level: "high", score: field === "name" ? 92 : 88 } as const;
 }
 
 export function ScansTab({
@@ -99,6 +127,8 @@ export function ScansTab({
   const [privateEvidenceUrl, setPrivateEvidenceUrl] = useState("");
   const [privateEvidenceError, setPrivateEvidenceError] = useState("");
   const [showCaptureNext, setShowCaptureNext] = useState(false);
+  const [fieldCollectionStep, setFieldCollectionStep] = useState<1 | 2 | 3 | 4>(1);
+  const [wizardApprovalSuccess, setWizardApprovalSuccess] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => {
@@ -145,6 +175,22 @@ export function ScansTab({
   const approvedScanItems = campaignScanItems.filter((item) => item.status === "Approved");
   const currentReviewItem = reviewQueueItems[Math.min(reviewIndex, Math.max(0, reviewQueueItems.length - 1))];
   const campaignConfirmationQueue = confirmationQueue.filter((item) => item.campaignId === activeCampaign.id);
+  const manualReviewSigner = parseSignerFromText(scanText);
+  const firstIncompleteField = currentReviewItem
+    ? guidedReviewFields.find(([field]) =>
+        getFieldConfidence(field, currentReviewItem.parsedSigner[field]).level !== "high"
+      )?.[0]
+    : undefined;
+
+  function updateManualReviewField(label: string, value: string) {
+    setScanText((current) => {
+      const fieldLine = new RegExp(`^${label}:.*$`, "mi");
+      if (fieldLine.test(current)) {
+        return current.replace(fieldLine, `${label}: ${value}`);
+      }
+      return `${current.trimEnd()}\n${label}: ${value}`;
+    });
+  }
 
   function selectCaptureFile(file: File) {
     const validationError = validateScanImageFile(file);
@@ -162,6 +208,8 @@ export function ScansTab({
     setCaptureRotation(0);
     setCaptureProgress(10);
     setCapturedAt(new Date().toISOString());
+    setWizardApprovalSuccess(false);
+    setFieldCollectionStep(1);
   }
 
   function clearCapture() {
@@ -205,6 +253,8 @@ export function ScansTab({
       }
       setCaptureProgress(100);
       clearCapture();
+      setReviewIndex(0);
+      setFieldCollectionStep(2);
     } catch {
       setCaptureProgress(0);
       setCaptureError(t("scans.capture.uploadFailed"));
@@ -249,8 +299,8 @@ export function ScansTab({
     ].join(" · ");
   }
 
-  async function approveReviewItem(item: ScanReviewItem) {
-    if (!approvalLockRef.current.startSingle(item.id)) return;
+  async function approveReviewItem(item: ScanReviewItem): Promise<ScanApprovalCounts | null> {
+    if (!approvalLockRef.current.startSingle(item.id)) return null;
     setApprovingScanItemIds((current) => new Set(current).add(item.id));
     setApprovalMessageIsError(false);
     setApprovalMessage(t("scans.review.processing"));
@@ -268,9 +318,11 @@ export function ScansTab({
       setApprovalMessage(
         counts.operatorMessage || formatApprovalCounts(counts)
       );
+      return counts;
     } catch {
       setApprovalMessageIsError(true);
       setApprovalMessage(t("scans.review.approvalFailed"));
+      return null;
     } finally {
       approvalLockRef.current.finishSingle(item.id);
       setApprovingScanItemIds((current) => {
@@ -279,6 +331,13 @@ export function ScansTab({
         return next;
       });
     }
+  }
+
+  async function approveWizardReviewItem(item: ScanReviewItem) {
+    const counts = await approveReviewItem(item);
+    if (!counts || counts.approved !== 1) return;
+    setReviewIndex((current) => Math.min(current, Math.max(0, reviewQueueItems.length - 2)));
+    setWizardApprovalSuccess(true);
   }
 
   async function batchApproveReviewItems() {
@@ -311,6 +370,232 @@ export function ScansTab({
 
   return (
     <section className="page-stack">
+      <Panel title={t("scans.workflow.title")} icon={<FileScan />}>
+        <div className="field-collection-wizard">
+          <div className="field-collection-stepper" aria-label={t("scans.workflow.progressLabel")}>
+            {([
+              [1, "captureUpload"],
+              [2, "aiReview"],
+              [3, "humanVerify"],
+              [4, "approve"]
+            ] as const).map(([step, label]) => (
+              <button
+                className={fieldCollectionStep === step ? "is-active" : fieldCollectionStep > step ? "is-complete" : ""}
+                type="button"
+                key={step}
+                disabled={step > 1 && !currentReviewItem && !wizardApprovalSuccess}
+                onClick={() => {
+                  setWizardApprovalSuccess(false);
+                  setFieldCollectionStep(step);
+                }}
+              >
+                <span>{fieldCollectionStep > step ? "✓" : step}</span>
+                {t(`scans.workflow.steps.${label}`)}
+              </button>
+            ))}
+          </div>
+
+          {fieldCollectionStep === 1 && (
+            <div className="field-collection-step-card">
+              <div className="field-collection-step-heading">
+                <Camera size={24} />
+                <div>
+                  <span>{t("scans.workflow.stepLabel")} 1</span>
+                  <h3>{t("scans.workflow.steps.captureUpload")}</h3>
+                </div>
+              </div>
+              <div className="mobile-capture-actions">
+                <label className="primary-button mobile-file-button">
+                  <Camera size={20} /> {t("scans.capture.takePhoto")}
+                  <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) selectCaptureFile(file);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+                <label className="secondary-button mobile-file-button">
+                  <FileScan size={20} /> {t("scans.capture.chooseImage")}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) selectCaptureFile(file);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+              {capturePreviewUrl && (
+                <div className="mobile-capture-preview">
+                  <img
+                    src={capturePreviewUrl}
+                    alt={t("scans.capture.previewAlt")}
+                    style={{ transform: `rotate(${captureRotation}deg)` }}
+                  />
+                  <div className="button-row">
+                    <button className="secondary-button" type="button" onClick={() => setCaptureRotation((value) => (value + 90) % 360)}>
+                      <RotateCw size={18} /> {t("scans.capture.rotate")}
+                    </button>
+                    <button className="secondary-button" type="button" onClick={() => { clearCapture(); cameraInputRef.current?.click(); }}>
+                      {t("scans.capture.retake")}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <label className="field-collection-paper-consent">
+                <input type="checkbox" checked={paperConsentRecorded} onChange={(event) => setPaperConsentRecorded(event.target.checked)} />
+                {t("scans.capture.paperConsent")}
+              </label>
+              {selectedCaptureFile && (
+                <button className="primary-button mobile-upload-button" type="button" disabled={isScanning || !secureFieldUploadAvailable} onClick={() => void uploadSelectedCapture()}>
+                  <ShieldCheck size={19} /> {isScanning ? t("scans.capture.uploading") : t("scans.capture.secureUpload")}
+                </button>
+              )}
+              {(isScanning || captureProgress > 0) && <progress className="scan-upload-progress" max={100} value={isScanning ? Math.max(captureProgress, 60) : captureProgress} />}
+              {captureError && <p className="error-message">{captureError}</p>}
+              {scanMessage && scanMessage !== secureFieldUploadMessage && <p className="info-message">{scanMessage}</p>}
+            </div>
+          )}
+
+          {fieldCollectionStep === 2 && (
+            <div className="field-collection-step-card">
+              <div className="field-collection-step-heading">
+                <Sparkles size={24} />
+                <div>
+                  <span>{t("scans.workflow.stepLabel")} 2</span>
+                  <h3>{t("scans.workflow.steps.aiReview")}</h3>
+                </div>
+              </div>
+              {!currentReviewItem ? (
+                <p className="helper-text">{t("scans.review.empty")}</p>
+              ) : (
+                <>
+                  <div className="field-collection-ai-fields">
+                    {guidedReviewFields.map(([field, label]) => {
+                      const confidence = getFieldConfidence(field, currentReviewItem.parsedSigner[field]);
+                      return (
+                        <div className="field-collection-ai-field" key={field}>
+                          <span>{t(`scans.fields.${label}`)}</span>
+                          <strong>{currentReviewItem.parsedSigner[field] || t("scans.workflow.notDetected")}</strong>
+                          <small data-confidence={confidence.level}>
+                            {confidence.score}% {t(`scans.workflow.confidence.${confidence.level}`)}
+                          </small>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <button className="primary-button field-collection-next-button" type="button" onClick={() => setFieldCollectionStep(3)}>
+                    {t("scans.workflow.verifyFields")} <ChevronRight size={19} />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {fieldCollectionStep === 3 && (
+            <div className="field-collection-step-card">
+              <div className="field-collection-step-heading">
+                <UserCheck size={24} />
+                <div>
+                  <span>{t("scans.workflow.stepLabel")} 3</span>
+                  <h3>{t("scans.workflow.steps.humanVerify")}</h3>
+                </div>
+              </div>
+              {!currentReviewItem ? (
+                <p className="helper-text">{t("scans.review.empty")}</p>
+              ) : (
+                <>
+                  <div className="form-grid compact field-collection-verify-fields">
+                    {guidedReviewFields.map(([field, label]) => {
+                      const confidence = getFieldConfidence(field, currentReviewItem.parsedSigner[field]);
+                      return (
+                        <div className={`field-collection-verify-field ${confidence.level !== "high" ? "needs-attention" : ""}`} key={field}>
+                          <Field label={t(`scans.fields.${label}`)}>
+                            <input
+                              autoFocus={field === firstIncompleteField}
+                              value={currentReviewItem.parsedSigner[field]}
+                              onChange={(event) => onUpdateScanParsedSigner(currentReviewItem.id, field, event.target.value)}
+                            />
+                          </Field>
+                          <small data-confidence={confidence.level}>
+                            {confidence.score}% {t(`scans.workflow.confidence.${confidence.level}`)}
+                          </small>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="field-collection-wizard-actions">
+                    <button className="secondary-button" type="button" onClick={() => setFieldCollectionStep(2)}>
+                      <ChevronLeft size={19} /> {t("scans.workflow.back")}
+                    </button>
+                    <button className="primary-button" type="button" onClick={() => setFieldCollectionStep(4)}>
+                      {t("scans.workflow.continueToApprove")} <ChevronRight size={19} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {fieldCollectionStep === 4 && (
+            <div className="field-collection-step-card field-collection-approve-step">
+              {wizardApprovalSuccess ? (
+                <div className="field-collection-success-card" role="status">
+                  <CheckCircle2 size={40} />
+                  <strong>{t("scans.workflow.supporterAdded")}</strong>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => {
+                      setWizardApprovalSuccess(false);
+                      setFieldCollectionStep(currentReviewItem ? 2 : 1);
+                    }}
+                  >
+                    {t("scans.workflow.nextReview")} <ChevronRight size={19} />
+                  </button>
+                </div>
+              ) : !currentReviewItem ? (
+                <p className="helper-text">{t("scans.review.empty")}</p>
+              ) : (
+                <>
+                  <div className="field-collection-step-heading">
+                    <CheckCircle2 size={24} />
+                    <div>
+                      <span>{t("scans.workflow.stepLabel")} 4</span>
+                      <h3>{t("scans.workflow.steps.approve")}</h3>
+                    </div>
+                  </div>
+                  <button
+                    className="field-collection-approve-button"
+                    type="button"
+                    disabled={isBatchApproving || approvingScanItemIds.has(currentReviewItem.id)}
+                    aria-busy={approvingScanItemIds.has(currentReviewItem.id)}
+                    onClick={() => void approveWizardReviewItem(currentReviewItem)}
+                  >
+                    <CheckCircle2 size={26} />
+                    {approvingScanItemIds.has(currentReviewItem.id) ? t("scans.review.processing") : t("scans.workflow.approveSupporter")}
+                  </button>
+                  {approvalMessage && approvalMessageIsError && <p className="error-message">{approvalMessage}</p>}
+                  <button className="secondary-button" type="button" onClick={() => setFieldCollectionStep(3)}>
+                    <ChevronLeft size={19} /> {t("scans.workflow.back")}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </Panel>
+
+      <details className="field-collection-advanced">
+        <summary>{t("scans.workflow.advanced")}</summary>
+        <div className="page-stack">
       <Panel title={t("scans.import.title")} icon={<FileScan />}>
         <div className="paper-import-hero">
           <div>
@@ -408,7 +693,6 @@ export function ScansTab({
             <label className="primary-button mobile-file-button">
               <Camera size={20} /> {t("scans.capture.takePhoto")}
               <input
-                ref={cameraInputRef}
                 type="file"
                 accept="image/*"
                 capture="environment"
@@ -477,10 +761,6 @@ export function ScansTab({
             }} /> {t("scans.capture.noOngoing")}</label>
           </div>
 
-          <div>
-            <span className="label">{t("scans.upload.manualCorrection")}</span>
-            <textarea rows={6} value={scanText} onChange={(event) => setScanText(event.target.value)} />
-          </div>
           {selectedCaptureFile && (
             <button className="primary-button mobile-upload-button" type="button" disabled={isScanning || !secureFieldUploadAvailable} onClick={() => void uploadSelectedCapture()}>
               <ShieldCheck size={19} /> {isScanning ? t("scans.capture.uploading") : t("scans.capture.secureUpload")}
@@ -504,11 +784,24 @@ export function ScansTab({
           <p className="helper-text">
             {t("scans.manual.description")}
           </p>
-          <textarea
-            rows={6}
-            value={scanText}
-            onChange={(e) => setScanText(e.target.value)}
-          />
+          <div className="form-grid compact scan-review-primary-fields">
+            {(
+              [
+                ["name", "Name", "name"],
+                ["phone", "Phone", "mobile"],
+                ["address", "Address", "village"],
+                ["district", "District", "district"],
+                ["state", "State", "state"]
+              ] as const
+            ).map(([field, sourceLabel, displayLabel]) => (
+              <Field key={field} label={t(`scans.fields.${displayLabel}`)}>
+                <input
+                  value={manualReviewSigner[field]}
+                  onChange={(event) => updateManualReviewField(sourceLabel, event.target.value)}
+                />
+              </Field>
+            ))}
+          </div>
           <div className="button-row">
             <button className="secondary-button" type="button" onClick={onCreateManualScanItem}>
               <Plus size={18} /> {t("scans.manual.createReview")}
@@ -630,22 +923,21 @@ export function ScansTab({
                 <strong>{item.fileName}</strong>
                 <span className="status-pill" data-status={item.status}>{t(`scans.status.${item.status.replace(/\s/g, "").toLowerCase()}`)}</span>
               </div>
-              <div className="form-grid compact">
+              <div className="scan-review-form-heading">
+                <strong>{t("scans.review.supporterDetails")}</strong>
+                <span>{t("scans.review.supporterDetailsHelp")}</span>
+              </div>
+              <div className="form-grid compact scan-review-primary-fields">
                 {(
                   [
-                    "name",
-                    "email",
-                    "phone",
-                    "state",
-                    "district",
-                    "block",
-                    "panchayat",
-                    "address",
-                    "postalCode",
-                    "comment"
+                    ["name", "name"],
+                    ["phone", "mobile"],
+                    ["address", "village"],
+                    ["district", "district"],
+                    ["state", "state"]
                   ] as const
-                ).map((field) => (
-                  <Field key={field} label={t(`scans.fields.${field}`)}>
+                ).map(([field, label]) => (
+                  <Field key={field} label={t(`scans.fields.${label}`)}>
                     <input
                       value={item.parsedSigner[field]}
                       onChange={(e) => onUpdateScanParsedSigner(item.id, field, e.target.value)}
@@ -653,6 +945,19 @@ export function ScansTab({
                   </Field>
                 ))}
               </div>
+              <details className="scan-review-secondary-fields">
+                <summary>{t("scans.review.additionalFields")}</summary>
+                <div className="form-grid compact">
+                  {(["email", "block", "panchayat", "postalCode", "comment"] as const).map((field) => (
+                    <Field key={field} label={t(`scans.fields.${field}`)}>
+                      <input
+                        value={item.parsedSigner[field]}
+                        onChange={(e) => onUpdateScanParsedSigner(item.id, field, e.target.value)}
+                      />
+                    </Field>
+                  ))}
+                </div>
+              </details>
               <div className="form-grid compact mobile-capture-metadata">
                 <Field label={t("scans.capture.batchId")}>
                   <input value={item.sourceBatchId ?? ""} onChange={(event) => updateScanMetadata(item.id, { sourceBatchId: event.target.value })} />
@@ -699,8 +1004,8 @@ export function ScansTab({
                   {privateEvidenceError && <p className="error-message">{privateEvidenceError}</p>}
                 </div>
               )}
-              <details>
-                <summary>{t("scans.review.extractedText")}</summary>
+              <details className="scan-review-ocr-text">
+                <summary>{t("scans.review.viewOcrText")}</summary>
                 <pre>{item.extractedText}</pre>
               </details>
               <div className="button-row">
@@ -808,6 +1113,8 @@ export function ScansTab({
           ))}
         </div>
       </Panel>
+        </div>
+      </details>
     </section>
   );
 }

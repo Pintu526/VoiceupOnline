@@ -2,6 +2,8 @@
     corsHeaders,
     createAdminClient,
     createSecureToken,
+    getUser,
+    isPlatformAdmin,
     jsonResponse,
     normalizePhone,
     parseJson,
@@ -53,6 +55,25 @@
       const admin = createAdminClient();
       let workspaceId = String(body?.workspaceId ?? "default");
       const metadata = body?.metadata ?? {};
+      if (purpose === "coordinator-mobile") {
+        const caller = await getUser(req);
+        if (!caller) return jsonResponse({ error: "A valid Supabase session is required." }, 401);
+        const [platformAdmin, membershipResult] = await Promise.all([
+          isPlatformAdmin(admin, caller.id),
+          admin
+            .from("voiceup_workspace_members")
+            .select("role, active")
+            .eq("workspace_id", workspaceId)
+            .eq("user_id", caller.id)
+            .eq("active", true)
+            .maybeSingle()
+        ]);
+        if (membershipResult.error) throw membershipResult.error;
+        const workspaceRole = membershipResult.data?.role ?? "";
+        if (!platformAdmin && !["platform_owner", "workspace_admin", "campaign_admin"].includes(workspaceRole)) {
+          return jsonResponse({ error: "Coordinator mobile verification is not authorized." }, 403);
+        }
+      }
       const publicSlug = typeof metadata?.slug === "string" ? metadata.slug.trim() : "";
       if (purpose === "public-signing" && publicSlug) {
         const { data: campaignIndex, error: indexError } = await admin

@@ -14,6 +14,7 @@ import {
   Megaphone,
   MessageCircle,
   Moon,
+  Network,
   Plus,
   Search,
   ShieldCheck,
@@ -57,6 +58,9 @@ import { useTranslation } from "../i18n";
 
 const MovementCrmTab = lazy(() =>
   import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
+);
+const CoordinatorNetworkTab = lazy(() =>
+  import("../pages/app/CoordinatorNetworkTab").then((module) => ({ default: module.CoordinatorNetworkTab }))
 );
 const GrowthDashboardTab = lazy(() =>
   import("../pages/app/GrowthDashboardTab").then((module) => ({ default: module.GrowthDashboardTab }))
@@ -540,6 +544,7 @@ export function AppShell({
       command: t("settings.shell.locks.command"),
       public: t("settings.shell.locks.public"),
       movement: t("settings.shell.locks.movement"),
+      coordinators: t("settings.shell.locks.movement"),
       growth: t("settings.shell.locks.growth"),
       scans: t("settings.shell.locks.scans"),
       reports: t("settings.shell.locks.reports"),
@@ -558,6 +563,7 @@ export function AppShell({
     if (tab === "reports") return canUseReports;
     if (tab === "command") return hasWorkspaceFeature("command_center");
     if (tab === "movement") return hasWorkspaceFeature("movement_crm");
+    if (tab === "coordinators") return hasWorkspaceFeature("movement_crm");
     if (tab === "growth") return canUseGrowthEngine;
     if (tab === "scans") return hasWorkspaceFeature("field_collection");
     if (tab === "engagement") return hasWorkspaceFeature("communication_hub");
@@ -1090,6 +1096,15 @@ export function AppShell({
                 onClick={requestTabChange}
               />
             )}
+            {hasWorkspaceFeature("movement_crm") && (
+              <NavButton
+                icon={<Network />}
+                label={t("campaignAdmin.nav.coordinatorNetwork")}
+                tab="coordinators"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
             {canUseGrowthEngine && (
               <NavButton
                 icon={<TrendingUp />}
@@ -1435,6 +1450,16 @@ export function AppShell({
                 campaignSigners={campaignSigners}
                 scanItems={scanItems}
                 authorities={authorities}
+              />
+            </Suspense>
+          )}
+
+          {activeTab === "coordinators" && hasWorkspaceFeature("movement_crm") && (
+            <Suspense fallback={<ModuleSkeleton label="Loading Coordinator Network" />}>
+              <CoordinatorNetworkTab
+                campaigns={campaigns}
+                locationOverrides={locationOverrides}
+                locationDeletions={locationDeletions}
               />
             </Suspense>
           )}

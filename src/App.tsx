@@ -455,7 +455,7 @@ function App() {
 
   // ─── UI state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "command" | "campaigns" | "public" | "movement" | "growth" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
+    "dashboard" | "command" | "campaigns" | "public" | "movement" | "coordinators" | "growth" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
   >("dashboard");
   const [theme, setTheme] = usePersistentState<"light" | "dark">(`${storagePrefix}-theme`, "light");
   const [commandOpen, setCommandOpen] = useState(false);
@@ -701,6 +701,9 @@ function App() {
         : []),
       ...(hasFeature("movement_crm")
         ? [{ label: "Movement CRM", detail: "Open supporter and volunteer graph", action: () => setActiveTab("movement" as const) }]
+        : []),
+      ...(hasFeature("movement_crm")
+        ? [{ label: "Coordinator Network", detail: "Manage coordinator hierarchy", action: () => setActiveTab("coordinators" as const) }]
         : []),
       ...(canUseGrowthEngine
         ? [{ label: "Growth Engine", detail: "Open campaign growth dashboard", action: () => setActiveTab("growth" as const) }]

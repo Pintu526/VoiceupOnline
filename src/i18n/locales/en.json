@@ -1777,6 +1777,30 @@
     "common": {
       "rows": "rows"
     },
+    "workflow": {
+      "title": "Field Collection",
+      "progressLabel": "Field collection workflow",
+      "stepLabel": "Step",
+      "steps": {
+        "captureUpload": "Capture / Upload",
+        "aiReview": "AI Review",
+        "humanVerify": "Human Verify",
+        "approve": "Approve"
+      },
+      "notDetected": "Not detected",
+      "confidence": {
+        "high": "High confidence",
+        "low": "Low confidence",
+        "missing": "Missing"
+      },
+      "verifyFields": "Verify fields",
+      "continueToApprove": "Continue to Approve",
+      "approveSupporter": "Approve Supporter",
+      "supporterAdded": "✓ 1 supporter added",
+      "nextReview": "Next Review",
+      "back": "Back",
+      "advanced": "Advanced"
+    },
     "noCampaign": {
       "title": "No campaign for scans",
       "description": "Create a campaign before importing hard-copy signatures or OCR scan batches."
@@ -1797,6 +1821,7 @@
     "fields": {
       "name": "Name",
       "phone": "Phone",
+      "mobile": "Mobile",
       "email": "Email",
       "state": "State",
       "district": "District",
@@ -1882,7 +1907,7 @@
     },
     "manual": {
       "title": "Manual entry",
-      "description": "Paste typed supporter details or corrected OCR text, then create a review item before approval.",
+      "description": "Enter supporter details, then create a review item before approval.",
       "createReview": "Create review item"
     },
     "review": {
@@ -1895,6 +1920,10 @@
       "batchReject": "Batch reject",
       "empty": "No field collection items are waiting for review.",
       "extractedText": "Extracted text",
+      "supporterDetails": "Supporter details",
+      "supporterDetailsHelp": "Confirm the OCR-filled fields before approval.",
+      "additionalFields": "Additional fields",
+      "viewOcrText": "View OCR Text",
       "approveSigner": "Approve into signer list",
       "alreadyApprovedMessage": "This paper record has already been approved.",
       "approvalFailed": "Approval could not be completed. The paper record remains in review.",
@@ -2501,6 +2530,7 @@
       "campaignAdmin": "Campaign admin",
       "publicSigning": "Public signing",
       "movementCrm": "Movement CRM",
+      "coordinatorNetwork": "Coordinator Network",
       "growthEngine": "Growth Engine",
       "fieldCollection": "Field Collection",
       "reports": "Reports",

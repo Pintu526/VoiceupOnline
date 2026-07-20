@@ -10,6 +10,13 @@ import type {
   Signer
 } from "./types";
 import type { LocationDeletions, LocationOverrides } from "./geography";
+import type {
+  CoordinatorDraft,
+  CoordinatorNetworkSnapshot,
+  CoordinatorStatus
+} from "./coordinators";
+import { geographyForRole } from "./coordinators";
+import { normalizeIndianPhone } from "./shared/deduplication/supporterIdentity";
 import {
   evaluateSecureFieldUploadAccess,
   secureFieldUploadRoles,
@@ -124,6 +131,19 @@ export interface AuthoritativeFieldCollectionState {
   reviewItems: ScanReviewItem[];
   supporters: Signer[];
   auditLogs: AuditLogEntry[];
+}
+
+export interface CoordinatorOtpRequestResult {
+  challengeId: string;
+  resendAfterSeconds: number;
+  message: string;
+  developmentOtp?: string;
+}
+
+export interface CoordinatorOtpVerifyResult {
+  verified: boolean;
+  verificationToken: string;
+  message: string;
 }
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -799,6 +819,152 @@ export async function recordScanApprovalBatchAudit(input: {
     p_counts: input.counts ?? {}
   });
   if (error) throw new Error(error.message);
+}
+
+export async function loadCoordinatorNetwork(): Promise<CoordinatorNetworkSnapshot> {
+  const client = requireSupabase();
+  const workspaceId = await resolveWorkspaceId();
+  if (!workspaceId) throw new Error("Authenticated workspace access is required.");
+  const { data, error } = await client.rpc("get_voiceup_coordinator_network", {
+    p_workspace_id: workspaceId
+  });
+  if (error || !data) throw new Error(error?.message || "Coordinator network could not be loaded.");
+  return data as CoordinatorNetworkSnapshot;
+}
+
+export async function requestCoordinatorMobileOtp(
+  workspaceId: string,
+  phone: string
+): Promise<CoordinatorOtpRequestResult> {
+  const client = requireSupabase();
+  const normalizedPhone = normalizeIndianPhone(phone);
+  if (!normalizedPhone.verified) throw new Error("Enter a valid 10-digit Indian mobile number.");
+  const { data, error } = await client.functions.invoke<{
+    challengeId?: string;
+    resendAfterSeconds?: number;
+    message?: string;
+    otp?: string;
+    error?: string;
+  }>("voiceup-otp", {
+    body: {
+      action: "send",
+      purpose: "coordinator-mobile",
+      workspaceId,
+      phone: normalizedPhone.normalized,
+      metadata: { source: "coordinator-network" }
+    }
+  });
+  if (error || data?.error || !data?.challengeId) {
+    throw new Error(data?.error || error?.message || "Verification code could not be sent.");
+  }
+  return {
+    challengeId: data.challengeId,
+    resendAfterSeconds: data.resendAfterSeconds ?? 30,
+    message: data.message ?? "Verification code sent.",
+    developmentOtp: data.otp
+  };
+}
+
+export async function verifyCoordinatorMobileOtp(input: {
+  workspaceId: string;
+  phone: string;
+  challengeId: string;
+  code: string;
+}): Promise<CoordinatorOtpVerifyResult> {
+  const client = requireSupabase();
+  const normalizedPhone = normalizeIndianPhone(input.phone);
+  if (!normalizedPhone.verified) throw new Error("Enter a valid 10-digit Indian mobile number.");
+  const { data, error } = await client.functions.invoke<{
+    verified?: boolean;
+    verificationToken?: string;
+    message?: string;
+    error?: string;
+  }>("voiceup-otp", {
+    body: {
+      action: "verify",
+      purpose: "coordinator-mobile",
+      workspaceId: input.workspaceId,
+      phone: normalizedPhone.normalized,
+      challengeId: input.challengeId,
+      code: input.code,
+      metadata: { source: "coordinator-network" }
+    }
+  });
+  if (error || data?.error || !data?.verified || !data.verificationToken) {
+    throw new Error(data?.error || error?.message || "Mobile verification failed.");
+  }
+  return {
+    verified: true,
+    verificationToken: data.verificationToken,
+    message: data.message ?? "Mobile number verified."
+  };
+}
+
+export async function saveCoordinator(
+  workspaceId: string,
+  draft: CoordinatorDraft,
+  verificationToken = ""
+): Promise<{ id: string; referralCode: string; version: number }> {
+  const client = requireSupabase();
+  const { geography, campaignIds, ...coordinator } = draft;
+  const { data, error } = await client.rpc("upsert_voiceup_coordinator", {
+    p_workspace_id: workspaceId,
+    p_coordinator: coordinator,
+    p_geography: geographyForRole(geography, draft.role),
+    p_campaign_ids: campaignIds,
+    p_verification_token: verificationToken || null
+  });
+  if (error || !data) throw new Error(error?.message || "Coordinator could not be saved.");
+  return data as { id: string; referralCode: string; version: number };
+}
+
+export async function changeCoordinatorStatus(input: {
+  workspaceId: string;
+  coordinatorId: string;
+  status: CoordinatorStatus;
+  expectedVersion: number;
+}): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("set_voiceup_coordinator_status", {
+    p_workspace_id: input.workspaceId,
+    p_coordinator_id: input.coordinatorId,
+    p_status: input.status,
+    p_expected_version: input.expectedVersion
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function removeCoordinator(input: {
+  workspaceId: string;
+  coordinatorId: string;
+  expectedVersion: number;
+}): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("delete_voiceup_coordinator", {
+    p_workspace_id: input.workspaceId,
+    p_coordinator_id: input.coordinatorId,
+    p_expected_version: input.expectedVersion
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function uploadCoordinatorPhoto(
+  coordinatorId: string,
+  file: File
+): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Coordinator photos must be 5 MB or smaller.");
+  const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const result = await uploadPrivateFileToStorage(
+    "campaign-private",
+    `coordinators/${coordinatorId}/profile-${Date.now()}.${extension}`,
+    file
+  );
+  return result.path;
+}
+
+export async function openCoordinatorPhoto(path: string): Promise<string> {
+  return createSignedStorageUrl("campaign-private", path, 300);
 }
 
 export async function loadPublicCampaign(slug: string): Promise<PublicCampaignPayload | null> {

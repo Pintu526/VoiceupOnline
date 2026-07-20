@@ -18,6 +18,7 @@ const migrationSource = readFileSync(
 const backendSource = readFileSync(new URL("../src/backend.ts", import.meta.url), "utf8");
 const otpSource = readFileSync(new URL("../supabase/functions/voiceup-otp/index.ts", import.meta.url), "utf8");
 const uiSource = readFileSync(new URL("../src/pages/app/CoordinatorNetworkTab.tsx", import.meta.url), "utf8");
+const stylesSource = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
 
 function coordinator(id, overrides = {}) {
   return {
@@ -177,4 +178,34 @@ test("React feature provides real CRUD, filters, hierarchy, profile, campaign, r
     /Coordinator activity log/
   ]) assert.match(uiSource, evidence);
   assert.doesNotMatch(uiSource, /TODO|mock coordinator|placeholder screen/i);
+});
+
+test("Phase 1 keeps Coordinator Network mobile-first, accessible, and behavior-neutral", () => {
+  for (const evidence of [
+    /coordinator-loading-shell/,
+    /coordinator-form-actions/,
+    /coordinator-fab/,
+    /coordinator-search-control/,
+    /coordinator-directory-view/,
+    /coordinator-state-icon/,
+    /role="tablist"/,
+    /role="tabpanel"/,
+    /aria-selected=\{view === item\}/,
+    /tabIndex=\{view === item \? 0 : -1\}/,
+    /handleViewKeyDown\(event, item\)/,
+    /aria-busy=\{loading\}/,
+    /aria-label="Coordinator reporting hierarchy"/,
+    /aria-invalid=\{Boolean\(formErrors\.phone\)\}/
+  ]) assert.match(uiSource, evidence);
+
+  for (const evidence of [
+    /\.coordinator-view-tabs button[\s\S]*?min-height: 44px/,
+    /\.coordinator-form-actions[\s\S]*?position: sticky/,
+    /\.coordinator-fab[\s\S]*?position: fixed/,
+    /@media \(max-width: 700px\)/,
+    /@media \(max-width: 390px\)/,
+    /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.coordinator-view-panel/,
+    /\.coordinator-directory-view[\s\S]*?grid-template-columns/,
+    /\.coordinator-tree-node > div[\s\S]*?--coordinator-tree-depth/
+  ]) assert.match(stylesSource, evidence);
 });

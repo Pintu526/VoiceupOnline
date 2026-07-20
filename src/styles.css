@@ -10801,10 +10801,20 @@ button.secondary-link-button {
 }
 
 /* Coordinator Network */
+.coordinator-network {
+  min-width: 0;
+}
+
+.coordinator-network > .panel:first-child {
+  background:
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--accent) 14%, transparent), transparent 38%),
+    linear-gradient(145deg, color-mix(in srgb, var(--primary) 5%, var(--panel)), var(--panel));
+}
+
 .coordinator-network-header {
   align-items: flex-start;
   display: flex;
-  gap: 24px;
+  gap: clamp(18px, 3vw, 32px);
   justify-content: space-between;
 }
 
@@ -10819,11 +10829,26 @@ button.secondary-link-button {
   max-width: 760px;
 }
 
+.coordinator-network-header h2 {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  letter-spacing: -0.025em;
+}
+
+.coordinator-network-header p {
+  color: var(--text-soft);
+  line-height: 1.6;
+  max-width: 680px;
+}
+
+.coordinator-header-actions {
+  flex: 0 0 auto;
+}
+
 .coordinator-view-tabs {
   border-top: 1px solid var(--border);
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 20px;
   padding-top: 16px;
 }
@@ -10836,13 +10861,50 @@ button.secondary-link-button {
   cursor: pointer;
   font: inherit;
   font-weight: 700;
+  min-height: 44px;
   padding: 9px 15px;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
-.coordinator-view-tabs button.active {
+.coordinator-view-tabs button.active,
+.coordinator-view-tabs button[aria-selected="true"] {
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.coordinator-view-tabs button:focus-visible,
+.coordinator-profile-trigger:focus-visible,
+.coordinator-fab:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 70%, #ffffff);
+  outline-offset: 3px;
+}
+
+.coordinator-view-panel {
+  animation: coordinatorViewIn 180ms ease-out;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+@keyframes coordinatorViewIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.coordinator-feedback {
+  margin: 0;
 }
 
 .coordinator-form-grid,
@@ -10853,7 +10915,42 @@ button.secondary-link-button {
 }
 
 .coordinator-filter-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.coordinator-search-field {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+.coordinator-search-control {
+  align-items: center;
+  display: grid;
+  position: relative;
+}
+
+.coordinator-search-control > svg {
+  color: var(--text-soft);
+  left: 13px;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.coordinator-search-control input {
+  min-width: 0;
+  padding-inline-start: 42px;
+  width: 100%;
+}
+
+.coordinator-filter-summary {
+  color: var(--text-soft);
+  margin: 2px 0 0;
+}
+
+.coordinator-filter-summary strong {
+  color: var(--text);
 }
 
 .coordinator-mobile-verification,
@@ -10928,6 +11025,51 @@ button.secondary-link-button {
   gap: 4px;
 }
 
+.coordinator-form-actions {
+  backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  bottom: 12px;
+  box-shadow: var(--shadow-soft);
+  margin-top: 18px;
+  padding: 10px;
+  position: sticky;
+  z-index: 12;
+}
+
+.coordinator-metric-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.coordinator-metric-grid .metric-card {
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--primary) 5%, var(--panel)), var(--panel));
+  min-height: 148px;
+  overflow: hidden;
+  padding: 18px;
+  position: relative;
+}
+
+.coordinator-metric-grid .metric-card::after {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border-radius: 999px;
+  content: "";
+  height: 96px;
+  position: absolute;
+  right: -38px;
+  top: -38px;
+  width: 96px;
+}
+
+.coordinator-metric-grid .metric-card strong {
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+}
+
+.coordinator-dashboard-overview {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .coordinator-summary-list {
   display: grid;
   gap: 10px;
@@ -10951,6 +11093,29 @@ button.secondary-link-button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.coordinator-directory-view {
+  grid-template-columns: minmax(0, 1.6fr) minmax(310px, 0.7fr);
+}
+
+.coordinator-directory-view > .panel:first-child {
+  grid-column: 1 / -1;
+}
+
+.coordinator-directory-view > .panel:nth-child(2) {
+  grid-column: 1;
+}
+
+.coordinator-directory-view > .panel:nth-child(2):last-child {
+  grid-column: 1 / -1;
+}
+
+.coordinator-directory-view > .panel:nth-child(3) {
+  align-self: start;
+  grid-column: 2;
+  position: sticky;
+  top: 16px;
+}
+
 .coordinator-directory-card {
   background: var(--panel-soft);
   border: 1px solid var(--border);
@@ -10959,6 +11124,18 @@ button.secondary-link-button {
   gap: 12px;
   min-width: 0;
   padding: 16px;
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .coordinator-directory-card:hover {
+    border-color: color-mix(in srgb, var(--primary) 28%, var(--border));
+    box-shadow: var(--shadow-soft);
+    transform: translateY(-2px);
+  }
 }
 
 .coordinator-directory-card > div {
@@ -10982,8 +11159,10 @@ button.secondary-link-button {
   display: grid;
   gap: 10px;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  padding: 0;
+  min-height: 48px;
+  padding: 2px;
   text-align: start;
+  width: 100%;
 }
 
 .coordinator-profile-trigger span {
@@ -10995,10 +11174,26 @@ button.secondary-link-button {
   color: var(--text-soft);
 }
 
+.coordinator-card-actions {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.coordinator-card-actions select {
+  flex: 1 1 130px;
+  min-height: 44px;
+  min-width: 0;
+}
+
+.coordinator-card-actions .icon-button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 .coordinator-profile {
   display: grid;
-  gap: 24px;
-  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 20px;
+  grid-template-columns: 1fr;
 }
 
 .coordinator-profile-photo {
@@ -11029,7 +11224,7 @@ button.secondary-link-button {
   border-top: 1px solid var(--border);
   display: grid;
   gap: 12px;
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: minmax(88px, 0.65fr) minmax(0, 1fr);
   padding-top: 10px;
 }
 
@@ -11037,8 +11232,20 @@ button.secondary-link-button {
   color: var(--text-soft);
 }
 
+.coordinator-profile-details strong,
+.coordinator-directory-card p,
+.coordinator-directory-card small {
+  overflow-wrap: anywhere;
+}
+
+.coordinator-section-intro {
+  color: var(--text-soft);
+  margin: 0 0 4px;
+}
+
 .coordinator-tree,
 .coordinator-tree ul {
+  --coordinator-tree-indent: 20px;
   display: grid;
   gap: 10px;
   list-style: none;
@@ -11053,7 +11260,37 @@ button.secondary-link-button {
   border-radius: var(--control-radius);
   display: flex;
   gap: 10px;
+  margin-inline-start: calc(var(--coordinator-tree-depth) * var(--coordinator-tree-indent));
+  min-width: 0;
   padding: 12px 14px;
+  position: relative;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.coordinator-tree-node > div::before {
+  background: color-mix(in srgb, var(--primary) 34%, var(--border));
+  border-radius: 999px;
+  content: "";
+  height: calc(100% + 11px);
+  left: -10px;
+  position: absolute;
+  top: -11px;
+  width: 2px;
+}
+
+.coordinator-tree-node:first-child > div::before {
+  top: 50%;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .coordinator-tree-node > div:hover {
+    background: color-mix(in srgb, var(--primary) 6%, var(--panel-soft));
+    border-color: color-mix(in srgb, var(--primary) 24%, var(--border));
+    transform: translateX(2px);
+  }
 }
 
 .coordinator-tree-node span {
@@ -11065,10 +11302,152 @@ button.secondary-link-button {
   color: var(--text-soft);
 }
 
+.coordinator-activity-list .activity-card {
+  min-width: 0;
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.coordinator-activity-list .activity-card > div {
+  display: grid;
+  gap: 4px;
+}
+
+.coordinator-activity-list time {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  text-align: end;
+}
+
+.coordinator-state-icon {
+  align-items: center;
+  background: color-mix(in srgb, var(--primary) 10%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+  border-radius: 14px;
+  color: var(--primary);
+  display: inline-flex;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.coordinator-error-state {
+  align-content: center;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.coordinator-error-state p {
+  margin: 6px 0 0;
+}
+
+.coordinator-loading-shell {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 20px;
+  min-height: 360px;
+  padding: clamp(18px, 4vw, 28px);
+}
+
+.coordinator-loading-heading {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.coordinator-loading-heading > div {
+  display: grid;
+  gap: 10px;
+}
+
+.coordinator-skeleton {
+  animation: coordinatorSkeleton 1.3s ease-in-out infinite;
+  background: linear-gradient(90deg, var(--panel-soft), color-mix(in srgb, var(--primary) 9%, var(--panel)), var(--panel-soft));
+  background-size: 220% 100%;
+  border-radius: var(--radius-md);
+  display: block;
+  min-height: 126px;
+}
+
+.coordinator-skeleton-icon {
+  border-radius: 14px;
+  height: 48px;
+  min-height: 0;
+  width: 48px;
+}
+
+.coordinator-skeleton-title,
+.coordinator-skeleton-copy {
+  border-radius: 999px;
+  height: 14px;
+  min-height: 0;
+  width: min(360px, 72%);
+}
+
+.coordinator-skeleton-copy {
+  height: 10px;
+  width: min(560px, 92%);
+}
+
+.coordinator-loading-cards {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@keyframes coordinatorSkeleton {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.coordinator-fab {
+  align-items: center;
+  background: linear-gradient(135deg, var(--primary), #071f4e);
+  border: 0;
+  border-radius: 999px;
+  bottom: 16px;
+  box-shadow: 0 18px 42px color-mix(in srgb, var(--primary) 34%, transparent);
+  color: #ffffff;
+  display: none;
+  font: inherit;
+  font-weight: 850;
+  gap: 8px;
+  justify-content: center;
+  min-height: 56px;
+  padding: 0 20px;
+  position: fixed;
+  right: 16px;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  z-index: 30;
+}
+
 @media (max-width: 1100px) {
-  .coordinator-filter-grid,
+  .coordinator-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .coordinator-directory-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .coordinator-directory-view {
+    grid-template-columns: 1fr;
+  }
+
+  .coordinator-directory-view > .panel:first-child,
+  .coordinator-directory-view > .panel:nth-child(2),
+  .coordinator-directory-view > .panel:nth-child(3) {
+    grid-column: 1;
+  }
+
+  .coordinator-directory-view > .panel:nth-child(3) {
+    position: static;
+  }
+
+  .coordinator-profile {
+    grid-template-columns: 160px minmax(0, 1fr);
   }
 
   .coordinator-mobile-verification {
@@ -11077,6 +11456,19 @@ button.secondary-link-button {
 }
 
 @media (max-width: 700px) {
+  .coordinator-network {
+    gap: 12px;
+  }
+
+  .coordinator-network-has-fab {
+    padding-bottom: 82px;
+  }
+
+  .coordinator-network .panel {
+    border-radius: 18px;
+    padding: 14px;
+  }
+
   .coordinator-network-header,
   .coordinator-profile {
     grid-template-columns: 1fr;
@@ -11084,6 +11476,17 @@ button.secondary-link-button {
 
   .coordinator-network-header {
     display: grid;
+  }
+
+  .coordinator-header-actions,
+  .coordinator-header-actions > * {
+    width: 100%;
+  }
+
+  .coordinator-view-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 16px;
+    padding-top: 14px;
   }
 
   .coordinator-form-grid,
@@ -11098,8 +11501,119 @@ button.secondary-link-button {
     grid-column: auto;
   }
 
+  .coordinator-search-field {
+    grid-column: auto;
+  }
+
+  .coordinator-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .coordinator-metric-grid .metric-card {
+    min-height: 132px;
+    padding: 14px;
+  }
+
+  .coordinator-dashboard-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .coordinator-directory-card {
+    padding: 14px;
+  }
+
+  .coordinator-card-actions > * {
+    width: auto;
+  }
+
+  .coordinator-card-actions .secondary-button,
+  .coordinator-card-actions select {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .coordinator-tree,
+  .coordinator-tree ul {
+    --coordinator-tree-indent: 8px;
+  }
+
+  .coordinator-tree-node > div {
+    padding: 12px;
+  }
+
+  .coordinator-tree-node > div::before {
+    left: -5px;
+  }
+
   .coordinator-profile-details > div {
     grid-template-columns: 1fr;
     gap: 4px;
+  }
+
+  .coordinator-form-actions {
+    bottom: 8px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .coordinator-form-actions > * {
+    width: auto;
+  }
+
+  .coordinator-error-state {
+    grid-template-columns: 1fr;
+  }
+
+  .coordinator-error-state .secondary-button {
+    width: 100%;
+  }
+
+  .coordinator-loading-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .coordinator-loading-cards .coordinator-skeleton {
+    min-height: 112px;
+  }
+
+  .coordinator-fab {
+    display: inline-flex;
+  }
+
+  .coordinator-activity-list .activity-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .coordinator-activity-list time {
+    text-align: start;
+  }
+}
+
+@media (max-width: 390px) {
+  .coordinator-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .coordinator-metric-grid .metric-card {
+    min-height: 116px;
+  }
+
+  .coordinator-fab {
+    left: 14px;
+    right: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coordinator-view-panel,
+  .coordinator-skeleton {
+    animation: none;
+  }
+
+  .coordinator-directory-card,
+  .coordinator-fab,
+  .coordinator-tree-node > div,
+  .coordinator-view-tabs button {
+    transition: none;
   }
 }

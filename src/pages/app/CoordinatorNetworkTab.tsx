@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type KeyboardEvent } from "react";
 import {
   Activity,
+  AlertCircle,
   BadgeCheck,
   Camera,
   ChevronRight,
@@ -59,6 +60,8 @@ interface CoordinatorNetworkTabProps {
 }
 
 type CoordinatorView = "dashboard" | "directory" | "tree" | "activity";
+
+const coordinatorViews: CoordinatorView[] = ["dashboard", "directory", "tree", "activity"];
 
 const roleLabels: Record<CoordinatorRole, string> = {
   national_coordinator: "National Coordinator",
@@ -159,8 +162,8 @@ function formatActivity(action: string) {
 
 function CoordinatorTreeBranch({ node, depth = 0 }: { node: CoordinatorTreeNode; depth?: number }) {
   return (
-    <li className="coordinator-tree-node">
-      <div style={{ marginInlineStart: `${depth * 22}px` }}>
+    <li className="coordinator-tree-node" role="treeitem" aria-expanded={node.children.length > 0 ? true : undefined}>
+      <div className="coordinator-tree-card" style={{ "--coordinator-tree-depth": depth } as CSSProperties}>
         <CircleUserRound size={20} />
         <span>
           <strong>{node.coordinator.fullName}</strong>
@@ -168,7 +171,7 @@ function CoordinatorTreeBranch({ node, depth = 0 }: { node: CoordinatorTreeNode;
         </span>
       </div>
       {node.children.length > 0 && (
-        <ul>
+        <ul role="group">
           {node.children.map((child) => (
             <CoordinatorTreeBranch key={child.coordinator.id} node={child} depth={depth + 1} />
           ))}
@@ -263,6 +266,26 @@ export function CoordinatorNetworkTab({
     setPhotoFile(null);
     setError("");
     setMessage("");
+  }
+
+  function handleViewKeyDown(event: KeyboardEvent<HTMLButtonElement>, currentView: CoordinatorView) {
+    const currentIndex = coordinatorViews.indexOf(currentView);
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? coordinatorViews.length - 1
+        : event.key === "ArrowRight"
+          ? (currentIndex + 1) % coordinatorViews.length
+          : event.key === "ArrowLeft"
+            ? (currentIndex - 1 + coordinatorViews.length) % coordinatorViews.length
+            : -1;
+    if (nextIndex < 0) return;
+    event.preventDefault();
+    const nextView = coordinatorViews[nextIndex];
+    setView(nextView);
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`[data-coordinator-view="${nextView}"]`)
+      ?.focus();
   }
 
   function openEditForm(coordinator: Coordinator) {
@@ -394,14 +417,31 @@ export function CoordinatorNetworkTab({
   }
 
   if (loading && !snapshot) {
-    return <div className="empty-state compact-empty" role="status">Loading Coordinator Network…</div>;
+    return (
+      <section className="coordinator-loading-shell" role="status" aria-label="Loading Coordinator Network">
+        <div className="coordinator-loading-heading">
+          <span className="coordinator-skeleton coordinator-skeleton-icon" />
+          <div>
+            <span className="coordinator-skeleton coordinator-skeleton-title" />
+            <span className="coordinator-skeleton coordinator-skeleton-copy" />
+          </div>
+        </div>
+        <div className="coordinator-loading-cards" aria-hidden="true">
+          {Array.from({ length: 6 }, (_, index) => <span className="coordinator-skeleton" key={index} />)}
+        </div>
+        <strong>Loading Coordinator Network…</strong>
+      </section>
+    );
   }
 
   if (!snapshot) {
     return (
-      <div className="empty-state compact-empty">
-        <h2>Coordinator Network unavailable</h2>
-        <p>{error}</p>
+      <div className="empty-state compact-empty coordinator-error-state" role="alert">
+        <span className="coordinator-state-icon" aria-hidden="true"><AlertCircle size={26} /></span>
+        <div>
+          <h2>Coordinator Network unavailable</h2>
+          <p>{error || "The workspace could not be loaded. Check your connection and try again."}</p>
+        </div>
         <button className="secondary-button" type="button" onClick={() => void refreshNetwork()}>
           <RefreshCw size={18} /> Retry
         </button>
@@ -410,7 +450,10 @@ export function CoordinatorNetworkTab({
   }
 
   return (
-    <section className="page-stack coordinator-network">
+    <section
+      className={`page-stack coordinator-network${snapshot.canManage && !draft ? " coordinator-network-has-fab" : ""}`}
+      aria-busy={loading}
+    >
       <Panel title="Coordinator Network" icon={<Network />}>
         <div className="coordinator-network-header">
           <div>
@@ -418,7 +461,7 @@ export function CoordinatorNetworkTab({
             <h2>Build and operate the reporting network</h2>
             <p>Manage verified coordinators, geography ownership, reporting lines, campaign assignments, and referrals.</p>
           </div>
-          <div className="button-row">
+          <div className="button-row coordinator-header-actions">
             <button className="secondary-button" type="button" disabled={loading} onClick={() => void refreshNetwork()}>
               <RefreshCw size={18} /> Refresh
             </button>
@@ -429,26 +472,50 @@ export function CoordinatorNetworkTab({
             )}
           </div>
         </div>
-        <nav className="coordinator-view-tabs" aria-label="Coordinator Network views">
-          {(["dashboard", "directory", "tree", "activity"] as CoordinatorView[]).map((item) => (
-            <button className={view === item ? "active" : ""} type="button" key={item} onClick={() => setView(item)}>
+        <nav className="coordinator-view-tabs" aria-label="Coordinator Network views" role="tablist">
+          {coordinatorViews.map((item) => (
+            <button
+              aria-controls={`coordinator-${item}-panel`}
+              aria-selected={view === item}
+              className={view === item ? "active" : ""}
+              data-coordinator-view={item}
+              role="tab"
+              tabIndex={view === item ? 0 : -1}
+              type="button"
+              key={item}
+              onClick={() => setView(item)}
+              onKeyDown={(event) => handleViewKeyDown(event, item)}
+            >
               {item === "dashboard" ? "Dashboard" : item === "directory" ? "Directory" : item === "tree" ? "Tree View" : "Activity Log"}
             </button>
           ))}
         </nav>
       </Panel>
 
-      {(error || message) && <p className={error ? "error-message" : "success-message"}>{error || message}</p>}
+      {(error || message) && (
+        <p
+          aria-live="polite"
+          className={`coordinator-feedback ${error ? "error-message" : "success-message"}`}
+          role={error ? "alert" : "status"}
+        >
+          {error || message}
+        </p>
+      )}
 
       {draft && snapshot.canManage && (
         <Panel title={draft.version ? "Edit coordinator" : "Add coordinator"} icon={<UserCheck />}>
           <div className="coordinator-form-grid">
             <Field label="Full name *">
-              <input value={draft.fullName} onChange={(event) => setDraft({ ...draft, fullName: event.target.value })} />
+              <input
+                aria-invalid={Boolean(formErrors.fullName)}
+                autoFocus={!draft.version}
+                value={draft.fullName}
+                onChange={(event) => setDraft({ ...draft, fullName: event.target.value })}
+              />
               {formErrors.fullName && <span className="field-error">{formErrors.fullName}</span>}
             </Field>
             <Field label="Mobile *">
-              <input inputMode="tel" value={draft.phone} onChange={(event) => {
+              <input aria-invalid={Boolean(formErrors.phone)} inputMode="tel" value={draft.phone} onChange={(event) => {
                 setDraft({ ...draft, phone: event.target.value });
                 setVerificationToken("");
                 setVerifiedPhone("");
@@ -456,7 +523,7 @@ export function CoordinatorNetworkTab({
               {formErrors.phone && <span className="field-error">{formErrors.phone}</span>}
             </Field>
             <Field label="Email">
-              <input type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} />
+              <input aria-invalid={Boolean(formErrors.email)} type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} />
               {formErrors.email && <span className="field-error">{formErrors.email}</span>}
             </Field>
             <Field label="Role *">
@@ -558,7 +625,7 @@ export function CoordinatorNetworkTab({
           <Field label="Internal notes">
             <textarea rows={4} maxLength={2000} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} />
           </Field>
-          <div className="button-row">
+          <div className="button-row coordinator-form-actions" aria-label="Coordinator form actions">
             <button className="primary-button" type="button" disabled={saving} onClick={() => void submitCoordinator()}>
               <ShieldCheck size={18} /> {saving ? "Saving…" : "Save coordinator"}
             </button>
@@ -568,8 +635,8 @@ export function CoordinatorNetworkTab({
       )}
 
       {view === "dashboard" && metrics && (
-        <>
-          <div className="metric-grid">
+        <div className="coordinator-view-panel coordinator-dashboard" id="coordinator-dashboard-panel" role="tabpanel">
+          <div className="metric-grid coordinator-metric-grid">
             <MetricCard icon={<UsersRound />} label="Coordinators" value={metrics.total} detail="Persisted profiles" />
             <MetricCard icon={<BadgeCheck />} label="Active" value={metrics.active} detail="Operational status" />
             <MetricCard icon={<Phone />} label="Mobile verified" value={metrics.mobileVerified} detail="OTP-verified profiles" />
@@ -577,7 +644,7 @@ export function CoordinatorNetworkTab({
             <MetricCard icon={<GitBranch />} label="Campaign linked" value={metrics.linkedToCampaign} detail="Assigned coordinators" />
             <MetricCard icon={<Network />} label="Referrals" value={metrics.referralLinks} detail="Accepted coordinator referrals" />
           </div>
-          <div className="two-column">
+          <div className="two-column coordinator-dashboard-overview">
             <Panel title="Status overview" icon={<BadgeCheck />}>
               <div className="coordinator-summary-list">
                 {coordinatorStatuses.map((status) => (
@@ -593,16 +660,21 @@ export function CoordinatorNetworkTab({
               </div>
             </Panel>
           </div>
-        </>
+        </div>
       )}
 
       {view === "directory" && (
-        <>
+        <div className="coordinator-view-panel coordinator-directory-view" id="coordinator-directory-panel" role="tabpanel">
           <Panel title="Search and filters" icon={<Search />}>
             <div className="coordinator-filter-grid">
-              <Field label="Search">
-                <input placeholder="Name, mobile, email, referral, geography" value={search} onChange={(event) => setSearch(event.target.value)} />
-              </Field>
+              <div className="coordinator-search-field">
+                <Field label="Search coordinators">
+                  <div className="coordinator-search-control">
+                    <Search size={18} aria-hidden="true" />
+                    <input placeholder="Name, mobile, email, referral, geography" value={search} onChange={(event) => setSearch(event.target.value)} />
+                  </div>
+                </Field>
+              </div>
               <Field label="Role">
                 <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as "all" | CoordinatorRole)}>
                   <option value="all">All roles</option>
@@ -628,27 +700,39 @@ export function CoordinatorNetworkTab({
                 </select>
               </Field>
             </div>
+            <p className="coordinator-filter-summary" aria-live="polite">
+              Showing <strong>{filteredCoordinators.length}</strong> of <strong>{snapshot.coordinators.length}</strong> coordinators
+            </p>
           </Panel>
           <Panel title={`Directory · ${filteredCoordinators.length}`} icon={<UsersRound />}>
             {filteredCoordinators.length === 0 ? (
               <div className="empty-state compact-empty">
+                <span className="coordinator-state-icon" aria-hidden="true"><UsersRound size={26} /></span>
                 <h3>No coordinators found</h3>
                 <p>{snapshot.coordinators.length === 0 ? "Add the first verified coordinator to begin the network." : "Change the search or filters."}</p>
+                {snapshot.coordinators.length === 0 && snapshot.canManage && (
+                  <button className="primary-button" type="button" onClick={openCreateForm}><Plus size={18} /> Add coordinator</button>
+                )}
               </div>
             ) : (
               <div className="coordinator-directory-grid">
                 {filteredCoordinators.map((coordinator) => (
                   <article key={coordinator.id} className="coordinator-directory-card">
-                    <button className="coordinator-profile-trigger" type="button" onClick={() => void showProfilePhoto(coordinator)}>
+                    <button
+                      aria-label={`Open profile for ${coordinator.fullName}`}
+                      className="coordinator-profile-trigger"
+                      type="button"
+                      onClick={() => void showProfilePhoto(coordinator)}
+                    >
                       <CircleUserRound size={30} />
                       <span><strong>{coordinator.fullName}</strong><small>{formatRole(coordinator.role)}</small></span>
                       <ChevronRight size={18} />
                     </button>
-                    <div><span className="status-pill" data-status={coordinator.status}>{coordinator.status}</span>{coordinator.mobileVerifiedAt && <span className="coordinator-verified-badge"><BadgeCheck size={15} /> Verified</span>}</div>
+                    <div className="coordinator-directory-meta"><span className="status-pill" data-status={coordinator.status}>{coordinator.status}</span>{coordinator.mobileVerifiedAt && <span className="coordinator-verified-badge"><BadgeCheck size={15} /> Verified</span>}</div>
                     <p>{coordinatorGeographyLabel(coordinator, snapshot.geographies)}</p>
                     <small>{coordinator.referralCode}</small>
                     {snapshot.canManage && (
-                      <div className="button-row">
+                      <div className="button-row coordinator-card-actions">
                         <button className="secondary-button" type="button" onClick={() => openEditForm(coordinator)}>Edit</button>
                         <select aria-label={`Change status for ${coordinator.fullName}`} value={coordinator.status} onChange={(event) => void updateStatus(coordinator, event.target.value as CoordinatorStatus)}>
                           {coordinatorStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
@@ -663,7 +747,7 @@ export function CoordinatorNetworkTab({
           </Panel>
           {selectedCoordinator && (
             <Panel title="Coordinator profile" icon={<CircleUserRound />}>
-              <div className="coordinator-profile">
+              <div className="coordinator-profile" aria-live="polite">
                 <div className="coordinator-profile-photo">
                   {profilePhotoUrl ? <img src={profilePhotoUrl} alt={`${selectedCoordinator.fullName} profile`} /> : <CircleUserRound size={72} />}
                   {selectedCoordinator.photoPath && <button className="secondary-button" type="button" onClick={() => void showProfilePhoto(selectedCoordinator)}><Camera size={17} /> Open photo</button>}
@@ -680,39 +764,50 @@ export function CoordinatorNetworkTab({
               </div>
             </Panel>
           )}
-        </>
+        </div>
       )}
 
       {view === "tree" && (
-        <Panel title="Reporting hierarchy" icon={<GitBranch />}>
-          {reportingTree.length === 0 ? (
-            <div className="empty-state compact-empty"><h3>No reporting hierarchy yet</h3><p>Add coordinators and assign reporting parents.</p></div>
-          ) : (
-            <ul className="coordinator-tree">
-              {reportingTree.map((node) => <CoordinatorTreeBranch key={node.coordinator.id} node={node} />)}
-            </ul>
-          )}
-        </Panel>
+        <div className="coordinator-view-panel" id="coordinator-tree-panel" role="tabpanel">
+          <Panel title="Reporting hierarchy" icon={<GitBranch />}>
+            <p className="coordinator-section-intro">Reporting lines flow from senior coordinators to their direct teams.</p>
+            {reportingTree.length === 0 ? (
+              <div className="empty-state compact-empty"><span className="coordinator-state-icon" aria-hidden="true"><GitBranch size={26} /></span><h3>No reporting hierarchy yet</h3><p>Add coordinators and assign reporting parents.</p></div>
+            ) : (
+              <ul className="coordinator-tree" role="tree" aria-label="Coordinator reporting hierarchy">
+                {reportingTree.map((node) => <CoordinatorTreeBranch key={node.coordinator.id} node={node} />)}
+              </ul>
+            )}
+          </Panel>
+        </div>
       )}
 
       {view === "activity" && (
-        <Panel title="Coordinator activity log" icon={<Activity />}>
-          {snapshot.activity.length === 0 ? (
-            <div className="empty-state compact-empty"><h3>No coordinator activity yet</h3><p>Server-recorded changes will appear here.</p></div>
-          ) : (
-            <div className="activity-list">
-              {snapshot.activity.map((entry) => {
-                const coordinator = entry.coordinatorId ? snapshot.coordinators.find((item) => item.id === entry.coordinatorId) : undefined;
-                return (
-                  <article className="activity-card" key={entry.id}>
-                    <div><strong>{formatActivity(entry.action)}</strong><span>{coordinator?.fullName ?? "Coordinator Network"}</span></div>
-                    <time>{new Date(entry.createdAt).toLocaleString()}</time>
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </Panel>
+        <div className="coordinator-view-panel" id="coordinator-activity-panel" role="tabpanel">
+          <Panel title="Coordinator activity log" icon={<Activity />}>
+            {snapshot.activity.length === 0 ? (
+              <div className="empty-state compact-empty"><span className="coordinator-state-icon" aria-hidden="true"><Activity size={26} /></span><h3>No coordinator activity yet</h3><p>Server-recorded changes will appear here.</p></div>
+            ) : (
+              <div className="activity-list coordinator-activity-list">
+                {snapshot.activity.map((entry) => {
+                  const coordinator = entry.coordinatorId ? snapshot.coordinators.find((item) => item.id === entry.coordinatorId) : undefined;
+                  return (
+                    <article className="activity-card" key={entry.id}>
+                      <div><strong>{formatActivity(entry.action)}</strong><span>{coordinator?.fullName ?? "Coordinator Network"}</span></div>
+                      <time>{new Date(entry.createdAt).toLocaleString()}</time>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
+        </div>
+      )}
+
+      {snapshot.canManage && !draft && (
+        <button className="coordinator-fab" type="button" onClick={openCreateForm} aria-label="Create coordinator">
+          <Plus size={22} /> <span>Create coordinator</span>
+        </button>
       )}
     </section>
   );

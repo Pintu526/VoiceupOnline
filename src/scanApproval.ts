@@ -1,10 +1,45 @@
 import type { ScanReviewItem, Signer } from "./types";
+import type { ScanApprovalResultCode } from "./backend";
 
 export interface ScanApprovalCounts {
   approved: number;
   skippedAlreadyApproved: number;
   skippedDuplicate: number;
+  validationFailed: number;
+  consentMissing: number;
+  staleConflict: number;
   failed: number;
+  operatorMessage?: string;
+}
+
+export function createScanApprovalCounts(): ScanApprovalCounts {
+  return {
+    approved: 0,
+    skippedAlreadyApproved: 0,
+    skippedDuplicate: 0,
+    validationFailed: 0,
+    consentMissing: 0,
+    staleConflict: 0,
+    failed: 0
+  };
+}
+
+export function countScanApprovalResult(
+  counts: ScanApprovalCounts,
+  code: ScanApprovalResultCode
+): void {
+  if (code === "approval_completed") counts.approved += 1;
+  else if (
+    code === "approval_already_completed"
+    || code === "existing_supporter_returned"
+    || code === "already_approved"
+  ) counts.skippedAlreadyApproved += 1;
+  else if (code === "exact_phone_duplicate_blocked" || code === "same_source_row_blocked") {
+    counts.skippedDuplicate += 1;
+  } else if (code === "validation_failed") counts.validationFailed += 1;
+  else if (code === "consent_missing") counts.consentMissing += 1;
+  else if (code === "stale_review_version") counts.staleConflict += 1;
+  else counts.failed += 1;
 }
 
 interface PlanScanApprovalsInput {
@@ -28,12 +63,7 @@ export function planScanApprovals({
   signers,
   createSigner
 }: PlanScanApprovalsInput): ScanApprovalPlan {
-  const counts: ScanApprovalCounts = {
-    approved: 0,
-    skippedAlreadyApproved: 0,
-    skippedDuplicate: 0,
-    failed: 0
-  };
+  const counts = createScanApprovalCounts();
   const newSigners: Signer[] = [];
   const approvedScanItemIds = new Set<string>();
   const processedRequestIds = new Set<string>();

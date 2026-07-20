@@ -12,8 +12,16 @@ import type {
 import type { LocationDeletions, LocationOverrides } from "./geography";
 import {
   evaluateSecureFieldUploadAccess,
+  secureFieldUploadRoles,
+  type CampaignAdminAssignment,
   type SecureFieldUploadAccess
 } from "./secureFieldUploadAuth";
+import {
+  evaluateWorkspaceMembership,
+  evaluateWorkspaceResourceAssignment,
+  type WorkspaceMembershipStatus,
+  type WorkspaceResourceAssignmentStatus
+} from "./authorization/workspaceAccess";
 
 export interface VoiceupRemoteState {
   campaigns: Campaign[];
@@ -65,6 +73,57 @@ export interface OtpVerifyResult {
   customerSessionToken?: string;
   workspaceId?: string;
   message: string;
+}
+
+export type ScanApprovalResultCode =
+  | "approval_completed"
+  | "approval_already_completed"
+  | "existing_supporter_returned"
+  | "exact_phone_duplicate_blocked"
+  | "same_source_row_blocked"
+  | "already_approved"
+  | "validation_failed"
+  | "consent_missing"
+  | "stale_review_version"
+  | "unauthorized"
+  | "review_item_not_found"
+  | "system_error";
+
+export interface ScanApprovalRpcResult {
+  code: ScanApprovalResultCode;
+  blocking: boolean;
+  message: string;
+  reviewItemId: string;
+  supporterId?: string;
+  matchedSupporterId?: string;
+}
+
+export interface ApproveScanReviewItemRequest {
+  workspaceId: string;
+  campaignId: string;
+  reviewItemId: string;
+  expectedVersion: number;
+  uploadFingerprint: string;
+  sourceReference: string;
+  sourceRowFingerprint: string;
+  approvalKey: string;
+  reviewPayload: ScanReviewItem;
+  supporterFields: ScanReviewItem["parsedSigner"] & Partial<Signer>;
+  consent: {
+    paperConsentRecorded: boolean;
+    smsConsent: boolean;
+    whatsappConsent: boolean;
+    noOngoingCommunications: boolean;
+    consentPurpose?: string;
+    consentCapturedAt?: string;
+    consentCapturedBy?: string;
+  };
+}
+
+export interface AuthoritativeFieldCollectionState {
+  reviewItems: ScanReviewItem[];
+  supporters: Signer[];
+  auditLogs: AuditLogEntry[];
 }
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -330,6 +389,21 @@ export async function getCurrentAuthUser() {
   return data.user;
 }
 
+/**
+ * Fail-fast check for a real, locally-held Supabase Auth session (session + user + access
+ * token all present) -- used to guard protected Edge Function calls (e.g. Campaign Admin
+ * provisioning) so they are never attempted without a valid Supabase user JWT. Never returns
+ * or logs the access token itself.
+ */
+export async function getCurrentAuthSession(): Promise<{ userId: string } | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getSession();
+  if (error) return null;
+  const session = data.session;
+  if (!session?.user?.id || !session.access_token) return null;
+  return { userId: session.user.id };
+}
+
 export async function verifySecureFieldUploadAccess(
   expectedWorkspaceId: string,
   storageProvider: string,
@@ -371,6 +445,189 @@ export async function verifySecureFieldUploadAccess(
           active: membership.active === true
         }
   });
+}
+
+export interface CampaignAdminAssignmentContext {
+  assignment: CampaignAdminAssignment | null;
+  assignmentStatus: WorkspaceResourceAssignmentStatus;
+  workspaceMembershipActive: boolean;
+  hasValidWorkspaceMembershipRole: boolean;
+  membershipStatus: WorkspaceMembershipStatus;
+}
+
+/**
+ * Resolves the database-verified facts needed by `evaluateCampaignAdminLoginAccess`, using
+ * the generic, reusable `evaluateWorkspaceResourceAssignment` / `evaluateWorkspaceMembership`
+ * evaluators from `./authorization/workspaceAccess` (see that module for the full typed
+ * status set). Both queries are filtered by `user_id = authenticatedUserId` explicitly (in
+ * addition to Postgres RLS already scoping every row to `auth.uid()`) so a browser-supplied
+ * user id can never widen what is returned -- and are deliberately broader than a single
+ * exact-match row so the evaluators can distinguish *why* access fails (wrong workspace,
+ * wrong role, inactive, ambiguous, etc.) rather than only "found" or "not found". Must only
+ * be called AFTER a successful `signInWithPassword`/`getCurrentAuthUser` call.
+ */
+export async function resolveCampaignAdminAssignmentContext(
+  workspaceId: string,
+  resourceId: string,
+  resourceSlug: string,
+  authenticatedUserId: string,
+  applicationKey = "voiceup",
+  role = "campaign_admin"
+): Promise<CampaignAdminAssignmentContext> {
+  const denied = (
+    assignmentStatus: WorkspaceResourceAssignmentStatus,
+    membershipStatus: WorkspaceMembershipStatus
+  ): CampaignAdminAssignmentContext => ({
+    assignment: null,
+    assignmentStatus,
+    workspaceMembershipActive: false,
+    hasValidWorkspaceMembershipRole: false,
+    membershipStatus
+  });
+
+  if (!supabase || !authenticatedUserId) return denied("query_failed", "query_failed");
+
+  const [assignmentResponse, membershipResponse] = await Promise.all([
+    supabase
+      .from("workspace_resource_members")
+      .select("user_id,workspace_id,application_key,role,resource_type,resource_id,resource_slug,active")
+      .eq("user_id", authenticatedUserId)
+      .eq("application_key", applicationKey)
+      .eq("resource_type", "campaign")
+      .eq("resource_id", resourceId),
+    supabase
+      .from("voiceup_workspace_members")
+      .select("user_id,workspace_id,role,active")
+      .eq("user_id", authenticatedUserId)
+  ]);
+
+  const assignmentResult = evaluateWorkspaceResourceAssignment(
+    assignmentResponse.error
+      ? null
+      : (assignmentResponse.data ?? []).map((row) => ({
+          userId: row.user_id,
+          workspaceId: row.workspace_id,
+          applicationKey: row.application_key,
+          role: row.role,
+          resourceType: row.resource_type,
+          resourceId: row.resource_id,
+          resourceSlug: row.resource_slug ?? undefined,
+          active: row.active === true
+        })),
+    Boolean(assignmentResponse.error),
+    {
+      applicationKey,
+      workspaceId,
+      resourceType: "campaign",
+      resourceId,
+      resourceSlug,
+      requiredRole: role,
+      authenticatedUserId
+    }
+  );
+
+  const membershipResult = evaluateWorkspaceMembership(
+    membershipResponse.error
+      ? null
+      : (membershipResponse.data ?? []).map((row) => ({
+          userId: row.user_id,
+          workspaceId: row.workspace_id,
+          role: row.role,
+          active: row.active === true
+        })),
+    Boolean(membershipResponse.error),
+    { workspaceId, authenticatedUserId, validRoles: secureFieldUploadRoles }
+  );
+
+  const membershipValid = membershipResult.status === "membership_found";
+
+  return {
+    assignment:
+      assignmentResult.status === "assignment_found" && assignmentResult.assignment
+        ? {
+            userId: assignmentResult.assignment.userId,
+            workspaceId: assignmentResult.assignment.workspaceId,
+            resourceType: assignmentResult.assignment.resourceType,
+            resourceId: assignmentResult.assignment.resourceId,
+            resourceSlug: assignmentResult.assignment.resourceSlug ?? undefined,
+            active: assignmentResult.assignment.active
+          }
+        : null,
+    assignmentStatus: assignmentResult.status,
+    workspaceMembershipActive: membershipValid,
+    hasValidWorkspaceMembershipRole: membershipValid,
+    membershipStatus: membershipResult.status
+  };
+}
+
+export interface ProvisionWorkspaceMemberRequest {
+  workspaceId: string;
+  applicationKey: string;
+  role: string;
+  email: string;
+  password: string;
+  assignment: { resourceType: string; resourceId: string; resourceSlug?: string };
+}
+
+export interface ProvisionWorkspaceMemberResult {
+  userId: string;
+  authUserAction: "create" | "reuse";
+  workspaceMembership: { workspaceId: string; role: string; active: boolean };
+  assignment: {
+    id: string;
+    transition: "create" | "already_active" | "replace";
+    resourceType: string;
+    resourceId: string;
+    resourceSlug: string;
+    active: boolean;
+  };
+}
+
+/**
+ * A safe, typed provisioning failure. `message` is always end-user-safe (it
+ * originates only from the Edge Function's own `error` field or a generic
+ * fallback -- never from raw Supabase client internals) and NEVER contains
+ * the submitted password. `code` is an optional machine-readable reason
+ * (e.g. "identity_conflict") a caller can branch on without parsing text.
+ */
+export class ProvisionWorkspaceMemberError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ProvisionWorkspaceMemberError";
+    this.code = code;
+  }
+}
+
+/**
+ * Calls the `provision-workspace-member` Edge Function. Never sends or stores the
+ * service-role key -- this uses the same authenticated anon-key client as every other
+ * Supabase call, so the bearer token forwarded is always the currently signed-in SaaS
+ * Admin's own session token; the Edge Function itself independently re-verifies the
+ * caller's authorization via that token. The password is only ever included in this
+ * single request body -- it is never logged, never echoed back, and never appears in
+ * any error thrown from here.
+ */
+export async function provisionWorkspaceMember(
+  request: ProvisionWorkspaceMemberRequest
+): Promise<ProvisionWorkspaceMemberResult> {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke<
+    ProvisionWorkspaceMemberResult & { error?: string; code?: string }
+  >("provision-workspace-member", { body: request });
+
+  if (error) {
+    throw new ProvisionWorkspaceMemberError(error.message || "Unable to provision the workspace member.");
+  }
+  if (!data) {
+    throw new ProvisionWorkspaceMemberError("Unable to provision the workspace member.");
+  }
+  if (data.error) {
+    throw new ProvisionWorkspaceMemberError(data.error, data.code);
+  }
+
+  return data;
 }
 
 async function resolveSecureStorageWorkspaceId(): Promise<string | null> {
@@ -453,6 +710,95 @@ export async function saveRemoteState(state: VoiceupRemoteState) {
     throw new Error("Authenticated user does not have a workspace membership.");
   }
   await saveWorkspaceState(workspaceId, state);
+}
+
+export async function approveScanReviewItem(
+  request: ApproveScanReviewItemRequest
+): Promise<ScanApprovalRpcResult> {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc("approve_voiceup_scan_review_item", {
+    p_workspace_id: request.workspaceId,
+    p_campaign_id: request.campaignId,
+    p_review_item_id: request.reviewItemId,
+    p_expected_version: request.expectedVersion,
+    p_upload_fingerprint: request.uploadFingerprint,
+    p_source_reference: request.sourceReference,
+    p_source_row_fingerprint: request.sourceRowFingerprint,
+    p_approval_key: request.approvalKey,
+    p_review_payload: request.reviewPayload,
+    p_supporter_fields: request.supporterFields,
+    p_consent: request.consent
+  });
+  if (error || !data || typeof data !== "object") {
+    return {
+      code: "system_error",
+      blocking: true,
+      message: "The review item could not be approved safely. Retry after refreshing.",
+      reviewItemId: request.reviewItemId
+    };
+  }
+  return data as ScanApprovalRpcResult;
+}
+
+export async function loadAuthoritativeFieldCollectionState(
+  workspaceId: string,
+  campaignId: string
+): Promise<AuthoritativeFieldCollectionState> {
+  const client = requireSupabase();
+  const [reviewResponse, supporterResponse, auditResponse] = await Promise.all([
+    client
+      .from("voiceup_scan_review_items")
+      .select("review_payload,status,supporter_id,approval_key,upload_fingerprint,source_row_fingerprint,version,historical_link_uncertain")
+      .eq("workspace_id", workspaceId)
+      .eq("campaign_id", campaignId),
+    client
+      .from("voiceup_scan_supporters")
+      .select("supporter_payload")
+      .eq("workspace_id", workspaceId)
+      .eq("campaign_id", campaignId),
+    client
+      .from("voiceup_field_collection_audit")
+      .select("audit_payload")
+      .eq("workspace_id", workspaceId)
+      .eq("campaign_id", campaignId)
+      .order("created_at", { ascending: false })
+  ]);
+
+  const firstError = reviewResponse.error ?? supporterResponse.error ?? auditResponse.error;
+  if (firstError) throw new Error(firstError.message);
+
+  return {
+    reviewItems: (reviewResponse.data ?? []).map((row) => ({
+      ...(row.review_payload as ScanReviewItem),
+      status: row.status === "approved" ? "Approved" : row.status === "rejected" ? "Rejected" : "Needs review",
+      supporterId: row.supporter_id ?? undefined,
+      approvalKey: row.approval_key ?? undefined,
+      uploadFingerprint: row.upload_fingerprint,
+      sourceRowFingerprint: row.source_row_fingerprint,
+      reviewVersion: row.version,
+      historicalLinkUncertain: row.historical_link_uncertain
+    })),
+    supporters: (supporterResponse.data ?? []).map((row) => row.supporter_payload as Signer),
+    auditLogs: (auditResponse.data ?? []).map((row) => row.audit_payload as AuditLogEntry)
+  };
+}
+
+export async function recordScanApprovalBatchAudit(input: {
+  workspaceId: string;
+  campaignId: string;
+  batchId: string;
+  resultCode: "batch_started" | "batch_completed" | "batch_partial_failure";
+  counts?: Record<string, number>;
+}): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("record_voiceup_scan_batch_audit", {
+    p_workspace_id: input.workspaceId,
+    p_campaign_id: input.campaignId,
+    p_batch_id: input.batchId,
+    p_result_code: input.resultCode,
+    p_counts: input.counts ?? {}
+  });
+  if (error) throw new Error(error.message);
 }
 
 export async function loadPublicCampaign(slug: string): Promise<PublicCampaignPayload | null> {

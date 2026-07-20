@@ -82,6 +82,31 @@ export async function getUser(req: Request) {
   return data.user ?? null;
 }
 
+/**
+ * Finds an existing Supabase Auth user by exact (normalized) email using the
+ * admin API. The GoTrue admin `listUsers` endpoint has no server-side email
+ * filter, so this performs a bounded pagination scan -- acceptable for the
+ * low-frequency, admin-initiated provisioning operations this is used for.
+ * Returns null if no match is found within the scanned pages.
+ */
+export async function findAuthUserByEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  normalizedEmail: string,
+  options: { maxPages?: number; perPage?: number } = {}
+): Promise<{ id: string; email: string } | null> {
+  const maxPages = options.maxPages ?? 20;
+  const perPage = options.perPage ?? 200;
+  for (let page = 1; page <= maxPages; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw error;
+    const users = data?.users ?? [];
+    const match = users.find((user) => (user.email ?? "").trim().toLowerCase() === normalizedEmail);
+    if (match) return { id: match.id, email: match.email ?? normalizedEmail };
+    if (users.length < perPage) break;
+  }
+  return null;
+}
+
 export async function isPlatformAdmin(admin: ReturnType<typeof createAdminClient>, userId: string | null) {
   if (!userId) return false;
   const [workspaceResult, orgResult] = await Promise.all([

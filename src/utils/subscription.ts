@@ -1,5 +1,5 @@
-import { subscriptionPlans } from "../data";
-import { startOfToday } from "./campaign";
+import { subscriptionPlans } from "../data.ts";
+import { startOfToday } from "./campaign.ts";
 import type {
   BillingCadence,
   BillingPlan,

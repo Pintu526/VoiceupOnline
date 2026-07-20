@@ -38,7 +38,7 @@ import { SaasTab } from "../pages/app/SaasTab";
 import { IdeasTab } from "../pages/app/IdeasTab";
 import { PublicCampaignPage } from "../pages/PublicCampaignPage";
 import type { getCampaignMetrics } from "../lib";
-import type { BillingPlan } from "../types";
+import type { BillingCadence, BillingPlan } from "../types";
 import type { LocationDeletionLevel, LocationWithPin } from "../geography";
 import type { ScanReviewItem as SRI } from "../types";
 import type { ScanApprovalCounts } from "../scanApproval";
@@ -48,7 +48,8 @@ import type { AiCampaignCopilotResult } from "../ai/types";
 import { createId } from "../lib";
 import { getCampaignAdminUrl, getCampaignPublicUrl } from "../utils/campaign";
 import { formatAuthorityDisplay, getAppealAuthority } from "../utils/authority";
-import { getCreateCampaignBlockReason, isFeatureIncludedInPlan } from "../utils/subscription";
+import { getCreateCampaignBlockReason } from "../utils/subscription";
+import { getCampaignEntitlements, type AddOnPurchaseRequest, type CampaignEntitlements, type FeatureKey } from "../entitlements";
 import { GROWTH_FEATURE_FLAGS } from "../growth/constants";
 import type { GrowthRuntimeState, GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
 import type { SupporterGrowthPortalModel } from "../growth/tree";
@@ -205,9 +206,9 @@ interface AppShellProps {
   campaignSigners: Signer[];
 
   // SaaS section
-  saasSection: "organization" | "usage" | "packages" | "integrations" | "plans";
+  saasSection: "organization" | "usage" | "packages" | "integrations" | "plans" | "entitlements";
   setSaasSection: React.Dispatch<
-    React.SetStateAction<"organization" | "usage" | "packages" | "integrations" | "plans">
+    React.SetStateAction<"organization" | "usage" | "packages" | "integrations" | "plans" | "entitlements">
   >;
 
   // Public signing (preview tab)
@@ -267,7 +268,7 @@ interface AppShellProps {
     field: keyof SRI["parsedSigner"],
     value: string
   ) => void;
-  onApproveScan: (scan: SRI | SRI[]) => ScanApprovalCounts;
+  onApproveScan: (scan: SRI | SRI[]) => Promise<ScanApprovalCounts>;
   onUpdateSignerStatus: (signerId: string, status: Signer["status"]) => void;
   onAddAuthorityRule: () => void;
   onAddAdminLocationOption: (values: LocationWithPin) => boolean | Promise<boolean>;
@@ -276,12 +277,24 @@ interface AppShellProps {
   onUploadAuthorityCsv: (file: File) => void;
   onUpdateCampaignMedia: (file: File) => void;
   onUpdateCampaignDonationQr: (file: File) => void;
+  onProvisionCampaignAdmin: (email: string, password: string) => void | Promise<void>;
+  campaignAdminProvisioningPending: boolean;
+  campaignAdminProvisioningMessage: string;
   onSelectSubscriptionPlan: (planName: BillingPlan) => void;
   onStartOneDayTrial: () => void;
   onActivateSubscriptionManually: () => void;
   onMarkSubscriptionPastDue: () => void;
   onCancelSubscription: () => void;
   onApplyCommercialPackage: (pkg: CommercialPackage) => void;
+  onUpgradeSubscriptionPlan: (planName: BillingPlan) => void;
+  onDowngradeSubscriptionPlan: (planName: BillingPlan, effective?: "immediately" | "period_end") => void;
+  onRenewSubscriptionPeriod: (periodDays: number) => void;
+  onExtendSubscriptionPeriod: (extraDays: number) => void;
+  onSuspendSubscriptionWithReason: (reason: string) => void;
+  onReactivateSuspendedSubscription: () => void;
+  onCancelSubscriptionLifecycle: (atPeriodEnd: boolean) => void;
+  onChangeSubscriptionBillingCycle: (cadence: BillingCadence) => void;
+  onPurchaseEntitlementAddOn: (request: AddOnPurchaseRequest) => void;
   onAuditIntegrationUpdate: () => void;
   onCopyText: (text: string) => void;
   onLogoutCampaignAdmin: () => void;
@@ -387,12 +400,24 @@ export function AppShell({
   onUploadAuthorityCsv,
   onUpdateCampaignMedia,
   onUpdateCampaignDonationQr,
+  onProvisionCampaignAdmin,
+  campaignAdminProvisioningPending,
+  campaignAdminProvisioningMessage,
   onSelectSubscriptionPlan,
   onStartOneDayTrial,
   onActivateSubscriptionManually,
   onMarkSubscriptionPastDue,
   onCancelSubscription,
   onApplyCommercialPackage,
+  onUpgradeSubscriptionPlan,
+  onDowngradeSubscriptionPlan,
+  onRenewSubscriptionPeriod,
+  onExtendSubscriptionPeriod,
+  onSuspendSubscriptionWithReason,
+  onReactivateSuspendedSubscription,
+  onCancelSubscriptionLifecycle,
+  onChangeSubscriptionBillingCycle,
+  onPurchaseEntitlementAddOn,
   onAuditIntegrationUpdate,
   onCopyText,
   onLogoutCampaignAdmin,
@@ -430,11 +455,13 @@ export function AppShell({
   const campaignCreationBlockReason = getCreateCampaignBlockReason(organization, campaigns);
   const campaignCreationLocked = Boolean(campaignCreationBlockReason);
   const canShowWorkspaceCreateActions = !isCampaignAdminRoute && activeTab === "dashboard";
+  // Single source of truth for feature availability: every gate below reads
+  // from the centralized entitlement engine (`Base Plan + Add-ons = Effective
+  // Entitlements`) instead of comparing `organization.plan` directly.
+  const campaignEntitlements = useMemo(() => getCampaignEntitlements(organization), [organization]);
   const enabledFeatureKeys = new Set(organization.enabledFeatureKeys ?? []);
   const hasWorkspaceFeature = (featureKey: string) =>
-    canAccessPlatformAdmin ||
-    isFeatureIncludedInPlan(organization.plan, featureKey) ||
-    enabledFeatureKeys.has(featureKey);
+    canAccessPlatformAdmin || campaignEntitlements.features[featureKey as FeatureKey] === true;
   const canUseGrowthEngine =
     hasWorkspaceFeature(GROWTH_FEATURE_FLAGS.growthEngine) ||
     enabledFeatureKeys.has(GROWTH_FEATURE_FLAGS.legacyMovementCrm);
@@ -1355,6 +1382,11 @@ export function AppShell({
               onUploadAuthorityCsv={onUploadAuthorityCsv}
               onUpdateCampaignMedia={onUpdateCampaignMedia}
               onUpdateCampaignDonationQr={onUpdateCampaignDonationQr}
+              onProvisionCampaignAdmin={onProvisionCampaignAdmin}
+              campaignAdminProvisioningPending={campaignAdminProvisioningPending}
+              campaignAdminProvisioningMessage={campaignAdminProvisioningMessage}
+              campaignEntitlements={campaignEntitlements}
+              onNavigateToUpgrade={() => setActiveTab("saas")}
             />
           )}
 
@@ -1506,6 +1538,15 @@ export function AppShell({
               onMarkSubscriptionPastDue={onMarkSubscriptionPastDue}
               onCancelSubscription={onCancelSubscription}
               onApplyCommercialPackage={onApplyCommercialPackage}
+              onUpgradeSubscriptionPlan={onUpgradeSubscriptionPlan}
+              onDowngradeSubscriptionPlan={onDowngradeSubscriptionPlan}
+              onRenewSubscriptionPeriod={onRenewSubscriptionPeriod}
+              onExtendSubscriptionPeriod={onExtendSubscriptionPeriod}
+              onSuspendSubscriptionWithReason={onSuspendSubscriptionWithReason}
+              onReactivateSuspendedSubscription={onReactivateSuspendedSubscription}
+              onCancelSubscriptionLifecycle={onCancelSubscriptionLifecycle}
+              onChangeSubscriptionBillingCycle={onChangeSubscriptionBillingCycle}
+              onPurchaseEntitlementAddOn={onPurchaseEntitlementAddOn}
               onAuditIntegrationUpdate={onAuditIntegrationUpdate}
             />
           )}

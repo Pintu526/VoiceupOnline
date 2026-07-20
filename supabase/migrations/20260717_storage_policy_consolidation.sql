@@ -20,6 +20,20 @@ $$;
 revoke all on function public.voiceup_can_manage_workspace_storage(text) from public;
 grant execute on function public.voiceup_can_manage_workspace_storage(text) to authenticated;
 
+-- Idempotency guards: these 4 policies may already exist on the remote database
+-- (e.g. from an earlier partial/manual deployment outside CLI migration tracking).
+-- Dropping-then-recreating the identical definition inside this single transaction
+-- is atomic and has no security/data effect -- it only makes this file safely re-runnable,
+-- matching the same "drop if exists" pattern already used below for the legacy policies.
+drop policy if exists "Campaign private approved roles select"
+  on storage.objects;
+drop policy if exists "Campaign public media approved roles insert"
+  on storage.objects;
+drop policy if exists "Campaign public media approved roles update"
+  on storage.objects;
+drop policy if exists "Campaign public media approved roles delete"
+  on storage.objects;
+
 create policy "Campaign private approved roles select"
   on storage.objects
   for select

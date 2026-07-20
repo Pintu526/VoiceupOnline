@@ -103,7 +103,20 @@ test("retained campaign-private write policies remain approved-role scoped", () 
 test("only audited obsolete storage policies are removed", () => {
   const drops = [...migration.matchAll(/drop policy if exists "([^"]+)"\s+on storage\.objects;/gi)]
     .map((match) => match[1]);
-  assert.deepEqual(drops, obsoletePolicies);
+  // The first 4 drops are idempotency guards for the policies THIS migration itself
+  // creates (added so the file is safely re-runnable if those exact policies already
+  // exist remotely, e.g. from an earlier partial/manual deployment) -- they precede
+  // the create statements and are immediately followed by an identical re-create, so
+  // they change no access behavior. The remaining drops are the true legacy/obsolete
+  // policies being retired by this consolidation.
+  const idempotencyGuardPolicies = [
+    "Campaign private approved roles select",
+    "Campaign public media approved roles insert",
+    "Campaign public media approved roles update",
+    "Campaign public media approved roles delete"
+  ];
+  assert.deepEqual(drops.slice(0, idempotencyGuardPolicies.length), idempotencyGuardPolicies);
+  assert.deepEqual(drops.slice(idempotencyGuardPolicies.length), obsoletePolicies);
 });
 
 test("migration changes no application data or schema objects", () => {

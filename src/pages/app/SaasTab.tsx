@@ -57,8 +57,10 @@ import {
 } from "../../utils/subscription";
 import { getLocationGovernance } from "../../utils/campaign";
 import { useTranslation } from "../../i18n/useTranslation";
+import { SubscriptionEntitlementsPanel } from "./SubscriptionEntitlementsPanel";
+import type { AddOnPurchaseRequest } from "../../entitlements";
 
-type SaasSection = "organization" | "usage" | "packages" | "integrations" | "plans";
+type SaasSection = "organization" | "usage" | "packages" | "integrations" | "plans" | "entitlements";
 
 interface SaasTabProps {
   saasSection: SaasSection;
@@ -80,6 +82,15 @@ interface SaasTabProps {
   onMarkSubscriptionPastDue: () => void;
   onCancelSubscription: () => void;
   onApplyCommercialPackage: (pkg: CommercialPackage) => void;
+  onUpgradeSubscriptionPlan: (planName: BillingPlan) => void;
+  onDowngradeSubscriptionPlan: (planName: BillingPlan, effective?: "immediately" | "period_end") => void;
+  onRenewSubscriptionPeriod: (periodDays: number) => void;
+  onExtendSubscriptionPeriod: (extraDays: number) => void;
+  onSuspendSubscriptionWithReason: (reason: string) => void;
+  onReactivateSuspendedSubscription: () => void;
+  onCancelSubscriptionLifecycle: (atPeriodEnd: boolean) => void;
+  onChangeSubscriptionBillingCycle: (cadence: BillingCadence) => void;
+  onPurchaseEntitlementAddOn: (request: AddOnPurchaseRequest) => void;
   onAuditIntegrationUpdate: () => void;
 }
 
@@ -143,6 +154,15 @@ export function SaasTab({
   onMarkSubscriptionPastDue,
   onCancelSubscription,
   onApplyCommercialPackage,
+  onUpgradeSubscriptionPlan,
+  onDowngradeSubscriptionPlan,
+  onRenewSubscriptionPeriod,
+  onExtendSubscriptionPeriod,
+  onSuspendSubscriptionWithReason,
+  onReactivateSuspendedSubscription,
+  onCancelSubscriptionLifecycle,
+  onChangeSubscriptionBillingCycle,
+  onPurchaseEntitlementAddOn,
   onAuditIntegrationUpdate
 }: SaasTabProps) {
   const { t } = useTranslation();
@@ -151,7 +171,8 @@ export function SaasTab({
     { id: "usage", label: t("settings.tabs.usage") },
     { id: "packages", label: t("settings.tabs.packages") },
     { id: "integrations", label: t("settings.tabs.integrations") },
-    { id: "plans", label: t("settings.tabs.pricing") }
+    { id: "plans", label: t("settings.tabs.pricing") },
+    { id: "entitlements", label: "Subscription & Entitlements" }
   ];
   const [providerStatusByName, setProviderStatusByName] = useState<Record<string, ProviderStatus>>({});
   const [providerTestMessage, setProviderTestMessage] = useState("");
@@ -1362,6 +1383,24 @@ export function SaasTab({
             </div>
           </Panel>
         </>
+      )}
+
+      {saasSection === "entitlements" && (
+        <SubscriptionEntitlementsPanel
+          organization={organization}
+          campaigns={campaigns}
+          signers={signers}
+          scanItems={scanItems}
+          onUpgradePlan={onUpgradeSubscriptionPlan}
+          onDowngradePlan={onDowngradeSubscriptionPlan}
+          onRenewSubscription={onRenewSubscriptionPeriod}
+          onExtendSubscription={onExtendSubscriptionPeriod}
+          onSuspendSubscription={onSuspendSubscriptionWithReason}
+          onReactivateSubscription={onReactivateSuspendedSubscription}
+          onCancelSubscription={onCancelSubscriptionLifecycle}
+          onChangeBillingCycle={onChangeSubscriptionBillingCycle}
+          onPurchaseAddOn={onPurchaseEntitlementAddOn}
+        />
       )}
     </section>
   );

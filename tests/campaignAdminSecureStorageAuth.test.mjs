@@ -4,9 +4,11 @@ import { readFileSync } from "node:fs";
 import {
   createSecureFieldUploadVerificationCoordinator,
   evaluateSecureFieldUploadAccess,
+  isCampaignAdminSlugSecurelyAuthenticated,
   isSupabaseSessionOwnedBy,
   isStoragePathWithinWorkspace,
   preserveCampaignAdminAccess,
+  reconcileAuthenticatedAdminSlugs,
   resolveSupabaseSessionOwnership,
   shouldSignOutCampaignAdminSupabaseSession
 } from "../src/secureFieldUploadAuth.ts";
@@ -277,6 +279,106 @@ test("Campaign Admin logout owns only its matching campaign session", () => {
   assert.match(logoutSource, /await signOutSupabase\(\)/);
 });
 
+test("an orphaned authenticated slug with no Supabase session marker is rejected", () => {
+  const slug = "enact-prevention-cow-slaughter-act-2024-odisha";
+  const authenticatedAdminSlugs = { [slug]: true };
+
+  assert.equal(
+    isCampaignAdminSlugSecurelyAuthenticated(slug, authenticatedAdminSlugs, null, "real-admin-user"),
+    false
+  );
+
+  const reconciliation = reconcileAuthenticatedAdminSlugs(
+    slug,
+    authenticatedAdminSlugs,
+    null,
+    "real-admin-user"
+  );
+  assert.equal(reconciliation.authenticated, false);
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(reconciliation.nextAuthenticatedAdminSlugs, slug),
+    false
+  );
+});
+
+test("a Supabase session marker belonging to a different slug is rejected", () => {
+  const slug = "enact-prevention-cow-slaughter-act-2024-odisha";
+  const authenticatedAdminSlugs = { [slug]: true };
+  const markerForAnotherSlug = { slug: "qa-secure-upload-test", userId: "qa-admin-user", workspaceId };
+
+  assert.equal(
+    isCampaignAdminSlugSecurelyAuthenticated(slug, authenticatedAdminSlugs, markerForAnotherSlug, "qa-admin-user"),
+    false
+  );
+});
+
+test("a Supabase session marker owned by a different user id is rejected", () => {
+  const slug = "enact-prevention-cow-slaughter-act-2024-odisha";
+  const authenticatedAdminSlugs = { [slug]: true };
+  const marker = { slug, userId: "qa-admin-user", workspaceId };
+
+  assert.equal(
+    isCampaignAdminSlugSecurelyAuthenticated(slug, authenticatedAdminSlugs, marker, "real-admin-user"),
+    false
+  );
+});
+
+test("a matching slug and matching authenticated user succeeds", () => {
+  const slug = "enact-prevention-cow-slaughter-act-2024-odisha";
+  const authenticatedAdminSlugs = { [slug]: true };
+  const marker = { slug, userId: "real-admin-user", workspaceId };
+
+  assert.equal(
+    isCampaignAdminSlugSecurelyAuthenticated(slug, authenticatedAdminSlugs, marker, "real-admin-user"),
+    true
+  );
+});
+
+test("reload reconciliation removes an orphaned authenticated slug and leaves other slugs untouched", () => {
+  const slug = "enact-prevention-cow-slaughter-act-2024-odisha";
+  const authenticatedAdminSlugs = { [slug]: true, "another-campaign": true };
+
+  const orphaned = reconcileAuthenticatedAdminSlugs(slug, authenticatedAdminSlugs, null, "real-admin-user");
+  assert.equal(orphaned.authenticated, false);
+  assert.deepEqual(orphaned.nextAuthenticatedAdminSlugs, { "another-campaign": true });
+
+  const matchingMarker = { slug, userId: "real-admin-user", workspaceId };
+  const reconciled = reconcileAuthenticatedAdminSlugs(
+    slug,
+    authenticatedAdminSlugs,
+    matchingMarker,
+    "real-admin-user"
+  );
+  assert.equal(reconciled.authenticated, true);
+  assert.deepEqual(reconciled.nextAuthenticatedAdminSlugs, authenticatedAdminSlugs);
+});
+
+test("the restore/refresh effect reconciles authenticatedAdminSlugs against the Supabase session marker before trusting it", () => {
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const refreshSource = appSource.slice(
+    appSource.indexOf("async function refreshSecureFieldUploadAccess"),
+    appSource.indexOf("void refreshSecureFieldUploadAccess();")
+  );
+
+  assert.match(refreshSource, /reconcileAuthenticatedAdminSlugs\(/);
+  assert.match(refreshSource, /if \(!reconciliation\.authenticated\)/);
+  // An orphaned/mismatched slug must never be handed to secure-upload verification -- it must
+  // be reconciled away (and the stale session marker cleared) instead of reusing whatever
+  // unrelated ambient Supabase session happens to be active.
+  assert.match(refreshSource, /clearCampaignAdminSupabaseSession\(activeCampaignSlug\)/);
+});
+
+test("logout clears both the authenticated slug flag and the matching Supabase session marker", () => {
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const logoutSource = appSource.slice(
+    appSource.indexOf("async function logoutCampaignAdmin"),
+    appSource.indexOf("async function submitAppLogin")
+  );
+
+  assert.match(logoutSource, /writeAuthenticatedAdminSlugs\(nextAuth\)/);
+  assert.match(logoutSource, /clearCampaignAdminSupabaseSession\(activeCampaign\.slug\)/);
+});
+
 test("Campaign Admin membership enables upload but never grants Platform Admin access", () => {
   const access = evaluateSecureFieldUploadAccess({
     ...baseInput,
@@ -304,14 +406,27 @@ test("private evidence paths are denied outside the authenticated workspace", ()
   assert.equal(isStoragePathWithinWorkspace("workspace-other/campaign/scan/photo.jpg", workspaceId), false);
 });
 
-test("pilot integration keeps the local credential check before optional Supabase authentication", () => {
+test("Campaign Admin login never treats the local email/passcode fields as the authoritative credential", () => {
   const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
-  const localCheck = appSource.indexOf("const passcodeMatches");
-  const localGrant = appSource.indexOf("writeAuthenticatedAdminSlugs(nextAuth)", localCheck);
-  const supabaseAttempt = appSource.indexOf("signInWithSupabase(submittedEmail, submittedPasscode)", localGrant);
-  assert.ok(localCheck >= 0);
-  assert.ok(localGrant > localCheck);
-  assert.ok(supabaseAttempt > localGrant);
+  const loginSource = appSource.slice(
+    appSource.indexOf("async function submitCampaignAdminLogin"),
+    appSource.indexOf("async function logoutCampaignAdmin")
+  );
+  // The old insecure pattern (comparing a locally-stored passcode as the real credential) must be gone.
+  assert.doesNotMatch(loginSource, /const passcodeMatches/);
+  assert.doesNotMatch(loginSource, /getCampaignAdminPasscode/);
+
+  const signInIndex = loginSource.indexOf("signInWithSupabase(submittedEmail, submittedPassword)");
+  const assignmentIndex = loginSource.indexOf("resolveCampaignAdminAssignmentContext(");
+  const loginAccessIndex = loginSource.indexOf("evaluateCampaignAdminLoginAccess(");
+  const sessionMarkerIndex = loginSource.indexOf("writeCampaignAdminSupabaseSession(");
+  const slugGrantIndex = loginSource.indexOf("setAuthenticatedAdminSlugs(nextAuth)");
+
+  assert.ok(signInIndex >= 0);
+  assert.ok(assignmentIndex > signInIndex);
+  assert.ok(loginAccessIndex > assignmentIndex);
+  assert.ok(sessionMarkerIndex > loginAccessIndex);
+  assert.ok(slugGrantIndex > sessionMarkerIndex);
 });
 
 test("migration is additive, client-read-only, and workspace-prefix scoped", () => {
@@ -396,13 +511,13 @@ test("secure-upload verification runs after Supabase session and authenticatedAd
     appSource.indexOf("async function logoutCampaignAdmin")
   );
 
+  const signInIndex = loginSource.indexOf("signInWithSupabase(submittedEmail, submittedPassword)");
   const slugUpdateIndex = loginSource.indexOf("setAuthenticatedAdminSlugs(nextAuth)");
-  const signInIndex = loginSource.indexOf("signInWithSupabase(submittedEmail, submittedPasscode)");
-  const verifyIndex = loginSource.indexOf("verifyAndApplySecureFieldUploadAccess(workspaceId, authenticatedUser)");
+  const verifyIndex = loginSource.indexOf("verifyAndApplySecureFieldUploadAccess(workspaceId, authenticatedUser,");
 
-  assert.ok(slugUpdateIndex >= 0);
-  assert.ok(signInIndex > slugUpdateIndex);
-  assert.ok(verifyIndex > signInIndex);
+  assert.ok(signInIndex >= 0);
+  assert.ok(slugUpdateIndex > signInIndex);
+  assert.ok(verifyIndex > slugUpdateIndex);
 });
 
 test("logout clears secure-upload access through the canonical reset path", () => {
@@ -442,7 +557,7 @@ test("Campaign Admin login passes its freshly authenticated user directly into s
   // authenticatedUser already holds either the pre-existing session's user or the user
   // returned directly by signInWithSupabase() -- verification must reuse it rather than
   // re-fetching the user from Supabase a second time immediately after login.
-  assert.match(loginSource, /verifyAndApplySecureFieldUploadAccess\(workspaceId, authenticatedUser\)/);
+  assert.match(loginSource, /verifyAndApplySecureFieldUploadAccess\(workspaceId, authenticatedUser,/);
 });
 
 test("the restore/refresh effect still resolves its own user independently of the login handler", () => {

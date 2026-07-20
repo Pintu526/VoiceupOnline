@@ -54,7 +54,7 @@ interface ScansTabProps {
     field: keyof ScanReviewItem["parsedSigner"],
     value: string
   ) => void;
-  onApproveScan: (scan: ScanReviewItem | ScanReviewItem[]) => ScanApprovalCounts;
+  onApproveScan: (scan: ScanReviewItem | ScanReviewItem[]) => Promise<ScanApprovalCounts>;
 }
 
 export function ScansTab({
@@ -242,6 +242,9 @@ export function ScansTab({
       `${t("scans.review.approvedCount")}: ${counts.approved}`,
       `${t("scans.review.alreadyApprovedCount")}: ${counts.skippedAlreadyApproved}`,
       `${t("scans.review.skippedDuplicateCount")}: ${counts.skippedDuplicate}`,
+      `Validation failed: ${counts.validationFailed}`,
+      `Consent missing: ${counts.consentMissing}`,
+      `Stale/conflict: ${counts.staleConflict}`,
       `${t("scans.review.failedCount")}: ${counts.failed}`
     ].join(" · ");
   }
@@ -253,13 +256,17 @@ export function ScansTab({
     setApprovalMessage(t("scans.review.processing"));
     try {
       await Promise.resolve();
-      const counts = onApproveScan(item);
+      const counts = await onApproveScan(item);
       setShowCaptureNext(counts.approved > 0);
-      setApprovalMessageIsError(counts.failed > 0);
+      setApprovalMessageIsError(
+        counts.failed > 0
+          || counts.validationFailed > 0
+          || counts.consentMissing > 0
+          || counts.staleConflict > 0
+          || counts.skippedDuplicate > 0
+      );
       setApprovalMessage(
-        counts.skippedAlreadyApproved > 0 || counts.skippedDuplicate > 0
-          ? t("scans.review.alreadyApprovedMessage")
-          : formatApprovalCounts(counts)
+        counts.operatorMessage || formatApprovalCounts(counts)
       );
     } catch {
       setApprovalMessageIsError(true);
@@ -283,8 +290,14 @@ export function ScansTab({
     setApprovalMessage(t("scans.review.batchProcessing"));
     try {
       await Promise.resolve();
-      const counts = onApproveScan(reviewQueueItems);
-      setApprovalMessageIsError(counts.failed > 0);
+      const counts = await onApproveScan(reviewQueueItems);
+      setApprovalMessageIsError(
+        counts.failed > 0
+          || counts.validationFailed > 0
+          || counts.consentMissing > 0
+          || counts.staleConflict > 0
+          || counts.skippedDuplicate > 0
+      );
       setApprovalMessage(formatApprovalCounts(counts));
     } catch {
       setApprovalMessageIsError(true);

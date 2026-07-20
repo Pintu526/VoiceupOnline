@@ -2,7 +2,7 @@ import {
   initialAuthorities,
   initialCommercialPackages,
   initialIntegrationSettings
-} from "../data";
+} from "../data.ts";
 import type { VoiceupRemoteState } from "../backend";
 import type {
   Campaign,
@@ -11,13 +11,13 @@ import type {
   LocationGovernanceLevel,
   Organization
 } from "../types";
-import { getCampaignMetrics } from "../lib";
+import { getCampaignMetrics } from "../lib.ts";
 import {
   getCampaignAdminUrl as getCanonicalCampaignAdminUrl,
   getCanonicalBaseUrl,
   getPublicCampaignUrl,
   getSaasAdminUrl
-} from "./links";
+} from "./links.ts";
 
 const locationLevelOrder: LocationGovernanceLevel[] = [
   "none",

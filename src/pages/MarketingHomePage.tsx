@@ -153,110 +153,48 @@ const businessOsApplicationDefinitions: Array<{
   icon: typeof Megaphone;
   status: BusinessOsApplicationStatus;
   enabled: boolean;
-  name: string;
-  description: string;
-  statusDisplay: string;
-  highlights: string[];
 }> = [
   {
     key: "voiceup",
     icon: Sparkles,
     status: "IN PROGRESS",
-    enabled: false,
-    name: "VoiceUp Platform",
-    description: "The Unified SaaS Platform. One Platform. Multiple SaaS Applications.",
-    statusDisplay: "PLATFORM",
-    highlights: ["EXPLORE", "ORGANIZE - Build Your Team", "ACT - Start Free"]
+    enabled: false
   },
   {
     key: "campaign",
     icon: Megaphone,
     status: "LIVE",
-    enabled: true,
-    name: "Campaign SaaS",
-    description: "Launch transparent collective action with a complete campaign workspace.",
-    statusDisplay: "LIVE",
-    highlights: [
-      "Create and publish campaigns",
-      "Collect digital and paper signatures",
-      "Mobilize supporters and volunteers",
-      "Transparent collective action"
-    ]
+    enabled: true
   },
   {
     key: "goudhan",
     icon: WalletCards,
     status: "IN PROGRESS",
-    enabled: false,
-    name: "Goudhan Marketplace SaaS",
-    description: "A trusted indigenous cow-product marketplace for buyers, sellers, and partners.",
-    statusDisplay: "IN PROGRESS",
-    highlights: [
-      "Indigenous cow-product marketplace",
-      "Buyer and seller ecosystem",
-      "Partner and promoter onboarding",
-      "Commerce, fulfilment and referral capabilities"
-    ]
+    enabled: false
   },
   {
     key: "panditOnline",
     icon: Landmark,
     status: "IN PROGRESS",
-    enabled: false,
-    name: "PanditOnline SaaS",
-    description: "Trusted priest discovery and managed ritual service booking.",
-    statusDisplay: "IN PROGRESS",
-    highlights: [
-      "Trusted priest discovery",
-      "Ritual and service booking",
-      "Provider onboarding and approval",
-      "Scheduling and service management"
-    ]
+    enabled: false
   },
   {
     key: "teachToday",
     icon: GraduationCap,
     status: "IN PROGRESS",
-    enabled: false,
-    name: "TeachToday SaaS",
-    description: "A marketplace connecting learners with trusted tutors and services.",
-    statusDisplay: "IN PROGRESS",
-    highlights: [
-      "Tutor and learner marketplace",
-      "Provider onboarding and verification",
-      "Course or service discovery",
-      "Scheduling and learning support"
-    ]
+    enabled: false
   },
   {
     key: "homeNurseHub",
     icon: Smartphone,
     status: "IN PROGRESS",
-    enabled: false,
-    name: "Home Nurse Hub SaaS",
-    description: "Coordinated home-care professional discovery and service delivery.",
-    statusDisplay: "IN PROGRESS",
-    highlights: [
-      "Home-care professional discovery",
-      "Nurse onboarding and verification",
-      "Care-service requests",
-      "Scheduling and service coordination"
-    ]
+    enabled: false
   },
   {
     key: "cateringHub",
     icon: ShoppingBasket,
     status: "IN PROGRESS",
-    enabled: false,
-    name: "Catering Hub SaaS",
-    description: "Subscription meals, event catering, corporate catering and healthy-food services.",
-    statusDisplay: "IN PROGRESS",
-    highlights: [
-      "Subscription meal plans",
-      "Event and corporate catering",
-      "Home catering services",
-      "Includes SuddhaOswada healthy-food offerings"
-    ]
+    enabled: false
   }
 ];
 
@@ -337,7 +275,17 @@ export function MarketingHomePage({
     trackLandingAction(payload.eventName, payload.context);
   }
 
-  const businessOsApplications = businessOsApplicationDefinitions;
+  const businessOsApplications = businessOsApplicationDefinitions.map((application) => ({
+    ...application,
+    name: t(`landing.saas.apps.${application.key}.name`),
+    description: t(`landing.saas.apps.${application.key}.description`),
+    statusDisplay: application.key === "voiceup"
+      ? t("landing.saas.status.platform")
+      : t(`landing.saas.status.${application.status}`),
+    highlights: [1, 2, 3, 4]
+      .map((index) => t(`landing.saas.apps.${application.key}.highlights.${index}`))
+      .filter(Boolean)
+  }));
 
   const applicationSlideIds = businessOsApplications.map((application) => application.key);
   const applicationSlides: Record<string, VoiceUpCustomSlide> = Object.fromEntries(
@@ -357,7 +305,7 @@ export function MarketingHomePage({
     businessOsApplications.map((application) => [
       application.key,
       {
-        label: "Learn More",
+        label: t("landing.saas.actions.learnMore"),
         onClick: () => scrollToApplication(application.key, `application_carousel_${application.key}`)
       }
     ])
@@ -376,7 +324,7 @@ export function MarketingHomePage({
           </span>
           <span>
             <strong>VoiceUp</strong>
-            <small>The Unified SaaS Platform</small>
+            <small>{t("landing.saas.hero.title")}</small>
           </span>
         </a>
         <nav className="global-nav-links" aria-label={t("landing.nav.sectionsAria")}>
@@ -425,7 +373,7 @@ export function MarketingHomePage({
             )}
           </div>
           <button className="primary-link-button" type="button" onClick={() => startOrganize("nav") }>
-            <Building2 size={17} /> ORGANIZE
+            <Building2 size={17} /> {t("landing.saas.actions.organize")}
           </button>
         </div>
       </header>
@@ -451,18 +399,18 @@ export function MarketingHomePage({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         >
-          <span className="eyebrow">VoiceUp</span>
-          <h1>The Unified SaaS Platform</h1>
-          <p>One Platform Multiple SaaS Applications</p>
+          <span className="eyebrow">{t("landing.saas.hero.brand")}</span>
+          <h1>{t("landing.saas.hero.title")}</h1>
+          <p>{t("landing.saas.hero.subtitle")}</p>
           <div className="global-hero-actions">
             <button className="secondary-link-button light" type="button" onClick={() => exploreBusinessOs("hero") }>
-              <Sparkles size={18} /> EXPLORE
+              <Sparkles size={18} /> {t("landing.saas.actions.explore")}
             </button>
             <button className="primary-link-button" type="button" onClick={() => startOrganize("hero") }>
-              <Building2 size={18} /> ORGANIZE (Build Your Team)
+              <Building2 size={18} /> {t("landing.saas.actions.organizeWithTeam")}
             </button>
             <button className="primary-link-button accent" type="button" onClick={() => startAct("hero") }>
-              <Bolt size={18} /> ACT (Start Free)
+              <Bolt size={18} /> {t("landing.saas.actions.actWithStartFree")}
             </button>
           </div>
           <div className="hero-proof-strip" aria-label={t("landing.hero.highlightsAria")}>
@@ -483,8 +431,8 @@ export function MarketingHomePage({
 
       <section className="landing-band business-os-app-strip" aria-labelledby="business-os-applications-title">
         <div className="landing-section-heading business-os-app-strip-heading">
-          <h2 id="business-os-applications-title">VoiceUp Applications</h2>
-          <p>One platform, with one live SaaS application and five more in progress.</p>
+          <h2 id="business-os-applications-title">{t("landing.saas.applications.title")}</h2>
+          <p>{t("landing.saas.applications.subtitle")}</p>
         </div>
         <div className="business-os-app-grid">
           {businessOsApplications.map((application) => {
@@ -498,8 +446,8 @@ export function MarketingHomePage({
                 description={application.description}
                 status={application.status}
                 statusDisplay={application.statusDisplay}
-                statusLabel="Status"
-                launchLabel="Open"
+                statusLabel={t("landing.saas.labels.status")}
+                launchLabel={t("landing.saas.actions.open")}
                 enabled={application.enabled}
                 onLaunch={application.key === "campaign" ? () => startAct("applications_strip") : undefined}
               />
@@ -514,10 +462,10 @@ export function MarketingHomePage({
           experience="landing"
           autoPlayMs={4500}
           customHeader={{
-            eyebrow: "Application Carousel",
-            title: "Business OS Applications",
-            subtitle: "Explore live and in-progress products across the VoiceUp platform.",
-            playLabel: "Play carousel"
+            eyebrow: t("landing.saas.carousel.eyebrow"),
+            title: t("landing.saas.carousel.title"),
+            subtitle: t("landing.saas.carousel.subtitle"),
+            playLabel: t("landing.saas.carousel.play")
           }}
           slideIds={applicationSlideIds}
           customSlides={applicationSlides}
@@ -534,26 +482,26 @@ export function MarketingHomePage({
 
       <section className="landing-band pricing-band" id="act-panel" aria-labelledby="act-panel-title">
         <div className="landing-activation-copy">
-          <span className="eyebrow">ACT</span>
-          <h2 id="act-panel-title">Available Now</h2>
-          <p>Campaign SaaS</p>
-          <small>Start with Campaign now. Future SaaS applications will become available through their own future plan entitlements.</small>
+          <span className="eyebrow">{t("landing.saas.actions.act")}</span>
+          <h2 id="act-panel-title">{t("landing.saas.act.availableNow")}</h2>
+          <p>{t("landing.saas.apps.campaign.name")}</p>
+          <small>{t("landing.saas.act.description")}</small>
         </div>
         <div className="button-row">
           <button className="primary-link-button accent" type="button" onClick={onOpenOnboarding}>
-            <Bolt size={18} /> Start Free
+            <Bolt size={18} /> {t("landing.saas.actions.startFree")}
           </button>
-          <a className="secondary-link-button" href="/app">Campaign Admin Login</a>
+          <a className="secondary-link-button" href="/app">{t("landing.saas.act.adminLogin")}</a>
         </div>
-        <div className="business-os-app-grid" aria-label="Future SaaS applications">
+        <div className="business-os-app-grid" aria-label={t("landing.saas.act.futureApplications")}>
           {businessOsApplications.slice(2).map((application) => (
             <ApplicationStatusCard
               key={application.key}
               icon={<application.icon size={18} />}
               name={application.name}
-              description="COMING SOON"
+              description={t("landing.saas.status.COMING SOON")}
               status="COMING SOON"
-              statusLabel="Status"
+              statusLabel={t("landing.saas.labels.status")}
               enabled={false}
             />
           ))}

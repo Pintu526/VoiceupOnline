@@ -39,58 +39,81 @@
       "verified": "Reviewed"
     },
     "landing": {
-      "regionLabel": "Explore the VoiceUp campaign journey",
-      "eyebrow": "One movement, one connected journey",
-      "title": "See how VoiceUp turns an idea into accountable public action",
-      "subtitle": "Follow the campaign journey from creation and field collection to transparent reporting.",
+      "regionLabel": "Explore the VoiceUp guided story",
+      "eyebrow": "Business OS guided story",
+      "title": "One Voice Can Create Change",
+      "subtitle": "Business OS helps people organize, collaborate and act together with transparency.",
       "playLabel": "Play guided explanation",
+      "journey": {
+        "aria": "Primary landing actions",
+        "organize": "🏢 ORGANIZE",
+        "act": "⚡ ACT",
+        "explore": "Explore Business OS"
+      },
+      "decision": {
+        "aria": "Final action choices",
+        "organizeTitle": "🏢 ORGANIZE",
+        "organizeText": "Create organizations, build teams, coordinate people, launch initiatives and manage long-term impact.",
+        "actTitle": "⚡ ACT",
+        "actText": "Join, support, volunteer, donate, sign, participate and help create meaningful change."
+      },
       "activation": {
-        "eyebrow": "Begin with clarity",
-        "title": "Start with a campaign",
-        "description": "Choose the right operating capacity as your movement grows.",
+        "eyebrow": "Choose your path",
+        "title": "Organize leadership and immediate action in one platform",
+        "description": "Start with the same safe onboarding entry point for either journey.",
         "usageNote": "Communication and advanced services may depend on usage.",
-        "cta": "Start with a campaign"
+        "cta": "Begin now"
       },
       "slides": {
-        "campaignCreation": {
-          "title": "Campaign Creation",
-          "description": "Turn a clear idea into a structured, launch-ready campaign.",
-          "narration": "Begin with the change you want to see. VoiceUp guides the campaign structure, public appeal, authority context, and essential launch details in one clear flow."
+        "opening": {
+          "title": "One Voice Can Create Change",
+          "description": "Business OS helps people organize, collaborate and act together with transparency.",
+          "narration": "Every meaningful change starts when people choose to organize and act together. VoiceUp brings leadership and participation into one trusted flow."
         },
-        "paperDigitization": {
-          "title": "Paper Digitization",
-          "description": "Bring reviewed paper signatures into the same campaign journey.",
-          "narration": "Paper support can join the digital movement. Review each record, correct the captured details, identify possible duplicates, and keep every supporter connected to the right campaign."
+        "problem": {
+          "title": "People care. Action often breaks down.",
+          "description": "Momentum gets lost when people, communication, volunteers, funds, and follow-up stay disconnected.",
+          "narration": "Good intentions are common, but disconnected tools create confusion. Business OS connects people, tasks, evidence, and progress in one place."
         },
-        "supporters": {
-          "title": "Supporters",
-          "description": "Understand every supporter as part of a growing movement.",
-          "narration": "Support does not end with a signature. VoiceUp brings supporter records together so teams can understand participation, verify activity, and communicate with appropriate consent."
+        "organize": {
+          "title": "Organize people around shared purpose",
+          "description": "Build structure, assign roles, and coordinate long-term initiatives.",
+          "narration": "Create organizations, grow core teams, coordinate members and volunteers, and keep everyone focused on the next meaningful action."
         },
-        "volunteers": {
-          "title": "Volunteers",
-          "description": "Coordinate the people expanding campaign reach.",
-          "narration": "Volunteers carry campaigns into communities. Organize field participation, referral activity, and local follow-up so effort remains visible, coordinated, and connected to campaign outcomes."
+        "initiatives": {
+          "title": "Launch initiatives people can act on",
+          "description": "Move from concern to coordinated public and community action.",
+          "narration": "Create and publish initiatives, invite participation, and keep real-world action moving after the first response."
         },
-        "timeline": {
-          "title": "Timeline",
-          "description": "Keep milestones and next steps visible from launch to resolution.",
-          "narration": "A clear timeline turns activity into a public journey. Track important milestones, campaign updates, authority communication, and the next action without losing historical context."
+        "offlineOnline": {
+          "title": "Connect offline and online effort",
+          "description": "Bring paper participation and field evidence into one trusted record.",
+          "narration": "Ground activity matters. Digitize signatures, photos, and evidence while preserving history and context."
+        },
+        "engagement": {
+          "title": "Inspire action, not just messages",
+          "description": "Reach people in the right language and channel with clear next steps.",
+          "narration": "Invite people to sign, attend, volunteer, support, and share. Follow up responsibly with measurable responses."
         },
         "transparency": {
-          "title": "Transparency",
-          "description": "Present progress, evidence, and accountability clearly.",
-          "narration": "Public trust grows when progress is understandable. Present supporting context, verified participation, updates, and responsible funding information without overstating what the campaign has achieved."
+          "title": "Build trust through transparency",
+          "description": "Plan, collect, spend, and report with visible purpose.",
+          "narration": "Track budgets, collections, approvals, expenses, and evidence with responsible transparency appropriate for each initiative."
         },
-        "reports": {
-          "title": "Reports",
-          "description": "Turn participation into useful operational summaries.",
-          "narration": "Reports help campaign teams move from activity to decisions. Review supporter growth, locations, channels, and progress in formats that can support partners and authorities."
+        "growth": {
+          "title": "Turn support into sustainable momentum",
+          "description": "Align partners, volunteers, leaders, sponsors, and communities through clear roles.",
+          "narration": "Coordinate people and partnerships with shared goals, measurable progress, and transparent recognition."
         },
-        "aiCopilot": {
-          "title": "AI Campaign Copilot",
-          "description": "Use guided AI assistance to shape clearer campaign content.",
-          "narration": "The AI Campaign Copilot helps organize an initial idea into stronger campaign language and practical next steps. Every suggestion remains available for human review before use."
+        "impact": {
+          "title": "See real-world impact",
+          "description": "Understand what changed because people acted together.",
+          "narration": "Track participation, volunteers, transparent fund usage, events, and outcomes. Use real records to guide next decisions."
+        },
+        "decision": {
+          "title": "What do you want to start today?",
+          "description": "Choose your path: organize leadership or act immediately.",
+          "narration": "Choose Organize to build structure and lead long-term initiatives. Choose Act to join, support, volunteer, and help now."
         }
       }
     },
@@ -2230,7 +2253,130 @@
       "startFreeCampaign": "Start Free Campaign",
       "createWithAi": "Create campaign with AI",
       "viewPricing": "View pricing",
-      "startOneDay": "Start free for 1 day"
+      "startOneDay": "Start free for 1 day",
+      "organize": "🏢 ORGANIZE",
+      "act": "⚡ ACT",
+      "exploreBusinessOs": "Explore Business OS"
+    },
+    "signIn": {
+      "title": "Sign In",
+      "workspaceAdmin": "Workspace Admin",
+      "platformAdmin": "Platform Admin",
+      "mobileAria": "Business OS sign in options",
+      "workspaceAdminHelp": "Manage your organization",
+      "platformAdminHelp": "Authorized operators only"
+    },
+    "applications": {
+      "title": "Business OS Applications",
+      "statusLabel": "Status",
+      "launch": "Launch",
+      "status": {
+        "LIVE": "LIVE",
+        "COMING SOON": "Coming Soon",
+        "IN PROGRESS": "In Progress",
+        "PLANNING": "Planning",
+        "BETA": "Beta",
+        "UNDER MAINTENANCE": "Under Maintenance"
+      },
+      "apps": {
+        "voiceup": {
+          "name": "VoiceUp",
+          "description": "Collective Action Platform"
+        },
+        "goudhan": {
+          "name": "Goudhan",
+          "description": "Livestock Marketplace"
+        },
+        "panditOnline": {
+          "name": "PanditOnline",
+          "description": "Religious Services"
+        },
+        "teachToday": {
+          "name": "TeachToday",
+          "description": "Education Platform"
+        }
+      }
+    },
+    "saas": {
+      "hero": {
+        "brand": "VoiceUp",
+        "title": "The Unified SaaS Platform",
+        "subtitle": "One Platform. Multiple SaaS Applications."
+      },
+      "actions": {
+        "explore": "EXPLORE",
+        "organize": "ORGANIZE",
+        "organizeWithTeam": "ORGANIZE - Build Your Team",
+        "act": "ACT",
+        "actWithStartFree": "ACT - Start Free",
+        "startFree": "Start Free",
+        "learnMore": "Learn More",
+        "open": "Open"
+      },
+      "labels": {
+        "status": "Status",
+        "applicationStatus": "Application status"
+      },
+      "status": {
+        "platform": "PLATFORM",
+        "LIVE": "LIVE",
+        "IN PROGRESS": "IN PROGRESS",
+        "COMING SOON": "COMING SOON"
+      },
+      "applications": {
+        "title": "VoiceUp Applications",
+        "subtitle": "One platform, with one live SaaS application and five more in progress."
+      },
+      "carousel": {
+        "eyebrow": "Application Carousel",
+        "title": "Business OS Applications",
+        "subtitle": "Explore live and in-progress products across the VoiceUp platform.",
+        "play": "Play carousel",
+        "timer": "Landing story timer"
+      },
+      "act": {
+        "availableNow": "Available Now",
+        "description": "Start with Campaign now. Future SaaS applications will become available through their own future plan entitlements.",
+        "adminLogin": "Campaign Admin Login",
+        "futureApplications": "Future SaaS applications"
+      },
+      "apps": {
+        "voiceup": {
+          "name": "VoiceUp Platform",
+          "description": "The Unified SaaS Platform. One Platform. Multiple SaaS Applications.",
+          "highlights": { "1": "EXPLORE", "2": "ORGANIZE - Build Your Team", "3": "ACT - Start Free", "4": "" }
+        },
+        "campaign": {
+          "name": "Campaign SaaS",
+          "description": "Launch transparent collective action with a complete campaign workspace.",
+          "highlights": { "1": "Create and publish campaigns", "2": "Collect digital and paper signatures", "3": "Mobilize supporters and volunteers", "4": "Transparent collective action" }
+        },
+        "goudhan": {
+          "name": "Goudhan Marketplace SaaS",
+          "description": "A trusted indigenous cow-product marketplace for buyers, sellers, and partners.",
+          "highlights": { "1": "Indigenous cow-product marketplace", "2": "Buyer and seller ecosystem", "3": "Partner and promoter onboarding", "4": "Commerce, fulfilment and referral capabilities" }
+        },
+        "panditOnline": {
+          "name": "PanditOnline SaaS",
+          "description": "Trusted priest discovery and managed ritual service booking.",
+          "highlights": { "1": "Trusted priest discovery", "2": "Ritual and service booking", "3": "Provider onboarding and approval", "4": "Scheduling and service management" }
+        },
+        "teachToday": {
+          "name": "TeachToday SaaS",
+          "description": "A marketplace connecting learners with trusted tutors and services.",
+          "highlights": { "1": "Tutor and learner marketplace", "2": "Provider onboarding and verification", "3": "Course or service discovery", "4": "Scheduling and learning support" }
+        },
+        "homeNurseHub": {
+          "name": "Home Nurse Hub SaaS",
+          "description": "Coordinated home-care professional discovery and service delivery.",
+          "highlights": { "1": "Home-care professional discovery", "2": "Nurse onboarding and verification", "3": "Care-service requests", "4": "Scheduling and service coordination" }
+        },
+        "cateringHub": {
+          "name": "Catering Hub SaaS",
+          "description": "Subscription meals, event catering, corporate catering and healthy-food services.",
+          "highlights": { "1": "Subscription meal plans", "2": "Event and corporate catering", "3": "Home catering services", "4": "Includes SuddhaOswada healthy-food offerings" }
+        }
+      }
     },
     "hero": {
       "eyebrow": "Clear campaigns. Verified public support.",
@@ -2456,22 +2602,26 @@
       }
     },
     "finalCta": {
-      "eyebrow": "Ready to launch?",
-      "title": "Launch the first campaign, show the value, then choose the plan that fits.",
-      "subtitle": "Voiceup helps people promote their campaign from a real public link: AI campaign copy, field collection, movement CRM, communication hub, and impact reports in one place."
+      "eyebrow": "Ready to begin?",
+      "title": "Choose how you want to create change.",
+      "subtitle": "Organize long-term initiatives or act immediately through trusted, transparent collective action."
     },
     "freeze": {
       "tagline": "Transparent collective action",
       "getStarted": "Get started",
-      "heroEyebrow": "Clear campaigns. Verified public support.",
-      "heroTitle": "Turn public concern into transparent collective action.",
-      "heroSubtitle": "VoiceUp brings campaign creation, verified participation, field collection, authority routing, and accountable reporting into one guided experience.",
+      "heroEyebrow": "BUSINESS OS",
+      "heroTitle": "One Platform. Many Possibilities.",
+      "heroAvailabilityLabel": "Currently Available",
+      "heroAvailabilityApp": "✅ VoiceUp",
+      "heroPoweredBy": "Powered today by VoiceUp.",
+      "heroLeadTitle": "Lead Change Together",
+      "heroSubtitle": "Create organizations, coordinate people, and turn ideas into action.",
       "productEyebrow": "One connected platform",
-      "productTitle": "Everything a credible public campaign needs.",
-      "productSubtitle": "Plan the campaign, collect verified support, coordinate the field, reach the right authority, and report progress with clarity.",
+      "productTitle": "Organize and coordinate action with one operating platform.",
+      "productSubtitle": "VoiceUp helps people, organizations, teams, and communities plan initiatives, mobilize support, and measure real-world impact.",
       "trustEyebrow": "Trust by design",
       "trustTitle": "Built for credible participation and visible accountability.",
-      "trustSubtitle": "Clear campaign asks, verified support, consent-aware collection, authority context, and measurable progress help every movement earn trust.",
+      "trustSubtitle": "Clear purpose, transparent progress, and responsible coordination help people trust collective action.",
       "footerTagline": "VoiceUp — the operating system for transparent collective action."
     },
     "footer": {

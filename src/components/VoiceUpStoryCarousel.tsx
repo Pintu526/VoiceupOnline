@@ -721,7 +721,7 @@ export function VoiceUpStoryCarousel({
               </ul>
             )}
             {customSlide?.status && (
-              <span className="voiceup-story-status" aria-label="Application status">{customSlide.status}</span>
+              <span className="voiceup-story-status" aria-label={t("landing.saas.labels.applicationStatus")}>{customSlide.status}</span>
             )}
             {activeAction && !isLandingOpeningSlide && !isLandingDecisionSlide && (
               <button
@@ -818,7 +818,7 @@ export function VoiceUpStoryCarousel({
       )}
 
       {isLanding && (
-        <div className="voiceup-story-timer" aria-label="Landing story timer">
+        <div className="voiceup-story-timer" aria-label={t("landing.saas.carousel.timer")}>
           <span className="voiceup-story-timer-countdown" aria-live="polite">{Math.max(0, Math.ceil(landingRemainingMs / 1000))}s</span>
           <div className="voiceup-story-timer-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((autoPlayMs - landingRemainingMs) / autoPlayMs) * 100)}>
             <span style={{ width: `${Math.max(0, Math.min(100, ((autoPlayMs - landingRemainingMs) / autoPlayMs) * 100))}%` }} />

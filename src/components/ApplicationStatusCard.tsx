@@ -9,6 +9,7 @@ export type BusinessOsApplicationStatus =
   | "UNDER MAINTENANCE";
 
 interface ApplicationStatusCardProps {
+  id?: string;
   icon: ReactNode;
   name: string;
   description: string;
@@ -31,6 +32,7 @@ const statusClassName: Record<BusinessOsApplicationStatus, string> = {
 };
 
 export function ApplicationStatusCard({
+  id,
   icon,
   name,
   description,
@@ -46,7 +48,7 @@ export function ApplicationStatusCard({
   const statusClass = statusClassName[status] ?? "planning";
 
   return (
-    <article className="business-os-app-row" aria-label={name}>
+    <article id={id} className="business-os-app-row" aria-label={name}>
       <div className="business-os-app-summary">
         <span className="business-os-app-icon" aria-hidden="true">{icon}</span>
         <div className="business-os-app-copy">

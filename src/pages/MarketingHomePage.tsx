@@ -28,10 +28,8 @@ import {
   ShoppingBasket,
   Sun,
   GraduationCap,
-  Scale,
-  HandHeart,
-  Users,
   UsersRound,
+  WalletCards,
   Workflow
 } from "lucide-react";
 import heroImage from "../assets/voiceup-global-hero.jpg";
@@ -151,76 +149,114 @@ const roleOptions = [
 ];
 
 const businessOsApplicationDefinitions: Array<{
-  key: "campaign" | "suddhaOswada" | "panditJi" | "law4all" | "techtoday" | "volunteer" | "funding";
+  key: "voiceup" | "campaign" | "goudhan" | "panditOnline" | "teachToday" | "homeNurseHub" | "cateringHub";
   icon: typeof Megaphone;
   status: BusinessOsApplicationStatus;
   enabled: boolean;
   name: string;
   description: string;
   statusDisplay: string;
+  highlights: string[];
 }> = [
+  {
+    key: "voiceup",
+    icon: Sparkles,
+    status: "IN PROGRESS",
+    enabled: false,
+    name: "VoiceUp Platform",
+    description: "The Unified SaaS Platform. One Platform. Multiple SaaS Applications.",
+    statusDisplay: "PLATFORM",
+    highlights: ["EXPLORE", "ORGANIZE - Build Your Team", "ACT - Start Free"]
+  },
   {
     key: "campaign",
     icon: Megaphone,
     status: "LIVE",
     enabled: true,
-    name: "Campaign",
-    description: "Create campaigns, collect signatures, and drive measurable civic outcomes.",
-    statusDisplay: "LIVE"
+    name: "Campaign SaaS",
+    description: "Launch transparent collective action with a complete campaign workspace.",
+    statusDisplay: "LIVE",
+    highlights: [
+      "Create and publish campaigns",
+      "Collect digital and paper signatures",
+      "Mobilize supporters and volunteers",
+      "Transparent collective action"
+    ]
   },
   {
-    key: "suddhaOswada",
-    icon: ShoppingBasket,
+    key: "goudhan",
+    icon: WalletCards,
     status: "IN PROGRESS",
     enabled: false,
-    name: "SuddhaOswada",
-    description: "Healthy food ecosystem for mindful everyday living.",
-    statusDisplay: "IN PROGRESS"
+    name: "Goudhan Marketplace SaaS",
+    description: "A trusted indigenous cow-product marketplace for buyers, sellers, and partners.",
+    statusDisplay: "IN PROGRESS",
+    highlights: [
+      "Indigenous cow-product marketplace",
+      "Buyer and seller ecosystem",
+      "Partner and promoter onboarding",
+      "Commerce, fulfilment and referral capabilities"
+    ]
   },
   {
-    key: "panditJi",
+    key: "panditOnline",
     icon: Landmark,
     status: "IN PROGRESS",
     enabled: false,
-    name: "PanditJi",
-    description: "On-demand ritual support and verified spiritual service network.",
-    statusDisplay: "IN PROGRESS"
+    name: "PanditOnline SaaS",
+    description: "Trusted priest discovery and managed ritual service booking.",
+    statusDisplay: "IN PROGRESS",
+    highlights: [
+      "Trusted priest discovery",
+      "Ritual and service booking",
+      "Provider onboarding and approval",
+      "Scheduling and service management"
+    ]
   },
   {
-    key: "law4all",
-    icon: Scale,
-    status: "IN PROGRESS",
-    enabled: false,
-    name: "Law4All",
-    description: "Legal awareness, advisory workflows, and justice access tooling.",
-    statusDisplay: "IN PROGRESS"
-  },
-  {
-    key: "techtoday",
+    key: "teachToday",
     icon: GraduationCap,
     status: "IN PROGRESS",
     enabled: false,
-    name: "Techtoday",
-    description: "Practical skills and education pathways for future-ready careers.",
-    statusDisplay: "IN PROGRESS"
+    name: "TeachToday SaaS",
+    description: "A marketplace connecting learners with trusted tutors and services.",
+    statusDisplay: "IN PROGRESS",
+    highlights: [
+      "Tutor and learner marketplace",
+      "Provider onboarding and verification",
+      "Course or service discovery",
+      "Scheduling and learning support"
+    ]
   },
   {
-    key: "volunteer",
-    icon: HandHeart,
+    key: "homeNurseHub",
+    icon: Smartphone,
     status: "IN PROGRESS",
     enabled: false,
-    name: "Volunteer",
-    description: "Discover causes, join drives, and coordinate volunteer efforts.",
-    statusDisplay: "IN PROGRESS"
+    name: "Home Nurse Hub SaaS",
+    description: "Coordinated home-care professional discovery and service delivery.",
+    statusDisplay: "IN PROGRESS",
+    highlights: [
+      "Home-care professional discovery",
+      "Nurse onboarding and verification",
+      "Care-service requests",
+      "Scheduling and service coordination"
+    ]
   },
   {
-    key: "funding",
-    icon: Users,
+    key: "cateringHub",
+    icon: ShoppingBasket,
     status: "IN PROGRESS",
     enabled: false,
-    name: "Funding",
-    description: "Transparent contribution pipelines for community-backed projects.",
-    statusDisplay: "IN PROGRESS"
+    name: "Catering Hub SaaS",
+    description: "Subscription meals, event catering, corporate catering and healthy-food services.",
+    statusDisplay: "IN PROGRESS",
+    highlights: [
+      "Subscription meal plans",
+      "Event and corporate catering",
+      "Home catering services",
+      "Includes SuddhaOswada healthy-food offerings"
+    ]
   }
 ];
 
@@ -273,7 +309,7 @@ export function MarketingHomePage({
 
   function startAct(context: string) {
     trackLandingAction("landing_act_clicked", context);
-    const target = document.getElementById("business-os-applications-title");
+    const target = document.getElementById("act-panel");
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
@@ -287,6 +323,14 @@ export function MarketingHomePage({
     if (target) {
       target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+  }
+
+  function scrollToApplication(applicationKey: string, context: string) {
+    trackLandingAction("landing_application_learn_more_clicked", context);
+    document.getElementById(`application-detail-${applicationKey}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
   }
 
   function handleLandingAnalytics(payload: { eventName: string; context: string }) {
@@ -304,20 +348,20 @@ export function MarketingHomePage({
         description: application.description,
         narration: `${application.name}. ${application.description}`,
         status: application.statusDisplay,
-        highlights: [
-          application.enabled ? "Available now" : "Coming online soon",
-          application.key === "campaign" ? "Start free and launch immediately" : "Roadmap under active development"
-        ]
+        highlights: application.highlights
       }
     ])
   );
 
-  const applicationSlideActions: Record<string, VoiceUpStoryAction> = {
-    campaign: {
-      label: "Start Free",
-      onClick: () => startAct("application_carousel_campaign")
-    }
-  };
+  const applicationSlideActions: Record<string, VoiceUpStoryAction> = Object.fromEntries(
+    businessOsApplications.map((application) => [
+      application.key,
+      {
+        label: "Learn More",
+        onClick: () => scrollToApplication(application.key, `application_carousel_${application.key}`)
+      }
+    ])
+  );
 
   const applicationSlideMedia: Partial<Record<string, VoiceUpStoryMedia>> = {
     campaign: { imageUrl: heroImage }
@@ -440,7 +484,7 @@ export function MarketingHomePage({
       <section className="landing-band business-os-app-strip" aria-labelledby="business-os-applications-title">
         <div className="landing-section-heading business-os-app-strip-heading">
           <h2 id="business-os-applications-title">VoiceUp Applications</h2>
-          <p>Includes SuddhaOswada healthy food ecosystem.</p>
+          <p>One platform, with one live SaaS application and five more in progress.</p>
         </div>
         <div className="business-os-app-grid">
           {businessOsApplications.map((application) => {
@@ -448,6 +492,7 @@ export function MarketingHomePage({
             return (
               <ApplicationStatusCard
                 key={application.key}
+                id={`application-detail-${application.key}`}
                 icon={<Icon size={18} />}
                 name={application.name}
                 description={application.description}
@@ -490,20 +535,28 @@ export function MarketingHomePage({
       <section className="landing-band pricing-band" id="act-panel" aria-labelledby="act-panel-title">
         <div className="landing-activation-copy">
           <span className="eyebrow">ACT</span>
-          <h2 id="act-panel-title">Start Free and Launch Faster</h2>
-          <p>Campaign is fully live today. Other applications are marked COMING SOON while they are being completed.</p>
-          <small>Pick Campaign to begin right now. Your workspace path and existing login flow remain unchanged.</small>
+          <h2 id="act-panel-title">Available Now</h2>
+          <p>Campaign SaaS</p>
+          <small>Start with Campaign now. Future SaaS applications will become available through their own future plan entitlements.</small>
         </div>
         <div className="button-row">
-          <button className="primary-link-button accent" type="button" onClick={() => startAct("act_panel_campaign") }>
-            <Bolt size={18} /> Campaign (Start Free)
+          <button className="primary-link-button accent" type="button" onClick={onOpenOnboarding}>
+            <Bolt size={18} /> Start Free
           </button>
-          <button className="secondary-link-button" type="button" aria-disabled="true">
-            SuddhaOswada (COMING SOON)
-          </button>
-          <button className="secondary-link-button" type="button" aria-disabled="true">
-            PanditJi (COMING SOON)
-          </button>
+          <a className="secondary-link-button" href="/app">Campaign Admin Login</a>
+        </div>
+        <div className="business-os-app-grid" aria-label="Future SaaS applications">
+          {businessOsApplications.slice(2).map((application) => (
+            <ApplicationStatusCard
+              key={application.key}
+              icon={<application.icon size={18} />}
+              name={application.name}
+              description="COMING SOON"
+              status="COMING SOON"
+              statusLabel="Status"
+              enabled={false}
+            />
+          ))}
         </div>
       </section>
 

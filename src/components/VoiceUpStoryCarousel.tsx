@@ -84,8 +84,6 @@ interface VoiceUpStoryCarouselProps {
   onLandingAnalytics?: (payload: LandingAnalyticsPayload) => void;
 }
 
-const LANDING_SCENE_MS = 10_000;
-
 const experienceSlides: Record<VoiceUpStoryExperience, readonly string[]> = {
   landing: [
     "opening",
@@ -267,7 +265,7 @@ export function VoiceUpStoryCarousel({
   const [guidedPaused, setGuidedPaused] = useState(false);
   const [guidedCompleted, setGuidedCompleted] = useState(false);
   const [isExploreMode, setIsExploreMode] = useState(false);
-  const [landingRemainingMs, setLandingRemainingMs] = useState(LANDING_SCENE_MS);
+  const [landingRemainingMs, setLandingRemainingMs] = useState(autoPlayMs);
   const [narrationUnavailable, setNarrationUnavailable] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const pointerStartX = useRef<number | null>(null);
@@ -356,7 +354,7 @@ export function VoiceUpStoryCarousel({
     setGuidedPaused(false);
     setGuidedCompleted(false);
     setIsExploreMode(false);
-    setLandingRemainingMs(LANDING_SCENE_MS);
+    setLandingRemainingMs(autoPlayMs);
     cancelNarration();
   }, [cancelNarration, experience, reducedMotion, slides.length]);
 
@@ -397,10 +395,9 @@ export function VoiceUpStoryCarousel({
       firstLanguageRender.current = false;
       return;
     }
-    setSilentPaused(true);
-    setGuidedPaused(true);
+    setLandingRemainingMs(autoPlayMs);
     trackLanding("landing_language_changed", language);
-  }, [isLanding, language]);
+  }, [autoPlayMs, isLanding, language]);
 
   useEffect(() => {
     if (!isLanding) return;
@@ -416,8 +413,8 @@ export function VoiceUpStoryCarousel({
 
   useEffect(() => {
     if (!isLanding) return;
-    setLandingRemainingMs(LANDING_SCENE_MS);
-  }, [activeIndex, isLanding]);
+    setLandingRemainingMs(autoPlayMs);
+  }, [activeIndex, autoPlayMs, isLanding]);
 
   useEffect(() => {
     clearLandingTimer();
@@ -437,11 +434,11 @@ export function VoiceUpStoryCarousel({
           }
           return currentIndex + 1;
         });
-        return LANDING_SCENE_MS;
+        return autoPlayMs;
       });
     }, 100);
     return clearLandingTimer;
-  }, [clearLandingTimer, isLanding, isLandingFinalSlide, landingPaused, slides.length]);
+  }, [autoPlayMs, clearLandingTimer, isLanding, isLandingFinalSlide, landingPaused, slides.length]);
 
   useEffect(() => {
     if (isLanding || !guidedActive) return;
@@ -492,7 +489,7 @@ export function VoiceUpStoryCarousel({
     setSilentPaused(true);
     if (isLanding) setGuidedPaused(true);
     cancelNarration();
-    setLandingRemainingMs(LANDING_SCENE_MS);
+    setLandingRemainingMs(autoPlayMs);
     const targetIndex = isLanding
       ? Math.min(slides.length - 1, Math.max(0, index))
       : (index + slides.length) % slides.length;
@@ -507,7 +504,7 @@ export function VoiceUpStoryCarousel({
     cancelNarration();
     if (isLanding) {
       setActiveIndex(0);
-      setLandingRemainingMs(LANDING_SCENE_MS);
+      setLandingRemainingMs(autoPlayMs);
       setSilentPaused(false);
       setGuidedPaused(false);
       setGuidedActive(true);
@@ -540,7 +537,7 @@ export function VoiceUpStoryCarousel({
     if (isLanding) {
       setGuidedPaused(false);
       setSilentPaused(false);
-      setLandingRemainingMs(LANDING_SCENE_MS);
+      setLandingRemainingMs(autoPlayMs);
       trackLanding("landing_resumed", "controls");
       return;
     }
@@ -563,7 +560,7 @@ export function VoiceUpStoryCarousel({
   function replayGuided() {
     cancelNarration();
     setActiveIndex(0);
-    setLandingRemainingMs(LANDING_SCENE_MS);
+    setLandingRemainingMs(autoPlayMs);
     setIsExploreMode(false);
     setGuidedCompleted(false);
     setGuidedPaused(false);
@@ -581,7 +578,7 @@ export function VoiceUpStoryCarousel({
 
   function returnToGuidedStory() {
     setIsExploreMode(false);
-    setLandingRemainingMs(LANDING_SCENE_MS);
+    setLandingRemainingMs(autoPlayMs);
     setGuidedPaused(false);
     setSilentPaused(false);
     trackLanding("landing_resumed", "explore_return");
@@ -590,7 +587,7 @@ export function VoiceUpStoryCarousel({
   function handleLandingJourneyAction(action: () => void, context: string) {
     stopGuided();
     setSilentPaused(true);
-    setLandingRemainingMs(LANDING_SCENE_MS);
+    setLandingRemainingMs(autoPlayMs);
     action();
     if (isLanding && context === "explore") openExploreMode("explore");
   }
@@ -668,14 +665,10 @@ export function VoiceUpStoryCarousel({
       onKeyDown={handleKeyDown}
       onMouseEnter={() => {
         setIsHoverPaused(true);
-        if (isLanding) {
-          setGuidedPaused(true);
-          trackLanding("landing_paused", "hover");
-        }
+        if (isLanding) trackLanding("landing_paused", "hover");
       }}
       onMouseLeave={() => {
         setIsHoverPaused(false);
-        if (isLanding && !silentPaused && !isExploreMode) setGuidedPaused(false);
       }}
       onFocusCapture={() => setIsFocusPaused(true)}
       onBlurCapture={handleFocusLeave}
@@ -827,8 +820,8 @@ export function VoiceUpStoryCarousel({
       {isLanding && (
         <div className="voiceup-story-timer" aria-label="Landing story timer">
           <span className="voiceup-story-timer-countdown" aria-live="polite">{Math.max(0, Math.ceil(landingRemainingMs / 1000))}s</span>
-          <div className="voiceup-story-timer-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((LANDING_SCENE_MS - landingRemainingMs) / LANDING_SCENE_MS) * 100)}>
-            <span style={{ width: `${Math.max(0, Math.min(100, ((LANDING_SCENE_MS - landingRemainingMs) / LANDING_SCENE_MS) * 100))}%` }} />
+          <div className="voiceup-story-timer-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((autoPlayMs - landingRemainingMs) / autoPlayMs) * 100)}>
+            <span style={{ width: `${Math.max(0, Math.min(100, ((autoPlayMs - landingRemainingMs) / autoPlayMs) * 100))}%` }} />
           </div>
         </div>
       )}
@@ -918,7 +911,7 @@ export function VoiceUpStoryCarousel({
                     trackLanding("landing_paused", "autoplay_toggle");
                   } else {
                     setGuidedPaused(false);
-                    setLandingRemainingMs(LANDING_SCENE_MS);
+                    setLandingRemainingMs(autoPlayMs);
                     trackLanding("landing_resumed", "autoplay_toggle");
                   }
                 }

@@ -12,7 +12,7 @@ export function LanguageSwitcher() {
 
   return (
     <label>
-      <span>{t("settings.language")}</span>
+      <span>{t("settings.language")} 🌐</span>
       <select
         aria-label={t("settings.language")}
         value={language}

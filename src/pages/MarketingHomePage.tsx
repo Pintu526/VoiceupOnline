@@ -1,7 +1,9 @@
 import { motion } from "framer-motion";
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   BarChart3,
+  Building2,
+  Bolt,
   Bot,
   CheckCircle2,
   ChevronDown,
@@ -23,9 +25,13 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
+  ShoppingBasket,
   Sun,
+  GraduationCap,
+  Scale,
+  HandHeart,
+  Users,
   UsersRound,
-  WalletCards,
   Workflow
 } from "lucide-react";
 import heroImage from "../assets/voiceup-global-hero.jpg";
@@ -36,6 +42,15 @@ import {
   type OnboardingCompletionPayload,
   type OnboardingCompletionResult
 } from "./OnboardingWizard";
+import {
+  ApplicationStatusCard,
+  type BusinessOsApplicationStatus
+} from "../components/ApplicationStatusCard";
+import {
+  type VoiceUpCustomSlide,
+  type VoiceUpStoryAction,
+  type VoiceUpStoryMedia
+} from "../components/VoiceUpStoryCarousel";
 
 interface MarketingHomePageProps {
   theme: "light" | "dark";
@@ -135,6 +150,80 @@ const roleOptions = [
   { key: "fieldTeam", icon: Smartphone }
 ];
 
+const businessOsApplicationDefinitions: Array<{
+  key: "campaign" | "suddhaOswada" | "panditJi" | "law4all" | "techtoday" | "volunteer" | "funding";
+  icon: typeof Megaphone;
+  status: BusinessOsApplicationStatus;
+  enabled: boolean;
+  name: string;
+  description: string;
+  statusDisplay: string;
+}> = [
+  {
+    key: "campaign",
+    icon: Megaphone,
+    status: "LIVE",
+    enabled: true,
+    name: "Campaign",
+    description: "Create campaigns, collect signatures, and drive measurable civic outcomes.",
+    statusDisplay: "LIVE"
+  },
+  {
+    key: "suddhaOswada",
+    icon: ShoppingBasket,
+    status: "IN PROGRESS",
+    enabled: false,
+    name: "SuddhaOswada",
+    description: "Healthy food ecosystem for mindful everyday living.",
+    statusDisplay: "IN PROGRESS"
+  },
+  {
+    key: "panditJi",
+    icon: Landmark,
+    status: "IN PROGRESS",
+    enabled: false,
+    name: "PanditJi",
+    description: "On-demand ritual support and verified spiritual service network.",
+    statusDisplay: "IN PROGRESS"
+  },
+  {
+    key: "law4all",
+    icon: Scale,
+    status: "IN PROGRESS",
+    enabled: false,
+    name: "Law4All",
+    description: "Legal awareness, advisory workflows, and justice access tooling.",
+    statusDisplay: "IN PROGRESS"
+  },
+  {
+    key: "techtoday",
+    icon: GraduationCap,
+    status: "IN PROGRESS",
+    enabled: false,
+    name: "Techtoday",
+    description: "Practical skills and education pathways for future-ready careers.",
+    statusDisplay: "IN PROGRESS"
+  },
+  {
+    key: "volunteer",
+    icon: HandHeart,
+    status: "IN PROGRESS",
+    enabled: false,
+    name: "Volunteer",
+    description: "Discover causes, join drives, and coordinate volunteer efforts.",
+    statusDisplay: "IN PROGRESS"
+  },
+  {
+    key: "funding",
+    icon: Users,
+    status: "IN PROGRESS",
+    enabled: false,
+    name: "Funding",
+    description: "Transparent contribution pipelines for community-backed projects.",
+    statusDisplay: "IN PROGRESS"
+  }
+];
+
 export function MarketingHomePage({
   theme,
   setTheme,
@@ -144,6 +233,95 @@ export function MarketingHomePage({
   onCompleteOnboarding
 }: MarketingHomePageProps) {
   const { language, t } = useTranslation();
+  const [signInOpen, setSignInOpen] = useState(false);
+  const signInMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const signInEntries = [
+    { key: "workspaceAdmin", href: "/app", helpKey: "workspaceAdminHelp" },
+    { key: "platformAdmin", href: "/admin", helpKey: "platformAdminHelp" }
+  ] as const;
+
+  useEffect(() => {
+    const closeOnOutside = (event: MouseEvent) => {
+      if (!signInMenuRef.current?.contains(event.target as Node)) setSignInOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSignInOpen(false);
+    };
+    document.addEventListener("mousedown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, []);
+
+  function trackLandingAction(eventName: string, context: string) {
+    if (typeof window !== "undefined" && window.va) {
+      window.va(eventName, {
+        context,
+        page: "landing",
+        language
+      });
+    }
+  }
+
+  function startOrganize(context: string) {
+    trackLandingAction("landing_organize_clicked", context);
+    window.location.assign("/app?tab=coordinators");
+  }
+
+  function startAct(context: string) {
+    trackLandingAction("landing_act_clicked", context);
+    const target = document.getElementById("business-os-applications-title");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    window.location.assign("/");
+  }
+
+  function exploreBusinessOs(context: string) {
+    trackLandingAction("landing_explore_mode_opened", context);
+    const target = document.getElementById("workflow");
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  function handleLandingAnalytics(payload: { eventName: string; context: string }) {
+    trackLandingAction(payload.eventName, payload.context);
+  }
+
+  const businessOsApplications = businessOsApplicationDefinitions;
+
+  const applicationSlideIds = businessOsApplications.map((application) => application.key);
+  const applicationSlides: Record<string, VoiceUpCustomSlide> = Object.fromEntries(
+    businessOsApplications.map((application) => [
+      application.key,
+      {
+        title: application.name,
+        description: application.description,
+        narration: `${application.name}. ${application.description}`,
+        status: application.statusDisplay,
+        highlights: [
+          application.enabled ? "Available now" : "Coming online soon",
+          application.key === "campaign" ? "Start free and launch immediately" : "Roadmap under active development"
+        ]
+      }
+    ])
+  );
+
+  const applicationSlideActions: Record<string, VoiceUpStoryAction> = {
+    campaign: {
+      label: "Start Free",
+      onClick: () => startAct("application_carousel_campaign")
+    }
+  };
+
+  const applicationSlideMedia: Partial<Record<string, VoiceUpStoryMedia>> = {
+    campaign: { imageUrl: heroImage }
+  };
 
   return (
     <main className="marketing-home global-landing">
@@ -154,7 +332,7 @@ export function MarketingHomePage({
           </span>
           <span>
             <strong>VoiceUp</strong>
-            <small>{t("landing.freeze.tagline")}</small>
+            <small>The Unified SaaS Platform</small>
           </span>
         </a>
         <nav className="global-nav-links" aria-label={t("landing.nav.sectionsAria")}>
@@ -177,11 +355,45 @@ export function MarketingHomePage({
           <a className="secondary-link-button" href="#demo">
             <Play size={17} /> {t("landing.actions.watchDemo")}
           </a>
-          <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-            {t("landing.actions.startFreeCampaign")}
+          <div className="landing-signin-menu" ref={signInMenuRef}>
+            <button
+              type="button"
+              className="landing-signin-trigger"
+              aria-haspopup="menu"
+              aria-expanded={signInOpen}
+              onClick={() => setSignInOpen((current) => !current)}
+            >
+              {t("landing.signIn.title")} <ChevronDown size={16} />
+            </button>
+            {signInOpen && (
+              <div className="landing-signin-dropdown" role="menu" aria-label={t("landing.signIn.title")}>
+                {signInEntries.map((entry) => (
+                  <a
+                    key={entry.key}
+                    href={entry.href}
+                    role="menuitem"
+                    onClick={() => setSignInOpen(false)}
+                  >
+                    {t(`landing.signIn.${entry.key}`)}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+          <button className="primary-link-button" type="button" onClick={() => startOrganize("nav") }>
+            <Building2 size={17} /> ORGANIZE
           </button>
         </div>
       </header>
+
+      <section className="landing-mobile-signin" aria-label={t("landing.signIn.mobileAria")}>
+        {signInEntries.map((entry) => (
+          <a key={entry.key} className="landing-mobile-signin-card" href={entry.href}>
+            <strong>{t(`landing.signIn.${entry.key}`)}</strong>
+            <span>{t(`landing.signIn.${entry.helpKey}`)}</span>
+          </a>
+        ))}
+      </section>
 
       <section
         className="global-hero"
@@ -195,22 +407,19 @@ export function MarketingHomePage({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         >
-          <span className="eyebrow">{t("landing.freeze.heroEyebrow")}</span>
-          <h1>{t("landing.freeze.heroTitle")}</h1>
-          <p>{t("landing.freeze.heroSubtitle")}</p>
+          <span className="eyebrow">VoiceUp</span>
+          <h1>The Unified SaaS Platform</h1>
+          <p>One Platform Multiple SaaS Applications</p>
           <div className="global-hero-actions">
-            <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-              <Rocket size={18} /> {t("landing.actions.startFreeCampaign")}
+            <button className="secondary-link-button light" type="button" onClick={() => exploreBusinessOs("hero") }>
+              <Sparkles size={18} /> EXPLORE
             </button>
-            <button className="primary-link-button accent" type="button" onClick={onOpenOnboarding}>
-              <Sparkles size={18} /> {t("landing.actions.createWithAi")}
+            <button className="primary-link-button" type="button" onClick={() => startOrganize("hero") }>
+              <Building2 size={18} /> ORGANIZE (Build Your Team)
             </button>
-            <a className="secondary-link-button light" href="#demo">
-              <Play size={18} /> {t("landing.actions.watchDemo")}
-            </a>
-            <a className="secondary-link-button light" href="#pricing">
-              <WalletCards size={18} /> {t("landing.actions.viewPricing")}
-            </a>
+            <button className="primary-link-button accent" type="button" onClick={() => startAct("hero") }>
+              <Bolt size={18} /> ACT (Start Free)
+            </button>
           </div>
           <div className="hero-proof-strip" aria-label={t("landing.hero.highlightsAria")}>
             {[
@@ -228,9 +437,74 @@ export function MarketingHomePage({
         </motion.div>
       </section>
 
+      <section className="landing-band business-os-app-strip" aria-labelledby="business-os-applications-title">
+        <div className="landing-section-heading business-os-app-strip-heading">
+          <h2 id="business-os-applications-title">VoiceUp Applications</h2>
+          <p>Includes SuddhaOswada healthy food ecosystem.</p>
+        </div>
+        <div className="business-os-app-grid">
+          {businessOsApplications.map((application) => {
+            const Icon = application.icon;
+            return (
+              <ApplicationStatusCard
+                key={application.key}
+                icon={<Icon size={18} />}
+                name={application.name}
+                description={application.description}
+                status={application.status}
+                statusDisplay={application.statusDisplay}
+                statusLabel="Status"
+                launchLabel="Open"
+                enabled={application.enabled}
+                onLaunch={application.key === "campaign" ? () => startAct("applications_strip") : undefined}
+              />
+            );
+          })}
+        </div>
+      </section>
+
       <section className="landing-guided-band" id="product">
         <span className="landing-anchor" id="demo" aria-hidden="true" />
-        <VoiceUpStoryCarousel experience="landing" />
+        <VoiceUpStoryCarousel
+          experience="landing"
+          autoPlayMs={4500}
+          customHeader={{
+            eyebrow: "Application Carousel",
+            title: "Business OS Applications",
+            subtitle: "Explore live and in-progress products across the VoiceUp platform.",
+            playLabel: "Play carousel"
+          }}
+          slideIds={applicationSlideIds}
+          customSlides={applicationSlides}
+          actions={applicationSlideActions}
+          mediaBySlide={applicationSlideMedia}
+          onLandingAnalytics={handleLandingAnalytics}
+          landingJourneyActions={{
+            onOrganize: () => startOrganize("story"),
+            onAct: () => startAct("story"),
+            onExplore: () => exploreBusinessOs("story")
+          }}
+        />
+      </section>
+
+      <section className="landing-band pricing-band" id="act-panel" aria-labelledby="act-panel-title">
+        <div className="landing-activation-copy">
+          <span className="eyebrow">ACT</span>
+          <h2 id="act-panel-title">Start Free and Launch Faster</h2>
+          <p>Campaign is fully live today. Other applications are marked COMING SOON while they are being completed.</p>
+          <small>Pick Campaign to begin right now. Your workspace path and existing login flow remain unchanged.</small>
+        </div>
+        <div className="button-row">
+          <button className="primary-link-button accent" type="button" onClick={() => startAct("act_panel_campaign") }>
+            <Bolt size={18} /> Campaign (Start Free)
+          </button>
+          <button className="secondary-link-button" type="button" aria-disabled="true">
+            SuddhaOswada (COMING SOON)
+          </button>
+          <button className="secondary-link-button" type="button" aria-disabled="true">
+            PanditJi (COMING SOON)
+          </button>
+        </div>
       </section>
 
       <section className="landing-band ai-band landing-product-showcase">
@@ -307,7 +581,7 @@ export function MarketingHomePage({
             <p>{t("landing.demo.subtitle")}</p>
             <div className="button-row">
               <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-                <Sparkles size={18} /> {t("landing.actions.createWithAi")}
+                <Building2 size={18} /> {t("landing.actions.organize")}
               </button>
               <a className="secondary-link-button" href="#pricing">
                 {t("landing.actions.viewPricing")}
@@ -349,7 +623,10 @@ export function MarketingHomePage({
         </div>
         <div className="button-row">
           <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-            <Rocket size={18} /> {t("storyCarousel.landing.activation.cta")}
+            <Building2 size={18} /> {t("landing.actions.organize")}
+          </button>
+          <button className="primary-link-button accent" type="button" onClick={() => startAct("activation") }>
+            <Bolt size={18} /> {t("landing.actions.act")}
           </button>
         </div>
       </section>
@@ -369,7 +646,10 @@ export function MarketingHomePage({
             ))}
           </div>
           <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-            {t("landing.actions.startOneDay")}
+            {t("landing.actions.organize")}
+          </button>
+          <button className="secondary-link-button" type="button" onClick={() => startAct("trial") }>
+            {t("landing.actions.act")}
           </button>
         </div>
       </section>
@@ -399,17 +679,14 @@ export function MarketingHomePage({
           <p>{t("landing.finalCta.subtitle")}</p>
           <div className="global-hero-actions">
             <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-              <Clock size={18} /> {t("landing.actions.startOneDay")}
+              <Building2 size={18} /> {t("landing.actions.organize")}
             </button>
-            <button className="primary-link-button accent" type="button" onClick={onOpenOnboarding}>
-              <Sparkles size={18} /> {t("landing.actions.createWithAi")}
+            <button className="primary-link-button accent" type="button" onClick={() => startAct("final") }>
+              <Bolt size={18} /> {t("landing.actions.act")}
             </button>
-            <a className="secondary-link-button light" href="#demo">
-              <Play size={18} /> {t("landing.actions.watchDemo")}
-            </a>
-            <a className="secondary-link-button light" href="#pricing">
-              <CreditCard size={18} /> {t("landing.actions.viewPricing")}
-            </a>
+            <button className="secondary-link-button light" type="button" onClick={() => exploreBusinessOs("final") }>
+              <Sparkles size={18} /> {t("landing.actions.exploreBusinessOs")}
+            </button>
           </div>
         </div>
       </section>

@@ -53,53 +53,76 @@ Deno.serve(async (req) => {
 
     // ── Auth user: create or safely reuse, never overwrite an unrelated
     // user's password. ─────────────────────────────────────────────────────
-    const existingUser = await findAuthUserByEmail(admin, request.email);
-    let existingUserIsPlatformOwnerElsewhere = false;
-    if (existingUser) {
-      const { data: platformRow } = await admin
-        .from("voiceup_workspace_members")
-        .select("workspace_id")
-        .eq("user_id", existingUser.id)
-        .eq("role", "platform_owner")
-        .neq("workspace_id", request.workspaceId)
-        .maybeSingle();
-      existingUserIsPlatformOwnerElsewhere = Boolean(platformRow);
-    }
-
-    const authDecision = decideAuthUserProvisioning({
-      existingUserId: existingUser?.id ?? null,
-      existingUserIsPlatformOwnerElsewhere
-    });
-
-    if (authDecision.action === "conflict") {
-      return jsonResponse({ error: authDecision.reason, code: "identity_conflict" }, 409);
-    }
-
     let userId: string;
-    if (authDecision.action === "create") {
-      const { data: created, error: createError } = await admin.auth.admin.createUser({
-        email: request.email,
-        password: request.password,
-        email_confirm: true
-      });
-      if (createError || !created?.user) {
-        return jsonResponse({ error: createError?.message ?? "Unable to create the Auth user." }, 500);
-      }
-      userId = created.user.id;
+    let authUserAction: "create" | "reuse";
+    if (request.selfAssign) {
+      userId = caller.id;
+      authUserAction = "reuse";
     } else {
-      // Reuse: identity is linked, but the existing user's password is never
-      // touched here (that would allow hijacking an unrelated account).
-      userId = authDecision.userId;
+      const existingUser = await findAuthUserByEmail(admin, request.email);
+      let existingUserIsPlatformOwnerElsewhere = false;
+      if (existingUser) {
+        const { data: platformRow } = await admin
+          .from("voiceup_workspace_members")
+          .select("workspace_id")
+          .eq("user_id", existingUser.id)
+          .eq("role", "platform_owner")
+          .neq("workspace_id", request.workspaceId)
+          .maybeSingle();
+        existingUserIsPlatformOwnerElsewhere = Boolean(platformRow);
+      }
+
+      const authDecision = decideAuthUserProvisioning({
+        existingUserId: existingUser?.id ?? null,
+        existingUserIsPlatformOwnerElsewhere
+      });
+      if (authDecision.action === "conflict") {
+        return jsonResponse({ error: authDecision.reason, code: "identity_conflict" }, 409);
+      }
+
+      authUserAction = authDecision.action;
+      if (authDecision.action === "create") {
+        const { data: created, error: createError } = await admin.auth.admin.createUser({
+          email: request.email,
+          password: request.password,
+          email_confirm: true
+        });
+        if (createError || !created?.user) {
+          return jsonResponse({ error: createError?.message ?? "Unable to create the Auth user." }, 500);
+        }
+        userId = created.user.id;
+      } else {
+        // Reuse: identity is linked, but the existing user's password is never
+        // touched here (that would allow hijacking an unrelated account).
+        userId = authDecision.userId;
+      }
     }
 
-    // ── Workspace-level membership (upsert, active). ───────────────────────
+    // ── Workspace-level membership (upsert, active). Preserve an existing
+    // administrator role: Campaign Admin is a resource assignment, not a
+    // replacement for Organization/Workspace Admin privileges. ─────────────
+    const { data: existingMembership, error: existingMembershipError } = await admin
+      .from("voiceup_workspace_members")
+      .select("role")
+      .eq("workspace_id", request.workspaceId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existingMembershipError) {
+      return jsonResponse(
+        { error: `Workspace membership could not be resolved: ${existingMembershipError.message}`, code: "membership_lookup_failed", userId },
+        500
+      );
+    }
+    const membershipRole = ["platform_owner", "workspace_admin"].includes(existingMembership?.role ?? "")
+      ? existingMembership!.role
+      : request.role;
     const { error: membershipError } = await admin
       .from("voiceup_workspace_members")
       .upsert(
         {
           workspace_id: request.workspaceId,
           user_id: userId,
-          role: request.role,
+          role: membershipRole,
           active: true,
           updated_at: new Date().toISOString()
         },
@@ -196,8 +219,8 @@ Deno.serve(async (req) => {
     // Never log or return the plaintext password.
     return jsonResponse({
       userId,
-      authUserAction: authDecision.action,
-      workspaceMembership: { workspaceId: request.workspaceId, role: request.role, active: true },
+      authUserAction,
+      workspaceMembership: { workspaceId: request.workspaceId, role: membershipRole, active: true },
       assignment: {
         id: assignmentId,
         transition: transition.action,

@@ -51,6 +51,22 @@ test("validateProvisionRequest rejects a short password", () => {
   assert.match(result.error, /password/);
 });
 
+test("self-assignment reuses the authenticated caller without an email or password", () => {
+  const result = validateProvisionRequest(
+    validBody({ selfAssign: true, email: undefined, password: undefined })
+  );
+  assert.equal(result.valid, true);
+  assert.equal(result.valid && result.request.selfAssign, true);
+  assert.equal(result.valid && result.request.email, "");
+  assert.equal(result.valid && result.request.password, "");
+});
+
+test("regular delegation still requires an email and password", () => {
+  const missingCredentials = validateProvisionRequest(validBody({ email: undefined, password: undefined }));
+  assert.equal(missingCredentials.valid, false);
+  assert.match(missingCredentials.error, /email/);
+});
+
 test("normalizeProvisioningEmail trims and lowercases", () => {
   assert.equal(normalizeProvisioningEmail("  Admin@Example.ORG "), "admin@example.org");
 });
@@ -190,4 +206,15 @@ test("the Edge Function never logs or returns the plaintext password", () => {
   for (const statement of returnStatements) {
     assert.doesNotMatch(statement, /\bpassword\b/i);
   }
+});
+
+test("the Edge Function preserves admin workspace roles while delegating Campaign Admin access", () => {
+  const source = readFileSync(
+    new URL("../supabase/functions/provision-workspace-member/index.ts", import.meta.url),
+    "utf8"
+  );
+  assert.match(source, /select\("role"\)\s*\.eq\("workspace_id", request\.workspaceId\)\s*\.eq\("user_id", userId\)/);
+  assert.match(source, /\["platform_owner", "workspace_admin"\]\.includes\(existingMembership\?\.role \?\? ""\)/);
+  assert.match(source, /: request\.role/);
+  assert.match(source, /role: membershipRole/);
 });

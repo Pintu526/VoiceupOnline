@@ -584,8 +584,9 @@ export interface ProvisionWorkspaceMemberRequest {
   workspaceId: string;
   applicationKey: string;
   role: string;
-  email: string;
-  password: string;
+  email?: string;
+  password?: string;
+  selfAssign?: boolean;
   assignment: { resourceType: string; resourceId: string; resourceSlug?: string };
 }
 
@@ -648,6 +649,29 @@ export async function provisionWorkspaceMember(
   }
 
   return data;
+}
+
+/**
+ * Assigns the already authenticated workspace member to a campaign without
+ * creating or modifying an Auth identity. The Edge Function verifies the
+ * caller's workspace authority and preserves any existing workspace role.
+ */
+export async function assignCurrentWorkspaceMemberAsCampaignAdmin(input: {
+  workspaceId: string;
+  campaignId: string;
+  campaignSlug: string;
+}): Promise<ProvisionWorkspaceMemberResult> {
+  return provisionWorkspaceMember({
+    workspaceId: input.workspaceId,
+    applicationKey: "voiceup",
+    role: "campaign_admin",
+    selfAssign: true,
+    assignment: {
+      resourceType: "campaign",
+      resourceId: input.campaignId,
+      resourceSlug: input.campaignSlug
+    }
+  });
 }
 
 async function resolveSecureStorageWorkspaceId(): Promise<string | null> {

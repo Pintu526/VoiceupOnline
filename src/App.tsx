@@ -10,6 +10,7 @@ import {
 } from "./data";
 import {
   approveScanReviewItem,
+  assignCurrentWorkspaceMemberAsCampaignAdmin,
   clearCustomerSessionToken,
   createTrialWorkspace,
   getAuthContext,
@@ -1376,6 +1377,28 @@ function App() {
       `${isCreateCommit ? "Created" : "Saved"} campaign "${campaignToCommit.title}"`,
       campaignToCommit.id
     );
+    if (isCreateCommit) void assignCampaignCreator(campaignToCommit);
+  }
+
+  async function assignCampaignCreator(campaign: Campaign) {
+    if (!isBackendConfigured) return;
+    const [session, user] = await Promise.all([getCurrentAuthSession(), getCurrentAuthUser()]);
+    if (!session || !user?.email) return;
+
+    try {
+      await assignCurrentWorkspaceMemberAsCampaignAdmin({
+        workspaceId: getCurrentWorkspaceId(),
+        campaignId: campaign.id,
+        campaignSlug: campaign.slug
+      });
+      const assignedCampaign = applyCampaignAdminProvisioningSuccess(campaign, user.email);
+      setCampaigns((current) => current.map((item) => (item.id === assignedCampaign.id ? assignedCampaign : item)));
+      setCampaignDraft((current) => (current?.id === assignedCampaign.id ? assignedCampaign : current));
+      addAuditLog("campaign.admin_provisioned", `Assigned the campaign creator as Campaign Admin for "${assignedCampaign.title}"`, assignedCampaign.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Campaign Admin assignment could not be completed.";
+      showToast("Campaign Admin assignment pending", message);
+    }
   }
 
   /**

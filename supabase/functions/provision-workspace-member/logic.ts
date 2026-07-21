@@ -21,6 +21,7 @@ export interface ProvisionRequestBody {
   role: string;
   email: string;
   password: string;
+  selfAssign: boolean;
   assignment: ProvisionAssignmentInput;
 }
 
@@ -38,8 +39,9 @@ export function validateProvisionRequest(body: unknown): ProvisionRequestValidat
   if (!isNonEmptyString(candidate.workspaceId)) return { valid: false, error: "workspaceId is required." };
   if (!isNonEmptyString(candidate.applicationKey)) return { valid: false, error: "applicationKey is required." };
   if (!isNonEmptyString(candidate.role)) return { valid: false, error: "role is required." };
-  if (!isNonEmptyString(candidate.email)) return { valid: false, error: "email is required." };
-  if (!isNonEmptyString(candidate.password) || candidate.password.trim().length < 8) {
+  const selfAssign = candidate.selfAssign === true;
+  if (!selfAssign && !isNonEmptyString(candidate.email)) return { valid: false, error: "email is required." };
+  if (!selfAssign && (!isNonEmptyString(candidate.password) || candidate.password.trim().length < 8)) {
     return { valid: false, error: "password must be at least 8 characters." };
   }
   const assignment = candidate.assignment;
@@ -53,8 +55,9 @@ export function validateProvisionRequest(body: unknown): ProvisionRequestValidat
       workspaceId: candidate.workspaceId!.trim(),
       applicationKey: candidate.applicationKey!.trim(),
       role: candidate.role!.trim(),
-      email: normalizeProvisioningEmail(candidate.email!),
-      password: candidate.password!,
+      email: isNonEmptyString(candidate.email) ? normalizeProvisioningEmail(candidate.email) : "",
+      password: candidate.password ?? "",
+      selfAssign,
       assignment: {
         resourceType: assignment.resourceType.trim(),
         resourceId: assignment.resourceId.trim(),

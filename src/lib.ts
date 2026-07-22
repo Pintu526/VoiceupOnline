@@ -132,7 +132,7 @@ export function parseSignerFromText(text: string) {
     district: valueFor(["district", "city"]),
     block: valueFor(["block", "taluk", "tehsil", "county", "area"]),
     panchayat: valueFor(["panchayat", "gram panchayat", "ward", "village", "locality"]),
-    address: valueFor(["address", "location"]),
+    address: valueFor(["address", "location", "village"]),
     postalCode: valueFor(["postal code", "postcode", "pin", "zip"]),
     comment: valueFor(["comment", "message", "reason"]) || "Imported from scanned hard copy."
   };

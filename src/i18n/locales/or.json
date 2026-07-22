@@ -39,58 +39,81 @@
       "verified": "ସମୀକ୍ଷିତ"
     },
     "landing": {
-      "regionLabel": "VoiceUp ଅଭିଯାନ ଯାତ୍ରା ଦେଖନ୍ତୁ",
-      "eyebrow": "ଗୋଟିଏ ଆନ୍ଦୋଳନ, ଗୋଟିଏ ସଂଯୁକ୍ତ ଯାତ୍ରା",
-      "title": "VoiceUp କିପରି ଏକ ଧାରଣାକୁ ଦାୟିତ୍ୱପୂର୍ଣ୍ଣ ଜନକାର୍ଯ୍ୟରେ ପରିଣତ କରେ ଦେଖନ୍ତୁ",
-      "subtitle": "ଅଭିଯାନ ସୃଷ୍ଟି ଓ କ୍ଷେତ୍ର ସଂଗ୍ରହରୁ ସ୍ୱଚ୍ଛ ରିପୋର୍ଟ ପର୍ଯ୍ୟନ୍ତ ଯାତ୍ରା ଦେଖନ୍ତୁ।",
+      "regionLabel": "VoiceUp ନିର୍ଦ୍ଦେଶିତ କାହାଣୀ ଦେଖନ୍ତୁ",
+      "eyebrow": "Business OS ନିର୍ଦ୍ଦେଶିତ ଅନୁଭବ",
+      "title": "ଗୋଟିଏ ସ୍ୱର ପରିବର୍ତ୍ତନ ଆଣିପାରେ",
+      "subtitle": "Business OS ଲୋକମାନଙ୍କୁ ସଂଗଠିତ ହେବା, ମିଶି କାମ କରିବା ଏବଂ ପାରଦର୍ଶିତା ସହ କାର୍ଯ୍ୟ କରିବାରେ ସହାୟତା କରେ।",
       "playLabel": "ନିର୍ଦ୍ଦେଶିତ ବ୍ୟାଖ୍ୟା ଚଲାନ୍ତୁ",
+      "journey": {
+        "aria": "ମୁଖ୍ୟ ବିକଳ୍ପ",
+        "organize": "PLAN",
+        "act": "⚡ ACT",
+        "explore": "Business OS ବିଷୟରେ ଜାଣନ୍ତୁ"
+      },
+      "decision": {
+        "aria": "ଶେଷ ବିକଳ୍ପ",
+        "organizeTitle": "PLAN",
+        "organizeText": "କାର୍ଯ୍ୟାନ୍ବୟନ ପୂର୍ବରୁ ଗଠନ, ଲୋକ, ବଜେଟ୍ ଏବଂ subscription ପ୍ରସ୍ତୁତ କରନ୍ତୁ।",
+        "actTitle": "⚡ ACT",
+        "actText": "ଯୋଗଦିଅନ୍ତୁ, ସମର୍ଥନ କରନ୍ତୁ, ସ୍ୱେଚ୍ଛାସେବା କରନ୍ତୁ, ଦାନ କରନ୍ତୁ, ସହି କରନ୍ତୁ ଏବଂ ପରିବର୍ତ୍ତନର ଅଂଶ ହୁଅନ୍ତୁ।"
+      },
       "activation": {
-        "eyebrow": "ସ୍ପଷ୍ଟତାରୁ ଆରମ୍ଭ",
-        "title": "ଗୋଟିଏ ଅଭିଯାନରୁ ଆରମ୍ଭ କରନ୍ତୁ",
-        "description": "ଆପଣଙ୍କ ଆନ୍ଦୋଳନ ବଢ଼ିବା ସହ ଉପଯୁକ୍ତ ପରିଚାଳନା କ୍ଷମତା ବାଛନ୍ତୁ।",
+        "eyebrow": "ଆପଣଙ୍କ ପଥ ବାଛନ୍ତୁ",
+        "title": "ନେତୃତ୍ୱ ଓ ତୁରନ୍ତ କାର୍ଯ୍ୟ ପାଇଁ ଏକେ ପ୍ଲାଟଫର୍ମ",
+        "description": "ଦୁଇଟି ପଥ ଏକେ ସୁରକ୍ଷିତ ଓନବୋର୍ଡିଂ ପ୍ରବେଶ ବ୍ୟବହାର କରେ।",
         "usageNote": "ଯୋଗାଯୋଗ ଓ ଉନ୍ନତ ସେବା ବ୍ୟବହାର ଉପରେ ନିର୍ଭର କରିପାରେ।",
-        "cta": "ଅଭିଯାନରୁ ଆରମ୍ଭ କରନ୍ତୁ"
+        "cta": "ଏବେ ଆରମ୍ଭ କରନ୍ତୁ"
       },
       "slides": {
-        "campaignCreation": {
-          "title": "ଅଭିଯାନ ସୃଷ୍ଟି",
-          "description": "ସ୍ପଷ୍ଟ ଧାରଣାକୁ ସୁସଂଗଠିତ ଓ ପ୍ରକାଶ-ପ୍ରସ୍ତୁତ ଅଭିଯାନରେ ପରିଣତ କରନ୍ତୁ।",
-          "narration": "ଆପଣ ଯେଉଁ ପରିବର୍ତ୍ତନ ଚାହୁଁଛନ୍ତି ସେଠାରୁ ଆରମ୍ଭ କରନ୍ତୁ। VoiceUp ଅଭିଯାନ ଗଠନ, ଜନ ଆବେଦନ, କର୍ତ୍ତୃପକ୍ଷ ପ୍ରସଙ୍ଗ ଓ ଆବଶ୍ୟକ ପ୍ରକାଶ ବିବରଣୀକୁ ଗୋଟିଏ ସ୍ପଷ୍ଟ ପ୍ରବାହରେ ସଜାଏ।"
+        "opening": {
+          "title": "ଗୋଟିଏ ସ୍ୱର ପରିବର୍ତ୍ତନ ଆଣିପାରେ",
+          "description": "Business OS ଲୋକଙ୍କୁ ସଂଗଠନ ଓ କାର୍ଯ୍ୟ ପାଇଁ ଏକତ୍ର କରେ।",
+          "narration": "ଯେତେବେଳେ ଲୋକେ ସଂଗଠିତ ହୋଇ ଏକସାଥି କାମ କରନ୍ତି, ସେଠାରୁ ପରିବର୍ତ୍ତନ ଆରମ୍ଭ ହୁଏ।"
         },
-        "paperDigitization": {
-          "title": "କାଗଜ ସହି ଡିଜିଟାଇଜେସନ୍",
-          "description": "ସମୀକ୍ଷିତ କାଗଜ ସହିକୁ ସେହି ଅଭିଯାନ ଯାତ୍ରାରେ ଆଣନ୍ତୁ।",
-          "narration": "କାଗଜ ସମର୍ଥନ ଡିଜିଟାଲ୍ ଆନ୍ଦୋଳନରେ ଯୋଡ଼ିହୋଇପାରେ। ପ୍ରତ୍ୟେକ ରେକର୍ଡ ସମୀକ୍ଷା, ବିବରଣୀ ସଂଶୋଧନ, ସମ୍ଭାବ୍ୟ ନକଲ ଚିହ୍ନଟ ଓ ସଠିକ୍ ଅଭିଯାନ ସହ ସଂଯୋଗ ରଖନ୍ତୁ।"
+        "problem": {
+          "title": "ଲୋକ ଚାହାନ୍ତି, କିନ୍ତୁ କାର୍ଯ୍ୟ ଅନେକଥର ବିଖଣ୍ଡିତ ହୁଏ",
+          "description": "ଲୋକ, ସଂଯୋଗ, ସ୍ୱେଚ୍ଛାସେବା, ଧନ ଓ ଫଲୋ-ଅପ୍ ଅଲଗା ରହିଲେ ଗତି ଭଙ୍ଗିଯାଏ।",
+          "narration": "Business OS ସମସ୍ତଙ୍କୁ ଗୋଟିଏ ସଂଯୁକ୍ତ ଭିତ୍ତିରେ ଆଣି ସ୍ପଷ୍ଟ ଅଗ୍ରଗତି ସୃଷ୍ଟି କରେ।"
         },
-        "supporters": {
-          "title": "ସମର୍ଥକ",
-          "description": "ପ୍ରତ୍ୟେକ ସମର୍ଥକଙ୍କୁ ବଢ଼ୁଥିବା ଆନ୍ଦୋଳନର ଅଂଶ ଭାବେ ବୁଝନ୍ତୁ।",
-          "narration": "ସମର୍ଥନ ସହିରେ ଶେଷ ହୁଏ ନାହିଁ। VoiceUp ସମର୍ଥକ ରେକର୍ଡକୁ ଏକାଠି କରେ, ଯାହାଦ୍ୱାରା ଦଳ ଅଂଶଗ୍ରହଣ ବୁଝି, କାର୍ଯ୍ୟ ଯାଞ୍ଚ ଓ ଉପଯୁକ୍ତ ସମ୍ମତି ସହ ଯୋଗାଯୋଗ କରିପାରେ।"
+        "organize": {
+          "title": "ସାମାନ୍ୟ ଉଦ୍ଦେଶ୍ୟ ପାଇଁ ଲୋକଙ୍କୁ ସଂଗଠିତ କରନ୍ତୁ",
+          "description": "ଗଠନ କରନ୍ତୁ, ଭୂମିକା ଦିଅନ୍ତୁ, ଦୀର୍ଘକାଳୀନ ପ୍ରୟାସ ସମନ୍ୱୟ କରନ୍ତୁ।",
+          "narration": "ସଂଗଠନ ତିଆରି କରନ୍ତୁ, କୋର ଟିମ୍ ଗଢ଼ନ୍ତୁ, ସଦସ୍ୟ ଓ ସ୍ୱେଚ୍ଛାସେବୀଙ୍କୁ ସମନ୍ୱୟ କରନ୍ତୁ।"
         },
-        "volunteers": {
-          "title": "ସ୍ୱେଚ୍ଛାସେବୀ",
-          "description": "ଅଭିଯାନର ପହଞ୍ଚ ବଢ଼ାଉଥିବା ଲୋକଙ୍କୁ ସମନ୍ୱୟ କରନ୍ତୁ।",
-          "narration": "ସ୍ୱେଚ୍ଛାସେବୀ ଅଭିଯାନକୁ ସମୁଦାୟ ପର୍ଯ୍ୟନ୍ତ ନେଇଯାନ୍ତି। କ୍ଷେତ୍ର ଅଂଶଗ୍ରହଣ, ରେଫରାଲ୍ ଓ ସ୍ଥାନୀୟ ଅନୁସରଣକୁ ସଂଗଠିତ ରଖି ପ୍ରୟାସକୁ ଫଳାଫଳ ସହ ଯୋଡ଼ନ୍ତୁ।"
+        "initiatives": {
+          "title": "ଲୋକେ କାର୍ଯ୍ୟ କରିପାରିବା ଭଳି ପ୍ରୟାସ ଆରମ୍ଭ କରନ୍ତୁ",
+          "description": "ଚିନ୍ତାକୁ ସମନ୍ୱିତ ସମୁଦାୟ ଓ ଜନକାର୍ଯ୍ୟରେ ପରିଣତ କରନ୍ତୁ।",
+          "narration": "ପ୍ରୟାସ ସୃଷ୍ଟି କରନ୍ତୁ, ପ୍ରଚାର କରନ୍ତୁ, ଲୋକଙ୍କୁ ଯୋଡ଼ନ୍ତୁ ଏବଂ କାର୍ଯ୍ୟକୁ ଚାଲୁ ରଖନ୍ତୁ।"
         },
-        "timeline": {
-          "title": "ସମୟରେଖା",
-          "description": "ପ୍ରକାଶରୁ ସମାଧାନ ପର୍ଯ୍ୟନ୍ତ ମାଇଲଖୁଣ୍ଟ ଓ ପରବର୍ତ୍ତୀ ପଦକ୍ଷେପ ସ୍ପଷ୍ଟ ରଖନ୍ତୁ।",
-          "narration": "ସ୍ପଷ୍ଟ ସମୟରେଖା କାର୍ଯ୍ୟକୁ ଜନ ଯାତ୍ରାରେ ପରିଣତ କରେ। ମୁଖ୍ୟ ମାଇଲଖୁଣ୍ଟ, ଅପଡେଟ୍, କର୍ତ୍ତୃପକ୍ଷ ଯୋଗାଯୋଗ ଓ ପରବର୍ତ୍ତୀ କାର୍ଯ୍ୟକୁ ଐତିହାସିକ ପ୍ରସଙ୍ଗ ସହ ଦେଖନ୍ତୁ।"
+        "offlineOnline": {
+          "title": "ଅଫଲାଇନ୍ ଓ ଅନଲାଇନ୍ ପ୍ରୟାସକୁ ଏକତ୍ର କରନ୍ତୁ",
+          "description": "କାଗଜ ଭାଗୀଦାରି ଓ ଡିଜିଟାଲ୍ ଅଂଶଗ୍ରହଣକୁ ଗୋଟିଏ ଭରସାଯୋଗ୍ୟ ରେକର୍ଡରେ ରଖନ୍ତୁ।",
+          "narration": "ସହି, ଫଟୋ, ପ୍ରମାଣ ଓ କ୍ଷେତ୍ର ତଥ୍ୟକୁ ପ୍ରସଙ୍ଗ ସହିତ ଡିଜିଟାଲ୍ ଭାବେ ସୁରକ୍ଷିତ କରନ୍ତୁ।"
+        },
+        "engagement": {
+          "title": "କେବଳ ବାର୍ତ୍ତା ନୁହେଁ, କାର୍ଯ୍ୟ ପ୍ରେରଣା ଦିଅନ୍ତୁ",
+          "description": "ଠିକ୍ ଭାଷା ଓ ଠିକ୍ ଚ୍ୟାନେଲ୍‌ରେ ସ୍ପଷ୍ଟ ପଦକ୍ଷେପ ଦିଅନ୍ତୁ।",
+          "narration": "ସହି, ସ୍ୱେଚ୍ଛାସେବା, ସହଯୋଗ ଓ ଭାଗବଣ୍ଟା ପାଇଁ ଆହ୍ୱାନ କରନ୍ତୁ ଏବଂ ପ୍ରତିକ୍ରିୟାକୁ ଟ୍ରାକ୍ କରନ୍ତୁ।"
         },
         "transparency": {
-          "title": "ସ୍ୱଚ୍ଛତା",
-          "description": "ଅଗ୍ରଗତି, ପ୍ରମାଣ ଓ ଉତ୍ତରଦାୟିତ୍ୱକୁ ସ୍ପଷ୍ଟ ଭାବେ ଦେଖାନ୍ତୁ।",
-          "narration": "ଅଗ୍ରଗତି ବୁଝିହେଲେ ଜନ ବିଶ୍ୱାସ ବଢ଼େ। ପ୍ରସଙ୍ଗ, ଯାଞ୍ଚିତ ଅଂଶଗ୍ରହଣ, ଅପଡେଟ୍ ଓ ଦାୟିତ୍ୱପୂର୍ଣ୍ଣ ଅର୍ଥ ସୂଚନାକୁ ଅତିରଞ୍ଜିତ ନକରି ଦେଖାନ୍ତୁ।"
+          "title": "ପାରଦର୍ଶିତାରେ ବିଶ୍ୱାସ ବଢ଼ାନ୍ତୁ",
+          "description": "ଯୋଜନା, ସଂଗ୍ରହ, ବ୍ୟୟ ଓ ରିପୋର୍ଟକୁ ସ୍ପଷ୍ଟ ଉଦ୍ଦେଶ୍ୟ ସହ ପ୍ରଦର୍ଶନ କରନ୍ତୁ।",
+          "narration": "ବଜେଟ୍, ଅନୁମୋଦନ, ବ୍ୟୟ ଓ ପ୍ରମାଣକୁ ଜବାବଦେହୀ ଭାବେ ଟ୍ରାକ୍ କରନ୍ତୁ।"
         },
-        "reports": {
-          "title": "ରିପୋର୍ଟ",
-          "description": "ଅଂଶଗ୍ରହଣକୁ ଉପଯୋଗୀ ପରିଚାଳନା ସାରାଂଶରେ ପରିଣତ କରନ୍ତୁ।",
-          "narration": "ରିପୋର୍ଟ ଦଳକୁ କାର୍ଯ୍ୟରୁ ନିଷ୍ପତ୍ତି ପର୍ଯ୍ୟନ୍ତ ନେଇଯାଏ। ସମର୍ଥକ ବୃଦ୍ଧି, ସ୍ଥାନ, ଚ୍ୟାନେଲ୍ ଓ ଅଗ୍ରଗତିକୁ ସହଯୋଗୀ ଓ କର୍ତ୍ତୃପକ୍ଷଙ୍କ ପାଇଁ ଉପଯୋଗୀ ଭାବେ ଦେଖନ୍ତୁ।"
+        "growth": {
+          "title": "ସମର୍ଥନକୁ ଦୀର୍ଘକାଳୀନ ଗତିରେ ପରିବର୍ତ୍ତନ କରନ୍ତୁ",
+          "description": "ସହଭାଗୀ, ସ୍ୱେଚ୍ଛାସେବୀ, ନେତା ଓ ସମୁଦାୟକୁ ସ୍ପଷ୍ଟ ଭୂମିକାରେ ଯୋଡ଼ନ୍ତୁ।",
+          "narration": "ସମନ୍ୱିତ ଭୂମିକା ଓ ମାପଯୋଗ୍ୟ ଅଗ୍ରଗତି ସହ ସ୍ଥାୟୀ ପ୍ରଭାବ ଗଢ଼ନ୍ତୁ।"
         },
-        "aiCopilot": {
-          "title": "AI ଅଭିଯାନ ସହାୟକ",
-          "description": "ସ୍ପଷ୍ଟ ଅଭିଯାନ ବିଷୟବସ୍ତୁ ପାଇଁ ନିର୍ଦ୍ଦେଶିତ AI ସହାୟତା ନିଅନ୍ତୁ।",
-          "narration": "AI ଅଭିଯାନ ସହାୟକ ପ୍ରାରମ୍ଭିକ ଧାରଣାକୁ ଦୃଢ଼ ଭାଷା ଓ ବ୍ୟବହାରିକ ପରବର୍ତ୍ତୀ ପଦକ୍ଷେପରେ ସଜାଏ। ପ୍ରତ୍ୟେକ ପରାମର୍ଶ ବ୍ୟବହାର ପୂର୍ବରୁ ମାନବ ସମୀକ୍ଷା ପାଇଁ ରହେ।"
+        "impact": {
+          "title": "ବାସ୍ତବ ପ୍ରଭାବ ଦେଖନ୍ତୁ",
+          "description": "ଲୋକମାନଙ୍କ ସଂଯୁକ୍ତ କାର୍ଯ୍ୟରୁ କଣ ପରିବର୍ତ୍ତନ ଆସିଲା ଦେଖନ୍ତୁ।",
+          "narration": "ଅଂଶଗ୍ରହଣ, ସ୍ୱେଚ୍ଛାସେବା, ଧନ ପାରଦର୍ଶିତା ଓ ଫଳାଫଳକୁ ବାସ୍ତବ ତଥ୍ୟରେ ଟ୍ରାକ୍ କରନ୍ତୁ।"
+        },
+        "decision": {
+          "title": "ଆଜି ଆପଣ କଣ ଆରମ୍ଭ କରିବାକୁ ଚାହୁଁଛନ୍ତି?",
+          "description": "ନେତୃତ୍ୱ ପାଇଁ ORGANIZE କିମ୍ବା ତୁରନ୍ତ ଭାଗଗ୍ରହଣ ପାଇଁ ACT ବାଛନ୍ତୁ।",
+          "narration": "ଦୀର୍ଘକାଳୀନ ନେତୃତ୍ୱ ପାଇଁ ORGANIZE ବାଛନ୍ତୁ। ତୁରନ୍ତ ସହଭାଗୀତା ପାଇଁ ACT ବାଛନ୍ତୁ।"
         }
       }
     },
@@ -1777,6 +1800,30 @@
     "common": {
       "rows": "ଧାଡ଼ି"
     },
+    "workflow": {
+      "title": "କ୍ଷେତ୍ର ସଂଗ୍ରହ",
+      "progressLabel": "କ୍ଷେତ୍ର ସଂଗ୍ରହ କାର୍ଯ୍ୟପ୍ରବାହ",
+      "stepLabel": "ପଦକ୍ଷେପ",
+      "steps": {
+        "captureUpload": "କ୍ୟାପଚର / ଅପଲୋଡ୍",
+        "aiReview": "AI ସମୀକ୍ଷା",
+        "humanVerify": "ମାନବ ଯାଞ୍ଚ",
+        "approve": "ଅନୁମୋଦନ"
+      },
+      "notDetected": "ଚିହ୍ନଟ ହୋଇନାହିଁ",
+      "confidence": {
+        "high": "ଉଚ୍ଚ ବିଶ୍ୱାସ",
+        "low": "କମ୍ ବିଶ୍ୱାସ",
+        "missing": "ଅନୁପସ୍ଥିତ"
+      },
+      "verifyFields": "ଫିଲ୍ଡ ଯାଞ୍ଚ କରନ୍ତୁ",
+      "continueToApprove": "ଅନୁମୋଦନକୁ ଯାଆନ୍ତୁ",
+      "approveSupporter": "ସମର୍ଥକଙ୍କୁ ଅନୁମୋଦନ କରନ୍ତୁ",
+      "supporterAdded": "✓ 1 ସମର୍ଥକ ଯୋଡ଼ାଗଲା",
+      "nextReview": "ପରବର୍ତ୍ତୀ ସମୀକ୍ଷା",
+      "back": "ପଛକୁ",
+      "advanced": "ଉନ୍ନତ"
+    },
     "noCampaign": {
       "title": "ସ୍କାନ୍ ପାଇଁ କୌଣସି ଅଭିଯାନ ନାହିଁ",
       "description": "କାଗଜ ସ୍ୱାକ୍ଷର କିମ୍ବା OCR ସ୍କାନ୍ ବ୍ୟାଚ୍ ଆମଦାନୀ ପୂର୍ବରୁ ଅଭିଯାନ ସୃଷ୍ଟି କରନ୍ତୁ।"
@@ -1797,6 +1844,7 @@
     "fields": {
       "name": "ନାମ",
       "phone": "ଫୋନ୍",
+      "mobile": "ମୋବାଇଲ୍",
       "email": "ଇମେଲ୍",
       "state": "ରାଜ୍ୟ",
       "district": "ଜିଲ୍ଲା",
@@ -1855,9 +1903,34 @@
       "manualCorrection": "ମାନୁଆଲ୍ OCR ସଂଶୋଧନ କିମ୍ବା ପେଷ୍ଟ",
       "processing": "OCR ପ୍ରକ୍ରିୟା ଚାଲିଛି..."
     },
+    "capture": {
+      "takePhoto": "ଫଟୋ ନିଅନ୍ତୁ",
+      "chooseImage": "ବର୍ତ୍ତମାନର ଛବି ବାଛନ୍ତୁ",
+      "previewAlt": "କାଗଜ ସ୍ୱାକ୍ଷର କ୍ୟାପଚର ପୂର୍ବଦୃଶ୍ୟ",
+      "rotate": "ଘୁରାନ୍ତୁ",
+      "retake": "ପୁଣି ନିଅନ୍ତୁ",
+      "batchId": "ବ୍ୟାଚ୍ ଆଇଡି",
+      "collectorId": "ସଂଗ୍ରହକାରୀ ଆଇଡି",
+      "collectorName": "ସଂଗ୍ରହକାରୀଙ୍କ ନାମ",
+      "consentPurpose": "ସମ୍ମତିର ଉଦ୍ଦେଶ୍ୟ",
+      "consentTitle": "କାଗଜ ଏବଂ ଯୋଗାଯୋଗ ସମ୍ମତି",
+      "paperConsent": "କାଗଜରେ ସ୍ୱାକ୍ଷରକାରୀ ଡିଜିଟାଲ୍ ରେକର୍ଡ ସୃଷ୍ଟିକୁ ସମ୍ମତି ଦେଇଛନ୍ତି",
+      "smsConsent": "ସ୍ୱାକ୍ଷରକାରୀ SMS ନିଶ୍ଚିତକରଣକୁ ସମ୍ମତି ଦେଇଛନ୍ତି",
+      "whatsappConsent": "ସ୍ୱାକ୍ଷରକାରୀ WhatsApp ନିଶ୍ଚିତକରଣ/ଅପଡେଟ୍‌କୁ ସମ୍ମତି ଦେଇଛନ୍ତି",
+      "noOngoing": "ଆଗକୁ କୌଣସି ଯୋଗାଯୋଗ ନାହିଁ",
+      "uploadFailed": "ସୁରକ୍ଷିତ ଅପଲୋଡ୍ ବିଫଳ ହେଲା। ଫଟୋ ଏବଂ ସଂଶୋଧନ ରଖାଯାଇଛି।",
+      "fileTooLarge": "ଛବିଟି 12 MB ସୀମାଠାରୁ ବଡ଼।",
+      "unsupportedFile": "ସମର୍ଥିତ ଛବି ଫାଇଲ୍ ବାଛନ୍ତୁ।",
+      "privateOpenFailed": "ବ୍ୟକ୍ତିଗତ ପ୍ରମାଣ ଖୋଲାଯାଇପାରିଲା ନାହିଁ।",
+      "uploading": "ସୁରକ୍ଷିତ ଭାବେ ଅପଲୋଡ୍ ହେଉଛି...",
+      "secureUpload": "ସୁରକ୍ଷିତ ଅପଲୋଡ୍ କରି ସମୀକ୍ଷା ଆଇଟମ୍ ସୃଷ୍ଟି କରନ୍ତୁ",
+      "openPrivateEvidence": "ବ୍ୟକ୍ତିଗତ ପ୍ରମାଣ ଖୋଲନ୍ତୁ",
+      "privateEvidenceAlt": "ପ୍ରମାଣିତ କାଗଜ ପ୍ରମାଣ ପୂର୍ବଦୃଶ୍ୟ",
+      "captureNext": "ପରବର୍ତ୍ତୀ ସ୍ୱାକ୍ଷରକାରୀଙ୍କୁ କ୍ୟାପଚର କରନ୍ତୁ"
+    },
     "manual": {
       "title": "ମାନୁଆଲ୍ ପ୍ରବେଶ",
-      "description": "ଟାଇପ୍ ହୋଇଥିବା ସମର୍ଥକ ବିବରଣୀ କିମ୍ବା ସଂଶୋଧିତ OCR ପାଠ୍ୟ ପେଷ୍ଟ କରି ଅନୁମୋଦନ ପୂର୍ବରୁ ସମୀକ୍ଷା ଆଇଟମ୍ ସୃଷ୍ଟି କରନ୍ତୁ।",
+      "description": "ସମର୍ଥକ ବିବରଣୀ ଦିଅନ୍ତୁ, ତାପରେ ଅନୁମୋଦନ ପୂର୍ବରୁ ସମୀକ୍ଷା ଆଇଟମ୍ ସୃଷ୍ଟି କରନ୍ତୁ।",
       "createReview": "ସମୀକ୍ଷା ଆଇଟମ୍ ସୃଷ୍ଟି କରନ୍ତୁ"
     },
     "review": {
@@ -1865,11 +1938,37 @@
       "batchReview": "ବ୍ୟାଚ୍ ସମୀକ୍ଷା",
       "rowsWaiting": "ଧାଡ଼ି ଅପେକ୍ଷାରେ",
       "batchApprove": "ବ୍ୟାଚ୍‌କୁ ସମର୍ଥକ ଭାବେ ଅନୁମୋଦନ କରନ୍ତୁ",
+      "processing": "ଅନୁମୋଦନ ଚାଲିଛି...",
+      "batchProcessing": "ବ୍ୟାଚ୍ ଅନୁମୋଦନ ଚାଲିଛି...",
       "batchReject": "ବ୍ୟାଚ୍ ପ୍ରତ୍ୟାଖ୍ୟାନ କରନ୍ତୁ",
       "empty": "କୌଣସି କ୍ଷେତ୍ର ସଂଗ୍ରହ ଆଇଟମ୍ ସମୀକ୍ଷା ଅପେକ୍ଷାରେ ନାହିଁ।",
       "extractedText": "ବାହାର କରାଯାଇଥିବା ପାଠ୍ୟ",
+      "supporterDetails": "ସମର୍ଥକ ବିବରଣୀ",
+      "supporterDetailsHelp": "ଅନୁମୋଦନ ପୂର୍ବରୁ OCR ଦ୍ୱାରା ପୂରଣ ହୋଇଥିବା ଫିଲ୍ଡଗୁଡ଼ିକ ଯାଞ୍ଚ କରନ୍ତୁ।",
+      "additionalFields": "ଅତିରିକ୍ତ ଫିଲ୍ଡ",
+      "viewOcrText": "OCR ପାଠ୍ୟ ଦେଖନ୍ତୁ",
       "approveSigner": "ସ୍ୱାକ୍ଷରକାରୀ ତାଲିକାରେ ଅନୁମୋଦନ କରନ୍ତୁ",
+      "alreadyApprovedMessage": "ଏହି କାଗଜ ରେକର୍ଡ ପୂର୍ବରୁ ଅନୁମୋଦିତ ହୋଇସାରିଛି।",
+      "approvalFailed": "ଅନୁମୋଦନ ସମ୍ପୂର୍ଣ୍ଣ ହୋଇପାରିଲା ନାହିଁ। କାଗଜ ରେକର୍ଡ ସମୀକ୍ଷାରେ ରହିଛି।",
+      "approvedCount": "ଅନୁମୋଦିତ",
+      "alreadyApprovedCount": "ପୂର୍ବରୁ ଅନୁମୋଦିତ",
+      "skippedDuplicateCount": "ନକଲ/ପୂର୍ବରୁ ସଂଯୁକ୍ତ ଥିବାରୁ ବାଦ ଦିଆଗଲା",
+      "failedCount": "ବିଫଳ",
+      "previous": "ପୂର୍ବବର୍ତ୍ତୀ",
+      "next": "ପରବର୍ତ୍ତୀ",
       "reject": "ପ୍ରତ୍ୟାଖ୍ୟାନ କରନ୍ତୁ"
+    },
+    "confirmation": {
+      "title": "ସମର୍ଥକ ନିଶ୍ଚିତକରଣ ପୂର୍ବଦୃଶ୍ୟ",
+      "senderIdentity": "ପ୍ରେରକ ପରିଚୟ",
+      "campaignName": "ଅଭିଯାନ ନାମ ଏବଂ URL ଫର୍ମାଟ୍",
+      "queue": "ସ୍ଥାନୀୟ ନିଶ୍ଚିତକରଣ କ୍ୟୁ",
+      "localOnly": "ଏହି ସ୍ପ୍ରିଣ୍ଟରେ କୌଣସି ପ୍ରଦାତା ବାର୍ତ୍ତା ପଠାଏ ନାହିଁ।",
+      "providersDisabled": "SMS ଏବଂ WhatsApp ଆଡାପ୍ଟର ଡିଫଲ୍ଟ ଭାବେ ବନ୍ଦ।",
+      "estimatedCost": "ଆନୁମାନିକ ପ୍ରତି-ବାର୍ତ୍ତା ମୂଲ୍ୟ",
+      "costPlaceholder": "ପ୍ରଦାତା କୋଟ୍ ଆବଶ୍ୟକ",
+      "enabled": "ସକ୍ରିୟ",
+      "disabled": "ବନ୍ଦ"
     },
     "imported": {
       "title": "ଆମଦାନୀ ହୋଇଥିବା ସମର୍ଥକ",
@@ -1972,7 +2071,7 @@
     },
     "content": {
       "tags": "ଟ୍ୟାଗ୍",
-      "expectedOutcome": "ଆଶାକରା ଫଳ",
+      "expectedOutcome": "ଆଶାକରା ଫଳାଫଳ",
       "category": "ଶ୍ରେଣୀ",
       "target": "ଲକ୍ଷ୍ୟ",
       "supportersIn": "ସମର୍ଥକ",
@@ -2056,6 +2155,7 @@
     "enterOtp": "ଓଟିପି ଲେଖନ୍ତୁ",
     "review": "ସମୀକ୍ଷା କରନ୍ତୁ",
     "submitSupport": "ସମର୍ଥନ ଦାଖଲ କରନ୍ତୁ",
+    "consentRequiredInline": "ସହି କରିବା ପୂର୍ବରୁ ଦୁଇଟି ସମ୍ମତି ନିଶ୍ଚିତକରଣ ଗ୍ରହଣ କରନ୍ତୁ।",
     "thankYou": "ଧନ୍ୟବାଦ",
     "welcomeBack": "ପୁଣିଥରେ ସ୍ୱାଗତ",
     "required": "ଆବଶ୍ୟକ",
@@ -2154,7 +2254,199 @@
       "startFreeCampaign": "ମାଗଣା ଅଭିଯାନ ଆରମ୍ଭ କରନ୍ତୁ",
       "createWithAi": "AI ସହିତ ଅଭିଯାନ ସୃଷ୍ଟି କରନ୍ତୁ",
       "viewPricing": "ମୂଲ୍ୟ ଦେଖନ୍ତୁ",
-      "startOneDay": "1 ଦିନ ପାଇଁ ମାଗଣାରେ ଆରମ୍ଭ କରନ୍ତୁ"
+      "startOneDay": "1 ଦିନ ପାଇଁ ମାଗଣାରେ ଆରମ୍ଭ କରନ୍ତୁ",
+      "organize": "🏢 PLAN",
+      "act": "⚡ ACT",
+      "exploreBusinessOs": "Business OS ଅନୁସନ୍ଧାନ କରନ୍ତୁ"
+    },
+    "signIn": {
+      "title": "Sign In",
+      "workspaceAdmin": "VoiceUp Admin",
+      "platformAdmin": "Platform Admin",
+      "mobileAria": "Business OS ସାଇନ୍-ଇନ୍ ବିକଳ୍ପ",
+      "workspaceAdminHelp": "ଆପଣଙ୍କ ସଂଗଠନ ପରିଚାଳନା କରନ୍ତୁ",
+      "platformAdminHelp": "କେବଳ ଅଧିକୃତ ଅପରେଟରମାନଙ୍କ ପାଇଁ"
+    },
+    "applications": {
+      "title": "Business OS Applications",
+      "statusLabel": "ସ୍ଥିତି",
+      "launch": "ଲଞ୍ଚ",
+      "status": {
+        "LIVE": "LIVE",
+        "COMING SOON": "Coming Soon",
+        "IN PROGRESS": "In Progress",
+        "PLANNING": "Planning",
+        "BETA": "Beta",
+        "UNDER MAINTENANCE": "Under Maintenance"
+      },
+      "apps": {
+        "voiceup": {
+          "name": "VoiceUp",
+          "description": "Collective Action Platform"
+        },
+        "goudhan": {
+          "name": "Goudhan",
+          "description": "Livestock Marketplace"
+        },
+        "panditOnline": {
+          "name": "PanditOnline",
+          "description": "Religious Services"
+        },
+        "teachToday": {
+          "name": "TeachToday",
+          "description": "Education Platform"
+        }
+      }
+    },
+    "saas": {
+      "hero": {
+        "brand": "VoiceUp",
+        "title": "VoiceUp Business OS",
+        "subtitle": "ବିଶ୍ୱସନୀୟ ସାର୍ବଜନୀନ ଅଭିଯାନ ଆରମ୍ଭ ଓ ପରିଚାଳନା ପାଇଁ ଗୋଟିଏ ଯୁକ୍ତ ସିଷ୍ଟମ୍।"
+      },
+      "actions": {
+        "explore": "ଅନ୍ୱେଷଣ କରନ୍ତୁ",
+        "organize": "PLAN",
+        "organizeWithTeam": "PLAN",
+        "act": "କାର୍ଯ୍ୟ କରନ୍ତୁ",
+        "actWithStartFree": "କାର୍ଯ୍ୟ କରନ୍ତୁ - ମାଗଣାରେ ଆରମ୍ଭ କରନ୍ତୁ",
+        "startFree": "ମାଗଣାରେ ଆରମ୍ଭ କରନ୍ତୁ",
+        "learnMore": "ଅଧିକ ଜାଣନ୍ତୁ",
+        "open": "ଖୋଲନ୍ତୁ"
+      },
+      "labels": {
+        "status": "ସ୍ଥିତି",
+        "applicationStatus": "ଆପ୍ଲିକେସନ୍ ସ୍ଥିତି"
+      },
+      "status": {
+        "platform": "ପ୍ଲାଟଫର୍ମ",
+        "LIVE": "ଲାଇଭ୍",
+        "IN PROGRESS": "ପ୍ରଗତିରେ",
+        "COMING SOON": "ଶୀଘ୍ର ଆସୁଛି"
+      },
+      "applications": {
+        "title": "VoiceUp ଆପ୍ଲିକେସନ୍",
+        "subtitle": "ଗୋଟିଏ ପ୍ଲାଟଫର୍ମରେ ଗୋଟିଏ ଲାଇଭ୍ SaaS ଆପ୍ଲିକେସନ୍ ଏବଂ ଅନ୍ୟ ପାଞ୍ଚଟି ପ୍ରଗତିରେ ଅଛି।"
+      },
+      "carousel": {
+        "eyebrow": "ଆପ୍ଲିକେସନ୍ କାରୁସେଲ୍",
+        "title": "Business OS ଆପ୍ଲିକେସନ୍",
+        "subtitle": "VoiceUp ପ୍ଲାଟଫର୍ମରେ ଲାଇଭ୍ ଓ ପ୍ରଗତିରେ ଥିବା ଉତ୍ପାଦଗୁଡ଼ିକୁ ଦେଖନ୍ତୁ।",
+        "play": "କାରୁସେଲ୍ ଚଲାନ୍ତୁ",
+        "timer": "ଲ୍ୟାଣ୍ଡିଂ କାହାଣୀ ଟାଇମର୍"
+      },
+      "act": {
+        "availableNow": "ଏବେ ଉପଲବ୍ଧ",
+        "description": "ଏବେ Campaign ସହ ଆରମ୍ଭ କରନ୍ତୁ। ଭବିଷ୍ୟତର SaaS ଆପ୍ଲିକେସନ୍‌ଗୁଡ଼ିକ ସେମାନଙ୍କର ନିଜସ୍ୱ ପ୍ଲାନ୍ ଅଧିକାର ଅନୁଯାୟୀ ଉପଲବ୍ଧ ହେବ।",
+        "adminLogin": "Campaign ଆଡମିନ୍ ଲଗଇନ୍",
+        "futureApplications": "ଭବିଷ୍ୟତର SaaS ଆପ୍ଲିକେସନ୍"
+      },
+      "apps": {
+        "voiceup": {
+          "name": "VoiceUp Platform",
+          "description": "VoiceUp Business OS। ଅଭିଯାନ ପରିଚାଳନା, ଦଳ ଗଢ଼ଣା ଏବଂ ବିଶ୍ୱସନୀୟ ବୃଦ୍ଧି ପାଇଁ ଏକୀକୃତ ପ୍ଲାଟଫର୍ମ।",
+          "highlights": { "1": "LEARN MORE", "2": "PLAN", "3": "ACT", "4": "" }
+        },
+        "campaign": {
+          "name": "Campaign SaaS",
+          "description": "ସମ୍ପୂର୍ଣ୍ଣ ଅଭିଯାନ କାର୍ଯ୍ୟକ୍ଷେତ୍ର ସହ ପାରଦର୍ଶୀ ସାମୂହିକ କାର୍ଯ୍ୟ ଆରମ୍ଭ କରନ୍ତୁ।",
+          "highlights": { "1": "ଅଭିଯାନ ସୃଷ୍ଟି ଓ ପ୍ରକାଶ କରନ୍ତୁ", "2": "ଡିଜିଟାଲ୍ ଓ କାଗଜ ସହି ସଂଗ୍ରହ କରନ୍ତୁ", "3": "ସମର୍ଥକ ଓ ସ୍ୱେଚ୍ଛାସେବୀଙ୍କୁ ସଂଗଠିତ କରନ୍ତୁ", "4": "ପାରଦର୍ଶୀ ସାମୂହିକ କାର୍ଯ୍ୟ" }
+        },
+        "goudhan": {
+          "name": "Goudhan Marketplace SaaS",
+          "description": "କ୍ରେତା, ବିକ୍ରେତା ଓ ସହଭାଗୀଙ୍କ ପାଇଁ ଭରସାଯୋଗ୍ୟ ଦେଶୀ ଗୋ-ଉତ୍ପାଦ ବଜାର।",
+          "highlights": { "1": "ଦେଶୀ ଗୋ-ଉତ୍ପାଦ ବଜାର", "2": "କ୍ରେତା ଓ ବିକ୍ରେତା ପରିବେଶ", "3": "ସହଭାଗୀ ଓ ପ୍ରମୋଟର ଅନବୋର୍ଡିଂ", "4": "ବାଣିଜ୍ୟ, ପରିପୂରଣ ଓ ରେଫରାଲ୍ କ୍ଷମତା" }
+        },
+        "panditOnline": {
+          "name": "PanditOnline SaaS",
+          "description": "ବିଶ୍ୱସ୍ତ ପୁରୋହିତ ଖୋଜ ଓ ପରିଚାଳିତ ଧାର୍ମିକ ସେବା ବୁକିଂ।",
+          "highlights": { "1": "ବିଶ୍ୱସ୍ତ ପୁରୋହିତ ଖୋଜ", "2": "ରୀତିନୀତି ଓ ସେବା ବୁକିଂ", "3": "ସେବାଦାତା ଅନବୋର୍ଡିଂ ଓ ଅନୁମୋଦନ", "4": "ସମୟସୂଚୀ ଓ ସେବା ପରିଚାଳନା" }
+        },
+        "teachToday": {
+          "name": "TeachToday SaaS",
+          "description": "ଶିକ୍ଷାର୍ଥୀଙ୍କୁ ବିଶ୍ୱସ୍ତ ଶିକ୍ଷକ ଓ ସେବା ସହ ଯୋଡ଼ୁଥିବା ବଜାର।",
+          "highlights": { "1": "ଶିକ୍ଷକ ଓ ଶିକ୍ଷାର୍ଥୀ ବଜାର", "2": "ସେବାଦାତା ଅନବୋର୍ଡିଂ ଓ ଯାଞ୍ଚ", "3": "ପାଠ୍ୟକ୍ରମ କିମ୍ବା ସେବା ଖୋଜ", "4": "ସମୟସୂଚୀ ଓ ଶିକ୍ଷା ସହାୟତା" }
+        },
+        "homeNurseHub": {
+          "name": "Home Nurse Hub SaaS",
+          "description": "ଘରୋଇ ଯତ୍ନ ପେଶାଦାର ଖୋଜ ଓ ସେବା ସମନ୍ୱୟ।",
+          "highlights": { "1": "ଘରୋଇ ଯତ୍ନ ପେଶାଦାର ଖୋଜ", "2": "ନର୍ସ ଅନବୋର୍ଡିଂ ଓ ଯାଞ୍ଚ", "3": "ଯତ୍ନ ସେବା ଅନୁରୋଧ", "4": "ସମୟସୂଚୀ ଓ ସେବା ସମନ୍ୱୟ" }
+        },
+        "cateringHub": {
+          "name": "Catering Hub SaaS",
+          "description": "ସବସ୍କ୍ରିପସନ୍ ଭୋଜନ, କାର୍ଯ୍ୟକ୍ରମ କ୍ୟାଟରିଂ, କର୍ପୋରେଟ୍ କ୍ୟାଟରିଂ ଓ ସ୍ୱାସ୍ଥ୍ୟକର ଖାଦ୍ୟ ସେବା।",
+          "highlights": { "1": "ସବସ୍କ୍ରିପସନ୍ ଭୋଜନ ଯୋଜନା", "2": "କାର୍ଯ୍ୟକ୍ରମ ଓ କର୍ପୋରେଟ୍ କ୍ୟାଟରିଂ", "3": "ଘରୋଇ କ୍ୟାଟରିଂ ସେବା", "4": "SuddhaOswadaର ସ୍ୱାସ୍ଥ୍ୟକର ଖାଦ୍ୟ ବିକଳ୍ପ ଅନ୍ତର୍ଭୁକ୍ତ" }
+        }
+      }
+    },
+    "gateways": {
+      "backToSelector": "ଆପ୍ଲିକେସନ୍ ଚୟନକୁ ଫେରନ୍ତୁ",
+      "backToLanding": "ଲ୍ୟାଣ୍ଡିଂକୁ ଫେରନ୍ତୁ",
+      "backToTop": "ଉପରକୁ ଯାଆନ୍ତୁ",
+      "applications": {
+        "title": "VoiceUp Business OS ଆପ୍ଲିକେସନ୍",
+        "subtitle": "Campaign ଲାଇଭ୍ ଅଛି। ଅନ୍ୟ ଆପ୍ଲିକେସନ୍‌ଗୁଡ଼ିକ In Progress କିମ୍ବା Coming Soon ଅବସ୍ଥାରେ ଅଛି।"
+      },
+      "compact": {
+        "eyebrow": "Business OS ସାରାଂଶ",
+        "title": "ଆପଣଙ୍କ ଆପ୍ଲିକେସନ୍ ପଥ ଚୟନ କରନ୍ତୁ",
+        "subtitle": "ଦୀର୍ଘ ସ୍କ୍ରୋଲ୍ ବିନା ବିବରଣୀ, ACT gateway କିମ୍ବା team gateway ଖୋଲନ୍ତୁ।"
+      },
+      "campaignAdmin": {
+        "slugLabel": "Campaign link କିମ୍ବା campaign ID",
+        "slugPlaceholder": "Campaign link ପେଷ୍ଟ କରନ୍ତୁ କିମ୍ବା campaign ID ଲେଖନ୍ତୁ",
+        "validation": "ଆଗକୁ ବଢ଼ିବା ପାଇଁ campaign link କିମ୍ବା campaign ID ଦିଅନ୍ତୁ।"
+      },
+      "team": {
+        "title": "ଆପଣଙ୍କ Campaign ଯୋଜନା କରନ୍ତୁ",
+        "subtitle": "କାର୍ଯ୍ୟାନ୍ବୟନ ପୂର୍ବରୁ campaign structure, resources ଏବଂ subscription ପ୍ରସ୍ତୁତ କରନ୍ତୁ।",
+        "entitlementNote": "ଲଗଇନ୍ ପରେ active subscription ଅନୁସାରେ saved configuration ଏବଂ enabled modules ଉପଲବ୍ଧ ହେବ।",
+        "continue": "Campaign Planning ଜାରି ରଖନ୍ତୁ",
+        "learnMore": "ଅଧିକ ଜାଣନ୍ତୁ",
+        "goToAct": "ACT କୁ ଯାଆନ୍ତୁ",
+        "backToCampaign": "Campaign କୁ ଫେରନ୍ତୁ"
+      },
+      "act": {
+        "title": "ଆପଣଙ୍କ Campaign ଉପରେ କାର୍ଯ୍ୟ କରନ୍ତୁ",
+        "subtitle": "Campaign ଲାଇଭ୍ ଅଛି ଏବଂ onboarding ସହ admin login ଉପଲବ୍ଧ। ଅନ୍ୟ ଆପ୍ଲିକେସନ୍‌ଗୁଡ଼ିକ ଏବେ ଅନୁପଲବ୍ଧ।",
+        "startTrial": "1-ଦିନର ମାଗଣା trial ଆରମ୍ଭ କରନ୍ତୁ",
+        "otherApplications": "ଅନ୍ୟ VoiceUp ଆପ୍ଲିକେସନ୍",
+        "optionNew": "ବିକଳ୍ପ A - ନୂତନ ଗ୍ରାହକ",
+        "optionExisting": "ବିକଳ୍ପ B - ମୌଜୁଦା ଗ୍ରାହକ",
+        "optionNewDescription": "ନୂତନ organization ସୃଷ୍ଟି କରନ୍ତୁ, plan ନିଶ୍ଚିତ କରନ୍ତୁ ଏବଂ Campaign Admin workspace ରେ ପ୍ରବେଶ କରନ୍ତୁ।",
+        "optionExistingDescription": "ମୌଜୁଦା campaign ରେ ଲଗଇନ୍ କରି subscription entitlement ଅନୁଯାୟୀ execution ଜାରି ରଖନ୍ତୁ।",
+        "optionNewItems": {
+          "1": "ପ୍ରଥମ campaign ସୃଷ୍ଟି କରନ୍ତୁ",
+          "2": "subscription plan ବାଛନ୍ତୁ କିମ୍ବା ନିଶ୍ଚିତ କରନ୍ତୁ",
+          "3": "enabled Campaign features କନଫିଗର୍ କରନ୍ତୁ",
+          "4": "Campaign Admin workspace ରେ ପ୍ରବେଶ କରନ୍ତୁ",
+          "5": "support collection ଏବଂ activity management ଆରମ୍ଭ କରନ୍ତୁ"
+        },
+        "optionExistingItems": {
+          "1": "subscription entitlement ଅନୁଯାୟୀ campaign କନଫିଗର୍ କରନ୍ତୁ",
+          "2": "publish ଏବଂ share କରନ୍ତୁ",
+          "3": "signatures ଏବଂ paper support ପରିଚାଳନା କରନ୍ତୁ",
+          "4": "team ଏବଂ volunteers ସମନ୍ୱୟ କରନ୍ତୁ",
+          "5": "fundraising, progress ଏବଂ reports ଟ୍ରାକ୍ କରନ୍ତୁ"
+        },
+        "goToPlan": "PLAN କୁ ଯାଆନ୍ତୁ",
+        "learnMore": "ଅଧିକ ଜାଣନ୍ତୁ",
+        "backToCampaign": "Campaign କୁ ଫେରନ୍ତୁ"
+      },
+      "workflowAria": "Application workflow",
+      "plan": {
+        "categoriesAria": "Campaign planning categories",
+        "sections": {
+          "basics": { "title": "Campaign Basics", "items": { "1": "Name", "2": "Purpose", "3": "Campaign type", "4": "Target outcome" } },
+          "team": { "title": "Team and Organization", "items": { "1": "Campaign admin", "2": "Coordinators", "3": "Volunteers", "4": "Role hierarchy" } },
+          "budget": { "title": "Budget and Fundraising", "items": { "1": "Planned budget", "2": "Fundraising goal", "3": "Expense categories", "4": "Transparency approach" } },
+          "coverage": { "title": "Location and Coverage", "items": { "1": "Country", "2": "State", "3": "District", "4": "Online and offline reach" } },
+          "timeline": { "title": "Timeline and Milestones", "items": { "1": "Start date", "2": "Target date", "3": "Signature milestones", "4": "Public events" } },
+          "subscription": { "title": "Subscription and Features", "items": { "1": "Trial or plan status", "2": "Available features", "3": "Upgrade requirements", "4": "Entitlement notice" } },
+          "communication": { "title": "Communication and Growth", "items": { "1": "WhatsApp and SMS", "2": "Social sharing", "3": "Referral", "4": "Volunteer outreach" } },
+          "evidence": { "title": "Evidence and Reporting", "items": { "1": "Images and videos", "2": "Paper signatures", "3": "Expense reporting", "4": "Progress reporting" } }
+        }
+      }
     },
     "hero": {
       "eyebrow": "କ୍ରେଡିଟ୍ କାର୍ଡ ଦରକାର ନାହିଁ। ମାଗଣା ପରୀକ୍ଷା। ସାର୍ବଜନୀନ ଲିଙ୍କ ପ୍ରସ୍ତୁତ।",
@@ -2361,8 +2653,8 @@
     },
     "finalCta": {
       "eyebrow": "ଆରମ୍ଭ କରିବାକୁ ପ୍ରସ୍ତୁତ?",
-      "title": "ପ୍ରଥମ ଅଭିଯାନ ଆରମ୍ଭ କରନ୍ତୁ, ଏହାର ମୂଲ୍ୟ ଦେଖାନ୍ତୁ, ତାପରେ ଉପଯୁକ୍ତ ଯୋଜନା ବାଛନ୍ତୁ।",
-      "subtitle": "Voiceup ଏକ ପ୍ରକୃତ ସାର୍ବଜନୀନ ଲିଙ୍କରୁ ଅଭିଯାନ ବଢ଼ାଇବାରେ ସାହାଯ୍ୟ କରେ: AI ଅଭିଯାନ ବିଷୟବସ୍ତୁ, କ୍ଷେତ୍ର ସଂଗ୍ରହ, ଆନ୍ଦୋଳନ CRM, ଯୋଗାଯୋଗ କେନ୍ଦ୍ର ଓ ପ୍ରଭାବ ରିପୋର୍ଟ—ସବୁ ଗୋଟିଏ ସ୍ଥାନରେ।"
+      "title": "ପରିବର୍ତ୍ତନ ପାଇଁ ନିଜ ପଥ ବାଛନ୍ତୁ।",
+      "subtitle": "ନେତୃତ୍ୱ ପାଇଁ ORGANIZE ବାଛନ୍ତୁ, କିମ୍ବା ତୁରନ୍ତ ସହଭାଗୀତା ପାଇଁ ACT ବାଛନ୍ତୁ।"
     },
     "roles": {
       "eyebrow": "ନିଜ ଭୂମିକା ବାଛନ୍ତୁ",
@@ -2387,15 +2679,19 @@
     "freeze": {
       "tagline": "ସ୍ୱଚ୍ଛ ସାମୂହିକ କାର୍ଯ୍ୟ",
       "getStarted": "ଆରମ୍ଭ କରନ୍ତୁ",
-      "heroEyebrow": "ସ୍ପଷ୍ଟ ଅଭିଯାନ। ଯାଞ୍ଚିତ ଜନସମର୍ଥନ।",
-      "heroTitle": "ଜନଚିନ୍ତାକୁ ସ୍ୱଚ୍ଛ ସାମୂହିକ କାର୍ଯ୍ୟରେ ପରିଣତ କରନ୍ତୁ।",
-      "heroSubtitle": "VoiceUp ଅଭିଯାନ ତିଆରି, ଯାଞ୍ଚିତ ଅଂଶଗ୍ରହଣ, କ୍ଷେତ୍ର ସଂଗ୍ରହ, କର୍ତ୍ତୃପକ୍ଷ ପଥ ଏବଂ ଉତ୍ତରଦାୟୀ ରିପୋର୍ଟିଂକୁ ଗୋଟିଏ ନିର୍ଦ୍ଦେଶିତ ଅନୁଭବରେ ଯୋଡ଼େ।",
+      "heroEyebrow": "BUSINESS OS",
+      "heroTitle": "ଗୋଟିଏ ପ୍ଲାଟଫର୍ମ। ଅନେକ ସମ୍ଭାବନା।",
+      "heroAvailabilityLabel": "Currently Available",
+      "heroAvailabilityApp": "✅ VoiceUp",
+      "heroPoweredBy": "ଆଜି VoiceUp ଦ୍ୱାରା ଚାଲିତ।",
+      "heroLeadTitle": "ଏକସାଥି ହୋଇ ପରିବର୍ତ୍ତନକୁ ନେତୃତ୍ୱ ଦିଅନ୍ତୁ",
+      "heroSubtitle": "ସଂଗଠନ ସୃଷ୍ଟି କରନ୍ତୁ, ଲୋକଙ୍କୁ ସମନ୍ୱୟ କରନ୍ତୁ, ଏବଂ ଧାରଣାକୁ କାର୍ଯ୍ୟରେ ପରିଣତ କରନ୍ତୁ।",
       "productEyebrow": "ଗୋଟିଏ ସଂଯୁକ୍ତ ମଞ୍ଚ",
-      "productTitle": "ବିଶ୍ୱସନୀୟ ସାର୍ବଜନୀନ ଅଭିଯାନ ପାଇଁ ସବୁକିଛି।",
-      "productSubtitle": "ଅଭିଯାନ ଯୋଜନା କରନ୍ତୁ, ଯାଞ୍ଚିତ ସମର୍ଥନ ସଂଗ୍ରହ କରନ୍ତୁ, କ୍ଷେତ୍ର କାମ ସମନ୍ୱୟ କରନ୍ତୁ, ସଠିକ୍ କର୍ତ୍ତୃପକ୍ଷଙ୍କୁ ପହଞ୍ଚନ୍ତୁ ଏବଂ ସ୍ପଷ୍ଟ ପ୍ରଗତି ରିପୋର୍ଟ ଦିଅନ୍ତୁ।",
+      "productTitle": "ଲୋକ ଓ ସମୁଦାୟକୁ ସଂଗଠିତ କରନ୍ତୁ, ପ୍ରୟାସ ଚାଲାନ୍ତୁ ଏବଂ ବାସ୍ତବ ପ୍ରଭାବ ମାପନ୍ତୁ।",
+      "productSubtitle": "VoiceUp ନେତୃତ୍ୱ ଓ ସହଭାଗୀତା ଦୁଇଟି ପଥକୁ ଏକ ସୁରକ୍ଷିତ ପ୍ଲାଟଫର୍ମରେ ଯୋଡ଼େ।",
       "trustEyebrow": "ବିଶ୍ୱାସକୁ କେନ୍ଦ୍ର କରି ଡିଜାଇନ୍",
       "trustTitle": "ବିଶ୍ୱସନୀୟ ଅଂଶଗ୍ରହଣ ଓ ଦୃଶ୍ୟମାନ ଉତ୍ତରଦାୟିତ୍ୱ ପାଇଁ ନିର୍ମିତ।",
-      "trustSubtitle": "ସ୍ପଷ୍ଟ ଦାବି, ଯାଞ୍ଚିତ ସମର୍ଥନ, ସମ୍ମତି-ସଚେତନ ସଂଗ୍ରହ, କର୍ତ୍ତୃପକ୍ଷ ପ୍ରସଙ୍ଗ ଓ ମାପଯୋଗ୍ୟ ପ୍ରଗତି ପ୍ରତ୍ୟେକ ଆନ୍ଦୋଳନର ବିଶ୍ୱାସ ବଢ଼ାଏ।",
+      "trustSubtitle": "ସ୍ପଷ୍ଟ ଉଦ୍ଦେଶ୍ୟ, ପାରଦର୍ଶୀ ଅଗ୍ରଗତି ଏବଂ ଦାୟିତ୍ୱଶୀଳ ସମନ୍ୱୟ ବିଶ୍ୱାସ ଗଢ଼େ।",
       "footerTagline": "VoiceUp — ସ୍ୱଚ୍ଛ ସାମୂହିକ କାର୍ଯ୍ୟର ପରିଚାଳନା ପ୍ରଣାଳୀ।"
     },
     "footer": {
@@ -2454,6 +2750,7 @@
       "campaignAdmin": "ଅଭିଯାନ ଆଡମିନ୍",
       "publicSigning": "ସାର୍ବଜନୀନ ସହି",
       "movementCrm": "ଆନ୍ଦୋଳନ CRM",
+      "coordinatorNetwork": "ସଂଯୋଜକ ନେଟୱାର୍କ",
       "growthEngine": "ଗ୍ରୋଥ୍ ଇଞ୍ଜିନ୍",
       "fieldCollection": "କ୍ଷେତ୍ର ସଂଗ୍ରହ",
       "reports": "ରିପୋର୍ଟ",
@@ -2860,6 +3157,268 @@
           "copilot": { "title": "AI ଅଭିଯାନ ସହାୟକ", "text": "ଗୋଟିଏ ବାକ୍ୟକୁ ସମୀକ୍ଷା ଓ ସଞ୍ଚୟଯୋଗ୍ୟ ପେଶାଦାର ଅଭିଯାନ ଖସଡ଼ାରେ ପରିଣତ କରନ୍ତୁ।" }
         }
       }
+    }
+  },
+  "coordinatorProfile": {
+    "workspace": "ସଂଯୋଜକ 360° ପ୍ରୋଫାଇଲ୍",
+    "photoAlt": "ପ୍ରୋଫାଇଲ୍ ଫଟୋ",
+    "notRecorded": "ସଂଯୋଜକ ନେଟୱର୍କରେ ରେକର୍ଡ ହୋଇନାହିଁ",
+    "notAvailable": "ଉପଲବ୍ଧ ନାହିଁ",
+    "quickActions": "ସଂଯୋଜକ ପ୍ରୋଫାଇଲ୍ ଦ୍ରୁତ କାର୍ଯ୍ୟ",
+    "sections": {
+      "summary": "ସଂଯୋଜକ ସାରାଂଶ",
+      "geography": "ଭୌଗୋଳିକ କ୍ଷେତ୍ର",
+      "campaigns": "ନିର୍ଦ୍ଧାରିତ ଅଭିଯାନ",
+      "hierarchy": "ରିପୋର୍ଟିଂ କ୍ରମ",
+      "activity": "କାର୍ଯ୍ୟକଳାପ ସମୟରେଖା",
+      "performance": "କାର୍ଯ୍ୟଦକ୍ଷତା"
+    },
+    "hero": {
+      "reportingManager": "ରିପୋର୍ଟିଂ ପରିଚାଳକ",
+      "noManager": "କୌଣସି ରିପୋର୍ଟିଂ ପରିଚାଳକ ନାହାନ୍ତି",
+      "assignedGeography": "ନିର୍ଦ୍ଧାରିତ କ୍ଷେତ୍ର",
+      "campaigns": "ଅଭିଯାନ ସଂଖ୍ୟା",
+      "lastActivity": "ଶେଷ କାର୍ଯ୍ୟକଳାପ",
+      "noActivity": "କୌଣସି ରେକର୍ଡ କାର୍ଯ୍ୟକଳାପ ନାହିଁ"
+    },
+    "summary": {
+      "fullName": "ପୂର୍ଣ୍ଣ ନାମ",
+      "mobile": "ମୋବାଇଲ୍",
+      "email": "ଇମେଲ୍",
+      "verification": "ମୋବାଇଲ୍ ଯାଞ୍ଚ",
+      "verified": "ଯାଞ୍ଚ ହୋଇଛି",
+      "notVerified": "ଯାଞ୍ଚ ହୋଇନାହିଁ",
+      "referralCode": "ରେଫରାଲ୍ କୋଡ୍",
+      "accountStatus": "ଖାତା ସ୍ଥିତି",
+      "reportingChain": "ରିପୋର୍ଟିଂ ଶୃଙ୍ଖଳା",
+      "noReportingChain": "କୌଣସି ରିପୋର୍ଟିଂ ଶୃଙ୍ଖଳା ନାହିଁ",
+      "notProvided": "ପ୍ରଦାନ କରାଯାଇନାହିଁ"
+    },
+    "geography": {
+      "country": "ଦେଶ",
+      "state": "ରାଜ୍ୟ",
+      "district": "ଜିଲ୍ଲା",
+      "block": "ବ୍ଲକ୍",
+      "panchayat": "ଗ୍ରାମ ପଞ୍ଚାୟତ",
+      "village": "ଗ୍ରାମ",
+      "ward": "ୱାର୍ଡ",
+      "coverageHierarchy": "କଭରେଜ୍ କ୍ରମ"
+    },
+    "campaigns": {
+      "noCampaigns": "କୌଣସି ଅଭିଯାନ ନିର୍ଦ୍ଧାରିତ ନାହିଁ",
+      "assignedOn": "ନିର୍ଦ୍ଧାରିତ"
+    },
+    "hierarchy": {
+      "manager": "ପରିଚାଳକ",
+      "noManager": "କୌଣସି ପରିଚାଳକ ନିର୍ଦ୍ଧାରିତ ନାହାନ୍ତି",
+      "currentCoordinator": "ବର୍ତ୍ତମାନର ସଂଯୋଜକ",
+      "directReports": "ସିଧାସଳଖ ରିପୋର୍ଟ",
+      "noDirectReports": "କୌଣସି ସିଧାସଳଖ ରିପୋର୍ଟ ନାହିଁ"
+    },
+    "activity": {
+      "noActivity": "କୌଣସି କାର୍ଯ୍ୟକଳାପ ରେକର୍ଡ ହୋଇନାହିଁ",
+      "actions": {
+        "assignment": "ଅଭିଯାନ ନିର୍ଦ୍ଧାରିତ",
+        "created": "ସଂଯୋଜକ ତିଆରି ହୋଇଛନ୍ତି",
+        "updated": "ସଂଯୋଜକ ଅଦ୍ୟତନ ହୋଇଛନ୍ତି",
+        "status_changed": "ସ୍ଥିତି ବଦଳିଛି",
+        "deleted": "ସଂଯୋଜକ ଅପସାରିତ",
+        "mobile_verified": "ମୋବାଇଲ୍ ଯାଞ୍ଚ ହୋଇଛି",
+        "photo_updated": "ପ୍ରୋଫାଇଲ୍ ଫଟୋ ଅଦ୍ୟତନ ହୋଇଛି",
+        "campaigns_changed": "ଅଭିଯାନ ନିର୍ଦ୍ଧାରଣ ଅଦ୍ୟତନ ହୋଇଛି",
+        "referral_linked": "ରେଫରାଲ୍ ସଂଯୁକ୍ତ ହୋଇଛି",
+        "geography_created": "ଭୌଗୋଳିକ କ୍ଷେତ୍ର ତିଆରି ହୋଇଛି",
+        "geography_archived": "ଭୌଗୋଳିକ କ୍ଷେତ୍ର ସଂରକ୍ଷିତ ହୋଇଛି"
+      }
+    },
+    "performance": {
+      "factualHelp": "କେବଳ ଏହି ସଂଯୋଜକଙ୍କ ବର୍ତ୍ତମାନ ନିର୍ଦ୍ଧାରଣ, ରେକର୍ଡ କାର୍ଯ୍ୟକଳାପ, କଭରେଜ୍ କ୍ରମ ଏବଂ ସିଧାସଳଖ ରିପୋର୍ଟରୁ ପ୍ରାପ୍ତ।",
+      "assignments": "ନିର୍ଦ୍ଧାରଣ",
+      "events": "ରେକର୍ଡ ଘଟଣା",
+      "levels": "କଭରେଜ୍ ସ୍ତର",
+      "reports": "ସିଧାସଳଖ ରିପୋର୍ଟ"
+    },
+    "actions": {
+      "edit": "ସମ୍ପାଦନା",
+      "status": "ସ୍ଥିତି",
+      "viewHierarchy": "କ୍ରମ ଦେଖନ୍ତୁ",
+      "viewActivity": "କାର୍ଯ୍ୟକଳାପ ଦେଖନ୍ତୁ",
+      "search": "ସନ୍ଧାନ",
+      "back": "ପଛକୁ",
+      "openPhoto": "ଫଟୋ ଖୋଲନ୍ତୁ"
+    },
+    "roles": {
+      "national_coordinator": "ଜାତୀୟ ସଂଯୋଜକ",
+      "state_coordinator": "ରାଜ୍ୟ ସଂଯୋଜକ",
+      "district_coordinator": "ଜିଲ୍ଲା ସଂଯୋଜକ",
+      "block_coordinator": "ବ୍ଲକ୍ ସଂଯୋଜକ",
+      "panchayat_coordinator": "ପଞ୍ଚାୟତ ସଂଯୋଜକ",
+      "ward_coordinator": "ୱାର୍ଡ ସଂଯୋଜକ",
+      "field_coordinator": "କ୍ଷେତ୍ର ସଂଯୋଜକ"
+    },
+    "statuses": {
+      "invited": "ଆମନ୍ତ୍ରିତ",
+      "active": "ସକ୍ରିୟ",
+      "inactive": "ନିଷ୍କ୍ରିୟ",
+      "suspended": "ନିଲମ୍ବିତ"
+    },
+    "campaignStatuses": {
+      "draft": "ଖସଡ଼ା",
+      "published": "ପ୍ରକାଶିତ",
+      "paused": "ସ୍ଥଗିତ",
+      "closed": "ବନ୍ଦ"
+    }
+  },
+  "coordinatorLifecycle": {
+    "notRecorded": "ରେକର୍ଡ ହୋଇନାହିଁ",
+    "commandCenter": {
+      "title": "ଜୀବନଚକ୍ର ସାରାଂଶ",
+      "active": "ସକ୍ରିୟ",
+      "suspended": "ନିଲମ୍ବିତ",
+      "verified": "ମୋବାଇଲ୍ ଯାଞ୍ଚ ହୋଇଛି",
+      "pending": "ସକ୍ରିୟକରଣ ବାକି",
+      "archived": "ସଂରକ୍ଷିତ",
+      "auditWindow": "ସଂରକ୍ଷିତ ସଂଖ୍ୟା ବର୍ତ୍ତମାନର ଅଡିଟ୍ ସ୍ନାପସଟ୍‌ରେ ଥିବା ପ୍ରକୃତ ବିଲୋପ ଘଟଣାରୁ ମିଳିଛି।"
+    },
+    "timeline": {
+      "title": "ଜୀବନଚକ୍ର ସମୟରେଖା",
+      "previous": "ପୂର୍ବ ସ୍ଥିତି",
+      "current": "ବର୍ତ୍ତମାନ ସ୍ଥିତି",
+      "next": "ପରବର୍ତ୍ତୀ ସମ୍ଭାବ୍ୟ କାର୍ଯ୍ୟ",
+      "none": "କୌଣସି ପରିବର୍ତ୍ତନ ଉପଲବ୍ଧ ନାହିଁ",
+      "ariaLabel": "ସଂଯୋଜକ ଜୀବନଚକ୍ର ପର୍ଯ୍ୟାୟ",
+      "sourceNote": "ସମ୍ପୂର୍ଣ୍ଣ ପର୍ଯ୍ୟାୟ କେବଳ ସଂଯୋଜକ ରେକର୍ଡ ଏବଂ ସର୍ଭର ଅଡିଟ୍ ଘଟଣାରୁ ମିଳିଛି।"
+    },
+    "stages": {
+      "draft": "ଖସଡ଼ା",
+      "invite_ready": "ଆମନ୍ତ୍ରଣ ପ୍ରସ୍ତୁତ",
+      "mobile_verified": "ମୋବାଇଲ୍ ଯାଞ୍ଚ ହୋଇଛି",
+      "active": "ସକ୍ରିୟ",
+      "transferred": "ସ୍ଥାନାନ୍ତରିତ",
+      "suspended": "ନିଲମ୍ବିତ",
+      "reactivated": "ପୁନଃ ସକ୍ରିୟ",
+      "archived": "ସଂରକ୍ଷିତ",
+      "inactive": "ନିଷ୍କ୍ରିୟ"
+    },
+    "card": {
+      "title": "ଜୀବନଚକ୍ର କାର୍ଡ",
+      "currentStatus": "ବର୍ତ୍ତମାନ ସ୍ଥିତି",
+      "created": "ତିଆରି ହୋଇଛି",
+      "verified": "ଯାଞ୍ଚ ହୋଇଛି",
+      "activated": "ସକ୍ରିୟ ହୋଇଛି",
+      "lastUpdated": "ଶେଷ ଅଦ୍ୟତନ",
+      "manager": "ବର୍ତ୍ତମାନର ପରିଚାଳକ",
+      "geography": "ବର୍ତ୍ତମାନର କ୍ଷେତ୍ର"
+    },
+    "transitions": {
+      "title": "ସ୍ଥିତି ପରିବର୍ତ୍ତନ",
+      "help": "କେବଳ ବର୍ତ୍ତମାନର ସଞ୍ଚିତ ସ୍ଥିତି ପାଇଁ ବୈଧ କାର୍ଯ୍ୟ ଉପଲବ୍ଧ। ସର୍ଭର ଅନୁମତି ଓ ସଂସ୍କରଣ ଯାଞ୍ଚ ବାଧ୍ୟତାମୂଳକ।",
+      "readOnly": "ଆପଣଙ୍କ ପାଖରେ କେବଳ ପଢ଼ିବା ଅନୁମତି ଅଛି। ଜୀବନଚକ୍ର ପରିବର୍ତ୍ତନ ଉପଲବ୍ଧ ନାହିଁ।"
+    },
+    "actions": {
+      "manage": "ଜୀବନଚକ୍ର ପରିଚାଳନା",
+      "verify_mobile": "ମୋବାଇଲ୍ ଯାଞ୍ଚ",
+      "activate": "ସକ୍ରିୟ କରନ୍ତୁ",
+      "transfer": "ସ୍ଥାନାନ୍ତର କରନ୍ତୁ",
+      "suspend": "ନିଲମ୍ବନ କରନ୍ତୁ",
+      "reactivate": "ପୁନଃ ସକ୍ରିୟ କରନ୍ତୁ",
+      "archive": "ସଂରକ୍ଷଣ କରନ୍ତୁ"
+    },
+    "actionHelp": {
+      "verify_mobile": "ବର୍ତ୍ତମାନର OTP ଯାଞ୍ଚ ପ୍ରକ୍ରିୟା ବ୍ୟବହାର କରନ୍ତୁ",
+      "activate": "ଆବଶ୍ୟକତା ସମୀକ୍ଷା କରି ସକ୍ରିୟ କରନ୍ତୁ",
+      "transfer": "ପରିଚାଳକ, କ୍ଷେତ୍ର କିମ୍ବା ଅଭିଯାନ ବଦଳାନ୍ତୁ",
+      "suspend": "ସକ୍ରିୟ କାର୍ଯ୍ୟକୁ ଅସ୍ଥାୟୀ ଭାବେ ରୋକନ୍ତୁ",
+      "reactivate": "ସକ୍ରିୟ କାର୍ଯ୍ୟକୁ ପୁନଃ ଆରମ୍ଭ କରନ୍ତୁ",
+      "archive": "ଏହି ସଂଯୋଜକଙ୍କୁ ସଫ୍ଟ ସଂରକ୍ଷଣ କରନ୍ତୁ"
+    },
+    "form": {
+      "statusManaged": "ସ୍ଥିତି ପରିବର୍ତ୍ତନ ଜୀବନଚକ୍ର ପ୍ୟାନେଲ୍‌ରୁ ପରିଚାଳିତ ହୁଏ।",
+      "inviteReadyOnSave": "ଯାଞ୍ଚ ସହ ସଞ୍ଚୟ ପରେ ନୂଆ ସଂଯୋଜକ ଆମନ୍ତ୍ରଣ-ପ୍ରସ୍ତୁତ ପର୍ଯ୍ୟାୟକୁ ଯାଆନ୍ତି।"
+    },
+    "wizard": {
+      "eyebrow": "ନିର୍ଦ୍ଦେଶିତ ଜୀବନଚକ୍ର କାର୍ଯ୍ୟ",
+      "titles": {
+        "verify_mobile": "ମୋବାଇଲ୍ ଯାଞ୍ଚ",
+        "activate": "ସକ୍ରିୟକରଣ ୱିଜାର୍ଡ",
+        "transfer": "ସ୍ଥାନାନ୍ତର ୱିଜାର୍ଡ",
+        "suspend": "ସଂଯୋଜକ ନିଲମ୍ବନ",
+        "reactivate": "ସଂଯୋଜକ ପୁନଃ ସକ୍ରିୟକରଣ",
+        "archive": "ସଂଯୋଜକ ସଂରକ୍ଷଣ"
+      },
+      "close": "ଜୀବନଚକ୍ର ୱିଜାର୍ଡ ବନ୍ଦ କରନ୍ତୁ",
+      "progress": "ଜୀବନଚକ୍ର କାର୍ଯ୍ୟ ପ୍ରଗତି",
+      "steps": {
+        "verification": "ଯାଞ୍ଚ",
+        "validation": "ବୈଧତା ଯାଞ୍ଚ",
+        "review": "ସମୀକ୍ଷା",
+        "complete": "ସମ୍ପୂର୍ଣ୍ଣ",
+        "manager": "ପରିଚାଳକ",
+        "geography": "କ୍ଷେତ୍ର",
+        "campaign": "ଅଭିଯାନ",
+        "confirmation": "ନିଶ୍ଚିତକରଣ",
+        "reason": "କାରଣ",
+        "warning": "ଚେତାବନୀ"
+      },
+      "reasonAuditNote": "କାରଣଟି ଅପରେଟର ନିଶ୍ଚିତକରଣ ପାଇଁ; ବର୍ତ୍ତମାନର ସର୍ଭର ଅଡିଟ୍ ଜୀବନଚକ୍ର କାର୍ଯ୍ୟ ରେକର୍ଡ କରେ।",
+      "done": "ସମ୍ପୂର୍ଣ୍ଣ",
+      "undo": "ନିଲମ୍ବନ ପଛକୁ ନିଅନ୍ତୁ",
+      "back": "ପଛକୁ",
+      "cancel": "ବାତିଲ୍",
+      "processing": "ପ୍ରକ୍ରିୟା ଚାଲିଛି…",
+      "confirm": "କାର୍ଯ୍ୟ ନିଶ୍ଚିତ କରନ୍ତୁ",
+      "continue": "ଆଗକୁ"
+    },
+    "validation": {
+      "mobile": "ମୋବାଇଲ୍ ଯାଞ୍ଚ",
+      "geography": "ନିର୍ଦ୍ଧାରିତ କ୍ଷେତ୍ର",
+      "manager": "ରିପୋର୍ଟିଂ ପରିଚାଳକ",
+      "ready": "ପ୍ରସ୍ତୁତ",
+      "missing": "ଆବଶ୍ୟକ ସୂଚନା ନାହିଁ",
+      "noManager": "କୌଣସି ରିପୋର୍ଟିଂ ପରିଚାଳକ ନାହାନ୍ତି"
+    },
+    "transfer": {
+      "manager": "ରିପୋର୍ଟିଂ ପରିଚାଳକ",
+      "noManager": "କୌଣସି ରିପୋର୍ଟିଂ ପରିଚାଳକ ନାହାନ୍ତି",
+      "geography": "ନିର୍ଦ୍ଧାରିତ କ୍ଷେତ୍ର",
+      "campaigns": "ଅଭିଯାନ ନିର୍ଦ୍ଧାରଣ",
+      "noCampaigns": "କୌଣସି ଅଭିଯାନ ଉପଲବ୍ଧ ନାହିଁ"
+    },
+    "suspend": { "reason": "ନିଲମ୍ବନର କାରଣ" },
+    "archive": {
+      "reason": "ସଂରକ୍ଷଣ ନିଶ୍ଚିତକରଣର କାରଣ",
+      "directReportsBlock": "ଏହି ସଂଯୋଜକଙ୍କୁ ସଂରକ୍ଷଣ ପୂର୍ବରୁ ସିଧାସଳଖ ରିପୋର୍ଟ ପୁନଃ ନିର୍ଦ୍ଧାରଣ କରନ୍ତୁ।"
+    },
+    "confirmation": {
+      "coordinator": "ସଂଯୋଜକ",
+      "verify_mobile": "ମୋବାଇଲ୍ ଯାଞ୍ଚ ନିଶ୍ଚିତ କରନ୍ତୁ",
+      "activate": "ସକ୍ରିୟକରଣ ନିଶ୍ଚିତ କରନ୍ତୁ",
+      "transfer": "ସ୍ଥାନାନ୍ତର ନିଶ୍ଚିତ କରନ୍ତୁ",
+      "suspend": "ନିଲମ୍ବନ ନିଶ୍ଚିତ କରନ୍ତୁ",
+      "reactivate": "ପୁନଃ ସକ୍ରିୟକରଣ ନିଶ୍ଚିତ କରନ୍ତୁ",
+      "archive": "ବର୍ତ୍ତମାନର ସଂଯୋଜକ ନେଟୱର୍କ ଚୁକ୍ତିରେ ଏହି ସଫ୍ଟ ସଂରକ୍ଷଣକୁ ପଛକୁ ନିଆଯାଇପାରିବ ନାହିଁ।"
+    },
+    "review": {
+      "verify_mobile": "ମୋବାଇଲ୍ ଯାଞ୍ଚ ସମୀକ୍ଷା",
+      "activate": "ସକ୍ରିୟକରଣ ସମୀକ୍ଷା",
+      "transfer": "ସ୍ଥାନାନ୍ତର ସମୀକ୍ଷା",
+      "suspend": "ନିଲମ୍ବନ ସମୀକ୍ଷା",
+      "reactivate": "ପୁନଃ ସକ୍ରିୟକରଣ ସମୀକ୍ଷା",
+      "archive": "ସଂରକ୍ଷଣ ସମୀକ୍ଷା",
+      "serverValidation": "ନିଶ୍ଚିତ କଲେ ବର୍ତ୍ତମାନର ସର୍ଭର ଅନୁମତି, ବୈଧତା, ଅଡିଟ୍ ଓ ସଂସ୍କରଣ ଯାଞ୍ଚ ଚାଲିବ।"
+    },
+    "success": {
+      "verify_mobile": "ମୋବାଇଲ୍ ଯାଞ୍ଚ ସମ୍ପୂର୍ଣ୍ଣ",
+      "activate": "ସଂଯୋଜକ ସକ୍ରିୟ ହୋଇଛନ୍ତି",
+      "transfer": "ସଂଯୋଜକ ସ୍ଥାନାନ୍ତର ସଞ୍ଚୟ ହୋଇଛି",
+      "suspend": "ସଂଯୋଜକ ନିଲମ୍ବିତ ହୋଇଛନ୍ତି",
+      "reactivate": "ସଂଯୋଜକ ପୁନଃ ସକ୍ରିୟ ହୋଇଛନ୍ତି",
+      "archive": "ସଂଯୋଜକ ସଂରକ୍ଷିତ ହୋଇଛନ୍ତି",
+      "auditRecorded": "ପ୍ରୋଫାଇଲ୍ ଓ କମାଣ୍ଡ ସେଣ୍ଟର୍ ବର୍ତ୍ତମାନ ସତେଜ ସର୍ଭର ସ୍ନାପସଟ୍ ଦେଖାଉଛି।"
+    },
+    "errors": {
+      "geographyRequired": "ଏକ ବୈଧ କ୍ଷେତ୍ର ବାଛନ୍ତୁ।",
+      "actionFailed": "ଜୀବନଚକ୍ର କାର୍ଯ୍ୟ ସମ୍ପୂର୍ଣ୍ଣ ହୋଇପାରିଲା ନାହିଁ।"
     }
   }
 }

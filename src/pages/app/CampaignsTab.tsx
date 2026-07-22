@@ -77,6 +77,12 @@ import {
   signerFieldLabel
 } from "../../utils/campaign";
 import { downloadQrPosterSvg, getCampaignReferralUrl } from "../../utils/referrals";
+import {
+  shouldWarnBeforeReplacingCampaignAdmin,
+  describeCampaignAdminProvisioningStatus,
+  CAMPAIGN_ADMIN_PROVISIONING_MESSAGES
+} from "../../utils/campaignAdminProvisioning";
+import type { CampaignEntitlements } from "../../entitlements";
 import { useTranslation } from "../../i18n";
 
 interface CampaignsTabProps {
@@ -111,6 +117,11 @@ interface CampaignsTabProps {
   onUploadAuthorityCsv: (file: File) => void;
   onUpdateCampaignMedia: (file: File) => void;
   onUpdateCampaignDonationQr: (file: File) => void;
+  onProvisionCampaignAdmin: (email: string, password: string) => void | Promise<void>;
+  campaignAdminProvisioningPending: boolean;
+  campaignAdminProvisioningMessage: string;
+  campaignEntitlements: CampaignEntitlements;
+  onNavigateToUpgrade: () => void;
 }
 
 const wizardSteps = [
@@ -249,10 +260,18 @@ export function CampaignsTab({
   onUploadLocationCsv,
   onUploadAuthorityCsv,
   onUpdateCampaignMedia,
-  onUpdateCampaignDonationQr
+  onUpdateCampaignDonationQr,
+  onProvisionCampaignAdmin,
+  campaignAdminProvisioningPending,
+  campaignAdminProvisioningMessage,
+  campaignEntitlements,
+  onNavigateToUpgrade
 }: CampaignsTabProps) {
   const { t } = useTranslation();
   const [activeStep, setActiveStep] = useState(0);
+  // Ephemeral, local-only input for provisioning/re-provisioning a Campaign Admin password.
+  // Deliberately NOT bound to campaignDraft -- never persisted into the workspace JSON blob.
+  const [campaignAdminNewPassword, setCampaignAdminNewPassword] = useState("");
   const [templates, setTemplates] = useState<CampaignTemplate[]>([]);
   const [templateCategories, setTemplateCategories] = useState<string[]>(["All"]);
   const [templateSearch, setTemplateSearch] = useState("");
@@ -1227,15 +1246,57 @@ export function CampaignsTab({
                     onChange={(e) => setCampaignDraft({ ...campaignDraft, adminEmail: e.target.value })}
                   />
                 </Field>
-                <Field label={t("campaignAdmin.fields.adminPasscode")}>
-                  <PasswordField
-                    placeholder={t("campaignAdmin.login.passcodePlaceholder")}
-                    value={campaignDraft.adminPasscode ?? ""}
-                    onChange={(e) =>
-                      setCampaignDraft({ ...campaignDraft, adminPasscode: e.target.value })
-                    }
-                  />
-                </Field>
+                <div className="field campaign-admin-provisioning">
+                  <span className="label">Campaign Admin access</span>
+                  {campaignEntitlements.features.campaign_admin_access !== true ? (
+                    <>
+                      <p className="info-message">{CAMPAIGN_ADMIN_PROVISIONING_MESSAGES.planRestricted}</p>
+                      <button className="secondary-button" type="button" onClick={onNavigateToUpgrade}>
+                        {CAMPAIGN_ADMIN_PROVISIONING_MESSAGES.upgradeAction}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="info-message">
+                        Provisioning creates (or safely reuses) a real login and grants this campaign's
+                        Campaign Admin access. The password is never saved here -- it is only sent once,
+                        directly to the provisioning service.
+                      </p>
+                      {describeCampaignAdminProvisioningStatus(campaignDraft.adminProvisioningStatus) && (
+                        <p className="info-message">
+                          {describeCampaignAdminProvisioningStatus(campaignDraft.adminProvisioningStatus)}
+                        </p>
+                      )}
+                      {shouldWarnBeforeReplacingCampaignAdmin(campaignDraft.adminProvisioningStatus) && (
+                        <p className="info-message warning">
+                          {CAMPAIGN_ADMIN_PROVISIONING_MESSAGES.replacementWarning}
+                        </p>
+                      )}
+                      <PasswordField
+                        placeholder="New Campaign Admin password (min. 8 characters)"
+                        value={campaignAdminNewPassword}
+                        onChange={(e) => setCampaignAdminNewPassword(e.target.value)}
+                      />
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        disabled={campaignAdminProvisioningPending || !campaignDraft.adminEmail || campaignAdminNewPassword.trim().length < 8}
+                        onClick={async () => {
+                          await onProvisionCampaignAdmin(campaignDraft.adminEmail ?? "", campaignAdminNewPassword.trim());
+                          setCampaignAdminNewPassword("");
+                        }}
+                      >
+                        {campaignAdminProvisioningPending
+                          ? "Provisioning..."
+                          : "Provision / Re-provision Campaign Admin"}
+                      </button>
+                      {campaignAdminProvisioningMessage && (
+                        <p className="info-message">{campaignAdminProvisioningMessage}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+
                 <Field label={t("campaignAdmin.fields.qrLabel")}>
                   <input
                     value={campaignDraft.qrLabel}

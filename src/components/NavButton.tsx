@@ -3,9 +3,12 @@ import type { ReactNode } from "react";
 export type Tab =
   | "dashboard"
   | "command"
+  | "fund"
+  | "prove"
   | "campaigns"
   | "public"
   | "movement"
+  | "coordinators"
   | "growth"
   | "scans"
   | "reports"

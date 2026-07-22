@@ -154,6 +154,7 @@ const publicSigningCopyEn = {
   storedSecurely: "Signature stored securely",
   routedAuthority: "Petition routed to selected authority",
   supportCheckbox: "I have read and support the campaign appeal/cause shown above.",
+  consentRequiredInline: "Please review and accept both consent confirmations before signing.",
   doneBody: "Your voice has been recorded. Share this campaign to help it reach the next supporter.",
   locationLabels: {
     country: "Country",
@@ -223,6 +224,7 @@ const publicSigningCopy: Record<Language, typeof publicSigningCopyEn> = {
     storedSecurely: "हस्ताक्षर सुरक्षित रूप से संग्रहीत",
     routedAuthority: "याचिका चुने गए अधिकारी तक भेजी जाएगी",
     supportCheckbox: "मैंने ऊपर दिखाए गए अभियान अपील/कारण को पढ़ा है और समर्थन करता/करती हूं।",
+    consentRequiredInline: "हस्ताक्षर करने से पहले दोनों सहमति पुष्टिकरण स्वीकार करें।",
     doneBody: "आपकी आवाज दर्ज हो गई है। अगले समर्थक तक पहुंचने के लिए अभियान साझा करें।",
     locationLabels: {
       country: "देश",
@@ -289,6 +291,7 @@ const publicSigningCopy: Record<Language, typeof publicSigningCopyEn> = {
     storedSecurely: "ସହି ସୁରକ୍ଷିତ ଭାବେ ସଂରକ୍ଷିତ",
     routedAuthority: "ଆବେଦନ ଚୟିତ କର୍ତ୍ତୃପକ୍ଷଙ୍କୁ ପଠାଯିବ",
     supportCheckbox: "ମୁଁ ଉପରେ ଦେଖାଯାଇଥିବା ଅଭିଯାନ ଅପିଲ/କାରଣ ପଢିଛି ଏବଂ ସମର୍ଥନ କରୁଛି।",
+    consentRequiredInline: "ସହି କରିବା ପୂର୍ବରୁ ଦୁଇଟି ସମ୍ମତି ନିଶ୍ଚିତକରଣ ଗ୍ରହଣ କରନ୍ତୁ।",
     doneBody: "ଆପଣଙ୍କ ଆବାଜ ରେକର୍ଡ ହୋଇଛି। ପରବର୍ତ୍ତୀ ସମର୍ଥକଙ୍କୁ ପହଞ୍ଚିବା ପାଇଁ ଅଭିଯାନ ସେୟାର କରନ୍ତୁ।",
     locationLabels: {
       country: "ଦେଶ",
@@ -347,6 +350,8 @@ export function PublicCampaignPage({
   const locationParticipation = campaign.district || restrictedPublicForm.district || t("public.notCapturedYet");
   const requiredFields = campaign.requiredFields ?? [];
   const copy = publicSigningCopy[language];
+  const displayPublicMessage =
+    publicMessage === "consent_required" ? t("public.consentRequiredInline") : publicMessage;
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
     requiredFields.includes(field) ? `${label} *` : label;
   const publicUrl = getCampaignPublicUrl(organization, campaign);
@@ -1032,10 +1037,10 @@ export function PublicCampaignPage({
                 <span><CheckCircle2 size={18} /> {copy.routedAuthority}</span>
               </div>
               <label className="check-row">
-                <input required type="checkbox" /> {copy.supportCheckbox}
+                <input required type="checkbox" name="supportAppealConsent" /> {copy.supportCheckbox}
               </label>
               <label className="check-row">
-                <input required type="checkbox" /> {campaign.consentText}
+                <input required type="checkbox" name="campaignConsent" /> {campaign.consentText}
               </label>
               {campaign.donationEnabled && <DonationCard campaign={campaign} />}
               <div className="wizard-actions">
@@ -1059,7 +1064,7 @@ export function PublicCampaignPage({
             </div>
           )}
 
-          {publicMessage && <p className="success-message">{publicMessage}</p>}
+          {displayPublicMessage && <p className="success-message">{displayPublicMessage}</p>}
           {hasSignedCampaign && lastSignedSigner && (
             <ViralPostSignExperience
               campaign={campaign}

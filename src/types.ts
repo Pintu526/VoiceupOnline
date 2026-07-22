@@ -4,6 +4,26 @@ export type SignatureSource = "online" | "scan" | "field";
 
 export type VerificationStatus = "verified" | "pending" | "duplicate" | "rejected";
 
+export type SupporterConfirmationStatus =
+  | "pending_confirmation"
+  | "not_requested"
+  | "confirmed"
+  | "expired"
+  | "suppressed";
+
+export type ConfirmationChannel = "sms" | "whatsapp";
+
+export type ConfirmationQueueStatus =
+  | "queued"
+  | "blocked_no_consent"
+  | "blocked_invalid_mobile"
+  | "ready"
+  | "sending"
+  | "sent"
+  | "delivered"
+  | "failed"
+  | "suppressed";
+
 export type CampaignCategory =
   | "Civic"
   | "Environment"
@@ -21,7 +41,7 @@ export type BillingPlan =
   | "Enterprise"
   | "Professional";
 
-export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled";
+export type SubscriptionStatus = "Trial" | "Active" | "Past due" | "Cancelled" | "Suspended";
 export type BillingCadence =
   | "monthly"
   | "quarterly"
@@ -31,6 +51,61 @@ export type BillingCadence =
   | "feature_based"
   | "enterprise_quote";
 export type PrepaidWalletMode = "online_payment" | "cash" | "donation" | "manual";
+
+// ─── Plan/subscription entitlement engine ──────────────────────────────────
+// These types back the centralized entitlement engine in `src/entitlements/`.
+// Never add plan-name comparisons elsewhere in the app; extend these types
+// and `src/entitlements/featureKeys.ts` instead.
+export type EntitlementAddOnKind =
+  | "storage_mb"
+  | "operator_seats"
+  | "sms_credits"
+  | "whatsapp_credits"
+  | "ocr_pages"
+  | "ai_credits"
+  | "feature";
+
+export interface PurchasedEntitlementAddOn {
+  id: string;
+  kind: EntitlementAddOnKind;
+  featureKey?: string;
+  quantity: number;
+  priceInr: number;
+  purchasedAt: string;
+  expiresAt?: string;
+}
+
+export type EntitlementLifecycleAction =
+  | "plan_upgraded"
+  | "plan_downgrade_scheduled"
+  | "plan_downgrade_applied"
+  | "subscription_renewed"
+  | "subscription_extended"
+  | "subscription_suspended"
+  | "subscription_reactivated"
+  | "subscription_cancelled"
+  | "billing_cycle_changed"
+  | "add_on_purchased"
+  | "entitlements_backfilled";
+
+export interface EntitlementAuditEntry {
+  id: string;
+  at: string;
+  actor: string;
+  action: EntitlementLifecycleAction;
+  fromPlan?: BillingPlan;
+  toPlan?: BillingPlan;
+  fromStatus?: SubscriptionStatus;
+  toStatus?: SubscriptionStatus;
+  reason?: string;
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export interface ScheduledPlanChange {
+  toPlan: BillingPlan;
+  effectiveAt: string;
+  requestedAt: string;
+}
 
 export type AuthorityTargetLevel = "district" | "state" | "country";
 export type AuthoritySelectionMode = "admin_enforced" | "public_choice";
@@ -47,9 +122,19 @@ export type AuditAction =
   | "campaign.archived"
   | "campaign.published"
   | "campaign.signed"
+  | "campaign.admin_provisioned"
   | "location.added"
   | "location.deleted"
   | "scan.approved"
+  | "scan.approval_requested"
+  | "scan.approval_retried"
+  | "scan.approval_conflict"
+  | "scan.duplicate_blocked"
+  | "scan.validation_failed"
+  | "scan.consent_missing"
+  | "scan.batch_started"
+  | "scan.batch_completed"
+  | "scan.batch_partial_failure"
   | "signer.status_updated"
   | "integration.updated"
   | "auth.login";
@@ -112,6 +197,13 @@ export interface Campaign {
   adminUrl: string;
   adminEmail: string;
   adminPasscode: string;
+  /**
+   * Backward-compatible, optional provisioning status for the real Supabase
+   * Auth-backed Campaign Admin assignment. Undefined (legacy campaigns saved
+   * before this field existed) is treated the same as "unprovisioned" by the
+   * UI. Never itself a credential -- purely a display/workflow state.
+   */
+  adminProvisioningStatus?: "unprovisioned" | "provisioned" | "provisioning_failed";
   qrLabel: string;
   heroImage: string;
   heroImagePosition: string;
@@ -155,6 +247,54 @@ export interface Signer {
   reviewerNote?: string;
   scanFileName?: string;
   scanFileUrl?: string;
+  scanFilePath?: string;
+  sourceScanItemId?: string;
+  sourceBatchId?: string;
+  collectorId?: string;
+  collectorName?: string;
+  capturedAt?: string;
+  paperConsentRecorded?: boolean;
+  smsConsent?: boolean;
+  whatsappConsent?: boolean;
+  noOngoingCommunications?: boolean;
+  consentPurpose?: string;
+  consentCapturedAt?: string;
+  consentCapturedBy?: string;
+  confirmationStatus?: SupporterConfirmationStatus;
+  approvalKey?: string;
+  sourceRowFingerprint?: string;
+}
+
+export interface ConfirmationQueueItem {
+  id: string;
+  workspaceId: string;
+  campaignId: string;
+  supporterId: string;
+  channel: ConfirmationChannel;
+  templateKey: "paper_support_confirmation";
+  destinationMasked: string;
+  status: ConfirmationQueueStatus;
+  attemptCount: number;
+  createdAt: string;
+  sentAt?: string;
+  failedAt?: string;
+  failureReason?: string;
+  providerMessageId?: string;
+}
+
+export interface ScanCaptureMetadata {
+  ocrDiagnosticId?: string;
+  sourceBatchId: string;
+  collectorId: string;
+  collectorName: string;
+  capturedAt: string;
+  paperConsentRecorded: boolean;
+  smsConsent: boolean;
+  whatsappConsent: boolean;
+  noOngoingCommunications: boolean;
+  consentPurpose: string;
+  consentCapturedAt?: string;
+  consentCapturedBy?: string;
 }
 
 export interface AuthorityRule {
@@ -212,6 +352,25 @@ export interface Organization {
     panchayat?: string;
     lockLevel?: LocationGovernanceLevel;
   };
+  // Entitlement engine bookkeeping. All optional/backfillable so campaigns and
+  // organizations created before this architecture keep working unchanged --
+  // see `src/entitlements/migration.ts`.
+  subscriptionId?: string;
+  renewsAt?: string;
+  billingCycleAnchor?: string;
+  suspendedAt?: string;
+  suspendedReason?: string;
+  cancelledAt?: string;
+  cancelAtPeriodEnd?: boolean;
+  scheduledPlanChange?: ScheduledPlanChange | null;
+  addOns?: PurchasedEntitlementAddOn[];
+  entitlementAuditLog?: EntitlementAuditEntry[];
+  bonusStorageMb?: number;
+  bonusOperatorSeats?: number;
+  bonusSmsCredits?: number;
+  bonusWhatsappCredits?: number;
+  bonusOcrPages?: number;
+  bonusAiCredits?: number;
 }
 
 export interface AuditLogEntry {
@@ -284,6 +443,24 @@ export interface ScanReviewItem {
   parsedSigner: Omit<Signer, "id" | "campaignId" | "source" | "status" | "signedAt">;
   status: "Needs review" | "Approved" | "Rejected";
   createdAt: string;
+  filePath?: string;
+  sourceBatchId?: string;
+  collectorId?: string;
+  collectorName?: string;
+  capturedAt?: string;
+  paperConsentRecorded?: boolean;
+  smsConsent?: boolean;
+  whatsappConsent?: boolean;
+  noOngoingCommunications?: boolean;
+  consentPurpose?: string;
+  consentCapturedAt?: string;
+  consentCapturedBy?: string;
+  uploadFingerprint?: string;
+  sourceRowFingerprint?: string;
+  approvalKey?: string;
+  supporterId?: string;
+  reviewVersion?: number;
+  historicalLinkUncertain?: boolean;
 }
 
 export interface SuggestedFeature {

@@ -3,7 +3,6 @@ import {
   corsHeaders,
   createAdminClient,
   getSigners,
-  hasDuplicateSigner,
   jsonResponse,
   normalizePhone,
   parseJson,
@@ -11,6 +10,12 @@ import {
   subscriptionBlockReason,
   writeWorkspace
 } from "../_shared/voiceup.ts";
+import {
+  CONSENT_REQUIRED_CODE,
+  findExistingDuplicateSigner,
+  validatePublicSigningConsent
+} from "./logic.ts";
+import { fetchCanonicalPublishedCampaignBySlug } from "../_shared/publicCampaignIndex.ts";
 
 function createId(prefix: string) {
   const bytes = new Uint8Array(6);
@@ -24,31 +29,6 @@ function createReferralCode(campaignId: string, seed: string) {
   return clean.slice(-10) || createId("ref").slice(-10).toUpperCase();
 }
 
-async function findPublishedCampaignBySlug(
-  admin: ReturnType<typeof createAdminClient>,
-  slug: string
-): Promise<{ workspaceId: string; state: any; campaign: any } | null> {
-  const { data, error } = await admin.from("voiceup_workspaces").select("id, data");
-  if (error) throw error;
-
-  for (const row of data ?? []) {
-    const state = row.data;
-    const campaign = Array.isArray(state?.campaigns)
-      ? state.campaigns.find((item: any) => item?.slug === slug && item?.status === "Published")
-      : null;
-
-    if (campaign) {
-      return {
-        workspaceId: String(row.id),
-        state,
-        campaign
-      };
-    }
-  }
-
-  return null;
-}
-
 function getRequiredValue(signer: any, field: string) {
   return String(signer?.[field] ?? "").trim();
 }
@@ -59,23 +39,36 @@ Deno.serve(async (req) => {
     const body = await parseJson(req);
     const slug = String(body?.slug ?? "").trim();
     const signerInput = body?.signer ?? {};
+    const consentInput = body?.consent ?? {};
     if (!slug) return jsonResponse({ error: "Campaign slug is required." }, 400);
 
     const admin = createAdminClient();
-    const resolved = await findPublishedCampaignBySlug(admin, slug);
-    if (!resolved) {
+    const resolved = await fetchCanonicalPublishedCampaignBySlug(admin, slug);
+    if (!resolved.ok) {
       return jsonResponse({ error: "Campaign is not available for signing." }, 404);
     }
 
-    const workspaceId = resolved.workspaceId;
-    const state = (await readWorkspace(admin, workspaceId)) ?? resolved.state;
+    const workspaceId = resolved.row.workspace_id;
+    const campaignId = resolved.row.campaign_id;
+    const state = await readWorkspace(admin, workspaceId);
     const campaign = Array.isArray(state?.campaigns)
-      ? state.campaigns.find((item: any) => item?.id === resolved.campaign.id && item?.slug === slug)
+      ? state.campaigns.find((item: any) => item?.id === campaignId && item?.slug === slug)
       : null;
     if (!campaign || campaign.status !== "Published") return jsonResponse({ error: "Campaign is not available for signing." }, 404);
 
     const subscriptionReason = subscriptionBlockReason(state?.organization);
     if (subscriptionReason) return jsonResponse({ error: subscriptionReason }, 402);
+
+    const consentValidation = validatePublicSigningConsent(consentInput, String(campaign?.consentText ?? ""));
+    if (!consentValidation.ok) {
+      return jsonResponse(
+        {
+          error: consentValidation.message,
+          code: CONSENT_REQUIRED_CODE
+        },
+        400
+      );
+    }
 
     const phone = normalizePhone(String(signerInput.phone ?? ""));
 
@@ -101,7 +94,24 @@ Deno.serve(async (req) => {
         id: campaign.selectedAuthorityId ?? "",
         name: signerInput.selectedAuthorityName || "Selected authority"
       };
-    const duplicate = hasDuplicateSigner(signerInput, signers, campaign.id);
+    const duplicateSigner = findExistingDuplicateSigner(signers, campaign.id, signerInput);
+    if (duplicateSigner) {
+      return jsonResponse({
+        signer: duplicateSigner,
+        message: "This supporter has already signed this campaign.",
+        metrics: calculateMetrics(campaign, signers)
+      });
+    }
+
+    const consentEvidence = {
+      accepted: consentValidation.evidence.accepted,
+      textSnapshot: consentValidation.evidence.textSnapshot,
+      version: consentValidation.evidence.version,
+      acceptedAt: consentValidation.evidence.acceptedAt,
+      source: consentValidation.evidence.source,
+      campaignId: campaign.id,
+      workspaceId
+    };
     const signer = {
       id: createId("sig"),
       campaignId: campaign.id,
@@ -126,9 +136,16 @@ Deno.serve(async (req) => {
       referredByPhoneOrCode: String(signerInput.referredByPhoneOrCode ?? "").trim(),
       referralSource: signerInput.referralSource || undefined,
       source: "online",
-      status: duplicate ? "duplicate" : "verified",
+      status: "verified",
       signedAt: new Date().toISOString(),
-      reviewerNote: duplicate ? "Possible duplicate signature." : undefined
+      consentAccepted: true,
+      consentTextSnapshot: consentEvidence.textSnapshot,
+      consentVersion: consentEvidence.version,
+      consentAcceptedAt: consentEvidence.acceptedAt,
+      consentSource: consentEvidence.source,
+      consentCampaignId: campaign.id,
+      consentWorkspaceId: workspaceId,
+      consentEvidence
     };
 
     const nextState = {
@@ -151,9 +168,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({
       signer,
-      message: duplicate
-        ? "Thanks. This looks like a duplicate, so it was sent to review."
-        : "Thank you. Your signature has been recorded.",
+      message: "Thank you. Your signature has been recorded.",
       metrics: calculateMetrics(campaign, nextState.signers)
     });
   } catch (error) {

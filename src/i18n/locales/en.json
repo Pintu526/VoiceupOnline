@@ -39,58 +39,81 @@
       "verified": "Reviewed"
     },
     "landing": {
-      "regionLabel": "Explore the VoiceUp campaign journey",
-      "eyebrow": "One movement, one connected journey",
-      "title": "See how VoiceUp turns an idea into accountable public action",
-      "subtitle": "Follow the campaign journey from creation and field collection to transparent reporting.",
+      "regionLabel": "Explore the VoiceUp guided story",
+      "eyebrow": "Business OS guided story",
+      "title": "One Voice Can Create Change",
+      "subtitle": "Business OS helps people organize, collaborate and act together with transparency.",
       "playLabel": "Play guided explanation",
+      "journey": {
+        "aria": "Primary landing actions",
+        "organize": "PLAN",
+        "act": "⚡ ACT",
+        "explore": "Explore Business OS"
+      },
+      "decision": {
+        "aria": "Final action choices",
+        "organizeTitle": "PLAN",
+        "organizeText": "Prepare structure, people, budget, coverage, and subscription before execution.",
+        "actTitle": "⚡ ACT",
+        "actText": "Join, support, volunteer, donate, sign, participate and help create meaningful change."
+      },
       "activation": {
-        "eyebrow": "Begin with clarity",
-        "title": "Start with a campaign",
-        "description": "Choose the right operating capacity as your movement grows.",
+        "eyebrow": "Choose your path",
+        "title": "Organize leadership and immediate action in one platform",
+        "description": "Start with the same safe onboarding entry point for either journey.",
         "usageNote": "Communication and advanced services may depend on usage.",
-        "cta": "Start with a campaign"
+        "cta": "Begin now"
       },
       "slides": {
-        "campaignCreation": {
-          "title": "Campaign Creation",
-          "description": "Turn a clear idea into a structured, launch-ready campaign.",
-          "narration": "Begin with the change you want to see. VoiceUp guides the campaign structure, public appeal, authority context, and essential launch details in one clear flow."
+        "opening": {
+          "title": "One Voice Can Create Change",
+          "description": "Business OS helps people organize, collaborate and act together with transparency.",
+          "narration": "Every meaningful change starts when people choose to organize and act together. VoiceUp brings leadership and participation into one trusted flow."
         },
-        "paperDigitization": {
-          "title": "Paper Digitization",
-          "description": "Bring reviewed paper signatures into the same campaign journey.",
-          "narration": "Paper support can join the digital movement. Review each record, correct the captured details, identify possible duplicates, and keep every supporter connected to the right campaign."
+        "problem": {
+          "title": "People care. Action often breaks down.",
+          "description": "Momentum gets lost when people, communication, volunteers, funds, and follow-up stay disconnected.",
+          "narration": "Good intentions are common, but disconnected tools create confusion. Business OS connects people, tasks, evidence, and progress in one place."
         },
-        "supporters": {
-          "title": "Supporters",
-          "description": "Understand every supporter as part of a growing movement.",
-          "narration": "Support does not end with a signature. VoiceUp brings supporter records together so teams can understand participation, verify activity, and communicate with appropriate consent."
+        "organize": {
+          "title": "Organize people around shared purpose",
+          "description": "Build structure, assign roles, and coordinate long-term initiatives.",
+          "narration": "Create organizations, grow core teams, coordinate members and volunteers, and keep everyone focused on the next meaningful action."
         },
-        "volunteers": {
-          "title": "Volunteers",
-          "description": "Coordinate the people expanding campaign reach.",
-          "narration": "Volunteers carry campaigns into communities. Organize field participation, referral activity, and local follow-up so effort remains visible, coordinated, and connected to campaign outcomes."
+        "initiatives": {
+          "title": "Launch initiatives people can act on",
+          "description": "Move from concern to coordinated public and community action.",
+          "narration": "Create and publish initiatives, invite participation, and keep real-world action moving after the first response."
         },
-        "timeline": {
-          "title": "Timeline",
-          "description": "Keep milestones and next steps visible from launch to resolution.",
-          "narration": "A clear timeline turns activity into a public journey. Track important milestones, campaign updates, authority communication, and the next action without losing historical context."
+        "offlineOnline": {
+          "title": "Connect offline and online effort",
+          "description": "Bring paper participation and field evidence into one trusted record.",
+          "narration": "Ground activity matters. Digitize signatures, photos, and evidence while preserving history and context."
+        },
+        "engagement": {
+          "title": "Inspire action, not just messages",
+          "description": "Reach people in the right language and channel with clear next steps.",
+          "narration": "Invite people to sign, attend, volunteer, support, and share. Follow up responsibly with measurable responses."
         },
         "transparency": {
-          "title": "Transparency",
-          "description": "Present progress, evidence, and accountability clearly.",
-          "narration": "Public trust grows when progress is understandable. Present supporting context, verified participation, updates, and responsible funding information without overstating what the campaign has achieved."
+          "title": "Build trust through transparency",
+          "description": "Plan, collect, spend, and report with visible purpose.",
+          "narration": "Track budgets, collections, approvals, expenses, and evidence with responsible transparency appropriate for each initiative."
         },
-        "reports": {
-          "title": "Reports",
-          "description": "Turn participation into useful operational summaries.",
-          "narration": "Reports help campaign teams move from activity to decisions. Review supporter growth, locations, channels, and progress in formats that can support partners and authorities."
+        "growth": {
+          "title": "Turn support into sustainable momentum",
+          "description": "Align partners, volunteers, leaders, sponsors, and communities through clear roles.",
+          "narration": "Coordinate people and partnerships with shared goals, measurable progress, and transparent recognition."
         },
-        "aiCopilot": {
-          "title": "AI Campaign Copilot",
-          "description": "Use guided AI assistance to shape clearer campaign content.",
-          "narration": "The AI Campaign Copilot helps organize an initial idea into stronger campaign language and practical next steps. Every suggestion remains available for human review before use."
+        "impact": {
+          "title": "See real-world impact",
+          "description": "Understand what changed because people acted together.",
+          "narration": "Track participation, volunteers, transparent fund usage, events, and outcomes. Use real records to guide next decisions."
+        },
+        "decision": {
+          "title": "What do you want to start today?",
+          "description": "Choose your path: organize leadership or act immediately.",
+          "narration": "Choose Organize to build structure and lead long-term initiatives. Choose Act to join, support, volunteer, and help now."
         }
       }
     },
@@ -1777,6 +1800,30 @@
     "common": {
       "rows": "rows"
     },
+    "workflow": {
+      "title": "Field Collection",
+      "progressLabel": "Field collection workflow",
+      "stepLabel": "Step",
+      "steps": {
+        "captureUpload": "Capture / Upload",
+        "aiReview": "AI Review",
+        "humanVerify": "Human Verify",
+        "approve": "Approve"
+      },
+      "notDetected": "Not detected",
+      "confidence": {
+        "high": "High confidence",
+        "low": "Low confidence",
+        "missing": "Missing"
+      },
+      "verifyFields": "Verify fields",
+      "continueToApprove": "Continue to Approve",
+      "approveSupporter": "Approve Supporter",
+      "supporterAdded": "✓ 1 supporter added",
+      "nextReview": "Next Review",
+      "back": "Back",
+      "advanced": "Advanced"
+    },
     "noCampaign": {
       "title": "No campaign for scans",
       "description": "Create a campaign before importing hard-copy signatures or OCR scan batches."
@@ -1797,6 +1844,7 @@
     "fields": {
       "name": "Name",
       "phone": "Phone",
+      "mobile": "Mobile",
       "email": "Email",
       "state": "State",
       "district": "District",
@@ -1855,9 +1903,34 @@
       "manualCorrection": "Manual OCR correction or paste",
       "processing": "OCR processing is running..."
     },
+    "capture": {
+      "takePhoto": "Take photo",
+      "chooseImage": "Choose existing image",
+      "previewAlt": "Paper signature capture preview",
+      "rotate": "Rotate",
+      "retake": "Retake",
+      "batchId": "Batch ID",
+      "collectorId": "Collector ID",
+      "collectorName": "Collector name",
+      "consentPurpose": "Consent purpose",
+      "consentTitle": "Paper and communication consent",
+      "paperConsent": "Paper signer agreed to digital record creation",
+      "smsConsent": "Signer agreed to SMS confirmation",
+      "whatsappConsent": "Signer agreed to WhatsApp confirmation/updates",
+      "noOngoing": "No ongoing communications",
+      "uploadFailed": "Secure upload failed. The photo and corrections have been retained.",
+      "fileTooLarge": "The image exceeds the 12 MB limit.",
+      "unsupportedFile": "Choose a supported image file.",
+      "privateOpenFailed": "Private evidence could not be opened.",
+      "uploading": "Uploading securely...",
+      "secureUpload": "Securely upload and create review item",
+      "openPrivateEvidence": "Open private evidence",
+      "privateEvidenceAlt": "Authenticated paper evidence preview",
+      "captureNext": "Capture next signer"
+    },
     "manual": {
       "title": "Manual entry",
-      "description": "Paste typed supporter details or corrected OCR text, then create a review item before approval.",
+      "description": "Enter supporter details, then create a review item before approval.",
       "createReview": "Create review item"
     },
     "review": {
@@ -1865,11 +1938,37 @@
       "batchReview": "Batch review",
       "rowsWaiting": "rows waiting",
       "batchApprove": "Batch approve into supporters",
+      "processing": "Approving...",
+      "batchProcessing": "Batch approval in progress...",
       "batchReject": "Batch reject",
       "empty": "No field collection items are waiting for review.",
       "extractedText": "Extracted text",
+      "supporterDetails": "Supporter details",
+      "supporterDetailsHelp": "Confirm the OCR-filled fields before approval.",
+      "additionalFields": "Additional fields",
+      "viewOcrText": "View OCR Text",
       "approveSigner": "Approve into signer list",
+      "alreadyApprovedMessage": "This paper record has already been approved.",
+      "approvalFailed": "Approval could not be completed. The paper record remains in review.",
+      "approvedCount": "Approved",
+      "alreadyApprovedCount": "Already approved",
+      "skippedDuplicateCount": "Skipped as duplicate/already linked",
+      "failedCount": "Failed",
+      "previous": "Previous",
+      "next": "Next",
       "reject": "Reject"
+    },
+    "confirmation": {
+      "title": "Supporter confirmation preview",
+      "senderIdentity": "Sender identity",
+      "campaignName": "Campaign name and URL format",
+      "queue": "Local confirmation queue",
+      "localOnly": "No provider dispatch occurs in this sprint.",
+      "providersDisabled": "SMS and WhatsApp adapters are disabled by default.",
+      "estimatedCost": "Estimated per-message cost",
+      "costPlaceholder": "Provider quote required",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
     },
     "imported": {
       "title": "Imported supporters",
@@ -2056,6 +2155,7 @@
     "enterOtp": "Enter OTP",
     "review": "Review",
     "submitSupport": "Submit support",
+    "consentRequiredInline": "Please review and accept both consent confirmations before signing.",
     "thankYou": "Thank you",
     "welcomeBack": "Welcome back",
     "required": "Required",
@@ -2154,7 +2254,199 @@
       "startFreeCampaign": "Start Free Campaign",
       "createWithAi": "Create campaign with AI",
       "viewPricing": "View pricing",
-      "startOneDay": "Start free for 1 day"
+      "startOneDay": "Start free for 1 day",
+      "organize": "🏢 PLAN",
+      "act": "⚡ ACT",
+      "exploreBusinessOs": "Explore Business OS"
+    },
+    "signIn": {
+      "title": "Sign In",
+      "workspaceAdmin": "VoiceUp Admin",
+      "platformAdmin": "Platform Admin",
+      "mobileAria": "Business OS sign in options",
+      "workspaceAdminHelp": "Manage your organization",
+      "platformAdminHelp": "Authorized operators only"
+    },
+    "applications": {
+      "title": "Business OS Applications",
+      "statusLabel": "Status",
+      "launch": "Launch",
+      "status": {
+        "LIVE": "LIVE",
+        "COMING SOON": "Coming Soon",
+        "IN PROGRESS": "In Progress",
+        "PLANNING": "Planning",
+        "BETA": "Beta",
+        "UNDER MAINTENANCE": "Under Maintenance"
+      },
+      "apps": {
+        "voiceup": {
+          "name": "VoiceUp",
+          "description": "Collective Action Platform"
+        },
+        "goudhan": {
+          "name": "Goudhan",
+          "description": "Livestock Marketplace"
+        },
+        "panditOnline": {
+          "name": "PanditOnline",
+          "description": "Religious Services"
+        },
+        "teachToday": {
+          "name": "TeachToday",
+          "description": "Education Platform"
+        }
+      }
+    },
+    "saas": {
+      "hero": {
+        "brand": "VoiceUp",
+        "title": "VoiceUp Business OS",
+        "subtitle": "One operating system to launch and run trusted public campaigns."
+      },
+      "actions": {
+        "explore": "EXPLORE",
+        "organize": "PLAN",
+        "organizeWithTeam": "PLAN",
+        "act": "ACT",
+        "actWithStartFree": "ACT - Start Free",
+        "startFree": "Start Free",
+        "learnMore": "Learn More",
+        "open": "Open"
+      },
+      "labels": {
+        "status": "Status",
+        "applicationStatus": "Application status"
+      },
+      "status": {
+        "platform": "PLATFORM",
+        "LIVE": "LIVE",
+        "IN PROGRESS": "IN PROGRESS",
+        "COMING SOON": "COMING SOON"
+      },
+      "applications": {
+        "title": "VoiceUp Applications",
+        "subtitle": "One platform, with one live SaaS application and five more in progress."
+      },
+      "carousel": {
+        "eyebrow": "Application Carousel",
+        "title": "Business OS Applications",
+        "subtitle": "Explore live and in-progress products across the VoiceUp platform.",
+        "play": "Play carousel",
+        "timer": "Landing story timer"
+      },
+      "act": {
+        "availableNow": "Available Now",
+        "description": "Start with Campaign now. Future SaaS applications will become available through their own future plan entitlements.",
+        "adminLogin": "Campaign Admin Login",
+        "futureApplications": "Future SaaS applications"
+      },
+      "apps": {
+        "voiceup": {
+          "name": "VoiceUp Platform",
+          "description": "VoiceUp Business OS. One platform for campaign operations, team-building, and trusted growth.",
+          "highlights": { "1": "LEARN MORE", "2": "PLAN", "3": "ACT", "4": "" }
+        },
+        "campaign": {
+          "name": "Campaign SaaS",
+          "description": "Launch transparent collective action with a complete campaign workspace.",
+          "highlights": { "1": "Create and publish campaigns", "2": "Collect digital and paper signatures", "3": "Mobilize supporters and volunteers", "4": "Transparent collective action" }
+        },
+        "goudhan": {
+          "name": "Goudhan Marketplace SaaS",
+          "description": "A trusted indigenous cow-product marketplace for buyers, sellers, and partners.",
+          "highlights": { "1": "Indigenous cow-product marketplace", "2": "Buyer and seller ecosystem", "3": "Partner and promoter onboarding", "4": "Commerce, fulfilment and referral capabilities" }
+        },
+        "panditOnline": {
+          "name": "PanditOnline SaaS",
+          "description": "Trusted priest discovery and managed ritual service booking.",
+          "highlights": { "1": "Trusted priest discovery", "2": "Ritual and service booking", "3": "Provider onboarding and approval", "4": "Scheduling and service management" }
+        },
+        "teachToday": {
+          "name": "TeachToday SaaS",
+          "description": "A marketplace connecting learners with trusted tutors and services.",
+          "highlights": { "1": "Tutor and learner marketplace", "2": "Provider onboarding and verification", "3": "Course or service discovery", "4": "Scheduling and learning support" }
+        },
+        "homeNurseHub": {
+          "name": "Home Nurse Hub SaaS",
+          "description": "Coordinated home-care professional discovery and service delivery.",
+          "highlights": { "1": "Home-care professional discovery", "2": "Nurse onboarding and verification", "3": "Care-service requests", "4": "Scheduling and service coordination" }
+        },
+        "cateringHub": {
+          "name": "Catering Hub SaaS",
+          "description": "Subscription meals, event catering, corporate catering and healthy-food services.",
+          "highlights": { "1": "Subscription meal plans", "2": "Event and corporate catering", "3": "Home catering services", "4": "Includes SuddhaOswada healthy-food offerings" }
+        }
+      }
+    },
+    "gateways": {
+      "backToSelector": "Back to application selector",
+      "backToLanding": "Back to landing",
+      "backToTop": "Back to top",
+      "applications": {
+        "title": "VoiceUp Business OS Applications",
+        "subtitle": "Campaign is live. Other applications are marked as In Progress or Coming Soon."
+      },
+      "compact": {
+        "eyebrow": "Business OS overview",
+        "title": "Choose the path for your application",
+        "subtitle": "Open application details, ACT gateway, or Build Your Team gateway without long scrolling."
+      },
+      "campaignAdmin": {
+        "slugLabel": "Campaign link or campaign ID",
+        "slugPlaceholder": "Paste your campaign link or enter its ID",
+        "validation": "Enter a campaign link or campaign ID to continue."
+      },
+      "team": {
+        "title": "Plan Your Campaign",
+        "subtitle": "Prepare your campaign structure, resources and subscription before execution.",
+        "entitlementNote": "Saved configuration and enabled modules depend on the active subscription after login.",
+        "continue": "Continue to Campaign Planning",
+        "learnMore": "Learn More",
+        "goToAct": "Go to ACT",
+        "backToCampaign": "Back to Campaign"
+      },
+      "act": {
+        "title": "Act on Your Campaign",
+        "subtitle": "Campaign is live with onboarding and admin login. Other applications are currently unavailable.",
+        "startTrial": "Start 1-Day Free Trial",
+        "otherApplications": "Other VoiceUp applications",
+        "optionNew": "Option A - New Customer",
+        "optionExisting": "Option B - Existing Customer",
+        "optionNewDescription": "Create a new organization, confirm the plan, and enter the Campaign Admin workspace.",
+        "optionExistingDescription": "Log into an existing campaign and continue execution according to subscription entitlement.",
+        "optionNewItems": {
+          "1": "Create the first campaign",
+          "2": "Select or confirm the subscription plan",
+          "3": "Configure enabled Campaign features",
+          "4": "Enter the Campaign Admin workspace",
+          "5": "Begin collecting support and managing activity"
+        },
+        "optionExistingItems": {
+          "1": "Configure the campaign according to subscription entitlement",
+          "2": "Publish and share responsibly",
+          "3": "Collect signatures and digitize paper support",
+          "4": "Coordinate team and volunteers",
+          "5": "Track fundraising, progress, and reports"
+        },
+        "goToPlan": "Go to PLAN",
+        "learnMore": "Learn More",
+        "backToCampaign": "Back to Campaign"
+      },
+      "workflowAria": "Application workflow",
+      "plan": {
+        "categoriesAria": "Campaign planning categories",
+        "sections": {
+          "basics": { "title": "Campaign Basics", "items": { "1": "Name", "2": "Purpose", "3": "Campaign type", "4": "Target outcome" } },
+          "team": { "title": "Team and Organization", "items": { "1": "Campaign admin", "2": "Coordinators", "3": "Volunteers", "4": "Role hierarchy" } },
+          "budget": { "title": "Budget and Fundraising", "items": { "1": "Planned budget", "2": "Fundraising goal", "3": "Expense categories", "4": "Transparency approach" } },
+          "coverage": { "title": "Location and Coverage", "items": { "1": "Country", "2": "State", "3": "District", "4": "Online and offline reach" } },
+          "timeline": { "title": "Timeline and Milestones", "items": { "1": "Start date", "2": "Target date", "3": "Signature milestones", "4": "Public events" } },
+          "subscription": { "title": "Subscription and Features", "items": { "1": "Trial or plan status", "2": "Available features", "3": "Upgrade requirements", "4": "Entitlement notice" } },
+          "communication": { "title": "Communication and Growth", "items": { "1": "WhatsApp and SMS", "2": "Social sharing", "3": "Referral", "4": "Volunteer outreach" } },
+          "evidence": { "title": "Evidence and Reporting", "items": { "1": "Images and videos", "2": "Paper signatures", "3": "Expense reporting", "4": "Progress reporting" } }
+        }
+      }
     },
     "hero": {
       "eyebrow": "Clear campaigns. Verified public support.",
@@ -2380,22 +2672,26 @@
       }
     },
     "finalCta": {
-      "eyebrow": "Ready to launch?",
-      "title": "Launch the first campaign, show the value, then choose the plan that fits.",
-      "subtitle": "Voiceup helps people promote their campaign from a real public link: AI campaign copy, field collection, movement CRM, communication hub, and impact reports in one place."
+      "eyebrow": "Ready to begin?",
+      "title": "Choose how you want to create change.",
+      "subtitle": "Organize long-term initiatives or act immediately through trusted, transparent collective action."
     },
     "freeze": {
       "tagline": "Transparent collective action",
       "getStarted": "Get started",
-      "heroEyebrow": "Clear campaigns. Verified public support.",
-      "heroTitle": "Turn public concern into transparent collective action.",
-      "heroSubtitle": "VoiceUp brings campaign creation, verified participation, field collection, authority routing, and accountable reporting into one guided experience.",
+      "heroEyebrow": "BUSINESS OS",
+      "heroTitle": "One Platform. Many Possibilities.",
+      "heroAvailabilityLabel": "Currently Available",
+      "heroAvailabilityApp": "✅ VoiceUp",
+      "heroPoweredBy": "Powered today by VoiceUp.",
+      "heroLeadTitle": "Lead Change Together",
+      "heroSubtitle": "Create organizations, coordinate people, and turn ideas into action.",
       "productEyebrow": "One connected platform",
-      "productTitle": "Everything a credible public campaign needs.",
-      "productSubtitle": "Plan the campaign, collect verified support, coordinate the field, reach the right authority, and report progress with clarity.",
+      "productTitle": "Organize and coordinate action with one operating platform.",
+      "productSubtitle": "VoiceUp helps people, organizations, teams, and communities plan initiatives, mobilize support, and measure real-world impact.",
       "trustEyebrow": "Trust by design",
       "trustTitle": "Built for credible participation and visible accountability.",
-      "trustSubtitle": "Clear campaign asks, verified support, consent-aware collection, authority context, and measurable progress help every movement earn trust.",
+      "trustSubtitle": "Clear purpose, transparent progress, and responsible coordination help people trust collective action.",
       "footerTagline": "VoiceUp — the operating system for transparent collective action."
     },
     "footer": {
@@ -2454,6 +2750,7 @@
       "campaignAdmin": "Campaign admin",
       "publicSigning": "Public signing",
       "movementCrm": "Movement CRM",
+      "coordinatorNetwork": "Coordinator Network",
       "growthEngine": "Growth Engine",
       "fieldCollection": "Field Collection",
       "reports": "Reports",
@@ -2913,5 +3210,291 @@
         }
       }
     }
+  },
+  "coordinatorProfile": {
+    "workspace": "Coordinator 360° Profile",
+    "photoAlt": "profile photo",
+    "notRecorded": "Not recorded in Coordinator Network",
+    "notAvailable": "Not available",
+    "quickActions": "Coordinator profile quick actions",
+    "sections": {
+      "summary": "Coordinator summary",
+      "geography": "Geography",
+      "campaigns": "Assigned campaigns",
+      "hierarchy": "Reporting hierarchy",
+      "activity": "Activity timeline",
+      "performance": "Performance"
+    },
+    "hero": {
+      "reportingManager": "Reporting manager",
+      "noManager": "No reporting manager",
+      "assignedGeography": "Assigned geography",
+      "campaigns": "Campaign count",
+      "lastActivity": "Last activity",
+      "noActivity": "No recorded activity"
+    },
+    "summary": {
+      "fullName": "Full name",
+      "mobile": "Mobile",
+      "email": "Email",
+      "verification": "Mobile verification",
+      "verified": "Verified",
+      "notVerified": "Not verified",
+      "referralCode": "Referral code",
+      "accountStatus": "Account status",
+      "reportingChain": "Reporting chain",
+      "noReportingChain": "No reporting chain",
+      "notProvided": "Not provided"
+    },
+    "geography": {
+      "country": "Country",
+      "state": "State",
+      "district": "District",
+      "block": "Block",
+      "panchayat": "GP",
+      "village": "Village",
+      "ward": "Ward",
+      "coverageHierarchy": "Coverage hierarchy"
+    },
+    "campaigns": {
+      "noCampaigns": "No campaigns are assigned",
+      "assignedOn": "Assigned"
+    },
+    "hierarchy": {
+      "manager": "Manager",
+      "noManager": "No manager assigned",
+      "currentCoordinator": "Current coordinator",
+      "directReports": "Direct reports",
+      "noDirectReports": "No direct reports"
+    },
+    "activity": {
+      "noActivity": "No activity has been recorded",
+      "actions": {
+        "assignment": "Campaign assigned",
+        "created": "Coordinator created",
+        "updated": "Coordinator updated",
+        "status_changed": "Status changed",
+        "deleted": "Coordinator removed",
+        "mobile_verified": "Mobile verified",
+        "photo_updated": "Profile photo updated",
+        "campaigns_changed": "Campaign assignments updated",
+        "referral_linked": "Referral linked",
+        "geography_created": "Geography created",
+        "geography_archived": "Geography archived"
+      }
+    },
+    "performance": {
+      "factualHelp": "Derived only from this coordinator's current assignments, recorded activity, coverage hierarchy, and direct reports.",
+      "assignments": "Assignments",
+      "events": "Recorded events",
+      "levels": "Coverage levels",
+      "reports": "Direct reports"
+    },
+    "actions": {
+      "edit": "Edit",
+      "status": "Status",
+      "viewHierarchy": "View hierarchy",
+      "viewActivity": "View activity",
+      "search": "Search",
+      "back": "Back",
+      "openPhoto": "Open photo"
+    },
+    "roles": {
+      "national_coordinator": "National Coordinator",
+      "state_coordinator": "State Coordinator",
+      "district_coordinator": "District Coordinator",
+      "block_coordinator": "Block Coordinator",
+      "panchayat_coordinator": "Panchayat Coordinator",
+      "ward_coordinator": "Ward Coordinator",
+      "field_coordinator": "Field Coordinator"
+    },
+    "statuses": {
+      "invited": "Invited",
+      "active": "Active",
+      "inactive": "Inactive",
+      "suspended": "Suspended"
+    },
+    "campaignStatuses": {
+      "draft": "Draft",
+      "published": "Published",
+      "paused": "Paused",
+      "closed": "Closed"
+    }
+  },
+  "coordinatorLifecycle": {
+    "notRecorded": "Not recorded",
+    "commandCenter": {
+      "title": "Lifecycle overview",
+      "active": "Active",
+      "suspended": "Suspended",
+      "verified": "Mobile verified",
+      "pending": "Pending activation",
+      "archived": "Archived",
+      "auditWindow": "Archived count is derived from real deletion events available in the current audit snapshot."
+    },
+    "timeline": {
+      "title": "Lifecycle timeline",
+      "previous": "Previous state",
+      "current": "Current state",
+      "next": "Next possible action",
+      "none": "No transition available",
+      "ariaLabel": "Coordinator lifecycle stages",
+      "sourceNote": "Completed milestones are derived only from the coordinator record and server audit events."
+    },
+    "stages": {
+      "draft": "Draft",
+      "invite_ready": "Invite ready",
+      "mobile_verified": "Mobile verified",
+      "active": "Active",
+      "transferred": "Transferred",
+      "suspended": "Suspended",
+      "reactivated": "Reactivated",
+      "archived": "Archived",
+      "inactive": "Inactive"
+    },
+    "card": {
+      "title": "Lifecycle card",
+      "currentStatus": "Current status",
+      "created": "Created",
+      "verified": "Verified",
+      "activated": "Activated",
+      "lastUpdated": "Last updated",
+      "manager": "Current manager",
+      "geography": "Current geography"
+    },
+    "transitions": {
+      "title": "Status transitions",
+      "help": "Only valid actions for the current persisted state are available. Server authorization and optimistic locking remain mandatory.",
+      "readOnly": "You have read-only access. Lifecycle transitions are unavailable."
+    },
+    "actions": {
+      "manage": "Manage lifecycle",
+      "verify_mobile": "Verify mobile",
+      "activate": "Activate",
+      "transfer": "Transfer",
+      "suspend": "Suspend",
+      "reactivate": "Reactivate",
+      "archive": "Archive"
+    },
+    "actionHelp": {
+      "verify_mobile": "Use the existing OTP verification flow",
+      "activate": "Review requirements and activate",
+      "transfer": "Change manager, geography, or campaigns",
+      "suspend": "Temporarily prevent active operation",
+      "reactivate": "Return to active operation",
+      "archive": "Soft archive this coordinator"
+    },
+    "form": {
+      "statusManaged": "Status changes are managed from the lifecycle panel.",
+      "inviteReadyOnSave": "A new coordinator enters the invite-ready lifecycle after verified save."
+    },
+    "wizard": {
+      "eyebrow": "Guided lifecycle action",
+      "titles": {
+        "verify_mobile": "Mobile verification",
+        "activate": "Activation wizard",
+        "transfer": "Transfer wizard",
+        "suspend": "Suspend coordinator",
+        "reactivate": "Reactivate coordinator",
+        "archive": "Archive coordinator"
+      },
+      "close": "Close lifecycle wizard",
+      "progress": "Lifecycle action progress",
+      "steps": {
+        "verification": "Verification",
+        "validation": "Validation",
+        "review": "Review",
+        "complete": "Complete",
+        "manager": "Manager",
+        "geography": "Geography",
+        "campaign": "Campaigns",
+        "confirmation": "Confirmation",
+        "reason": "Reason",
+        "warning": "Warning"
+      },
+      "reasonAuditNote": "The reason is used for operator confirmation; the existing server audit records the lifecycle action.",
+      "done": "Done",
+      "undo": "Undo suspension",
+      "back": "Back",
+      "cancel": "Cancel",
+      "processing": "Processing…",
+      "confirm": "Confirm action",
+      "continue": "Continue"
+    },
+    "validation": {
+      "mobile": "Mobile verification",
+      "geography": "Assigned geography",
+      "manager": "Reporting manager",
+      "ready": "Ready",
+      "missing": "Required information is missing",
+      "noManager": "No reporting manager assigned"
+    },
+    "transfer": {
+      "manager": "Reporting manager",
+      "noManager": "No reporting manager",
+      "geography": "Assigned geography",
+      "campaigns": "Campaign assignments",
+      "noCampaigns": "No campaigns are available"
+    },
+    "suspend": {
+      "reason": "Reason for suspension"
+    },
+    "archive": {
+      "reason": "Reason for archive confirmation",
+      "directReportsBlock": "Reassign direct reports before archiving this coordinator."
+    },
+    "confirmation": {
+      "coordinator": "Coordinator",
+      "verify_mobile": "Confirm mobile verification",
+      "activate": "Confirm activation",
+      "transfer": "Confirm transfer",
+      "suspend": "Confirm suspension",
+      "reactivate": "Confirm reactivation",
+      "archive": "This soft archive cannot be undone with the current Coordinator Network contract."
+    },
+    "review": {
+      "verify_mobile": "Review mobile verification",
+      "activate": "Review activation",
+      "transfer": "Review transfer",
+      "suspend": "Review suspension",
+      "reactivate": "Review reactivation",
+      "archive": "Review archive",
+      "serverValidation": "The existing server authorization, validation, audit, and version checks will run when confirmed."
+    },
+    "success": {
+      "verify_mobile": "Mobile verification completed",
+      "activate": "Coordinator activated",
+      "transfer": "Coordinator transfer saved",
+      "suspend": "Coordinator suspended",
+      "reactivate": "Coordinator reactivated",
+      "archive": "Coordinator archived",
+      "auditRecorded": "The profile and command center now reflect the refreshed server snapshot."
+    },
+    "errors": {
+      "geographyRequired": "Select a valid geography.",
+      "actionFailed": "The lifecycle action could not be completed."
+    }
+  },
+  "framework": {
+    "nav": { "section": "Campaign Command Center", "commandCenter": "Command Center", "organize": "Organize", "plan": "Plan", "act": "Act", "fund": "Fund", "prove": "Prove", "grow": "Grow", "settings": "Settings", "connectedModules": "Connected modules" },
+    "command": {
+      "eyebrow": "Subscriber workspace",
+      "title": "Campaign Command Center",
+      "description": "A focused starting point for campaign readiness, support, team coordination, and proof of progress.",
+      "openModule": "View →",
+      "view": "View →",
+      "movementSummary": "Campaign health at a glance",
+      "status": { "connected": "Connected", "onTrack": "On track" },
+      "overview": { "label": "Campaign overview", "campaignName": "Campaign Name", "campaignStatus": "Campaign Status", "campaignProgress": "Campaign Progress", "lastActivity": "Last Activity", "teamMembers": "Team Members", "supporters": "Supporters", "fundsRaised": "Funds Raised" },
+      "movement": { "risk": "Campaign Risk", "readiness": "Campaign Readiness", "growth": "Support Growth", "pending": "Pending Tasks", "activity": "Recent Activity", "goalProgress": "Supporters toward goal", "activityDetail": "Latest campaign record" },
+      "cards": {
+        "campaign": "Campaign", "campaignPurpose": "Plan the campaign workspace", "organization": "Organization", "organizationPurpose": "Manage workspace settings", "readiness": "Readiness", "readinessPurpose": "Review campaign setup", "supporters": "Supporters", "supportersPurpose": "Engage the supporter base", "fund": "Fund", "fundPurpose": "Prepare the funding workspace", "team": "Team", "teamPurpose": "Coordinate the campaign team", "activity": "Recent Activity", "activityPurpose": "Review the latest workspace activity", "nextAction": "Next Action", "nextActionPurpose": "Continue the most important setup task"
+      },
+      "quickActions": { "plan": "Open Campaign Studio", "prove": "Open Prove", "fund": "Open Fund" }
+    },
+    "placeholder": { "module": "Module", "status": "Coming soon", "comingSoon": "Coming Soon", "connected": "Existing connected components:", "future": "Future capabilities:", "locked": "This framework module is available in the campaign workspace." },
+    "organize": { "title": "Organize", "purpose": "Build the campaign organization around the connected Coordinator Network.", "organization": "Organization", "organizationPurpose": "Define the campaign operating model.", "hierarchy": "Hierarchy", "hierarchyPurpose": "Shape the reporting and locality structure.", "roles": "Roles", "rolesPurpose": "Clarify responsibilities for each team layer.", "invitations": "Invitations", "invitationsPurpose": "Prepare coordinated team onboarding.", "connected": "Coordinator Network", "organizationFuture": "Workspace profiles and operating units", "hierarchyFuture": "Visual hierarchy and delegation", "rolesFuture": "Role templates and permissions", "invitationsFuture": "Invite workflows and onboarding tracking" },
+    "fund": { "title": "Fund", "purpose": "A dashboard foundation for future campaign funding workflows.", "budget": "Budget", "budgetPurpose": "Frame campaign funding needs.", "contributions": "Contributions", "contributionsPurpose": "Prepare a view of incoming support.", "reconciliation": "Reconciliation", "reconciliationPurpose": "Create a future-ready finance review surface.", "connected": "Campaign and organization context", "budgetFuture": "Planning and allocation views", "contributionsFuture": "Contribution tracking and reporting", "reconciliationFuture": "Reconciliation and export workflows" },
+    "prove": { "title": "Prove", "purpose": "A foundation for demonstrating campaign progress and accountability.", "evidence": "Evidence", "evidencePurpose": "Collect campaign proof points.", "timeline": "Timeline", "timelinePurpose": "Present progress over time.", "audit": "Audit", "auditPurpose": "Prepare a transparent activity record.", "connected": "Existing activity and campaign data", "evidenceFuture": "Evidence collections and publishing", "timelineFuture": "Milestones and outcome timeline", "auditFuture": "Evidence-backed audit views" }
   }
 }

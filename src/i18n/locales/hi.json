@@ -39,58 +39,81 @@
       "verified": "समीक्षित"
     },
     "landing": {
-      "regionLabel": "VoiceUp अभियान यात्रा देखें",
-      "eyebrow": "एक आंदोलन, एक जुड़ी यात्रा",
-      "title": "देखें कि VoiceUp एक विचार को जवाबदेह जन कार्रवाई में कैसे बदलता है",
-      "subtitle": "अभियान निर्माण और मैदानी संग्रह से पारदर्शी रिपोर्टिंग तक की यात्रा देखें।",
+      "regionLabel": "VoiceUp निर्देशित कहानी देखें",
+      "eyebrow": "Business OS निर्देशित अनुभव",
+      "title": "एक आवाज़ बदलाव ला सकती है",
+      "subtitle": "Business OS लोगों को पारदर्शिता के साथ संगठित होने, मिलकर काम करने और कार्रवाई करने में मदद करता है।",
       "playLabel": "मार्गदर्शित व्याख्या चलाएँ",
+      "journey": {
+        "aria": "मुख्य विकल्प",
+        "organize": "PLAN",
+        "act": "⚡ ACT",
+        "explore": "Business OS को समझें"
+      },
+      "decision": {
+        "aria": "अंतिम विकल्प",
+        "organizeTitle": "PLAN",
+        "organizeText": "कार्रवाई शुरू करने से पहले संरचना, लोग, बजट और सदस्यता तैयार करें।",
+        "actTitle": "⚡ ACT",
+        "actText": "जुड़िए, सहयोग दीजिए, स्वयंसेवा कीजिए, दान कीजिए, हस्ताक्षर कीजिए और बदलाव में भाग लीजिए।"
+      },
       "activation": {
-        "eyebrow": "स्पष्टता से शुरुआत",
-        "title": "एक अभियान से शुरुआत करें",
-        "description": "आंदोलन बढ़ने पर उसके अनुसार सही संचालन क्षमता चुनें।",
+        "eyebrow": "अपना रास्ता चुनें",
+        "title": "नेतृत्व और भागीदारी दोनों के लिए एक ही प्लेटफ़ॉर्म",
+        "description": "दोनों विकल्प सुरक्षित रूप से उसी मौजूदा ऑनबोर्डिंग प्रवेश से शुरू होते हैं।",
         "usageNote": "संचार और उन्नत सेवाएँ उपयोग पर निर्भर हो सकती हैं।",
-        "cta": "अभियान से शुरुआत करें"
+        "cta": "अभी शुरू करें"
       },
       "slides": {
-        "campaignCreation": {
-          "title": "अभियान निर्माण",
-          "description": "एक स्पष्ट विचार को व्यवस्थित और लॉन्च के लिए तैयार अभियान में बदलें।",
-          "narration": "जिस बदलाव को आप देखना चाहते हैं, उससे शुरुआत करें। VoiceUp अभियान संरचना, जन अपील, प्राधिकरण संदर्भ और आवश्यक लॉन्च विवरण को एक स्पष्ट प्रवाह में व्यवस्थित करता है।"
+        "opening": {
+          "title": "एक आवाज़ बदलाव ला सकती है",
+          "description": "Business OS लोगों को संगठित होने और मिलकर कार्रवाई करने की शक्ति देता है।",
+          "narration": "हर सार्थक बदलाव तब शुरू होता है जब लोग साथ आते हैं। VoiceUp नेतृत्व और भागीदारी को एक भरोसेमंद प्रवाह में जोड़ता है।"
         },
-        "paperDigitization": {
-          "title": "कागजी हस्ताक्षर डिजिटलीकरण",
-          "description": "समीक्षित कागजी हस्ताक्षरों को उसी अभियान यात्रा में लाएँ।",
-          "narration": "कागजी समर्थन भी डिजिटल आंदोलन में जुड़ सकता है। हर रिकॉर्ड की समीक्षा करें, विवरण सुधारें, संभावित नकल पहचानें और समर्थक को सही अभियान से जोड़े रखें।"
+        "problem": {
+          "title": "लोग तैयार हैं, पर कार्रवाई अक्सर बिखर जाती है",
+          "description": "जब लोग, संवाद, स्वयंसेवा, धन और फॉलो-अप अलग-अलग रहते हैं, गति टूट जाती है।",
+          "narration": "इरादा मजबूत होता है, लेकिन बिखरे सिस्टम प्रगति रोक देते हैं। Business OS सबको एक जगह जोड़ता है।"
         },
-        "supporters": {
-          "title": "समर्थक",
-          "description": "हर समर्थक को बढ़ते आंदोलन के हिस्से के रूप में समझें।",
-          "narration": "समर्थन हस्ताक्षर पर समाप्त नहीं होता। VoiceUp समर्थक रिकॉर्ड को एक साथ लाता है ताकि टीम भागीदारी समझे, गतिविधि जाँचे और उचित सहमति के साथ संवाद करे।"
+        "organize": {
+          "title": "साझा उद्देश्य के लिए लोगों को संगठित करें",
+          "description": "संरचना बनाइए, भूमिकाएँ तय कीजिए और दीर्घकालिक पहल चलाइए।",
+          "narration": "संगठन बनाइए, कोर टीम तैयार कीजिए, सदस्यों और स्वयंसेवकों का समन्वय कीजिए।"
         },
-        "volunteers": {
-          "title": "स्वयंसेवक",
-          "description": "अभियान की पहुँच बढ़ाने वाले लोगों का समन्वय करें।",
-          "narration": "स्वयंसेवक अभियान को समुदायों तक ले जाते हैं। मैदानी भागीदारी, रेफरल गतिविधि और स्थानीय फॉलो-अप को व्यवस्थित रखें ताकि प्रयास अभियान परिणामों से जुड़ा रहे।"
+        "initiatives": {
+          "title": "ऐसी पहल शुरू करें जिन पर लोग कार्रवाई कर सकें",
+          "description": "चिंता को समन्वित सामुदायिक और सार्वजनिक कार्रवाई में बदलें।",
+          "narration": "पहल बनाइए, साझा कीजिए, भागीदारी जुटाइए और काम को लगातार आगे बढ़ाइए।"
         },
-        "timeline": {
-          "title": "समयरेखा",
-          "description": "लॉन्च से समाधान तक पड़ाव और अगले कदम स्पष्ट रखें।",
-          "narration": "स्पष्ट समयरेखा गतिविधि को सार्वजनिक यात्रा बनाती है। महत्वपूर्ण पड़ाव, अभियान अपडेट, प्राधिकरण संवाद और अगली कार्रवाई को ऐतिहासिक संदर्भ के साथ देखें।"
+        "offlineOnline": {
+          "title": "ऑफलाइन और ऑनलाइन प्रयास को जोड़ें",
+          "description": "मैदानी रिकॉर्ड और डिजिटल भागीदारी को एक विश्वसनीय इतिहास में रखें।",
+          "narration": "कागज़ी हस्ताक्षर, फोटो और साक्ष्य को संदर्भ सहित डिजिटल रिकॉर्ड में जोड़िए।"
+        },
+        "engagement": {
+          "title": "सिर्फ संदेश नहीं, कार्रवाई प्रेरित करें",
+          "description": "सही भाषा और सही चैनल से स्पष्ट अगला कदम दें।",
+          "narration": "लोगों को जुड़ने, स्वयंसेवा, सहयोग और साझा करने के लिए प्रेरित करें, और प्रतिक्रिया मापें।"
         },
         "transparency": {
-          "title": "पारदर्शिता",
-          "description": "प्रगति, प्रमाण और जवाबदेही स्पष्ट रूप से प्रस्तुत करें।",
-          "narration": "जन विश्वास तब बढ़ता है जब प्रगति समझने योग्य हो। संदर्भ, सत्यापित भागीदारी, अपडेट और जिम्मेदार वित्तीय जानकारी को उपलब्धि बढ़ा-चढ़ाकर बताए बिना प्रस्तुत करें।"
+          "title": "पारदर्शिता से भरोसा बढ़ाएँ",
+          "description": "योजना, संग्रह, खर्च और रिपोर्ट को स्पष्ट उद्देश्य से दिखाएँ।",
+          "narration": "बजट, अनुमोदन, खर्च और साक्ष्य को जिम्मेदारी से ट्रैक करें।"
         },
-        "reports": {
-          "title": "रिपोर्ट",
-          "description": "भागीदारी को उपयोगी संचालन सारांश में बदलें।",
-          "narration": "रिपोर्ट टीम को गतिविधि से निर्णय तक पहुँचाती है। समर्थक वृद्धि, स्थान, चैनल और प्रगति को ऐसे प्रारूप में देखें जो साझेदारों और अधिकारियों के काम आए।"
+        "growth": {
+          "title": "समर्थन को स्थायी गति में बदलें",
+          "description": "साझेदारों, स्वयंसेवकों और समुदाय को स्पष्ट भूमिकाओं से जोड़ें।",
+          "narration": "भूमिकाएँ स्पष्ट रखकर और प्रगति मापकर दीर्घकालिक सामूहिक प्रभाव बनाइए।"
         },
-        "aiCopilot": {
-          "title": "AI अभियान सहायक",
-          "description": "स्पष्ट अभियान सामग्री बनाने के लिए मार्गदर्शित AI सहायता लें।",
-          "narration": "AI अभियान सहायक शुरुआती विचार को मजबूत अभियान भाषा और व्यावहारिक अगले कदमों में व्यवस्थित करता है। हर सुझाव उपयोग से पहले मानवीय समीक्षा के लिए उपलब्ध रहता है।"
+        "impact": {
+          "title": "वास्तविक प्रभाव देखें",
+          "description": "समझें कि लोगों की संयुक्त कार्रवाई से क्या बदला।",
+          "narration": "भागीदारी, स्वयंसेवा, पारदर्शी फंड उपयोग और परिणामों को वास्तविक डेटा से ट्रैक करें।"
+        },
+        "decision": {
+          "title": "आज आप क्या शुरू करना चाहते हैं?",
+          "description": "नेतृत्व के लिए ORGANIZE या तुरंत सहभागिता के लिए ACT चुनें।",
+          "narration": "ORGANIZE चुनें यदि आप संरचना बनाकर नेतृत्व करना चाहते हैं। ACT चुनें यदि आप तुरंत जुड़कर सहयोग करना चाहते हैं।"
         }
       }
     },
@@ -1777,6 +1800,30 @@
     "common": {
       "rows": "पंक्तियाँ"
     },
+    "workflow": {
+      "title": "फील्ड संग्रह",
+      "progressLabel": "फील्ड संग्रह कार्यप्रवाह",
+      "stepLabel": "चरण",
+      "steps": {
+        "captureUpload": "कैप्चर / अपलोड",
+        "aiReview": "AI समीक्षा",
+        "humanVerify": "मानव सत्यापन",
+        "approve": "स्वीकृत करें"
+      },
+      "notDetected": "नहीं मिला",
+      "confidence": {
+        "high": "उच्च विश्वास",
+        "low": "कम विश्वास",
+        "missing": "अनुपस्थित"
+      },
+      "verifyFields": "फ़ील्ड सत्यापित करें",
+      "continueToApprove": "स्वीकृति पर जाएँ",
+      "approveSupporter": "समर्थक स्वीकृत करें",
+      "supporterAdded": "✓ 1 समर्थक जोड़ा गया",
+      "nextReview": "अगली समीक्षा",
+      "back": "वापस",
+      "advanced": "उन्नत"
+    },
     "noCampaign": {
       "title": "स्कैन के लिए कोई अभियान नहीं",
       "description": "कागज़ी हस्ताक्षर या OCR स्कैन बैच आयात करने से पहले अभियान बनाएँ।"
@@ -1797,6 +1844,7 @@
     "fields": {
       "name": "नाम",
       "phone": "फ़ोन",
+      "mobile": "मोबाइल",
       "email": "ईमेल",
       "state": "राज्य",
       "district": "जिला",
@@ -1855,9 +1903,34 @@
       "manualCorrection": "मैन्युअल OCR सुधार या पेस्ट",
       "processing": "OCR प्रसंस्करण चल रहा है..."
     },
+    "capture": {
+      "takePhoto": "फ़ोटो लें",
+      "chooseImage": "मौजूदा चित्र चुनें",
+      "previewAlt": "कागज़ी हस्ताक्षर कैप्चर पूर्वावलोकन",
+      "rotate": "घुमाएँ",
+      "retake": "फिर से लें",
+      "batchId": "बैच आईडी",
+      "collectorId": "संग्रहकर्ता आईडी",
+      "collectorName": "संग्रहकर्ता का नाम",
+      "consentPurpose": "सहमति का उद्देश्य",
+      "consentTitle": "कागज़ी और संचार सहमति",
+      "paperConsent": "कागज़ पर हस्ताक्षर करने वाले ने डिजिटल रिकॉर्ड बनाने की सहमति दी",
+      "smsConsent": "हस्ताक्षरकर्ता ने SMS पुष्टि की सहमति दी",
+      "whatsappConsent": "हस्ताक्षरकर्ता ने WhatsApp पुष्टि/अपडेट की सहमति दी",
+      "noOngoing": "आगे कोई संचार नहीं",
+      "uploadFailed": "सुरक्षित अपलोड विफल रहा। फ़ोटो और सुधार सुरक्षित रखे गए हैं।",
+      "fileTooLarge": "चित्र 12 MB सीमा से बड़ा है।",
+      "unsupportedFile": "समर्थित चित्र फ़ाइल चुनें।",
+      "privateOpenFailed": "निजी प्रमाण खोला नहीं जा सका।",
+      "uploading": "सुरक्षित रूप से अपलोड हो रहा है...",
+      "secureUpload": "सुरक्षित अपलोड करें और समीक्षा आइटम बनाएँ",
+      "openPrivateEvidence": "निजी प्रमाण खोलें",
+      "privateEvidenceAlt": "प्रमाणित कागज़ी प्रमाण पूर्वावलोकन",
+      "captureNext": "अगला हस्ताक्षरकर्ता कैप्चर करें"
+    },
     "manual": {
       "title": "मैन्युअल प्रविष्टि",
-      "description": "टाइप किए समर्थक विवरण या सुधारा OCR पाठ पेस्ट करें, फिर स्वीकृति से पहले समीक्षा आइटम बनाएँ।",
+      "description": "समर्थक विवरण दर्ज करें, फिर स्वीकृति से पहले समीक्षा आइटम बनाएँ।",
       "createReview": "समीक्षा आइटम बनाएँ"
     },
     "review": {
@@ -1865,11 +1938,37 @@
       "batchReview": "बैच समीक्षा",
       "rowsWaiting": "पंक्तियाँ प्रतीक्षारत",
       "batchApprove": "बैच को समर्थकों में स्वीकृत करें",
+      "processing": "स्वीकृति जारी है...",
+      "batchProcessing": "बैच स्वीकृति जारी है...",
       "batchReject": "बैच अस्वीकार करें",
       "empty": "कोई फील्ड संग्रह आइटम समीक्षा की प्रतीक्षा में नहीं है।",
       "extractedText": "निकाला गया पाठ",
+      "supporterDetails": "समर्थक का विवरण",
+      "supporterDetailsHelp": "अनुमोदन से पहले OCR से भरे गए फ़ील्ड की पुष्टि करें।",
+      "additionalFields": "अतिरिक्त फ़ील्ड",
+      "viewOcrText": "OCR टेक्स्ट देखें",
       "approveSigner": "हस्ताक्षरकर्ता सूची में स्वीकृत करें",
+      "alreadyApprovedMessage": "यह कागज़ी रिकॉर्ड पहले ही स्वीकृत किया जा चुका है।",
+      "approvalFailed": "स्वीकृति पूरी नहीं हो सकी। कागज़ी रिकॉर्ड समीक्षा में बना हुआ है।",
+      "approvedCount": "स्वीकृत",
+      "alreadyApprovedCount": "पहले से स्वीकृत",
+      "skippedDuplicateCount": "डुप्लिकेट/पहले से जुड़ा होने के कारण छोड़ा गया",
+      "failedCount": "विफल",
+      "previous": "पिछला",
+      "next": "अगला",
       "reject": "अस्वीकार करें"
+    },
+    "confirmation": {
+      "title": "समर्थक पुष्टि पूर्वावलोकन",
+      "senderIdentity": "प्रेषक पहचान",
+      "campaignName": "अभियान नाम और URL प्रारूप",
+      "queue": "स्थानीय पुष्टि कतार",
+      "localOnly": "इस स्प्रिंट में कोई प्रदाता संदेश नहीं भेजता।",
+      "providersDisabled": "SMS और WhatsApp एडेप्टर डिफ़ॉल्ट रूप से बंद हैं।",
+      "estimatedCost": "अनुमानित प्रति-संदेश लागत",
+      "costPlaceholder": "प्रदाता कोट आवश्यक",
+      "enabled": "सक्षम",
+      "disabled": "बंद"
     },
     "imported": {
       "title": "आयातित समर्थक",
@@ -2056,6 +2155,7 @@
     "enterOtp": "ओटीपी दर्ज करें",
     "review": "समीक्षा करें",
     "submitSupport": "समर्थन दर्ज करें",
+    "consentRequiredInline": "हस्ताक्षर करने से पहले दोनों सहमति पुष्टिकरण स्वीकार करें।",
     "thankYou": "धन्यवाद",
     "welcomeBack": "फिर से स्वागत है",
     "required": "आवश्यक",
@@ -2154,7 +2254,199 @@
       "startFreeCampaign": "मुफ़्त अभियान शुरू करें",
       "createWithAi": "AI से अभियान बनाएँ",
       "viewPricing": "मूल्य देखें",
-      "startOneDay": "1 दिन के लिए मुफ़्त शुरू करें"
+      "startOneDay": "1 दिन के लिए मुफ़्त शुरू करें",
+      "organize": "🏢 PLAN",
+      "act": "⚡ ACT",
+      "exploreBusinessOs": "Business OS को समझें"
+    },
+    "signIn": {
+      "title": "Sign In",
+      "workspaceAdmin": "VoiceUp Admin",
+      "platformAdmin": "Platform Admin",
+      "mobileAria": "Business OS साइन-इन विकल्प",
+      "workspaceAdminHelp": "अपने संगठन का प्रबंधन करें",
+      "platformAdminHelp": "केवल अधिकृत ऑपरेटरों के लिए"
+    },
+    "applications": {
+      "title": "Business OS Applications",
+      "statusLabel": "स्थिति",
+      "launch": "लॉन्च",
+      "status": {
+        "LIVE": "LIVE",
+        "COMING SOON": "Coming Soon",
+        "IN PROGRESS": "In Progress",
+        "PLANNING": "Planning",
+        "BETA": "Beta",
+        "UNDER MAINTENANCE": "Under Maintenance"
+      },
+      "apps": {
+        "voiceup": {
+          "name": "VoiceUp",
+          "description": "Collective Action Platform"
+        },
+        "goudhan": {
+          "name": "Goudhan",
+          "description": "Livestock Marketplace"
+        },
+        "panditOnline": {
+          "name": "PanditOnline",
+          "description": "Religious Services"
+        },
+        "teachToday": {
+          "name": "TeachToday",
+          "description": "Education Platform"
+        }
+      }
+    },
+    "saas": {
+      "hero": {
+        "brand": "VoiceUp",
+        "title": "VoiceUp Business OS",
+        "subtitle": "विश्वसनीय सार्वजनिक अभियानों को लॉन्च और संचालित करने के लिए एक ही प्रणाली।"
+      },
+      "actions": {
+        "explore": "जानें",
+        "organize": "PLAN",
+        "organizeWithTeam": "PLAN",
+        "act": "कार्रवाई करें",
+        "actWithStartFree": "कार्रवाई करें - मुफ़्त शुरू करें",
+        "startFree": "मुफ़्त शुरू करें",
+        "learnMore": "और जानें",
+        "open": "खोलें"
+      },
+      "labels": {
+        "status": "स्थिति",
+        "applicationStatus": "एप्लिकेशन की स्थिति"
+      },
+      "status": {
+        "platform": "प्लेटफ़ॉर्म",
+        "LIVE": "लाइव",
+        "IN PROGRESS": "प्रगति पर",
+        "COMING SOON": "जल्द आ रहा है"
+      },
+      "applications": {
+        "title": "VoiceUp एप्लिकेशन",
+        "subtitle": "एक प्लेटफ़ॉर्म में एक लाइव SaaS एप्लिकेशन और पाँच अन्य प्रगति पर हैं।"
+      },
+      "carousel": {
+        "eyebrow": "एप्लिकेशन कैरोसेल",
+        "title": "Business OS एप्लिकेशन",
+        "subtitle": "VoiceUp प्लेटफ़ॉर्म पर लाइव और प्रगति पर मौजूद उत्पादों को जानें।",
+        "play": "कैरोसेल चलाएँ",
+        "timer": "लैंडिंग स्टोरी टाइमर"
+      },
+      "act": {
+        "availableNow": "अभी उपलब्ध",
+        "description": "अभी Campaign से शुरुआत करें। भविष्य के SaaS एप्लिकेशन अपने-अपने प्लान अधिकारों के साथ उपलब्ध होंगे।",
+        "adminLogin": "Campaign एडमिन लॉगिन",
+        "futureApplications": "भविष्य के SaaS एप्लिकेशन"
+      },
+      "apps": {
+        "voiceup": {
+          "name": "VoiceUp Platform",
+          "description": "VoiceUp Business OS। अभियान संचालन, टीम निर्माण और विश्वसनीय विस्तार के लिए एकीकृत प्लेटफ़ॉर्म।",
+          "highlights": { "1": "LEARN MORE", "2": "PLAN", "3": "ACT", "4": "" }
+        },
+        "campaign": {
+          "name": "Campaign SaaS",
+          "description": "पूर्ण अभियान कार्यक्षेत्र के साथ पारदर्शी सामूहिक कार्रवाई शुरू करें।",
+          "highlights": { "1": "अभियान बनाएँ और प्रकाशित करें", "2": "डिजिटल और कागजी हस्ताक्षर एकत्र करें", "3": "समर्थकों और स्वयंसेवकों को संगठित करें", "4": "पारदर्शी सामूहिक कार्रवाई" }
+        },
+        "goudhan": {
+          "name": "Goudhan Marketplace SaaS",
+          "description": "खरीदारों, विक्रेताओं और साझेदारों के लिए भरोसेमंद देशी गाय-उत्पाद बाज़ार।",
+          "highlights": { "1": "देशी गाय-उत्पाद बाज़ार", "2": "खरीदार और विक्रेता पारिस्थितिकी तंत्र", "3": "साझेदार और प्रमोटर ऑनबोर्डिंग", "4": "वाणिज्य, पूर्ति और रेफ़रल क्षमताएँ" }
+        },
+        "panditOnline": {
+          "name": "PanditOnline SaaS",
+          "description": "विश्वसनीय पुरोहित खोज और प्रबंधित अनुष्ठान सेवा बुकिंग।",
+          "highlights": { "1": "विश्वसनीय पुरोहित खोज", "2": "अनुष्ठान और सेवा बुकिंग", "3": "सेवा प्रदाता ऑनबोर्डिंग और अनुमोदन", "4": "समय-सारिणी और सेवा प्रबंधन" }
+        },
+        "teachToday": {
+          "name": "TeachToday SaaS",
+          "description": "सीखने वालों को भरोसेमंद शिक्षकों और सेवाओं से जोड़ने वाला बाज़ार।",
+          "highlights": { "1": "शिक्षक और शिक्षार्थी बाज़ार", "2": "सेवा प्रदाता ऑनबोर्डिंग और सत्यापन", "3": "पाठ्यक्रम या सेवा खोज", "4": "समय-सारिणी और सीखने का सहयोग" }
+        },
+        "homeNurseHub": {
+          "name": "Home Nurse Hub SaaS",
+          "description": "घर-आधारित देखभाल पेशेवरों की खोज और सेवा समन्वय।",
+          "highlights": { "1": "घर-देखभाल पेशेवर खोज", "2": "नर्स ऑनबोर्डिंग और सत्यापन", "3": "देखभाल सेवा अनुरोध", "4": "समय-सारिणी और सेवा समन्वय" }
+        },
+        "cateringHub": {
+          "name": "Catering Hub SaaS",
+          "description": "सदस्यता भोजन, कार्यक्रम कैटरिंग, कॉर्पोरेट कैटरिंग और स्वास्थ्यवर्धक भोजन सेवाएँ।",
+          "highlights": { "1": "सदस्यता भोजन योजनाएँ", "2": "कार्यक्रम और कॉर्पोरेट कैटरिंग", "3": "घर पर कैटरिंग सेवाएँ", "4": "SuddhaOswada के स्वास्थ्यवर्धक भोजन विकल्प शामिल हैं" }
+        }
+      }
+    },
+    "gateways": {
+      "backToSelector": "एप्लिकेशन चयन पर वापस जाएँ",
+      "backToLanding": "लैंडिंग पर वापस जाएँ",
+      "backToTop": "ऊपर जाएँ",
+      "applications": {
+        "title": "VoiceUp Business OS एप्लिकेशन",
+        "subtitle": "Campaign लाइव है। अन्य एप्लिकेशन In Progress या Coming Soon हैं।"
+      },
+      "compact": {
+        "eyebrow": "Business OS अवलोकन",
+        "title": "अपने एप्लिकेशन का मार्ग चुनें",
+        "subtitle": "लंबी स्क्रॉलिंग के बिना विवरण, ACT गेटवे या टीम-बिल्डिंग गेटवे खोलें।"
+      },
+      "campaignAdmin": {
+        "slugLabel": "Campaign link या campaign ID",
+        "slugPlaceholder": "Campaign link पेस्ट करें या उसका ID दर्ज करें",
+        "validation": "जारी रखने के लिए campaign link या campaign ID दर्ज करें।"
+      },
+      "team": {
+        "title": "अपना Campaign Plan करें",
+        "subtitle": "कार्यान्वयन से पहले campaign structure, resources और subscription तैयार करें।",
+        "entitlementNote": "लॉगिन के बाद सक्रिय subscription के अनुसार ही saved configuration और enabled modules उपलब्ध होंगे।",
+        "continue": "Campaign Planning जारी रखें",
+        "learnMore": "और जानें",
+        "goToAct": "ACT पर जाएँ",
+        "backToCampaign": "Campaign पर वापस जाएँ"
+      },
+      "act": {
+        "title": "अपने Campaign पर कार्रवाई करें",
+        "subtitle": "Campaign लाइव है, और इसमें onboarding व admin login उपलब्ध है। अन्य एप्लिकेशन अभी उपलब्ध नहीं हैं।",
+        "startTrial": "1-दिन का मुफ़्त ट्रायल शुरू करें",
+        "otherApplications": "अन्य VoiceUp एप्लिकेशन",
+        "optionNew": "विकल्प A - नए ग्राहक",
+        "optionExisting": "विकल्प B - मौजूदा ग्राहक",
+        "optionNewDescription": "नया organization बनाइए, plan की पुष्टि कीजिए, और Campaign Admin workspace में प्रवेश कीजिए।",
+        "optionExistingDescription": "मौजूदा campaign में लॉगिन करके subscription entitlement के अनुसार execution जारी रखें।",
+        "optionNewItems": {
+          "1": "पहला campaign बनाइए",
+          "2": "subscription plan चुनिए या पुष्टि कीजिए",
+          "3": "enabled Campaign features कॉन्फ़िगर कीजिए",
+          "4": "Campaign Admin workspace में प्रवेश कीजिए",
+          "5": "support collection और activity management शुरू कीजिए"
+        },
+        "optionExistingItems": {
+          "1": "subscription entitlement के अनुसार campaign कॉन्फ़िगर करें",
+          "2": "publish और share करें",
+          "3": "signatures और paper support प्रबंधित करें",
+          "4": "team और volunteers समन्वित करें",
+          "5": "fundraising, progress और reports ट्रैक करें"
+        },
+        "goToPlan": "PLAN पर जाएँ",
+        "learnMore": "और जानें",
+        "backToCampaign": "Campaign पर वापस जाएँ"
+      },
+      "workflowAria": "Application workflow",
+      "plan": {
+        "categoriesAria": "Campaign planning categories",
+        "sections": {
+          "basics": { "title": "Campaign Basics", "items": { "1": "Name", "2": "Purpose", "3": "Campaign type", "4": "Target outcome" } },
+          "team": { "title": "Team and Organization", "items": { "1": "Campaign admin", "2": "Coordinators", "3": "Volunteers", "4": "Role hierarchy" } },
+          "budget": { "title": "Budget and Fundraising", "items": { "1": "Planned budget", "2": "Fundraising goal", "3": "Expense categories", "4": "Transparency approach" } },
+          "coverage": { "title": "Location and Coverage", "items": { "1": "Country", "2": "State", "3": "District", "4": "Online and offline reach" } },
+          "timeline": { "title": "Timeline and Milestones", "items": { "1": "Start date", "2": "Target date", "3": "Signature milestones", "4": "Public events" } },
+          "subscription": { "title": "Subscription and Features", "items": { "1": "Trial or plan status", "2": "Available features", "3": "Upgrade requirements", "4": "Entitlement notice" } },
+          "communication": { "title": "Communication and Growth", "items": { "1": "WhatsApp and SMS", "2": "Social sharing", "3": "Referral", "4": "Volunteer outreach" } },
+          "evidence": { "title": "Evidence and Reporting", "items": { "1": "Images and videos", "2": "Paper signatures", "3": "Expense reporting", "4": "Progress reporting" } }
+        }
+      }
     },
     "hero": {
       "eyebrow": "क्रेडिट कार्ड की जरूरत नहीं। मुफ़्त ट्रायल। सार्वजनिक लिंक तैयार।",
@@ -2361,8 +2653,8 @@
     },
     "finalCta": {
       "eyebrow": "शुरू करने के लिए तैयार?",
-      "title": "पहला अभियान शुरू करें, उसका मूल्य दिखाएँ, फिर उपयुक्त योजना चुनें।",
-      "subtitle": "Voiceup वास्तविक सार्वजनिक लिंक से अभियान बढ़ाने में मदद करता है: AI अभियान सामग्री, मैदानी संग्रह, आंदोलन CRM, संचार केंद्र और प्रभाव रिपोर्ट—सब एक जगह।"
+      "title": "बदलाव के लिए अपना रास्ता चुनें।",
+      "subtitle": "नेतृत्व के लिए ORGANIZE चुनें, या तुरंत भागीदारी के लिए ACT चुनें।"
     },
     "roles": {
       "eyebrow": "अपनी भूमिका चुनें",
@@ -2387,15 +2679,19 @@
     "freeze": {
       "tagline": "पारदर्शी सामूहिक कार्रवाई",
       "getStarted": "शुरू करें",
-      "heroEyebrow": "स्पष्ट अभियान। सत्यापित जनसमर्थन।",
-      "heroTitle": "जनचिंता को पारदर्शी सामूहिक कार्रवाई में बदलें।",
-      "heroSubtitle": "VoiceUp अभियान निर्माण, सत्यापित भागीदारी, मैदानी संग्रह, प्राधिकरण मार्ग और जवाबदेह रिपोर्टिंग को एक निर्देशित अनुभव में जोड़ता है।",
+      "heroEyebrow": "BUSINESS OS",
+      "heroTitle": "एक प्लेटफ़ॉर्म। कई संभावनाएँ।",
+      "heroAvailabilityLabel": "Currently Available",
+      "heroAvailabilityApp": "✅ VoiceUp",
+      "heroPoweredBy": "आज VoiceUp द्वारा संचालित।",
+      "heroLeadTitle": "मिलकर बदलाव का नेतृत्व करें",
+      "heroSubtitle": "संगठन बनाइए, लोगों का समन्वय कीजिए, और विचारों को कार्रवाई में बदलिए।",
       "productEyebrow": "एक जुड़ा हुआ मंच",
-      "productTitle": "विश्वसनीय जन-अभियान के लिए सब कुछ।",
-      "productSubtitle": "अभियान की योजना बनाएँ, सत्यापित समर्थन जुटाएँ, मैदानी काम समन्वित करें, सही प्राधिकरण तक पहुँचें और स्पष्ट प्रगति रिपोर्ट दें।",
+      "productTitle": "लोगों और समुदायों को संगठित करें, पहल चलाएँ और वास्तविक प्रभाव मापें।",
+      "productSubtitle": "VoiceUp नेतृत्व और सहभागिता दोनों यात्राओं को एक ही सुरक्षित प्लेटफ़ॉर्म में जोड़ता है।",
       "trustEyebrow": "विश्वास-केंद्रित डिज़ाइन",
       "trustTitle": "विश्वसनीय भागीदारी और स्पष्ट जवाबदेही के लिए निर्मित।",
-      "trustSubtitle": "स्पष्ट मांग, सत्यापित समर्थन, सहमति-सम्मत संग्रह, प्राधिकरण संदर्भ और मापनीय प्रगति हर आंदोलन का विश्वास बढ़ाते हैं।",
+      "trustSubtitle": "स्पष्ट उद्देश्य, पारदर्शी प्रगति और जिम्मेदार समन्वय से भरोसा बनता है।",
       "footerTagline": "VoiceUp — पारदर्शी सामूहिक कार्रवाई का संचालन तंत्र।"
     },
     "footer": {
@@ -2454,6 +2750,7 @@
       "campaignAdmin": "अभियान एडमिन",
       "publicSigning": "सार्वजनिक हस्ताक्षर",
       "movementCrm": "आंदोलन CRM",
+      "coordinatorNetwork": "समन्वयक नेटवर्क",
       "growthEngine": "ग्रोथ इंजन",
       "fieldCollection": "मैदानी संग्रह",
       "reports": "रिपोर्ट",
@@ -2860,6 +3157,268 @@
           "copilot": { "title": "AI अभियान सहायक", "text": "एक वाक्य को समीक्षा और सहेजने योग्य पेशेवर अभियान मसौदे में बदलें।" }
         }
       }
+    }
+  },
+  "coordinatorProfile": {
+    "workspace": "समन्वयक 360° प्रोफ़ाइल",
+    "photoAlt": "प्रोफ़ाइल फ़ोटो",
+    "notRecorded": "समन्वयक नेटवर्क में दर्ज नहीं",
+    "notAvailable": "उपलब्ध नहीं",
+    "quickActions": "समन्वयक प्रोफ़ाइल त्वरित कार्य",
+    "sections": {
+      "summary": "समन्वयक सारांश",
+      "geography": "भौगोलिक क्षेत्र",
+      "campaigns": "निर्धारित अभियान",
+      "hierarchy": "रिपोर्टिंग पदानुक्रम",
+      "activity": "गतिविधि समयरेखा",
+      "performance": "प्रदर्शन"
+    },
+    "hero": {
+      "reportingManager": "रिपोर्टिंग प्रबंधक",
+      "noManager": "कोई रिपोर्टिंग प्रबंधक नहीं",
+      "assignedGeography": "निर्धारित क्षेत्र",
+      "campaigns": "अभियान संख्या",
+      "lastActivity": "अंतिम गतिविधि",
+      "noActivity": "कोई दर्ज गतिविधि नहीं"
+    },
+    "summary": {
+      "fullName": "पूरा नाम",
+      "mobile": "मोबाइल",
+      "email": "ईमेल",
+      "verification": "मोबाइल सत्यापन",
+      "verified": "सत्यापित",
+      "notVerified": "सत्यापित नहीं",
+      "referralCode": "रेफ़रल कोड",
+      "accountStatus": "खाता स्थिति",
+      "reportingChain": "रिपोर्टिंग श्रृंखला",
+      "noReportingChain": "कोई रिपोर्टिंग श्रृंखला नहीं",
+      "notProvided": "उपलब्ध नहीं कराया गया"
+    },
+    "geography": {
+      "country": "देश",
+      "state": "राज्य",
+      "district": "ज़िला",
+      "block": "ब्लॉक",
+      "panchayat": "ग्राम पंचायत",
+      "village": "गाँव",
+      "ward": "वार्ड",
+      "coverageHierarchy": "कवरेज पदानुक्रम"
+    },
+    "campaigns": {
+      "noCampaigns": "कोई अभियान निर्धारित नहीं है",
+      "assignedOn": "निर्धारित"
+    },
+    "hierarchy": {
+      "manager": "प्रबंधक",
+      "noManager": "कोई प्रबंधक निर्धारित नहीं",
+      "currentCoordinator": "वर्तमान समन्वयक",
+      "directReports": "प्रत्यक्ष रिपोर्ट",
+      "noDirectReports": "कोई प्रत्यक्ष रिपोर्ट नहीं"
+    },
+    "activity": {
+      "noActivity": "कोई गतिविधि दर्ज नहीं की गई है",
+      "actions": {
+        "assignment": "अभियान निर्धारित",
+        "created": "समन्वयक बनाया गया",
+        "updated": "समन्वयक अपडेट किया गया",
+        "status_changed": "स्थिति बदली गई",
+        "deleted": "समन्वयक हटाया गया",
+        "mobile_verified": "मोबाइल सत्यापित",
+        "photo_updated": "प्रोफ़ाइल फ़ोटो अपडेट हुई",
+        "campaigns_changed": "अभियान निर्धारण अपडेट हुए",
+        "referral_linked": "रेफ़रल जोड़ा गया",
+        "geography_created": "भौगोलिक क्षेत्र बनाया गया",
+        "geography_archived": "भौगोलिक क्षेत्र संग्रहित किया गया"
+      }
+    },
+    "performance": {
+      "factualHelp": "केवल इस समन्वयक के मौजूदा निर्धारण, दर्ज गतिविधि, कवरेज पदानुक्रम और प्रत्यक्ष रिपोर्ट से प्राप्त।",
+      "assignments": "निर्धारण",
+      "events": "दर्ज घटनाएँ",
+      "levels": "कवरेज स्तर",
+      "reports": "प्रत्यक्ष रिपोर्ट"
+    },
+    "actions": {
+      "edit": "संपादित करें",
+      "status": "स्थिति",
+      "viewHierarchy": "पदानुक्रम देखें",
+      "viewActivity": "गतिविधि देखें",
+      "search": "खोजें",
+      "back": "वापस",
+      "openPhoto": "फ़ोटो खोलें"
+    },
+    "roles": {
+      "national_coordinator": "राष्ट्रीय समन्वयक",
+      "state_coordinator": "राज्य समन्वयक",
+      "district_coordinator": "ज़िला समन्वयक",
+      "block_coordinator": "ब्लॉक समन्वयक",
+      "panchayat_coordinator": "पंचायत समन्वयक",
+      "ward_coordinator": "वार्ड समन्वयक",
+      "field_coordinator": "क्षेत्र समन्वयक"
+    },
+    "statuses": {
+      "invited": "आमंत्रित",
+      "active": "सक्रिय",
+      "inactive": "निष्क्रिय",
+      "suspended": "निलंबित"
+    },
+    "campaignStatuses": {
+      "draft": "मसौदा",
+      "published": "प्रकाशित",
+      "paused": "रोका गया",
+      "closed": "बंद"
+    }
+  },
+  "coordinatorLifecycle": {
+    "notRecorded": "दर्ज नहीं",
+    "commandCenter": {
+      "title": "जीवनचक्र अवलोकन",
+      "active": "सक्रिय",
+      "suspended": "निलंबित",
+      "verified": "मोबाइल सत्यापित",
+      "pending": "सक्रियण लंबित",
+      "archived": "संग्रहित",
+      "auditWindow": "संग्रहित संख्या वर्तमान ऑडिट स्नैपशॉट में उपलब्ध वास्तविक हटाने की घटनाओं से प्राप्त होती है।"
+    },
+    "timeline": {
+      "title": "जीवनचक्र समयरेखा",
+      "previous": "पिछली स्थिति",
+      "current": "वर्तमान स्थिति",
+      "next": "अगला संभव कार्य",
+      "none": "कोई परिवर्तन उपलब्ध नहीं",
+      "ariaLabel": "समन्वयक जीवनचक्र चरण",
+      "sourceNote": "पूर्ण चरण केवल समन्वयक रिकॉर्ड और सर्वर ऑडिट घटनाओं से प्राप्त होते हैं।"
+    },
+    "stages": {
+      "draft": "मसौदा",
+      "invite_ready": "आमंत्रण तैयार",
+      "mobile_verified": "मोबाइल सत्यापित",
+      "active": "सक्रिय",
+      "transferred": "स्थानांतरित",
+      "suspended": "निलंबित",
+      "reactivated": "पुनः सक्रिय",
+      "archived": "संग्रहित",
+      "inactive": "निष्क्रिय"
+    },
+    "card": {
+      "title": "जीवनचक्र कार्ड",
+      "currentStatus": "वर्तमान स्थिति",
+      "created": "बनाया गया",
+      "verified": "सत्यापित",
+      "activated": "सक्रिय किया गया",
+      "lastUpdated": "अंतिम अपडेट",
+      "manager": "वर्तमान प्रबंधक",
+      "geography": "वर्तमान क्षेत्र"
+    },
+    "transitions": {
+      "title": "स्थिति परिवर्तन",
+      "help": "केवल वर्तमान सुरक्षित स्थिति के लिए मान्य कार्य उपलब्ध हैं। सर्वर प्राधिकरण और संस्करण जाँच अनिवार्य रहती है।",
+      "readOnly": "आपके पास केवल पढ़ने की पहुँच है। जीवनचक्र परिवर्तन उपलब्ध नहीं हैं।"
+    },
+    "actions": {
+      "manage": "जीवनचक्र प्रबंधित करें",
+      "verify_mobile": "मोबाइल सत्यापित करें",
+      "activate": "सक्रिय करें",
+      "transfer": "स्थानांतरित करें",
+      "suspend": "निलंबित करें",
+      "reactivate": "पुनः सक्रिय करें",
+      "archive": "संग्रहित करें"
+    },
+    "actionHelp": {
+      "verify_mobile": "मौजूदा OTP सत्यापन प्रक्रिया का उपयोग करें",
+      "activate": "आवश्यकताएँ जाँचकर सक्रिय करें",
+      "transfer": "प्रबंधक, क्षेत्र या अभियान बदलें",
+      "suspend": "सक्रिय संचालन अस्थायी रूप से रोकें",
+      "reactivate": "सक्रिय संचालन में वापस लाएँ",
+      "archive": "इस समन्वयक को सॉफ्ट संग्रहित करें"
+    },
+    "form": {
+      "statusManaged": "स्थिति परिवर्तन जीवनचक्र पैनल से प्रबंधित होते हैं।",
+      "inviteReadyOnSave": "सत्यापित सहेजने के बाद नया समन्वयक आमंत्रण-तैयार चरण में प्रवेश करता है।"
+    },
+    "wizard": {
+      "eyebrow": "निर्देशित जीवनचक्र कार्य",
+      "titles": {
+        "verify_mobile": "मोबाइल सत्यापन",
+        "activate": "सक्रियण विज़ार्ड",
+        "transfer": "स्थानांतरण विज़ार्ड",
+        "suspend": "समन्वयक निलंबित करें",
+        "reactivate": "समन्वयक पुनः सक्रिय करें",
+        "archive": "समन्वयक संग्रहित करें"
+      },
+      "close": "जीवनचक्र विज़ार्ड बंद करें",
+      "progress": "जीवनचक्र कार्य प्रगति",
+      "steps": {
+        "verification": "सत्यापन",
+        "validation": "जाँच",
+        "review": "समीक्षा",
+        "complete": "पूर्ण",
+        "manager": "प्रबंधक",
+        "geography": "क्षेत्र",
+        "campaign": "अभियान",
+        "confirmation": "पुष्टि",
+        "reason": "कारण",
+        "warning": "चेतावनी"
+      },
+      "reasonAuditNote": "कारण ऑपरेटर पुष्टि के लिए है; मौजूदा सर्वर ऑडिट जीवनचक्र कार्य दर्ज करता है।",
+      "done": "पूर्ण",
+      "undo": "निलंबन वापस लें",
+      "back": "वापस",
+      "cancel": "रद्द करें",
+      "processing": "प्रक्रिया जारी…",
+      "confirm": "कार्य की पुष्टि करें",
+      "continue": "जारी रखें"
+    },
+    "validation": {
+      "mobile": "मोबाइल सत्यापन",
+      "geography": "निर्धारित क्षेत्र",
+      "manager": "रिपोर्टिंग प्रबंधक",
+      "ready": "तैयार",
+      "missing": "आवश्यक जानकारी अनुपलब्ध है",
+      "noManager": "कोई रिपोर्टिंग प्रबंधक निर्धारित नहीं"
+    },
+    "transfer": {
+      "manager": "रिपोर्टिंग प्रबंधक",
+      "noManager": "कोई रिपोर्टिंग प्रबंधक नहीं",
+      "geography": "निर्धारित क्षेत्र",
+      "campaigns": "अभियान निर्धारण",
+      "noCampaigns": "कोई अभियान उपलब्ध नहीं"
+    },
+    "suspend": { "reason": "निलंबन का कारण" },
+    "archive": {
+      "reason": "संग्रह पुष्टि का कारण",
+      "directReportsBlock": "इस समन्वयक को संग्रहित करने से पहले प्रत्यक्ष रिपोर्ट पुनः निर्धारित करें।"
+    },
+    "confirmation": {
+      "coordinator": "समन्वयक",
+      "verify_mobile": "मोबाइल सत्यापन की पुष्टि करें",
+      "activate": "सक्रियण की पुष्टि करें",
+      "transfer": "स्थानांतरण की पुष्टि करें",
+      "suspend": "निलंबन की पुष्टि करें",
+      "reactivate": "पुनः सक्रियण की पुष्टि करें",
+      "archive": "वर्तमान समन्वयक नेटवर्क अनुबंध में यह सॉफ्ट संग्रह वापस नहीं किया जा सकता।"
+    },
+    "review": {
+      "verify_mobile": "मोबाइल सत्यापन की समीक्षा",
+      "activate": "सक्रियण की समीक्षा",
+      "transfer": "स्थानांतरण की समीक्षा",
+      "suspend": "निलंबन की समीक्षा",
+      "reactivate": "पुनः सक्रियण की समीक्षा",
+      "archive": "संग्रह की समीक्षा",
+      "serverValidation": "पुष्टि पर मौजूदा सर्वर प्राधिकरण, जाँच, ऑडिट और संस्करण जाँच चलेगी।"
+    },
+    "success": {
+      "verify_mobile": "मोबाइल सत्यापन पूर्ण",
+      "activate": "समन्वयक सक्रिय किया गया",
+      "transfer": "समन्वयक स्थानांतरण सहेजा गया",
+      "suspend": "समन्वयक निलंबित किया गया",
+      "reactivate": "समन्वयक पुनः सक्रिय किया गया",
+      "archive": "समन्वयक संग्रहित किया गया",
+      "auditRecorded": "प्रोफ़ाइल और कमांड सेंटर अब ताज़ा सर्वर स्नैपशॉट दर्शाते हैं।"
+    },
+    "errors": {
+      "geographyRequired": "मान्य क्षेत्र चुनें।",
+      "actionFailed": "जीवनचक्र कार्य पूरा नहीं हो सका।"
     }
   }
 }

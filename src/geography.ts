@@ -205,6 +205,10 @@ const districtOptionsByState: Record<string, string[]> = {
   Puducherry: ["Karaikal", "Mahe", "Puducherry", "Yanam"]
 };
 
+export function getMaintainedDistrictOptions(state: string): string[] {
+  return [...(districtOptionsByState[state] ?? [])];
+}
+
 export const pinCodeDirectory: PinCodeEntry[] = [
   {
     state: "Bihar",

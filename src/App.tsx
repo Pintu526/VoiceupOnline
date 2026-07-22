@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import * as Toast from "@radix-ui/react-toast";
 import {
   initialAuthorities,
@@ -9,32 +9,98 @@ import {
   initialSigners
 } from "./data";
 import {
+  approveScanReviewItem,
+  assignCurrentWorkspaceMemberAsCampaignAdmin,
   clearCustomerSessionToken,
   createTrialWorkspace,
   getAuthContext,
+  getCurrentAuthSession,
+  getCurrentAuthUser,
+  getCurrentWorkspaceId,
   isBackendConfigured,
   isSupabaseAuthAvailable,
   isSupabaseStorageAvailable,
+  loadAuthoritativeFieldCollectionState,
   loadPublicCampaign,
   loadRemoteState,
+  provisionWorkspaceMember,
+  recordScanApprovalBatchAudit,
+  resolveCampaignAdminAssignmentContext,
   saveRemoteState,
   signInWithSupabase,
   signOutSupabase,
   submitPublicSignatureSecure,
-  uploadFileToStorage
+  uploadFileToStorage,
+  uploadPrivateFileToStorage,
+  createSignedStorageUrl,
+  verifySecureFieldUploadAccess
 } from "./backend";
 import type { PublicCampaignPayload } from "./backend";
+import { ProvisionWorkspaceMemberError, PublicSignatureSubmissionError } from "./backend";
+import {
+  applyCampaignAdminProvisioningFailure,
+  applyCampaignAdminProvisioningSuccess,
+  CAMPAIGN_ADMIN_PROVISIONING_MESSAGES,
+  evaluateCampaignAdminProvisioningGate,
+  formatCampaignAdminProvisioningFailure
+} from "./utils/campaignAdminProvisioning";
 import {
   createId,
   createScanReviewItem,
-  detectDuplicate,
   getCampaignMetrics,
   getCampaignSigners,
   groupSignersByLocation,
   groupSignersByDay,
   groupSignersByWeek,
-  makePublicSigner
+  makePublicSigner,
+  parseSignerFromText
 } from "./lib";
+import {
+  countScanApprovalResult,
+  createScanApprovalCounts,
+  type ScanApprovalCounts
+} from "./scanApproval";
+import {
+  createConfirmationQueueItems,
+  getPaperSupporterConfirmationStatus
+} from "./confirmationQueue";
+import { buildPrivateScanStoragePath, validateScanImageFile } from "./mobileScanCapture";
+import {
+  analyzeBusinessOsDocument,
+  createDocumentDiagnosticId,
+  DOCUMENT_CAMERA_RECOMMENDATION_MESSAGE,
+  logDocumentIntelligenceStage,
+  logFieldCollectionTrace
+} from "./documentIntelligence";
+import {
+  buildApprovalKey,
+  buildSourceRowFingerprint,
+  buildUploadFingerprint,
+  sha256Blob
+} from "./shared/deduplication/supporterIdentity";
+import {
+  CAMPAIGN_ADMIN_ACCESS_MESSAGES,
+  CAMPAIGN_ADMIN_SESSION_MARKER_SCHEMA_VERSION,
+  createSecureFieldUploadVerificationCoordinator,
+  evaluateCampaignAdminLoginAccess,
+  evaluateCampaignAdminSecureFieldUploadAccess,
+  evaluateSecureFieldUploadAccess,
+  isCampaignAdminSessionMarkerValid,
+  isSupabaseSessionOwnedBy,
+  reconcileAuthenticatedAdminSlugs,
+  resolveSupabaseSessionOwnership,
+  SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE,
+  shouldSignOutCampaignAdminSupabaseSession,
+  type CampaignAdminSecureFieldUploadAccess,
+  type CampaignAdminSessionMarkerExpectation,
+  type SecureFieldUploadAccess
+} from "./secureFieldUploadAuth";
+
+// Either the base membership-only secure field-upload access result, or the Campaign
+// Admin-layered result (which additionally requires an exact session marker match plus
+// subscription/entitlement gates). Both share the same `available`/`message`/`userId`/
+// `workspaceId`/`role` shape and differ only in the possible `reason` literals.
+type AnySecureFieldUploadAccess = SecureFieldUploadAccess | CampaignAdminSecureFieldUploadAccess;
 import {
   addLocationOverride,
   clearLocationDeletion,
@@ -49,11 +115,14 @@ import {
 import type {
   AuthorityRule,
   AuditLogEntry,
+  BillingCadence,
   BillingPlan,
   Campaign,
   CommercialPackage,
+  ConfirmationQueueItem,
   IntegrationSettings,
   Organization,
+  ScanCaptureMetadata,
   ScanReviewItem,
   Signer
 } from "./types";
@@ -80,16 +149,21 @@ import {
 } from "./utils/routing";
 import { updateSeoMetadata } from "./utils/seo";
 import {
+  clearCampaignAdminSupabaseSession,
   clearPlatformAdminSession,
+  clearSupabaseSessionOwnership,
   createAdminPasscode,
   getCampaignAdminEmail,
-  getCampaignAdminPasscode,
   getCurrentActorEmail,
   hasConfiguredPlatformAdminFallback,
   hasRestoredPlatformAdminSession,
   matchesConfiguredPlatformAdminCredentials,
   readAuthenticatedAdminSlugs,
+  readCampaignAdminSupabaseSession,
+  readSupabaseSessionOwnership,
+  writeCampaignAdminSupabaseSession,
   writePlatformAdminSession,
+  writeSupabaseSessionOwnership,
   writeAuthenticatedAdminSlugs
 } from "./utils/auth";
 import { fileToDataUrl } from "./utils/files";
@@ -115,6 +189,21 @@ import {
   isFeatureIncludedInPlan
 } from "./utils/subscription";
 import {
+  applyCancelSubscription,
+  applyChangeBillingCycle,
+  applyDowngradePlan,
+  applyExtendSubscriptionDuration,
+  applyPurchaseAddOn,
+  applyReactivateSubscription,
+  applyRenewSubscription,
+  applyScheduledPlanChangeIfDue,
+  applySuspendSubscription,
+  applyUpgradePlan,
+  backfillOrganizationEntitlements,
+  getCampaignEntitlements,
+  type AddOnPurchaseRequest
+} from "./entitlements";
+import {
   applyLocationGovernanceToCampaign,
   applySignerLocationRestriction,
   createRemoteState,
@@ -133,6 +222,7 @@ import {
   getSupporterReferralCode,
   normalizeReferralCode
 } from "./utils/referrals";
+import { buildPublicWebConsentPayload } from "./utils/consent";
 import { GROWTH_FEATURE_FLAGS } from "./growth/constants";
 import {
   appendGrowthLifecycleEventIntent,
@@ -152,7 +242,6 @@ import {
 } from "./growth/supporter";
 import { applyRewardRuntimeAction, type RewardRuntimeAction } from "./growth/rewards/rewardRuntimeService";
 
-// Pages
 import { MarketingHomePage } from "./pages/MarketingHomePage";
 import type {
   OnboardingCompletionPayload,
@@ -172,6 +261,28 @@ import {
 
 // Layout
 import { AppShell } from "./layouts/AppShell";
+
+function getInitialWorkspaceTab():
+  | "dashboard"
+  | "command"
+  | "fund"
+  | "prove"
+  | "campaigns"
+  | "public"
+  | "movement"
+  | "coordinators"
+  | "growth"
+  | "scans"
+  | "reports"
+  | "engagement"
+  | "activity"
+  | "saas"
+  | "ideas" {
+  if (typeof window === "undefined") return "command";
+  const queryTab = new URLSearchParams(window.location.search).get("tab");
+  if (queryTab === "coordinators") return "coordinators";
+  return "command";
+}
 
 // ─── Route detection (computed once, outside component) ──────────────────────
 const publicCampaignSlug = getPublicCampaignSlug();
@@ -303,6 +414,13 @@ function describeSupabaseAuthError(errorMessage: string): string {
   return errorMessage;
 }
 
+// Exact, safe SaaS Admin messages (see the Campaign Admin equivalents in
+// `secureFieldUploadAuth.ts` for the parallel pattern). Never expose a UUID, token, or raw
+// Supabase error string to the user.
+const SAAS_ADMIN_AUTH_FAILURE_MESSAGE = "SaaS Admin email or password is incorrect.";
+const SAAS_ADMIN_SESSION_DISCONNECTED_MESSAGE =
+  "SaaS Admin session is not connected to Supabase. Sign out and sign in again.";
+
 type StartupMode = "pending" | "local-mvp" | "saas-workspace";
 
 function App() {
@@ -323,8 +441,21 @@ function App() {
     `${storagePrefix}-organization`,
     initialOrganization
   );
+  // One-time (per-load), idempotent backfill for entitlement fields that did
+  // not exist on older campaigns/organizations, plus applying any downgrade
+  // that was scheduled for a date that has now passed. Neither step touches
+  // campaigns, signers, scans, or any other data -- guaranteeing zero data
+  // loss across the plan/upgrade/downgrade lifecycle.
+  useEffect(() => {
+    setOrganization((current) => applyScheduledPlanChangeIfDue(backfillOrganizationEntitlements(current)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [organization.id]);
   const [scanItems, setScanItems] = usePersistentState<ScanReviewItem[]>(
     `${storagePrefix}-scan-items`,
+    []
+  );
+  const [confirmationQueue, setConfirmationQueue] = usePersistentState<ConfirmationQueueItem[]>(
+    `${storagePrefix}-confirmation-queue`,
     []
   );
   const [auditLogs, setAuditLogs] = usePersistentState<AuditLogEntry[]>(
@@ -354,8 +485,8 @@ function App() {
 
   // ─── UI state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "command" | "campaigns" | "public" | "movement" | "growth" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
-  >("dashboard");
+    "dashboard" | "command" | "fund" | "prove" | "campaigns" | "public" | "movement" | "coordinators" | "growth" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
+  >(() => getInitialWorkspaceTab());
   const [theme, setTheme] = usePersistentState<"light" | "dark">(`${storagePrefix}-theme`, "light");
   const [commandOpen, setCommandOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
@@ -391,17 +522,86 @@ function App() {
   );
   const [adminLogin, setAdminLogin] = useState(blankAdminLogin);
   const [adminLoginMessage, setAdminLoginMessage] = useState("");
+  const [campaignAdminProvisioningPending, setCampaignAdminProvisioningPending] = useState(false);
+  const [campaignAdminProvisioningMessage, setCampaignAdminProvisioningMessage] = useState("");
+  const campaignAdminProvisioningInFlightRef = useRef(false);
   const [appLogin, setAppLogin] = useState(blankAppLogin);
   const [appLoginMessage, setAppLoginMessage] = useState("");
   const [authContextLoading, setAuthContextLoading] = useState(isBackendConfigured);
   const [isPlatformAdminAuthenticated, setIsPlatformAdminAuthenticated] = useState(false);
   const [isCustomerWorkspaceAuthenticated, setIsCustomerWorkspaceAuthenticated] = useState(false);
   const [saasSection, setSaasSection] = useState<
-    "organization" | "usage" | "packages" | "integrations" | "plans"
+    "organization" | "usage" | "packages" | "integrations" | "plans" | "entitlements"
   >("organization");
   const [authenticatedAdminSlugs, setAuthenticatedAdminSlugs] = useState<
     Record<string, boolean>
   >(() => readAuthenticatedAdminSlugs());
+  const [secureFieldUploadAccess, setSecureFieldUploadAccess] = useState<AnySecureFieldUploadAccess>(
+    () => evaluateSecureFieldUploadAccess({
+      supabaseConfigured: isBackendConfigured,
+      storageProvider: initialIntegrationSettings.storageProvider,
+      currentWorkspaceId: getCurrentWorkspaceId()
+    })
+  );
+  const [campaignAdminSupabaseSessionOwned, setCampaignAdminSupabaseSessionOwned] = useState(false);
+  // Single source of truth for ordering secure-upload verification writes: every write to
+  // secureFieldUploadAccess (sync reset or async verification) is coordinated by generation id.
+  // A synchronous reset always invalidates any in-flight async verification so a stale result
+  // can never overwrite a newer/authoritative state.
+  const verificationCoordinatorRef = useRef(createSecureFieldUploadVerificationCoordinator());
+  // Set while submitCampaignAdminLogin() is running its own (correctly-authenticated) secure
+  // field-upload verification. Prevents the unrelated restore/refresh effect below -- which
+  // reacts to the authenticatedAdminSlugs update fired at the start of login -- from racing
+  // ahead with a stale getCurrentAuthUser() lookup (made before sign-in resolves) and briefly
+  // or permanently overwriting the login handler's correct result with "unauthenticated".
+  const campaignAdminLoginInFlightRef = useRef(false);
+
+  function resetSecureFieldUploadAccess(access: AnySecureFieldUploadAccess) {
+    verificationCoordinatorRef.current.reset();
+    setSecureFieldUploadAccess(access);
+    setCampaignAdminSupabaseSessionOwned(false);
+  }
+
+  async function verifyAndApplySecureFieldUploadAccess(
+    workspaceId: string,
+    knownUser?: { id: string } | null,
+    campaignAdminContext?: CampaignAdminSessionMarkerExpectation
+  ): Promise<{ access: AnySecureFieldUploadAccess; applied: boolean }> {
+    const requestId = verificationCoordinatorRef.current.beginVerification();
+    const baseAccess = await verifySecureFieldUploadAccess(workspaceId, integrations.storageProvider, knownUser);
+    // Campaign Admin secure field-upload access additionally requires an exact-context
+    // session marker (never an old/incomplete one) plus active subscription +
+    // `campaign_admin_access` + `field_collection` + `secure_upload` -- these gates are
+    // layered on top of, never in place of, the base membership check above.
+    const access = campaignAdminContext
+      ? evaluateCampaignAdminSecureFieldUploadAccess({
+          baseAccess,
+          sessionMarkerValid: isCampaignAdminSessionMarkerValid(
+            readCampaignAdminSupabaseSession(campaignAdminContext.slug),
+            campaignAdminContext
+          ),
+          ...getCampaignAdminEntitlementGates()
+        })
+      : baseAccess;
+    const applied = verificationCoordinatorRef.current.isCurrent(requestId);
+    if (applied) setSecureFieldUploadAccess(access);
+    return { access, applied };
+  }
+
+  function getCampaignAdminEntitlementGates() {
+    const entitlements = getCampaignEntitlements(organization);
+    const subscriptionActive = !entitlements.isSuspended && !entitlements.isCancelled && !entitlements.isExpired;
+    return {
+      subscriptionActive,
+      hasCampaignAdminAccessFeature: entitlements.features.campaign_admin_access === true,
+      hasFieldCollectionFeature: entitlements.features.field_collection === true,
+      hasSecureUploadFeature: entitlements.features.secure_upload === true
+    };
+  }
+
+  const [platformAdminSupabaseSessionOwned, setPlatformAdminSupabaseSessionOwned] = useState(
+    () => readSupabaseSessionOwnership()?.source === "platform_admin"
+  );
 
   // ─── Derived / memoised ──────────────────────────────────────────────────
   const activeCampaign = useMemo(() => {
@@ -418,6 +618,14 @@ function App() {
     }
     return campaigns.find((c) => c.id === activeCampaignId) ?? campaigns[0];
   }, [activeCampaignId, campaignDraft, campaignFormMode, campaigns, publicCampaignPayload]);
+  const campaignAdminSessionEmail =
+    isCampaignAdminRoute && activeCampaign
+      ? readCampaignAdminSupabaseSession(activeCampaign.slug)?.email ?? ""
+      : "";
+  const secureFieldUploadAvailable =
+    secureFieldUploadAccess.available &&
+    isSupabaseStorageAvailable &&
+    integrations.storageProvider === "Supabase Storage";
   const campaignSigners = useMemo(
     () => {
       if (!activeCampaign) return [];
@@ -528,6 +736,9 @@ function App() {
       ...(hasFeature("movement_crm")
         ? [{ label: "Movement CRM", detail: "Open supporter and volunteer graph", action: () => setActiveTab("movement" as const) }]
         : []),
+      ...(hasFeature("movement_crm")
+        ? [{ label: "Coordinator Network", detail: "Manage coordinator hierarchy", action: () => setActiveTab("coordinators" as const) }]
+        : []),
       ...(canUseGrowthEngine
         ? [{ label: "Growth Engine", detail: "Open campaign growth dashboard", action: () => setActiveTab("growth" as const) }]
         : []),
@@ -635,6 +846,84 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const campaignAdminAccessActive = Boolean(
+      activeCampaign && authenticatedAdminSlugs[activeCampaign.slug]
+    );
+    if (!activeCampaign || (isCampaignAdminRoute && !campaignAdminAccessActive)) {
+      resetSecureFieldUploadAccess(
+        evaluateSecureFieldUploadAccess({
+          supabaseConfigured: isBackendConfigured,
+          storageProvider: integrations.storageProvider,
+          currentWorkspaceId: getCurrentWorkspaceId()
+        })
+      );
+      return;
+    }
+
+    if (campaignAdminLoginInFlightRef.current) return;
+
+    const activeCampaignSlug = activeCampaign.slug;
+    const activeCampaignId = activeCampaign.id;
+    const routeIsCampaignAdmin = isCampaignAdminRoute;
+    async function refreshSecureFieldUploadAccess() {
+      if (routeIsCampaignAdmin) {
+        // Reconcile the restored/reloaded authenticatedAdminSlugs flag against the
+        // campaignAdminSupabaseSession marker and the currently authenticated Supabase user
+        // before trusting this slug enough to run secure field-upload verification. This
+        // prevents an orphaned slug flag (e.g. left over from a stale/QA session, or a slug
+        // whose Supabase sign-in never completed) from silently reusing an unrelated ambient
+        // Supabase session's access as this slug's secure field-upload result.
+        const marker = readCampaignAdminSupabaseSession(activeCampaignSlug);
+        const currentUser = await getCurrentAuthUser();
+        const reconciliation = reconcileAuthenticatedAdminSlugs(
+          activeCampaignSlug,
+          authenticatedAdminSlugs,
+          marker,
+          currentUser?.id ?? ""
+        );
+        if (!reconciliation.authenticated) {
+          if (reconciliation.nextAuthenticatedAdminSlugs !== authenticatedAdminSlugs) {
+            setAuthenticatedAdminSlugs(reconciliation.nextAuthenticatedAdminSlugs);
+            writeAuthenticatedAdminSlugs(reconciliation.nextAuthenticatedAdminSlugs);
+          }
+          clearCampaignAdminSupabaseSession(activeCampaignSlug);
+          resetSecureFieldUploadAccess(
+            evaluateSecureFieldUploadAccess({
+              supabaseConfigured: isBackendConfigured,
+              storageProvider: integrations.storageProvider,
+              currentWorkspaceId: getCurrentWorkspaceId()
+            })
+          );
+          return;
+        }
+
+        const { access, applied } = await verifyAndApplySecureFieldUploadAccess(
+          getCurrentWorkspaceId(),
+          currentUser,
+          {
+            slug: activeCampaignSlug,
+            resourceId: activeCampaignId,
+            workspaceId: getCurrentWorkspaceId(),
+            userId: currentUser?.id ?? "",
+            applicationKey: "voiceup",
+            role: "campaign_admin"
+          }
+        );
+        if (!applied) return;
+        setCampaignAdminSupabaseSessionOwned(
+          shouldSignOutCampaignAdminSupabaseSession(marker, access)
+        );
+        return;
+      }
+
+      const { applied } = await verifyAndApplySecureFieldUploadAccess(getCurrentWorkspaceId());
+      if (applied) setCampaignAdminSupabaseSessionOwned(false);
+    }
+
+    void refreshSecureFieldUploadAccess();
+  }, [activeCampaign, authenticatedAdminSlugs, integrations.storageProvider]);
+
+  useEffect(() => {
     if (!isBackendConfigured) return;
     if (authContextLoading) return;
 
@@ -675,7 +964,7 @@ function App() {
 
   useEffect(() => {
     if (!isBackendConfigured) return;
-    if (!isPublicCampaignRoute && startupMode !== "saas-workspace") return;
+    if (!isPublicCampaignRoute && !isCampaignAdminRoute && startupMode !== "saas-workspace") return;
     let isCancelled = false;
 
     async function loadSharedState() {
@@ -696,6 +985,25 @@ function App() {
             setCampaigns([]);
             setSigners([]);
             setBackendMessage("Campaign link was not found or is not published.");
+          }
+          return;
+        }
+
+        if (isCampaignAdminRoute && adminCampaignSlug && startupMode !== "saas-workspace") {
+          const campaignForAdminRoute = await loadPublicCampaign(adminCampaignSlug);
+          if (isCancelled) return;
+          if (campaignForAdminRoute) {
+            setCampaigns([campaignForAdminRoute.campaign]);
+            setSigners([]);
+            setAuthorities(campaignForAdminRoute.authorities ?? []);
+            if (campaignForAdminRoute.organization) setOrganization(campaignForAdminRoute.organization);
+            setActiveCampaignId(campaignForAdminRoute.campaign.id);
+            setCampaignFormMode("edit");
+            setBackendMessage("Campaign loaded for admin login.");
+          } else {
+            setCampaigns([]);
+            setSigners([]);
+            setBackendMessage("Campaign admin link was not found.");
           }
           return;
         }
@@ -748,6 +1056,8 @@ function App() {
     void loadSharedState();
     return () => { isCancelled = true; };
   }, [
+    adminCampaignSlug,
+    isCampaignAdminRoute,
     isPublicCampaignRoute,
     startupMode,
     setAuthorities, setAuditLogs, setCampaigns, setCommercialPackages,
@@ -1114,7 +1424,121 @@ function App() {
       `${isCreateCommit ? "Created" : "Saved"} campaign "${campaignToCommit.title}"`,
       campaignToCommit.id
     );
+    if (isCreateCommit) void assignCampaignCreator(campaignToCommit);
   }
+
+  async function assignCampaignCreator(campaign: Campaign) {
+    if (!isBackendConfigured) return;
+    const [session, user] = await Promise.all([getCurrentAuthSession(), getCurrentAuthUser()]);
+    if (!session || !user?.email) return;
+
+    try {
+      await assignCurrentWorkspaceMemberAsCampaignAdmin({
+        workspaceId: getCurrentWorkspaceId(),
+        campaignId: campaign.id,
+        campaignSlug: campaign.slug
+      });
+      const assignedCampaign = applyCampaignAdminProvisioningSuccess(campaign, user.email);
+      setCampaigns((current) => current.map((item) => (item.id === assignedCampaign.id ? assignedCampaign : item)));
+      setCampaignDraft((current) => (current?.id === assignedCampaign.id ? assignedCampaign : current));
+      addAuditLog("campaign.admin_provisioned", `Assigned the campaign creator as Campaign Admin for "${assignedCampaign.title}"`, assignedCampaign.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Campaign Admin assignment could not be completed.";
+      showToast("Campaign Admin assignment pending", message);
+    }
+  }
+
+  /**
+   * Provisions (or safely re-provisions/replaces) the real Supabase Auth user and
+   * workspace/resource assignment for a Campaign Admin, via the `provision-workspace-member`
+   * Edge Function. This is the ONLY place a real Campaign Admin credential is created --
+   * `campaign.adminPasscode` is never treated as authoritative and the submitted password is
+   * never persisted into the workspace JSON blob.
+   *
+   * Requires the campaign to already be saved (present in `campaigns`), since provisioning
+   * needs a stable campaign id to assign against, and requires the `campaign_admin_access`
+   * entitlement (centralized via `getCampaignEntitlements`, never an ad-hoc plan check).
+   * Calling this NEVER touches the SaaS Admin's own Supabase session -- it only forwards the
+   * already-authenticated session's bearer token to the Edge Function via `functions.invoke`.
+   */
+  async function provisionCampaignAdminAccount(email: string, password: string) {
+    if (!campaignDraft) return;
+
+    const isSavedCampaign = campaigns.some((campaign) => campaign.id === campaignDraft.id);
+    const entitlements = getCampaignEntitlements(organization);
+    const gate = evaluateCampaignAdminProvisioningGate({
+      isSavedCampaign,
+      email,
+      password,
+      hasCampaignAdminAccessFeature: entitlements.features.campaign_admin_access === true,
+      provisioningInProgress: campaignAdminProvisioningInFlightRef.current
+    });
+
+    if (!gate.allowed) {
+      setCampaignAdminProvisioningMessage(gate.message);
+      return;
+    }
+
+    // Fail-fast: provisioning calls a protected Edge Function that requires a real Supabase
+    // user JWT. Never attempt the call without first confirming a real session (session +
+    // user + access token all present) is actually held locally.
+    const saasAdminSession = await getCurrentAuthSession();
+    if (!saasAdminSession) {
+      setCampaignAdminProvisioningMessage(SAAS_ADMIN_SESSION_DISCONNECTED_MESSAGE);
+      return;
+    }
+
+    const trimmedEmail = email.trim();
+    const wasAlreadyProvisioned = campaignDraft.adminProvisioningStatus === "provisioned";
+
+    campaignAdminProvisioningInFlightRef.current = true;
+    setCampaignAdminProvisioningPending(true);
+    setCampaignAdminProvisioningMessage(CAMPAIGN_ADMIN_PROVISIONING_MESSAGES.inProgress);
+    try {
+      await provisionWorkspaceMember({
+        workspaceId: getCurrentWorkspaceId(),
+        applicationKey: "voiceup",
+        role: "campaign_admin",
+        email: trimmedEmail,
+        password,
+        assignment: {
+          resourceType: "campaign",
+          resourceId: campaignDraft.id,
+          resourceSlug: campaignDraft.slug
+        }
+      });
+
+      // Only the email is saved for display/compatibility. The password is never
+      // persisted -- Campaign Admin login is verified live against Supabase Auth.
+      const provisionedCampaign = applyCampaignAdminProvisioningSuccess(campaignDraft, trimmedEmail);
+      setCampaigns((current) =>
+        current.map((c) => (c.id === provisionedCampaign.id ? provisionedCampaign : c))
+      );
+      setCampaignDraft(provisionedCampaign);
+      addAuditLog(
+        "campaign.admin_provisioned",
+        `Provisioned Campaign Admin access for "${provisionedCampaign.title}"`,
+        provisionedCampaign.id
+      );
+      setCampaignAdminProvisioningMessage(CAMPAIGN_ADMIN_PROVISIONING_MESSAGES.success);
+    } catch (error) {
+      if (error instanceof ProvisionWorkspaceMemberError && error.code) {
+        // Developer-only observability; never shown to the user and never includes the password.
+        console.warn(`Campaign Admin provisioning failed (${error.code}).`);
+      }
+      const safeMessage = error instanceof Error ? error.message : "Unable to provision Campaign Admin access.";
+      setCampaignAdminProvisioningMessage(formatCampaignAdminProvisioningFailure(safeMessage));
+      if (!wasAlreadyProvisioned) {
+        const failedCampaign = applyCampaignAdminProvisioningFailure(campaignDraft);
+        setCampaigns((current) => current.map((c) => (c.id === failedCampaign.id ? failedCampaign : c)));
+        setCampaignDraft(failedCampaign);
+      }
+    } finally {
+      setCampaignAdminProvisioningPending(false);
+      campaignAdminProvisioningInFlightRef.current = false;
+    }
+  }
+
 
   function createCampaign() {
     const slug = `new-campaign-${Date.now()}`;
@@ -1163,7 +1587,12 @@ function App() {
       shareUrl: getCampaignPublicUrl(organization, { slug }),
       adminUrl: getCampaignAdminUrl(organization, { slug }),
       adminEmail: organization.ownerEmail || organization.billingEmail || "",
-      adminPasscode: createAdminPasscode(),
+      // No real Campaign Admin credential is created here. `adminPasscode` is
+      // intentionally left blank -- a real Supabase Auth user + workspace/resource
+      // assignment must be provisioned explicitly (see `provisionCampaignAdminAccount`)
+      // before Campaign Admin login is possible for this campaign.
+      adminPasscode: "",
+      adminProvisioningStatus: "unprovisioned",
       qrLabel: "VOICEUP-GLOBAL-CAMPAIGN",
       heroImage: "",
       heroImagePosition: "center center",
@@ -1287,6 +1716,7 @@ function App() {
 
   async function submitPublicSignature(event: FormEvent) {
     event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
     if (!activeCampaign) {
       setPublicMessage("Create and publish a campaign before collecting signatures.");
       return;
@@ -1308,6 +1738,17 @@ function App() {
       setPublicMessage("Please verify your phone number with OTP before signing.");
       return;
     }
+    const hasAppealConsent = Boolean(
+      (form.elements.namedItem("supportAppealConsent") as HTMLInputElement | null)?.checked
+    );
+    const hasCampaignConsent = Boolean(
+      (form.elements.namedItem("campaignConsent") as HTMLInputElement | null)?.checked
+    );
+    if (!hasAppealConsent || !hasCampaignConsent) {
+      setPublicMessage("consent_required");
+      return;
+    }
+    const consentPayload = buildPublicWebConsentPayload(activeCampaign.consentText ?? "");
     const restrictedPublicForm = applySignerLocationRestriction(activeCampaign, publicForm, organization);
     if (!isWithinLocationRestriction(activeCampaign, restrictedPublicForm, organization)) {
       setPublicMessage("Your selected location is outside this campaign's restricted signing area.");
@@ -1343,7 +1784,7 @@ function App() {
           referredBy,
           referredByPhoneOrCode: referralInput,
           referralSource: referralInput ? restrictedPublicForm.referralSource ?? "manual" : undefined
-        });
+        }, consentPayload);
         setPublicForm(blankSigner);
         setOtpInput("");
         setOtpMessage("");
@@ -1362,6 +1803,10 @@ function App() {
         );
         setPublicMessage(result.message);
       } catch (error) {
+        if (error instanceof PublicSignatureSubmissionError && error.code === "consent_required") {
+          setPublicMessage("consent_required");
+          return;
+        }
         setPublicMessage(error instanceof Error ? error.message : "Signature submission failed. Please retry.");
       }
       return;
@@ -1380,6 +1825,22 @@ function App() {
       },
       campaignSigners
     );
+      signer.consentAccepted = true;
+      signer.consentTextSnapshot = consentPayload.consentText;
+      signer.consentVersion = consentPayload.consentVersion;
+      signer.consentAcceptedAt = consentPayload.consentAcceptedAt;
+      signer.consentSource = consentPayload.consentSource;
+      signer.consentCampaignId = activeCampaign.id;
+      signer.consentWorkspaceId = getCurrentWorkspaceId();
+      signer.consentEvidence = {
+        accepted: true,
+        textSnapshot: consentPayload.consentText,
+        version: consentPayload.consentVersion,
+        acceptedAt: consentPayload.consentAcceptedAt,
+        source: consentPayload.consentSource,
+        campaignId: activeCampaign.id,
+        workspaceId: getCurrentWorkspaceId()
+      };
     const nextSigners = [signer, ...signers.filter((item) => item.id !== signer.id)];
     setSigners(nextSigners);
     if (signer.status !== "duplicate") {
@@ -1416,34 +1877,149 @@ function App() {
     setOtpMessage("Phone number verified.");
   }
 
-  async function uploadScan(file: File) {
-    if (!activeCampaign) { setScanMessage("Create a campaign before uploading scanned signatures."); return; }
+  async function uploadScan(file: File, metadata?: ScanCaptureMetadata): Promise<boolean> {
+    if (!activeCampaign) { setScanMessage("Create a campaign before uploading scanned signatures."); return false; }
     if (
       activeCampaign.maxScansAllowed > 0 &&
       scanItems.filter((item) => item.campaignId === activeCampaign.id).length >= activeCampaign.maxScansAllowed
     ) {
       setScanMessage("This campaign has reached its scan upload limit.");
-      return;
+      return false;
     }
     if (getMonthlyScanCount(scanItems) >= getEffectiveScanLimit(organization)) {
       setScanMessage("This organization has reached available scan credits. Upgrade or recharge the workspace plan.");
-      return;
+      return false;
     }
+    const validationError = validateScanImageFile(file);
+    if (validationError) {
+      setScanMessage(
+        validationError === "file_too_large"
+          ? "The image exceeds the 12 MB secure-upload limit."
+          : "Choose a supported image file."
+      );
+      return false;
+    }
+    if (!secureFieldUploadAvailable) {
+      setScanMessage(secureFieldUploadAccess.message || SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE);
+      return false;
+    }
+
+    const capturedAt = metadata?.capturedAt || new Date().toISOString();
+    const ocrDiagnosticId = metadata?.ocrDiagnosticId || createDocumentDiagnosticId(file.name);
+    const sourceBatchId = metadata?.sourceBatchId.trim() || `batch-${capturedAt.slice(0, 10)}`;
+    const baseItem = createScanReviewItem(activeCampaign.id, file.name, scanText);
+    const workspaceId = secureFieldUploadAccess.workspaceId || getCurrentWorkspaceId();
+    const privatePath = buildPrivateScanStoragePath(
+      activeCampaign.id,
+      sourceBatchId,
+      baseItem.id,
+      file.name
+    );
     setIsScanning(true);
-    setScanMessage(`Reading ${file.name} with OCR. Handwriting may need manual correction.`);
-    const scanFileUrl = await uploadCampaignAsset(file, "scan", false);
+    setScanMessage(`Securely uploading ${file.name}. Handwriting may need manual correction.`);
     try {
-      const { recognize } = await import("tesseract.js");
-      const result = await recognize(file, "eng");
-      const extractedText = result.data.text.trim() || scanText;
-      const item = { ...createScanReviewItem(activeCampaign.id, file.name, extractedText), fileUrl: scanFileUrl };
-      setScanItems((current) => [item, ...current]);
-      setScanText(extractedText);
-      setScanMessage("OCR completed. Review the extracted signer details before approval.");
-    } catch {
-      const item = { ...createScanReviewItem(activeCampaign.id, file.name, scanText), fileUrl: scanFileUrl };
-      setScanItems((current) => [item, ...current]);
-      setScanMessage("OCR could not read the file, so a manual review item was created from the text box.");
+      const uploadFingerprint = buildUploadFingerprint({
+        workspaceId,
+        campaignId: activeCampaign.id,
+        fileSha256: await sha256Blob(file),
+        fileSize: file.size
+      });
+      const sourceRowFingerprint = buildSourceRowFingerprint({
+        workspaceId,
+        campaignId: activeCampaign.id,
+        uploadFingerprint,
+        sourceReference: "row:0"
+      });
+      const uploaded = await uploadPrivateFileToStorage("campaign-private", privatePath, file);
+      const commonItem = {
+        ...baseItem,
+        filePath: uploaded.path,
+        uploadFingerprint,
+        sourceRowFingerprint,
+        reviewVersion: 1,
+        sourceBatchId,
+        collectorId: metadata?.collectorId.trim() || undefined,
+        collectorName: metadata?.collectorName.trim() || undefined,
+        capturedAt,
+        paperConsentRecorded: metadata?.paperConsentRecorded ?? false,
+        smsConsent: metadata?.smsConsent ?? false,
+        whatsappConsent: metadata?.whatsappConsent ?? false,
+        noOngoingCommunications: metadata?.noOngoingCommunications ?? false,
+        consentPurpose: metadata?.consentPurpose.trim() || undefined,
+        consentCapturedAt: metadata?.consentCapturedAt,
+        consentCapturedBy: metadata?.consentCapturedBy?.trim() || undefined
+      };
+      try {
+        const documentResult = await analyzeBusinessOsDocument(file, ocrDiagnosticId);
+        const extractedText = documentResult.rawText.trim() || scanText;
+        const legacyParsedSigner = parseSignerFromText(documentResult.normalizedText);
+        const parsedSigner = {
+          ...legacyParsedSigner,
+          name: documentResult.fields.name,
+          phone: documentResult.fields.mobile,
+          address: documentResult.fields.village,
+          panchayat: documentResult.fields.village,
+          district: documentResult.fields.district,
+          state: documentResult.fields.state
+        };
+        const item = {
+          ...commonItem,
+          extractedText,
+          parsedSigner
+        };
+        logFieldCollectionTrace("REVIEW_OBJECT_BEFORE_SAVE", {
+          diagnosticId: ocrDiagnosticId,
+          ocrTextLength: documentResult.rawText.length,
+          extractedName: parsedSigner.name,
+          extractedMobile: parsedSigner.phone,
+          reviewItemId: item.id,
+          reviewItem: item
+        });
+        logDocumentIntelligenceStage(ocrDiagnosticId, "10. Final object passed to Human Verify", {
+          reviewItem: item,
+          documentIntelligence: documentResult
+        });
+        setScanItems((current) => [item, ...current]);
+        setScanText(extractedText);
+        setScanMessage(
+          documentResult.cameraRecommended
+            ? DOCUMENT_CAMERA_RECOMMENDATION_MESSAGE
+            : "Private upload and OCR completed. Review this signer before approval."
+        );
+      } catch (ocrError) {
+        const failureMessage = ocrError instanceof Error ? ocrError.message : "Unknown OCR execution error";
+        logDocumentIntelligenceStage(ocrDiagnosticId, "6. Raw OCR text (first 500 characters)", {
+          rawText: "",
+          rawTextLength: 0,
+          unavailableReason: "OCR_EXECUTION_FAILED",
+          error: failureMessage
+        });
+        logDocumentIntelligenceStage(ocrDiagnosticId, "7. OCR confidence", {
+          confidence: null,
+          unavailableReason: "OCR_EXECUTION_FAILED"
+        });
+        logDocumentIntelligenceStage(ocrDiagnosticId, "8-9. Parsed fields and extraction reasons", {
+          fields: {
+            name: { value: "", reason: "OCR_EXECUTION_FAILED" },
+            mobile: { value: "", reason: "OCR_EXECUTION_FAILED" },
+            village: { value: "", reason: "OCR_EXECUTION_FAILED" },
+            district: { value: "", reason: "OCR_EXECUTION_FAILED" },
+            state: { value: "", reason: "OCR_EXECUTION_FAILED" }
+          },
+          fallbackSource: "Existing scan text template because OCR execution failed"
+        });
+        logDocumentIntelligenceStage(ocrDiagnosticId, "10. Final object passed to Human Verify", {
+          reviewItem: commonItem
+        });
+        setScanItems((current) => [commonItem, ...current]);
+        setScanMessage("Private upload completed. OCR could not read the file, so the record remains ready for manual review.");
+      }
+      return true;
+    } catch (error) {
+      setScanMessage(
+        `Secure upload failed. No scan record was created. ${error instanceof Error ? error.message : "Unable to upload file."}`
+      );
+      return false;
     } finally {
       setIsScanning(false);
     }
@@ -1451,7 +2027,25 @@ function App() {
 
   function createManualScanItem() {
     if (!activeCampaign) { setScanMessage("Create a campaign before adding scanned signatures."); return; }
-    const item = createScanReviewItem(activeCampaign.id, "manual-scan-entry.txt", scanText);
+    const baseItem = createScanReviewItem(activeCampaign.id, "manual-scan-entry.txt", scanText);
+    const workspaceId = secureFieldUploadAccess.workspaceId || getCurrentWorkspaceId();
+    const uploadFingerprint = buildUploadFingerprint({
+      workspaceId,
+      campaignId: activeCampaign.id,
+      fileSha256: `legacy-review:${baseItem.id}`,
+      fileSize: 0
+    });
+    const item = {
+      ...baseItem,
+      uploadFingerprint,
+      sourceRowFingerprint: buildSourceRowFingerprint({
+        workspaceId,
+        campaignId: activeCampaign.id,
+        uploadFingerprint,
+        sourceReference: `review:${baseItem.id}`
+      }),
+      reviewVersion: 1
+    };
     setScanItems((current) => [item, ...current]);
     setScanMessage("Manual scan review item created.");
   }
@@ -1468,29 +2062,211 @@ function App() {
     );
   }
 
-  function approveScan(scan: ScanReviewItem) {
-    if (!activeCampaign) return;
-    const duplicate = detectDuplicate(scan.parsedSigner, campaignSigners);
-    const signer: Signer = {
-      id: createId("sig"),
-      campaignId: activeCampaign.id,
-      ...scan.parsedSigner,
-      source: "scan",
-      status: duplicate ? "duplicate" : "pending",
-      signedAt: new Date().toISOString(),
-      scanFileName: scan.fileName,
-      scanFileUrl: scan.fileUrl,
-      reviewerNote: duplicate ? `Possible duplicate of ${duplicate.name}` : "Imported from scanned hard copy."
-    };
-    const nextSigners = [signer, ...signers.filter((item) => item.id !== signer.id)];
-    setSigners(nextSigners);
-    if (signer.status !== "duplicate") {
-      recordGrowthLifecycle("supporter_signed", signer, nextSigners);
+  async function approveScan(scans: ScanReviewItem | ScanReviewItem[]): Promise<ScanApprovalCounts> {
+    const requestedScans = Array.isArray(scans) ? scans : [scans];
+    const counts = createScanApprovalCounts();
+    if (!activeCampaign) {
+      counts.failed = requestedScans.length;
+      return counts;
     }
-    addAuditLog("scan.approved", `Approved scanned signer "${signer.name}"`, activeCampaign.id);
-    setScanItems((current) =>
-      current.map((item) => (item.id === scan.id ? { ...item, status: "Approved" } : item))
-    );
+
+    const campaignId = activeCampaign.id;
+    const workspaceId = secureFieldUploadAccess.workspaceId || getCurrentWorkspaceId();
+    if (!isBackendConfigured || !workspaceId) {
+      counts.failed = requestedScans.length;
+      return counts;
+    }
+
+    const batchId = `field-approval:${campaignId}:${requestedScans.map((scan) => scan.id).sort().join(",")}`;
+    if (requestedScans.length > 1) {
+      try {
+        await recordScanApprovalBatchAudit({
+          workspaceId,
+          campaignId,
+          batchId,
+          resultCode: "batch_started"
+        });
+      } catch {
+        // The per-row transactional contract remains authoritative if batch telemetry fails.
+      }
+    }
+
+    const completedSupporterIds = new Set<string>();
+    for (const scan of requestedScans) {
+      const sourceReference = scan.filePath ? "row:0" : `review:${scan.id}`;
+      const uploadFingerprint = scan.uploadFingerprint ?? buildUploadFingerprint({
+        workspaceId,
+        campaignId,
+        fileSha256: scan.filePath ? `legacy:${scan.filePath}` : `legacy-review:${scan.id}`,
+        fileSize: 0
+      });
+      const sourceRowFingerprint = scan.sourceRowFingerprint ?? buildSourceRowFingerprint({
+        workspaceId,
+        campaignId,
+        uploadFingerprint,
+        sourceReference
+      });
+      const approvalKey = buildApprovalKey({
+        workspaceId,
+        campaignId,
+        reviewItemId: scan.id,
+        sourceRowFingerprint
+      });
+      const reviewPayload: ScanReviewItem = {
+        ...scan,
+        uploadFingerprint,
+        sourceRowFingerprint,
+        approvalKey,
+        reviewVersion: scan.reviewVersion ?? 1
+      };
+      const result = await approveScanReviewItem({
+        workspaceId,
+        campaignId,
+        reviewItemId: scan.id,
+        expectedVersion: scan.reviewVersion ?? 1,
+        uploadFingerprint,
+        sourceReference,
+        sourceRowFingerprint,
+        approvalKey,
+        reviewPayload,
+        supporterFields: {
+          ...scan.parsedSigner,
+          scanFileName: scan.fileName,
+          scanFileUrl: scan.fileUrl,
+          scanFilePath: scan.filePath,
+          sourceBatchId: scan.sourceBatchId,
+          collectorId: scan.collectorId,
+          collectorName: scan.collectorName,
+          capturedAt: scan.capturedAt || scan.createdAt,
+          paperConsentRecorded: scan.paperConsentRecorded,
+          smsConsent: scan.smsConsent ?? false,
+          whatsappConsent: scan.whatsappConsent ?? false,
+          noOngoingCommunications: scan.noOngoingCommunications ?? false,
+          consentPurpose: scan.consentPurpose,
+          consentCapturedAt: scan.consentCapturedAt,
+          consentCapturedBy: scan.consentCapturedBy,
+          confirmationStatus: getPaperSupporterConfirmationStatus(scan, false),
+          reviewerNote: "Imported from scanned hard copy."
+        },
+        consent: {
+          paperConsentRecorded: scan.paperConsentRecorded === true,
+          smsConsent: scan.smsConsent ?? false,
+          whatsappConsent: scan.whatsappConsent ?? false,
+          noOngoingCommunications: scan.noOngoingCommunications ?? false,
+          consentPurpose: scan.consentPurpose,
+          consentCapturedAt: scan.consentCapturedAt,
+          consentCapturedBy: scan.consentCapturedBy
+        }
+      });
+      countScanApprovalResult(counts, result.code);
+      if (requestedScans.length === 1) counts.operatorMessage = result.message;
+      if (result.code === "approval_completed" && result.supporterId) {
+        completedSupporterIds.add(result.supporterId);
+      }
+    }
+
+    if (requestedScans.length > 1) {
+      const hasPartialFailure = counts.skippedDuplicate > 0
+        || counts.validationFailed > 0
+        || counts.consentMissing > 0
+        || counts.staleConflict > 0
+        || counts.failed > 0;
+      try {
+        await recordScanApprovalBatchAudit({
+          workspaceId,
+          campaignId,
+          batchId,
+          resultCode: hasPartialFailure ? "batch_partial_failure" : "batch_completed",
+          counts: {
+            approved: counts.approved,
+            alreadyApproved: counts.skippedAlreadyApproved,
+            duplicatesBlocked: counts.skippedDuplicate,
+            validationFailed: counts.validationFailed,
+            consentMissing: counts.consentMissing,
+            staleConflict: counts.staleConflict,
+            systemFailed: counts.failed
+          }
+        });
+      } catch {
+        // Approval results remain committed independently of batch telemetry.
+      }
+    }
+
+    try {
+      const authoritative = await loadAuthoritativeFieldCollectionState(workspaceId, campaignId);
+      const approvedReviews = authoritative.reviewItems.filter((item) => item.status === "Approved");
+      const authoritativeReviewIds = new Set(approvedReviews.map((item) => item.id));
+      const authoritativeSupporterIds = new Set(authoritative.supporters.map((signer) => signer.id));
+      const authoritativeSourceIds = new Set(
+        authoritative.supporters
+          .map((signer) => signer.sourceScanItemId)
+          .filter((id): id is string => Boolean(id))
+      );
+      const authoritativeAuditIds = new Set(authoritative.auditLogs.map((entry) => entry.id));
+      const mergedSigners = [
+        ...authoritative.supporters,
+        ...signers.filter(
+          (signer) => !authoritativeSupporterIds.has(signer.id)
+            && (!signer.sourceScanItemId || !authoritativeSourceIds.has(signer.sourceScanItemId))
+        )
+      ];
+
+      setScanItems((current) => [
+        ...approvedReviews,
+        ...current.filter((item) => !authoritativeReviewIds.has(item.id))
+      ]);
+      setSigners((current) => [
+        ...authoritative.supporters,
+        ...current.filter(
+          (signer) => !authoritativeSupporterIds.has(signer.id)
+            && (!signer.sourceScanItemId || !authoritativeSourceIds.has(signer.sourceScanItemId))
+        )
+      ]);
+      setAuditLogs((current) => [
+        ...authoritative.auditLogs,
+        ...current.filter((entry) => !authoritativeAuditIds.has(entry.id))
+      ].slice(0, 500));
+      setConfirmationQueue((current) => {
+        let next = current;
+        authoritative.supporters
+          .filter((signer) => completedSupporterIds.has(signer.id))
+          .forEach((signer) => {
+            const additions = createConfirmationQueueItems({
+              workspaceId,
+              campaign: activeCampaign,
+              signer,
+              currentQueue: next,
+              createId
+            });
+            if (additions.length > 0) next = [...additions, ...next];
+          });
+        return next;
+      });
+      authoritative.supporters
+        .filter((signer) => completedSupporterIds.has(signer.id))
+        .forEach((signer) => recordGrowthLifecycle("supporter_signed", signer, mergedSigners));
+    } catch {
+      setScanMessage("Approval was saved securely. Refresh Field Collection to reload the authoritative result.");
+    }
+
+    return counts;
+  }
+
+  async function openPrivateScan(scan: ScanReviewItem): Promise<string> {
+    if (!scan.filePath) throw new Error("This scan does not have private evidence attached.");
+    if (!secureFieldUploadAvailable) {
+      const error = new Error(
+        secureFieldUploadAccess.message || SECURE_FIELD_UPLOAD_UNPROVISIONED_MESSAGE
+      );
+      setScanMessage(error.message);
+      throw error;
+    }
+    try {
+      return await createSignedStorageUrl("campaign-private", scan.filePath, 300);
+    } catch (error) {
+      setScanMessage(error instanceof Error ? error.message : "Unable to open private evidence.");
+      throw error;
+    }
   }
 
   function updateSignerStatus(signerId: string, status: Signer["status"]) {
@@ -1736,6 +2512,75 @@ function App() {
     );
   }
 
+  // ─── Centralized entitlement lifecycle handlers ──────────────────────────
+  // Each of these delegates the actual state transition to a pure function in
+  // `./entitlements` and then merges the returned organization + audit entry
+  // back into state, keeping the workspace audit trail in sync too.
+  function upgradeSubscriptionPlan(planName: BillingPlan) {
+    const { organization: next, auditEntry } = applyUpgradePlan(organization, planName, getCurrentActorEmail());
+    setOrganization(next);
+    addAuditLog("integration.updated", auditEntry.reason ?? `Upgraded to ${planName}`);
+  }
+
+  function downgradeSubscriptionPlan(planName: BillingPlan, effective: "immediately" | "period_end" = "period_end") {
+    const { organization: next, auditEntry } = applyDowngradePlan(organization, planName, getCurrentActorEmail(), {
+      effective
+    });
+    setOrganization(next);
+    addAuditLog("integration.updated", auditEntry.reason ?? `Downgraded to ${planName}`);
+  }
+
+  function renewSubscriptionPeriod(periodDays: number) {
+    const { organization: next, auditEntry } = applyRenewSubscription(organization, getCurrentActorEmail(), {
+      periodDays
+    });
+    setOrganization(next);
+    addAuditLog("integration.updated", auditEntry.reason ?? "Renewed subscription");
+  }
+
+  function extendSubscriptionPeriod(extraDays: number) {
+    const { organization: next, auditEntry } = applyExtendSubscriptionDuration(
+      organization,
+      getCurrentActorEmail(),
+      extraDays
+    );
+    setOrganization(next);
+    addAuditLog("integration.updated", auditEntry.reason ?? `Extended subscription by ${extraDays} days`);
+  }
+
+  function suspendSubscriptionWithReason(reason: string) {
+    const { organization: next, auditEntry } = applySuspendSubscription(organization, getCurrentActorEmail(), reason);
+    setOrganization(next);
+    addAuditLog("integration.updated", auditEntry.reason ?? "Suspended subscription");
+  }
+
+  function reactivateSuspendedSubscription() {
+    const { organization: next, auditEntry } = applyReactivateSubscription(organization, getCurrentActorEmail());
+    setOrganization(next);
+    addAuditLog("integration.updated", auditEntry.reason ?? "Reactivated subscription");
+  }
+
+  function cancelSubscriptionLifecycle(atPeriodEnd: boolean) {
+    const { organization: next, auditEntry } = applyCancelSubscription(organization, getCurrentActorEmail(), {
+      atPeriodEnd
+    });
+    setOrganization(next);
+    addAuditLog("integration.updated", auditEntry.reason ?? "Cancelled subscription");
+  }
+
+  function changeSubscriptionBillingCycle(cadence: BillingCadence) {
+    const { organization: next, auditEntry } = applyChangeBillingCycle(organization, getCurrentActorEmail(), cadence);
+    setOrganization(next);
+    addAuditLog("integration.updated", auditEntry.reason ?? `Billing cycle changed to ${cadence}`);
+  }
+
+  function purchaseEntitlementAddOn(request: AddOnPurchaseRequest) {
+    const { organization: next, auditEntry } = applyPurchaseAddOn(organization, getCurrentActorEmail(), request);
+    setOrganization(next);
+    addAuditLog("integration.updated", auditEntry.reason ?? "Purchased add-on");
+  }
+
+
   async function updateCampaignMedia(file: File) {
     if (!campaignDraft) return;
     const imageUrl = await uploadCampaignAsset(file, "banner", true);
@@ -1865,35 +2710,184 @@ function App() {
     recordGrowthLifecycle("share_completed", lastSignedSigner, nextSigners, share);
   }
 
-  function submitCampaignAdminLogin(event: FormEvent) {
+  async function submitCampaignAdminLogin(event: FormEvent) {
     event.preventDefault();
     if (!activeCampaign) return;
+    if (campaignAdminLoginInFlightRef.current) return;
+
+    const submittedEmail = adminLogin.email.trim();
+    const submittedPassword = adminLogin.passcode.trim();
     const expectedEmail = getCampaignAdminEmail(activeCampaign);
-    const expectedPasscode = getCampaignAdminPasscode(activeCampaign);
-    if (!expectedEmail || !expectedPasscode) {
-      setAdminLoginMessage(
-        "Campaign admin login is disabled because this campaign does not have admin credentials configured."
-      );
+    if (!expectedEmail) {
+      setAdminLoginMessage(CAMPAIGN_ADMIN_ACCESS_MESSAGES.provisioningIncomplete);
       return;
     }
-    const emailMatches = adminLogin.email.trim().toLowerCase() === expectedEmail.trim().toLowerCase();
-    const passcodeMatches = adminLogin.passcode.trim() === expectedPasscode.trim();
-    if (!emailMatches || !passcodeMatches) {
-      setAdminLoginMessage("Invalid campaign admin email or passcode.");
+    if (!submittedEmail || !submittedPassword) {
+      setAdminLoginMessage("Enter your Campaign Admin email and password.");
       return;
     }
-    const nextAuth = { ...authenticatedAdminSlugs, [activeCampaign.slug]: true };
-    setAuthenticatedAdminSlugs(nextAuth);
-    writeAuthenticatedAdminSlugs(nextAuth);
-    setAdminLogin(blankAdminLogin);
+    // Non-authoritative, defense-in-depth check only: avoids attempting a Supabase sign-in
+    // for an obviously wrong email. The REAL authorization is the signInWithPassword() call
+    // below plus the database-verified assignment/membership/entitlement checks that follow --
+    // campaign.adminEmail/adminPasscode are never treated as the authoritative credential.
+    if (submittedEmail.toLowerCase() !== expectedEmail.trim().toLowerCase()) {
+      setAdminLoginMessage(CAMPAIGN_ADMIN_ACCESS_MESSAGES.authenticationFailure);
+      return;
+    }
+    if (!isSupabaseAuthAvailable) {
+      setAdminLoginMessage("Campaign Admin login requires Supabase Auth to be configured.");
+      return;
+    }
+
+    campaignAdminLoginInFlightRef.current = true;
     setAdminLoginMessage("");
+
+    const workspaceId = getCurrentWorkspaceId();
+    let authenticatedUserId = "";
+    let sessionOwnership = readSupabaseSessionOwnership();
+    try {
+      const existingUser = await getCurrentAuthUser();
+      // Always call signInWithPassword() to verify the SUBMITTED credentials -- an existing
+      // ambient Supabase session (e.g. left over from a SaaS Admin or a different Campaign
+      // Admin) is never reused or trusted as-is for this login attempt. Any Supabase Auth
+      // error (wrong password, unknown user, rate limit, etc.) is normalized to the exact
+      // safe user-facing message below -- the raw Supabase error text is never surfaced.
+      let authenticatedUser: Awaited<ReturnType<typeof signInWithSupabase>>;
+      try {
+        authenticatedUser = await signInWithSupabase(submittedEmail, submittedPassword);
+      } catch {
+        throw new Error(CAMPAIGN_ADMIN_ACCESS_MESSAGES.authenticationFailure);
+      }
+      if (!authenticatedUser) {
+        throw new Error(CAMPAIGN_ADMIN_ACCESS_MESSAGES.authenticationFailure);
+      }
+      authenticatedUserId = authenticatedUser.id;
+      // The authenticated identity must match the submitted email -- never trust a session
+      // whose Auth-verified email differs from what was submitted.
+      if ((authenticatedUser.email ?? "").trim().toLowerCase() !== submittedEmail.toLowerCase()) {
+        throw new Error(CAMPAIGN_ADMIN_ACCESS_MESSAGES.authenticationFailure);
+      }
+
+      sessionOwnership = resolveSupabaseSessionOwnership(
+        existingUser?.id ?? "",
+        authenticatedUser.id,
+        "campaign_admin",
+        sessionOwnership
+      );
+      if (sessionOwnership) writeSupabaseSessionOwnership(sessionOwnership);
+
+      const [assignmentContext, entitlements] = await Promise.all([
+        resolveCampaignAdminAssignmentContext(
+          workspaceId,
+          activeCampaign.id,
+          activeCampaign.slug,
+          authenticatedUser.id,
+          "voiceup",
+          "campaign_admin"
+        ),
+        Promise.resolve(getCampaignEntitlements(organization))
+      ]);
+
+      const loginAccess = evaluateCampaignAdminLoginAccess({
+        authenticatedUserId: authenticatedUser.id,
+        resourceId: activeCampaign.id,
+        resourceSlug: activeCampaign.slug,
+        assignment: assignmentContext.assignment,
+        workspaceMembershipActive: assignmentContext.workspaceMembershipActive,
+        hasValidWorkspaceMembershipRole: assignmentContext.hasValidWorkspaceMembershipRole,
+        subscriptionActive: !entitlements.isSuspended && !entitlements.isCancelled && !entitlements.isExpired,
+        hasCampaignAdminAccessFeature: entitlements.features.campaign_admin_access === true
+      });
+
+      if (!loginAccess.authorized) {
+        if (isSupabaseSessionOwnedBy(sessionOwnership, "campaign_admin", authenticatedUser.id)) {
+          await signOutSupabase();
+          clearSupabaseSessionOwnership("campaign_admin", authenticatedUser.id);
+        }
+        clearCampaignAdminSupabaseSession(activeCampaign.slug);
+        setAdminLoginMessage(loginAccess.message);
+        return;
+      }
+
+      // Only after every real (DB/Auth-verified) check has passed do we write the session
+      // marker and mark this slug as authenticated.
+      writeCampaignAdminSupabaseSession({
+        slug: activeCampaign.slug,
+        userId: authenticatedUser.id,
+        workspaceId,
+        resourceId: activeCampaign.id,
+        email: submittedEmail.toLowerCase(),
+        schemaVersion: CAMPAIGN_ADMIN_SESSION_MARKER_SCHEMA_VERSION,
+        applicationKey: "voiceup",
+        role: "campaign_admin",
+        resourceType: "campaign",
+        issuedAt: new Date().toISOString()
+      });
+      const nextAuth = { ...authenticatedAdminSlugs, [activeCampaign.slug]: true };
+      setAuthenticatedAdminSlugs(nextAuth);
+      writeAuthenticatedAdminSlugs(nextAuth);
+      setAdminLogin(blankAdminLogin);
+      setAdminLoginMessage("");
+
+      // Secure field-upload access is a separate, additional concern from login itself --
+      // evaluated here for the storage/upload UI, but never used to gate the login above.
+      const { access, applied } = await verifyAndApplySecureFieldUploadAccess(workspaceId, authenticatedUser, {
+        slug: activeCampaign.slug,
+        resourceId: activeCampaign.id,
+        workspaceId,
+        userId: authenticatedUser.id,
+        applicationKey: "voiceup",
+        role: "campaign_admin"
+      });
+      if (applied) setCampaignAdminSupabaseSessionOwned(true);
+      setScanMessage(access.message);
+      setBackendMessage(access.message);
+    } catch (error) {
+      if (
+        authenticatedUserId
+        && isSupabaseSessionOwnedBy(sessionOwnership, "campaign_admin", authenticatedUserId)
+      ) {
+        await signOutSupabase();
+        clearSupabaseSessionOwnership("campaign_admin", authenticatedUserId);
+      }
+      clearCampaignAdminSupabaseSession(activeCampaign.slug);
+      resetSecureFieldUploadAccess(
+        evaluateSecureFieldUploadAccess({
+          supabaseConfigured: true,
+          storageProvider: integrations.storageProvider,
+          currentWorkspaceId: workspaceId
+        })
+      );
+      setAdminLoginMessage(
+        error instanceof Error ? error.message : CAMPAIGN_ADMIN_ACCESS_MESSAGES.authenticationFailure
+      );
+    } finally {
+      campaignAdminLoginInFlightRef.current = false;
+    }
   }
 
-  function logoutCampaignAdmin() {
+  async function logoutCampaignAdmin() {
     if (!activeCampaign) return;
     const nextAuth = { ...authenticatedAdminSlugs, [activeCampaign.slug]: false };
     setAuthenticatedAdminSlugs(nextAuth);
     writeAuthenticatedAdminSlugs(nextAuth);
+    clearCampaignAdminSupabaseSession(activeCampaign.slug);
+    resetSecureFieldUploadAccess(
+      evaluateSecureFieldUploadAccess({
+        supabaseConfigured: isBackendConfigured,
+        storageProvider: integrations.storageProvider,
+        currentWorkspaceId: getCurrentWorkspaceId()
+      })
+    );
+    if (campaignAdminSupabaseSessionOwned) {
+      const currentUser = await getCurrentAuthUser();
+      const ownership = readSupabaseSessionOwnership();
+      if (isSupabaseSessionOwnedBy(ownership, "campaign_admin", currentUser?.id ?? "")) {
+        await signOutSupabase();
+        clearSupabaseSessionOwnership("campaign_admin", currentUser?.id ?? "");
+      }
+    }
+    setCampaignAdminSupabaseSessionOwned(false);
   }
 
   async function submitAppLogin(event: FormEvent) {
@@ -1909,14 +2903,46 @@ function App() {
       return;
     }
 
+    // The configured VITE_VOICEUP_APP_ADMIN_EMAIL/PASSCODE fallback remains available as
+    // development configuration ONLY when Supabase Auth itself is not configured at all
+    // (pure local-mvp mode, where there is no protected Edge Function to call). Whenever
+    // Supabase Auth IS available, this fallback must never independently authenticate --
+    // Campaign Admin provisioning calls a protected Edge Function that requires a real
+    // Supabase user JWT, so only a real signInWithPassword() session plus a live
+    // platform_owner authorization check may grant SaaS Admin access.
+    const allowLocalFallback = !isSupabaseAuthAvailable;
+
     let supabaseUser = null;
-    let authFailureMessage = "";
+    let platformSessionOwnership = readSupabaseSessionOwnership();
+    let platformLoginOwnsSession = false;
 
     if (isSupabaseAuthAvailable) {
       try {
-        supabaseUser = await signInWithSupabase(email, passcode);
-      } catch (error) {
-        authFailureMessage = error instanceof Error ? error.message : "Unable to login with Supabase Auth";
+        const existingUser = await getCurrentAuthUser();
+        const signedInUser = await signInWithSupabase(email, passcode);
+        // Require a real, locally-held session (session + user + access token) in addition
+        // to the user object signInWithPassword() returns -- never trust authentication
+        // without all three actually present.
+        const session = signedInUser ? await getCurrentAuthSession() : null;
+        if (!signedInUser || !session) {
+          throw new Error(SAAS_ADMIN_AUTH_FAILURE_MESSAGE);
+        }
+        supabaseUser = signedInUser;
+
+        platformSessionOwnership = resolveSupabaseSessionOwnership(
+          existingUser?.id ?? "",
+          supabaseUser.id,
+          "platform_admin",
+          platformSessionOwnership
+        );
+        if (platformSessionOwnership) writeSupabaseSessionOwnership(platformSessionOwnership);
+        platformLoginOwnsSession = isSupabaseSessionOwnedBy(
+          platformSessionOwnership,
+          "platform_admin",
+          supabaseUser.id
+        );
+      } catch {
+        supabaseUser = null;
       }
     }
 
@@ -1925,6 +2951,7 @@ function App() {
         const context = await getAuthContext();
         if (context.platformAdmin) {
           clearPlatformAdminSession();
+          setPlatformAdminSupabaseSessionOwned(platformLoginOwnsSession);
           setIsPlatformAdminAuthenticated(true);
           setIsCustomerWorkspaceAuthenticated(Boolean(context.workspaceMember || context.customerWorkspace));
           setActiveTab("dashboard");
@@ -1934,18 +2961,11 @@ function App() {
           return;
         }
 
-        await signOutSupabase();
-        if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
-          writePlatformAdminSession(email);
-          setIsPlatformAdminAuthenticated(true);
-          setIsCustomerWorkspaceAuthenticated(Boolean(context.workspaceMember || context.customerWorkspace));
-          setActiveTab("dashboard");
-          setAppLogin(blankAppLogin);
-          setAppLoginMessage("");
-          addAuditLog("auth.login", `SaaS admin logged in with configured fallback credentials: ${email}`);
-          return;
+        if (platformLoginOwnsSession) {
+          await signOutSupabase();
+          clearSupabaseSessionOwnership("platform_admin", supabaseUser.id);
         }
-
+        setPlatformAdminSupabaseSessionOwned(false);
         setIsPlatformAdminAuthenticated(false);
         setAppLoginMessage(
           context.role
@@ -1954,25 +2974,21 @@ function App() {
         );
         return;
       } catch (error) {
-        await signOutSupabase();
-        if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
-          writePlatformAdminSession(email);
-          setIsPlatformAdminAuthenticated(true);
-          setIsCustomerWorkspaceAuthenticated(false);
-          setActiveTab("dashboard");
-          setAppLogin(blankAppLogin);
-          setAppLoginMessage("");
-          addAuditLog("auth.login", `SaaS admin logged in with configured fallback credentials: ${email}`);
-          return;
+        if (platformLoginOwnsSession) {
+          await signOutSupabase();
+          clearSupabaseSessionOwnership("platform_admin", supabaseUser.id);
         }
+        setPlatformAdminSupabaseSessionOwned(false);
+        setIsPlatformAdminAuthenticated(false);
         const roleMessage = error instanceof Error ? error.message : "Unable to verify platform role";
         setAppLoginMessage(`Supabase Auth login succeeded, but role verification failed: ${roleMessage}.`);
         return;
       }
     }
 
-    if (matchesConfiguredPlatformAdminCredentials(email, passcode)) {
+    if (allowLocalFallback && matchesConfiguredPlatformAdminCredentials(email, passcode)) {
       writePlatformAdminSession(email);
+      setPlatformAdminSupabaseSessionOwned(false);
       setIsPlatformAdminAuthenticated(true);
       setIsCustomerWorkspaceAuthenticated(false);
       setActiveTab("dashboard");
@@ -1982,26 +2998,39 @@ function App() {
       return;
     }
 
-    setAppLoginMessage(
-      hasFallbackCredentials
-        ? `Supabase Auth login failed: ${describeSupabaseAuthError(authFailureMessage || "Unable to login with Supabase Auth")}. The configured fallback admin credentials did not match.`
-        : `Supabase Auth login failed: ${describeSupabaseAuthError(authFailureMessage || "Unable to login with Supabase Auth")}. Verify the Supabase admin account or configure VITE_VOICEUP_APP_ADMIN_EMAIL and VITE_VOICEUP_APP_ADMIN_PASSCODE.`
-    );
+    setIsPlatformAdminAuthenticated(false);
+    setAppLoginMessage(SAAS_ADMIN_AUTH_FAILURE_MESSAGE);
   }
 
   async function logoutAppAdmin() {
     if (isSaasAdminRoute) {
-      if (isSupabaseAuthAvailable) await signOutSupabase();
+      if (isSupabaseAuthAvailable && platformAdminSupabaseSessionOwned) {
+        const currentUser = await getCurrentAuthUser();
+        const ownership = readSupabaseSessionOwnership();
+        if (isSupabaseSessionOwnedBy(ownership, "platform_admin", currentUser?.id ?? "")) {
+          await signOutSupabase();
+          clearSupabaseSessionOwnership("platform_admin", currentUser?.id ?? "");
+        }
+      }
       clearPlatformAdminSession();
       clearCustomerSessionToken();
+      setPlatformAdminSupabaseSessionOwned(false);
       setIsPlatformAdminAuthenticated(false);
       window.location.assign("/");
       return;
     }
-    if (isSupabaseAuthAvailable) await signOutSupabase();
+    if (isSupabaseAuthAvailable && platformAdminSupabaseSessionOwned) {
+      const currentUser = await getCurrentAuthUser();
+      const ownership = readSupabaseSessionOwnership();
+      if (isSupabaseSessionOwnedBy(ownership, "platform_admin", currentUser?.id ?? "")) {
+        await signOutSupabase();
+        clearSupabaseSessionOwnership("platform_admin", currentUser?.id ?? "");
+      }
+    }
     clearPlatformAdminSession();
     clearCustomerSessionToken();
     setIsCustomerWorkspaceAuthenticated(false);
+    setPlatformAdminSupabaseSessionOwned(false);
     setIsPlatformAdminAuthenticated(false);
     setCampaigns(initialCampaigns);
     setSigners(initialSigners);
@@ -2175,6 +3204,8 @@ function App() {
         campaignFormMode={campaignFormMode}
         setCampaignFormMode={setCampaignFormMode}
         isCampaignAdminRoute={isCampaignAdminRoute}
+        campaignAdminSessionEmail={campaignAdminSessionEmail}
+        campaignAdminCampaignId={isCampaignAdminRoute ? activeCampaign?.id ?? "" : ""}
         isAppRoute={isAppRoute || isSaasAdminRoute}
         canAccessPlatformAdmin={canAccessPlatformAdmin}
         signers={signers}
@@ -2186,6 +3217,7 @@ function App() {
         setOrganization={setOrganization}
         scanItems={scanItems}
         setScanItems={setScanItems}
+        confirmationQueue={confirmationQueue}
         auditLogs={auditLogs}
         integrations={integrations}
         setIntegrations={setIntegrations}
@@ -2217,6 +3249,8 @@ function App() {
         setScanText={setScanText}
         isScanning={isScanning}
         scanMessage={scanMessage}
+        secureFieldUploadAvailable={secureFieldUploadAvailable}
+        secureFieldUploadMessage={secureFieldUploadAccess.message}
         broadcastMessage={broadcastMessage}
         setBroadcastMessage={setBroadcastMessage}
         copiedMessage={copiedMessage}
@@ -2239,6 +3273,7 @@ function App() {
         onVerifyOtp={verifyOtp}
         onGrowthShare={recordPublicShareGrowth}
         onUploadScan={uploadScan}
+        onOpenPrivateScan={openPrivateScan}
         onCreateManualScanItem={createManualScanItem}
         onUpdateScanParsedSigner={updateScanParsedSigner}
         onApproveScan={approveScan}
@@ -2250,12 +3285,24 @@ function App() {
         onUploadAuthorityCsv={uploadAuthorityCsv}
         onUpdateCampaignMedia={updateCampaignMedia}
         onUpdateCampaignDonationQr={updateCampaignDonationQr}
+        onProvisionCampaignAdmin={provisionCampaignAdminAccount}
+        campaignAdminProvisioningPending={campaignAdminProvisioningPending}
+        campaignAdminProvisioningMessage={campaignAdminProvisioningMessage}
         onSelectSubscriptionPlan={selectSubscriptionPlan}
         onStartOneDayTrial={startOneDayTrial}
         onActivateSubscriptionManually={activateSubscriptionManually}
         onMarkSubscriptionPastDue={markSubscriptionPastDue}
         onCancelSubscription={cancelSubscription}
         onApplyCommercialPackage={applyCommercialPackage}
+        onUpgradeSubscriptionPlan={upgradeSubscriptionPlan}
+        onDowngradeSubscriptionPlan={downgradeSubscriptionPlan}
+        onRenewSubscriptionPeriod={renewSubscriptionPeriod}
+        onExtendSubscriptionPeriod={extendSubscriptionPeriod}
+        onSuspendSubscriptionWithReason={suspendSubscriptionWithReason}
+        onReactivateSuspendedSubscription={reactivateSuspendedSubscription}
+        onCancelSubscriptionLifecycle={cancelSubscriptionLifecycle}
+        onChangeSubscriptionBillingCycle={changeSubscriptionBillingCycle}
+        onPurchaseEntitlementAddOn={purchaseEntitlementAddOn}
         onAuditIntegrationUpdate={() => addAuditLog("integration.updated", "Updated Razorpay key reference")}
         onCopyText={copyText}
         onLogoutCampaignAdmin={logoutCampaignAdmin}

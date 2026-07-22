@@ -10,6 +10,25 @@ import type {
   Signer
 } from "./types";
 import type { LocationDeletions, LocationOverrides } from "./geography";
+import type {
+  CoordinatorDraft,
+  CoordinatorNetworkSnapshot,
+  CoordinatorStatus
+} from "./coordinators";
+import { geographyForRole } from "./coordinators";
+import { normalizeIndianPhone } from "./shared/deduplication/supporterIdentity";
+import {
+  evaluateSecureFieldUploadAccess,
+  secureFieldUploadRoles,
+  type CampaignAdminAssignment,
+  type SecureFieldUploadAccess
+} from "./secureFieldUploadAuth";
+import {
+  evaluateWorkspaceMembership,
+  evaluateWorkspaceResourceAssignment,
+  type WorkspaceMembershipStatus,
+  type WorkspaceResourceAssignmentStatus
+} from "./authorization/workspaceAccess";
 
 export interface VoiceupRemoteState {
   campaigns: Campaign[];
@@ -60,6 +79,70 @@ export interface OtpVerifyResult {
   verificationToken: string;
   customerSessionToken?: string;
   workspaceId?: string;
+  message: string;
+}
+
+export type ScanApprovalResultCode =
+  | "approval_completed"
+  | "approval_already_completed"
+  | "existing_supporter_returned"
+  | "exact_phone_duplicate_blocked"
+  | "same_source_row_blocked"
+  | "already_approved"
+  | "validation_failed"
+  | "consent_missing"
+  | "stale_review_version"
+  | "unauthorized"
+  | "review_item_not_found"
+  | "system_error";
+
+export interface ScanApprovalRpcResult {
+  code: ScanApprovalResultCode;
+  blocking: boolean;
+  message: string;
+  reviewItemId: string;
+  supporterId?: string;
+  matchedSupporterId?: string;
+}
+
+export interface ApproveScanReviewItemRequest {
+  workspaceId: string;
+  campaignId: string;
+  reviewItemId: string;
+  expectedVersion: number;
+  uploadFingerprint: string;
+  sourceReference: string;
+  sourceRowFingerprint: string;
+  approvalKey: string;
+  reviewPayload: ScanReviewItem;
+  supporterFields: ScanReviewItem["parsedSigner"] & Partial<Signer>;
+  consent: {
+    paperConsentRecorded: boolean;
+    smsConsent: boolean;
+    whatsappConsent: boolean;
+    noOngoingCommunications: boolean;
+    consentPurpose?: string;
+    consentCapturedAt?: string;
+    consentCapturedBy?: string;
+  };
+}
+
+export interface AuthoritativeFieldCollectionState {
+  reviewItems: ScanReviewItem[];
+  supporters: Signer[];
+  auditLogs: AuditLogEntry[];
+}
+
+export interface CoordinatorOtpRequestResult {
+  challengeId: string;
+  resendAfterSeconds: number;
+  message: string;
+  developmentOtp?: string;
+}
+
+export interface CoordinatorOtpVerifyResult {
+  verified: boolean;
+  verificationToken: string;
   message: string;
 }
 
@@ -192,29 +275,6 @@ async function loadWorkspaceStateById(workspaceId: string): Promise<VoiceupRemot
   return (data?.data as VoiceupRemoteState | null) ?? null;
 }
 
-async function inspectWorkspaceStateById(workspaceId: string): Promise<{
-  rowFound: boolean;
-  campaignCount: number;
-  campaignIds: string[];
-}> {
-  const client = requireSupabase();
-  const { data, error } = await client
-    .from("voiceup_workspaces")
-    .select("data")
-    .eq("id", workspaceId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-
-  const state = (data?.data as VoiceupRemoteState | null) ?? null;
-  const campaigns = Array.isArray(state?.campaigns) ? state.campaigns : [];
-
-  return {
-    rowFound: Boolean(data),
-    campaignCount: campaigns.length,
-    campaignIds: campaigns.map((campaign) => campaign.id)
-  };
-}
-
 async function saveWorkspaceState(workspaceId: string, state: VoiceupRemoteState): Promise<void> {
   const client = requireSupabase();
   const { error } = await client
@@ -251,6 +311,10 @@ function readCustomerSessionToken(): string {
 function readWorkspaceId(): string {
   if (typeof window === "undefined") return fallbackWorkspaceId;
   return window.localStorage.getItem(customerWorkspaceKey) || fallbackWorkspaceId;
+}
+
+export function getCurrentWorkspaceId(): string {
+  return readWorkspaceId();
 }
 
 interface WorkspaceMembershipContext {
@@ -345,6 +409,280 @@ export async function getCurrentAuthUser() {
   return data.user;
 }
 
+/**
+ * Fail-fast check for a real, locally-held Supabase Auth session (session + user + access
+ * token all present) -- used to guard protected Edge Function calls (e.g. Campaign Admin
+ * provisioning) so they are never attempted without a valid Supabase user JWT. Never returns
+ * or logs the access token itself.
+ */
+export async function getCurrentAuthSession(): Promise<{ userId: string } | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getSession();
+  if (error) return null;
+  const session = data.session;
+  if (!session?.user?.id || !session.access_token) return null;
+  return { userId: session.user.id };
+}
+
+export async function verifySecureFieldUploadAccess(
+  expectedWorkspaceId: string,
+  storageProvider: string,
+  knownUser?: { id: string } | null
+): Promise<SecureFieldUploadAccess> {
+  // When the caller just established (or already holds) the authenticated user from
+  // signInWithPassword()/getCurrentAuthUser(), use it directly instead of issuing a second,
+  // redundant getUser() round-trip immediately after sign-in.
+  const user = knownUser !== undefined ? knownUser : await getCurrentAuthUser();
+  if (!supabase || !user) {
+    return evaluateSecureFieldUploadAccess({
+      supabaseConfigured: Boolean(supabase),
+      storageProvider,
+      userId: user?.id,
+      currentWorkspaceId: expectedWorkspaceId
+    });
+  }
+
+  const { data: membership, error } = await supabase
+    .from("voiceup_workspace_members")
+    .select("workspace_id,user_id,role,active")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
+
+  const resolvedWorkspaceId = membership?.workspace_id || expectedWorkspaceId;
+
+  return evaluateSecureFieldUploadAccess({
+    supabaseConfigured: true,
+    storageProvider,
+    userId: user.id,
+    currentWorkspaceId: resolvedWorkspaceId,
+    membership: error || !membership
+      ? null
+      : {
+          workspaceId: membership.workspace_id,
+          userId: membership.user_id,
+          role: membership.role,
+          active: membership.active === true
+        }
+  });
+}
+
+export interface CampaignAdminAssignmentContext {
+  assignment: CampaignAdminAssignment | null;
+  assignmentStatus: WorkspaceResourceAssignmentStatus;
+  workspaceMembershipActive: boolean;
+  hasValidWorkspaceMembershipRole: boolean;
+  membershipStatus: WorkspaceMembershipStatus;
+}
+
+/**
+ * Resolves the database-verified facts needed by `evaluateCampaignAdminLoginAccess`, using
+ * the generic, reusable `evaluateWorkspaceResourceAssignment` / `evaluateWorkspaceMembership`
+ * evaluators from `./authorization/workspaceAccess` (see that module for the full typed
+ * status set). Both queries are filtered by `user_id = authenticatedUserId` explicitly (in
+ * addition to Postgres RLS already scoping every row to `auth.uid()`) so a browser-supplied
+ * user id can never widen what is returned -- and are deliberately broader than a single
+ * exact-match row so the evaluators can distinguish *why* access fails (wrong workspace,
+ * wrong role, inactive, ambiguous, etc.) rather than only "found" or "not found". Must only
+ * be called AFTER a successful `signInWithPassword`/`getCurrentAuthUser` call.
+ */
+export async function resolveCampaignAdminAssignmentContext(
+  workspaceId: string,
+  resourceId: string,
+  resourceSlug: string,
+  authenticatedUserId: string,
+  applicationKey = "voiceup",
+  role = "campaign_admin"
+): Promise<CampaignAdminAssignmentContext> {
+  const denied = (
+    assignmentStatus: WorkspaceResourceAssignmentStatus,
+    membershipStatus: WorkspaceMembershipStatus
+  ): CampaignAdminAssignmentContext => ({
+    assignment: null,
+    assignmentStatus,
+    workspaceMembershipActive: false,
+    hasValidWorkspaceMembershipRole: false,
+    membershipStatus
+  });
+
+  if (!supabase || !authenticatedUserId) return denied("query_failed", "query_failed");
+
+  const [assignmentResponse, membershipResponse] = await Promise.all([
+    supabase
+      .from("workspace_resource_members")
+      .select("user_id,workspace_id,application_key,role,resource_type,resource_id,resource_slug,active")
+      .eq("user_id", authenticatedUserId)
+      .eq("application_key", applicationKey)
+      .eq("resource_type", "campaign")
+      .eq("resource_id", resourceId),
+    supabase
+      .from("voiceup_workspace_members")
+      .select("user_id,workspace_id,role,active")
+      .eq("user_id", authenticatedUserId)
+  ]);
+
+  const assignmentResult = evaluateWorkspaceResourceAssignment(
+    assignmentResponse.error
+      ? null
+      : (assignmentResponse.data ?? []).map((row) => ({
+          userId: row.user_id,
+          workspaceId: row.workspace_id,
+          applicationKey: row.application_key,
+          role: row.role,
+          resourceType: row.resource_type,
+          resourceId: row.resource_id,
+          resourceSlug: row.resource_slug ?? undefined,
+          active: row.active === true
+        })),
+    Boolean(assignmentResponse.error),
+    {
+      applicationKey,
+      workspaceId,
+      resourceType: "campaign",
+      resourceId,
+      resourceSlug,
+      requiredRole: role,
+      authenticatedUserId
+    }
+  );
+
+  const membershipResult = evaluateWorkspaceMembership(
+    membershipResponse.error
+      ? null
+      : (membershipResponse.data ?? []).map((row) => ({
+          userId: row.user_id,
+          workspaceId: row.workspace_id,
+          role: row.role,
+          active: row.active === true
+        })),
+    Boolean(membershipResponse.error),
+    { workspaceId, authenticatedUserId, validRoles: secureFieldUploadRoles }
+  );
+
+  const membershipValid = membershipResult.status === "membership_found";
+
+  return {
+    assignment:
+      assignmentResult.status === "assignment_found" && assignmentResult.assignment
+        ? {
+            userId: assignmentResult.assignment.userId,
+            workspaceId: assignmentResult.assignment.workspaceId,
+            resourceType: assignmentResult.assignment.resourceType,
+            resourceId: assignmentResult.assignment.resourceId,
+            resourceSlug: assignmentResult.assignment.resourceSlug ?? undefined,
+            active: assignmentResult.assignment.active
+          }
+        : null,
+    assignmentStatus: assignmentResult.status,
+    workspaceMembershipActive: membershipValid,
+    hasValidWorkspaceMembershipRole: membershipValid,
+    membershipStatus: membershipResult.status
+  };
+}
+
+export interface ProvisionWorkspaceMemberRequest {
+  workspaceId: string;
+  applicationKey: string;
+  role: string;
+  email?: string;
+  password?: string;
+  selfAssign?: boolean;
+  assignment: { resourceType: string; resourceId: string; resourceSlug?: string };
+}
+
+export interface ProvisionWorkspaceMemberResult {
+  userId: string;
+  authUserAction: "create" | "reuse";
+  workspaceMembership: { workspaceId: string; role: string; active: boolean };
+  assignment: {
+    id: string;
+    transition: "create" | "already_active" | "replace";
+    resourceType: string;
+    resourceId: string;
+    resourceSlug: string;
+    active: boolean;
+  };
+}
+
+/**
+ * A safe, typed provisioning failure. `message` is always end-user-safe (it
+ * originates only from the Edge Function's own `error` field or a generic
+ * fallback -- never from raw Supabase client internals) and NEVER contains
+ * the submitted password. `code` is an optional machine-readable reason
+ * (e.g. "identity_conflict") a caller can branch on without parsing text.
+ */
+export class ProvisionWorkspaceMemberError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ProvisionWorkspaceMemberError";
+    this.code = code;
+  }
+}
+
+/**
+ * Calls the `provision-workspace-member` Edge Function. Never sends or stores the
+ * service-role key -- this uses the same authenticated anon-key client as every other
+ * Supabase call, so the bearer token forwarded is always the currently signed-in SaaS
+ * Admin's own session token; the Edge Function itself independently re-verifies the
+ * caller's authorization via that token. The password is only ever included in this
+ * single request body -- it is never logged, never echoed back, and never appears in
+ * any error thrown from here.
+ */
+export async function provisionWorkspaceMember(
+  request: ProvisionWorkspaceMemberRequest
+): Promise<ProvisionWorkspaceMemberResult> {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke<
+    ProvisionWorkspaceMemberResult & { error?: string; code?: string }
+  >("provision-workspace-member", { body: request });
+
+  if (error) {
+    throw new ProvisionWorkspaceMemberError(error.message || "Unable to provision the workspace member.");
+  }
+  if (!data) {
+    throw new ProvisionWorkspaceMemberError("Unable to provision the workspace member.");
+  }
+  if (data.error) {
+    throw new ProvisionWorkspaceMemberError(data.error, data.code);
+  }
+
+  return data;
+}
+
+/**
+ * Assigns the already authenticated workspace member to a campaign without
+ * creating or modifying an Auth identity. The Edge Function verifies the
+ * caller's workspace authority and preserves any existing workspace role.
+ */
+export async function assignCurrentWorkspaceMemberAsCampaignAdmin(input: {
+  workspaceId: string;
+  campaignId: string;
+  campaignSlug: string;
+}): Promise<ProvisionWorkspaceMemberResult> {
+  return provisionWorkspaceMember({
+    workspaceId: input.workspaceId,
+    applicationKey: "voiceup",
+    role: "campaign_admin",
+    selfAssign: true,
+    assignment: {
+      resourceType: "campaign",
+      resourceId: input.campaignId,
+      resourceSlug: input.campaignSlug
+    }
+  });
+}
+
+async function resolveSecureStorageWorkspaceId(): Promise<string | null> {
+  const expectedWorkspaceId = readWorkspaceId();
+  const access = await verifySecureFieldUploadAccess(
+    expectedWorkspaceId,
+    "Supabase Storage"
+  );
+  return access.available ? access.workspaceId : null;
+}
+
 export async function getAuthContext(): Promise<VoiceupAccessContext> {
   if (!supabase) {
     return {
@@ -401,64 +739,10 @@ export async function signOutSupabase() {
 }
 
 export async function loadRemoteState() {
-  if (!supabase) {
-    console.info("[loadRemoteState]", {
-      authenticatedUserId: "",
-      authenticatedEmail: "",
-      organizationId: "",
-      workspaceIdRequested: "",
-      workspaceRowFound: false,
-      campaignCount: 0,
-      campaignIds: [],
-      nullReason: "supabase-not-configured"
-    });
-    return null;
-  }
-
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  const user = userError ? null : userData.user;
-  const authenticatedUserId = user?.id ?? "";
-  const authenticatedEmail = user?.email ?? "";
+  if (!supabase) return null;
 
   const workspaceId = await resolveWorkspaceId();
-  let organizationId = "";
-
-  if (user) {
-    const { data: orgMembership, error: orgError } = await requireSupabase()
-      .from("organization_members")
-      .select("organization_id")
-      .eq("user_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    if (orgError) throw new Error(orgError.message);
-    organizationId = orgMembership?.organization_id ?? "";
-  }
-
-  if (!workspaceId) {
-    console.info("[loadRemoteState]", {
-      authenticatedUserId,
-      authenticatedEmail,
-      organizationId,
-      workspaceIdRequested: "",
-      workspaceRowFound: false,
-      campaignCount: 0,
-      campaignIds: [],
-      nullReason: user ? "workspace-membership-missing" : "workspace-id-unresolved"
-    });
-    return null;
-  }
-
-  const workspaceTrace = await inspectWorkspaceStateById(workspaceId);
-  console.info("[loadRemoteState]", {
-    authenticatedUserId,
-    authenticatedEmail,
-    organizationId,
-    workspaceIdRequested: workspaceId,
-    workspaceRowFound: workspaceTrace.rowFound,
-    campaignCount: workspaceTrace.campaignCount,
-    campaignIds: workspaceTrace.campaignIds,
-    nullReason: workspaceTrace.rowFound ? "" : "workspace-row-not-found"
-  });
+  if (!workspaceId) return null;
 
   return loadWorkspaceStateById(workspaceId);
 }
@@ -470,6 +754,241 @@ export async function saveRemoteState(state: VoiceupRemoteState) {
     throw new Error("Authenticated user does not have a workspace membership.");
   }
   await saveWorkspaceState(workspaceId, state);
+}
+
+export async function approveScanReviewItem(
+  request: ApproveScanReviewItemRequest
+): Promise<ScanApprovalRpcResult> {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc("approve_voiceup_scan_review_item", {
+    p_workspace_id: request.workspaceId,
+    p_campaign_id: request.campaignId,
+    p_review_item_id: request.reviewItemId,
+    p_expected_version: request.expectedVersion,
+    p_upload_fingerprint: request.uploadFingerprint,
+    p_source_reference: request.sourceReference,
+    p_source_row_fingerprint: request.sourceRowFingerprint,
+    p_approval_key: request.approvalKey,
+    p_review_payload: request.reviewPayload,
+    p_supporter_fields: request.supporterFields,
+    p_consent: request.consent
+  });
+  if (error || !data || typeof data !== "object") {
+    return {
+      code: "system_error",
+      blocking: true,
+      message: "The review item could not be approved safely. Retry after refreshing.",
+      reviewItemId: request.reviewItemId
+    };
+  }
+  return data as ScanApprovalRpcResult;
+}
+
+export async function loadAuthoritativeFieldCollectionState(
+  workspaceId: string,
+  campaignId: string
+): Promise<AuthoritativeFieldCollectionState> {
+  const client = requireSupabase();
+  const [reviewResponse, supporterResponse, auditResponse] = await Promise.all([
+    client
+      .from("voiceup_scan_review_items")
+      .select("review_payload,status,supporter_id,approval_key,upload_fingerprint,source_row_fingerprint,version,historical_link_uncertain")
+      .eq("workspace_id", workspaceId)
+      .eq("campaign_id", campaignId),
+    client
+      .from("voiceup_scan_supporters")
+      .select("supporter_payload")
+      .eq("workspace_id", workspaceId)
+      .eq("campaign_id", campaignId),
+    client
+      .from("voiceup_field_collection_audit")
+      .select("audit_payload")
+      .eq("workspace_id", workspaceId)
+      .eq("campaign_id", campaignId)
+      .order("created_at", { ascending: false })
+  ]);
+
+  const firstError = reviewResponse.error ?? supporterResponse.error ?? auditResponse.error;
+  if (firstError) throw new Error(firstError.message);
+
+  return {
+    reviewItems: (reviewResponse.data ?? []).map((row) => ({
+      ...(row.review_payload as ScanReviewItem),
+      status: row.status === "approved" ? "Approved" : row.status === "rejected" ? "Rejected" : "Needs review",
+      supporterId: row.supporter_id ?? undefined,
+      approvalKey: row.approval_key ?? undefined,
+      uploadFingerprint: row.upload_fingerprint,
+      sourceRowFingerprint: row.source_row_fingerprint,
+      reviewVersion: row.version,
+      historicalLinkUncertain: row.historical_link_uncertain
+    })),
+    supporters: (supporterResponse.data ?? []).map((row) => row.supporter_payload as Signer),
+    auditLogs: (auditResponse.data ?? []).map((row) => row.audit_payload as AuditLogEntry)
+  };
+}
+
+export async function recordScanApprovalBatchAudit(input: {
+  workspaceId: string;
+  campaignId: string;
+  batchId: string;
+  resultCode: "batch_started" | "batch_completed" | "batch_partial_failure";
+  counts?: Record<string, number>;
+}): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("record_voiceup_scan_batch_audit", {
+    p_workspace_id: input.workspaceId,
+    p_campaign_id: input.campaignId,
+    p_batch_id: input.batchId,
+    p_result_code: input.resultCode,
+    p_counts: input.counts ?? {}
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function loadCoordinatorNetwork(): Promise<CoordinatorNetworkSnapshot> {
+  const client = requireSupabase();
+  const workspaceId = await resolveWorkspaceId();
+  if (!workspaceId) throw new Error("Authenticated workspace access is required.");
+  const { data, error } = await client.rpc("get_voiceup_coordinator_network", {
+    p_workspace_id: workspaceId
+  });
+  if (error || !data) throw new Error(error?.message || "Coordinator network could not be loaded.");
+  return data as CoordinatorNetworkSnapshot;
+}
+
+export async function requestCoordinatorMobileOtp(
+  workspaceId: string,
+  phone: string
+): Promise<CoordinatorOtpRequestResult> {
+  const client = requireSupabase();
+  const normalizedPhone = normalizeIndianPhone(phone);
+  if (!normalizedPhone.verified) throw new Error("Enter a valid 10-digit Indian mobile number.");
+  const { data, error } = await client.functions.invoke<{
+    challengeId?: string;
+    resendAfterSeconds?: number;
+    message?: string;
+    otp?: string;
+    error?: string;
+  }>("voiceup-otp", {
+    body: {
+      action: "send",
+      purpose: "coordinator-mobile",
+      workspaceId,
+      phone: normalizedPhone.normalized,
+      metadata: { source: "coordinator-network" }
+    }
+  });
+  if (error || data?.error || !data?.challengeId) {
+    throw new Error(data?.error || error?.message || "Verification code could not be sent.");
+  }
+  return {
+    challengeId: data.challengeId,
+    resendAfterSeconds: data.resendAfterSeconds ?? 30,
+    message: data.message ?? "Verification code sent.",
+    developmentOtp: data.otp
+  };
+}
+
+export async function verifyCoordinatorMobileOtp(input: {
+  workspaceId: string;
+  phone: string;
+  challengeId: string;
+  code: string;
+}): Promise<CoordinatorOtpVerifyResult> {
+  const client = requireSupabase();
+  const normalizedPhone = normalizeIndianPhone(input.phone);
+  if (!normalizedPhone.verified) throw new Error("Enter a valid 10-digit Indian mobile number.");
+  const { data, error } = await client.functions.invoke<{
+    verified?: boolean;
+    verificationToken?: string;
+    message?: string;
+    error?: string;
+  }>("voiceup-otp", {
+    body: {
+      action: "verify",
+      purpose: "coordinator-mobile",
+      workspaceId: input.workspaceId,
+      phone: normalizedPhone.normalized,
+      challengeId: input.challengeId,
+      code: input.code,
+      metadata: { source: "coordinator-network" }
+    }
+  });
+  if (error || data?.error || !data?.verified || !data.verificationToken) {
+    throw new Error(data?.error || error?.message || "Mobile verification failed.");
+  }
+  return {
+    verified: true,
+    verificationToken: data.verificationToken,
+    message: data.message ?? "Mobile number verified."
+  };
+}
+
+export async function saveCoordinator(
+  workspaceId: string,
+  draft: CoordinatorDraft,
+  verificationToken = ""
+): Promise<{ id: string; referralCode: string; version: number }> {
+  const client = requireSupabase();
+  const { geography, campaignIds, ...coordinator } = draft;
+  const { data, error } = await client.rpc("upsert_voiceup_coordinator", {
+    p_workspace_id: workspaceId,
+    p_coordinator: coordinator,
+    p_geography: geographyForRole(geography, draft.role),
+    p_campaign_ids: campaignIds,
+    p_verification_token: verificationToken || null
+  });
+  if (error || !data) throw new Error(error?.message || "Coordinator could not be saved.");
+  return data as { id: string; referralCode: string; version: number };
+}
+
+export async function changeCoordinatorStatus(input: {
+  workspaceId: string;
+  coordinatorId: string;
+  status: CoordinatorStatus;
+  expectedVersion: number;
+}): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("set_voiceup_coordinator_status", {
+    p_workspace_id: input.workspaceId,
+    p_coordinator_id: input.coordinatorId,
+    p_status: input.status,
+    p_expected_version: input.expectedVersion
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function removeCoordinator(input: {
+  workspaceId: string;
+  coordinatorId: string;
+  expectedVersion: number;
+}): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("delete_voiceup_coordinator", {
+    p_workspace_id: input.workspaceId,
+    p_coordinator_id: input.coordinatorId,
+    p_expected_version: input.expectedVersion
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function uploadCoordinatorPhoto(
+  coordinatorId: string,
+  file: File
+): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Coordinator photos must be 5 MB or smaller.");
+  const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const result = await uploadPrivateFileToStorage(
+    "campaign-private",
+    `coordinators/${coordinatorId}/profile-${Date.now()}.${extension}`,
+    file
+  );
+  return result.path;
+}
+
+export async function openCoordinatorPhoto(path: string): Promise<string> {
+  return createSignedStorageUrl("campaign-private", path, 300);
 }
 
 export async function loadPublicCampaign(slug: string): Promise<PublicCampaignPayload | null> {
@@ -738,7 +1257,14 @@ export async function createTrialWorkspace(payload: unknown): Promise<{
 
 export async function submitPublicSignatureSecure(
   slug: string,
-  signer: unknown
+  signer: unknown,
+  consent?: {
+    consentAccepted: boolean;
+    consentText: string;
+    consentVersion: string;
+    consentAcceptedAt: string;
+    consentSource: "public_web";
+  }
 ): Promise<{ signer: Signer; message: string; metrics: PublicCampaignPayload["metrics"] }> {
   const client = requireSupabase();
   const { data, error } = await client.functions.invoke<{
@@ -746,8 +1272,9 @@ export async function submitPublicSignatureSecure(
     message: string;
     metrics: PublicCampaignPayload["metrics"];
     error?: string;
+    code?: string;
   }>("voiceup-public-signing", {
-    body: { slug, signer }
+    body: { slug, signer, consent }
   });
 
   if (error) {
@@ -757,7 +1284,7 @@ export async function submitPublicSignatureSecure(
     throw new Error("Signature submission failed.");
   }
   if (data.error) {
-    throw new Error(data.error);
+    throw new PublicSignatureSubmissionError(data.error, data.code);
   }
 
   return {
@@ -765,6 +1292,16 @@ export async function submitPublicSignatureSecure(
     message: data.message,
     metrics: data.metrics
   };
+}
+
+export class PublicSignatureSubmissionError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "PublicSignatureSubmissionError";
+    this.code = code;
+  }
 }
 
 export async function uploadFileToStorage(bucket: string, path: string, file: File) {
@@ -801,4 +1338,48 @@ export async function uploadFileToStorage(bucket: string, path: string, file: Fi
     path: workspaceScopedPath,
     publicUrl: data.publicUrl
   };
+}
+
+export async function uploadPrivateFileToStorage(bucket: string, path: string, file: File) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const user = await getCurrentAuthUser();
+  if (!user) {
+    throw new Error("Authenticated workspace access is required before uploading files.");
+  }
+
+  const workspaceId = await resolveSecureStorageWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("Authenticated user does not have a workspace membership.");
+  }
+  const workspaceScopedPath = path.startsWith(`${workspaceId}/`)
+    ? path
+    : `${workspaceId}/${path}`;
+
+  const { error } = await supabase.storage.from(bucket).upload(workspaceScopedPath, file, {
+    cacheControl: "3600",
+    contentType: file.type || "application/octet-stream",
+    upsert: false
+  });
+  if (error) throw new Error(error.message);
+
+  return { path: workspaceScopedPath };
+}
+
+export async function createSignedStorageUrl(bucket: string, path: string, expiresInSeconds = 300) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error("Authenticated workspace access is required before opening files.");
+  const workspaceId = await resolveSecureStorageWorkspaceId();
+  if (!workspaceId || !path.startsWith(`${workspaceId}/`)) {
+    throw new Error("The requested file is outside the authenticated workspace.");
+  }
+
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(path, Math.max(60, Math.min(expiresInSeconds, 600)));
+  if (error || !data?.signedUrl) throw new Error(error?.message || "Unable to create signed file URL.");
+  return data.signedUrl;
 }

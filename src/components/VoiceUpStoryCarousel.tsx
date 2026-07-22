@@ -9,8 +9,10 @@ import {
   type PointerEvent
 } from "react";
 import {
+  Building2,
   ArrowRight,
   BarChart3,
+  Bolt,
   Bot,
   CheckCircle2,
   ChevronLeft,
@@ -43,6 +45,37 @@ export interface VoiceUpStoryMedia {
   videoUrl?: string;
 }
 
+export interface VoiceUpCustomSlide {
+  title: string;
+  description: string;
+  narration?: string;
+  highlights?: string[];
+  status?: string;
+}
+
+export interface VoiceUpCustomHeader {
+  eyebrow?: string;
+  title?: string;
+  subtitle?: string;
+  playLabel?: string;
+}
+
+interface LandingJourneyActions {
+  onOrganize: () => void;
+  onAct: () => void;
+  onExplore?: () => void;
+}
+
+interface LandingJourneyAvailability {
+  planEnabled: boolean;
+  actEnabled: boolean;
+}
+
+interface LandingAnalyticsPayload {
+  eventName: string;
+  context: string;
+}
+
 interface VoiceUpStoryCarouselProps {
   experience: VoiceUpStoryExperience;
   autoPlayMs?: number;
@@ -50,18 +83,26 @@ interface VoiceUpStoryCarouselProps {
   slideIds?: readonly string[];
   actions?: Partial<Record<string, VoiceUpStoryAction>>;
   mediaBySlide?: Partial<Record<string, VoiceUpStoryMedia>>;
+  customSlides?: Partial<Record<string, VoiceUpCustomSlide>>;
+  customHeader?: VoiceUpCustomHeader;
+  landingJourneyActions?: LandingJourneyActions;
+  landingJourneyAvailabilityBySlide?: Partial<Record<string, LandingJourneyAvailability>>;
+  onLandingAnalytics?: (payload: LandingAnalyticsPayload) => void;
+  simplifyLandingControls?: boolean;
 }
 
 const experienceSlides: Record<VoiceUpStoryExperience, readonly string[]> = {
   landing: [
-    "campaignCreation",
-    "paperDigitization",
-    "supporters",
-    "volunteers",
-    "timeline",
+    "opening",
+    "problem",
+    "organize",
+    "initiatives",
+    "offlineOnline",
+    "engagement",
     "transparency",
-    "reports",
-    "aiCopilot"
+    "growth",
+    "impact",
+    "decision"
   ],
   publicCampaign: [
     "objective",
@@ -210,13 +251,21 @@ export function VoiceUpStoryCarousel({
   className = "",
   slideIds,
   actions = {},
-  mediaBySlide = {}
+  mediaBySlide = {},
+  customSlides,
+  customHeader,
+  landingJourneyActions,
+  landingJourneyAvailabilityBySlide,
+  onLandingAnalytics,
+  simplifyLandingControls = false
 }: VoiceUpStoryCarouselProps) {
   const { language, t } = useTranslation();
   const slides = useMemo(
     () => (slideIds?.length ? [...slideIds] : [...experienceSlides[experience]]),
     [experience, slideIds]
   );
+  const isLanding = experience === "landing";
+  const isLandingSimple = isLanding && simplifyLandingControls;
   const [activeIndex, setActiveIndex] = useState(0);
   const [silentPaused, setSilentPaused] = useState(false);
   const [isHoverPaused, setIsHoverPaused] = useState(false);
@@ -225,14 +274,19 @@ export function VoiceUpStoryCarousel({
   const [guidedActive, setGuidedActive] = useState(false);
   const [guidedPaused, setGuidedPaused] = useState(false);
   const [guidedCompleted, setGuidedCompleted] = useState(false);
+  const [isExploreMode, setIsExploreMode] = useState(false);
+  const [landingRemainingMs, setLandingRemainingMs] = useState(autoPlayMs);
   const [narrationUnavailable, setNarrationUnavailable] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const pointerStartX = useRef<number | null>(null);
   const fallbackTimer = useRef<number | null>(null);
+  const landingTimer = useRef<number | null>(null);
+  const manualResumeTimer = useRef<number | null>(null);
   const fallbackStartedAt = useRef(0);
   const fallbackRemaining = useRef(0);
   const finishNarration = useRef<() => void>(() => undefined);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const firstLanguageRender = useRef(true);
 
   const clearFallbackTimer = useCallback(() => {
     if (fallbackTimer.current !== null) window.clearTimeout(fallbackTimer.current);
@@ -245,6 +299,47 @@ export function VoiceUpStoryCarousel({
     utteranceRef.current = null;
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   }, [clearFallbackTimer]);
+
+  const clearLandingTimer = useCallback(() => {
+    if (landingTimer.current !== null) window.clearInterval(landingTimer.current);
+    landingTimer.current = null;
+  }, []);
+
+  const clearManualResumeTimer = useCallback(() => {
+    if (manualResumeTimer.current !== null) window.clearTimeout(manualResumeTimer.current);
+    manualResumeTimer.current = null;
+  }, []);
+
+  const scheduleManualResume = useCallback(() => {
+    if (!isLanding) return;
+    clearManualResumeTimer();
+    manualResumeTimer.current = window.setTimeout(() => {
+      manualResumeTimer.current = null;
+      if (reducedMotion || isHoverPaused || isFocusPaused || isExploreMode) return;
+      setGuidedPaused(false);
+      setSilentPaused(false);
+      setLandingRemainingMs(autoPlayMs);
+      trackLanding("landing_resumed", "manual_idle_resume");
+    }, 3200);
+  }, [autoPlayMs, clearManualResumeTimer, isExploreMode, isFocusPaused, isHoverPaused, isLanding, reducedMotion]);
+
+  function trackLanding(eventName: string, context: string) {
+    if (isLanding && onLandingAnalytics) onLandingAnalytics({ eventName, context });
+  }
+
+  function isEditableTarget(target: EventTarget | null) {
+    const element = target as HTMLElement | null;
+    if (!element) return false;
+    if (element.closest("input, textarea, select, [contenteditable='true']")) return true;
+    return false;
+  }
+
+  function isInteractiveTarget(target: EventTarget | null) {
+    const element = target as HTMLElement | null;
+    if (!element) return false;
+    if (element.closest("button, a, input, textarea, select, [role='button'], [contenteditable='true']")) return true;
+    return false;
+  }
 
   const scheduleFallback = useCallback((delay: number) => {
     clearFallbackTimer();
@@ -276,7 +371,11 @@ export function VoiceUpStoryCarousel({
     return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
   }, []);
 
-  useEffect(() => () => cancelNarration(), [cancelNarration]);
+  useEffect(() => () => {
+    cancelNarration();
+    clearLandingTimer();
+    clearManualResumeTimer();
+  }, [cancelNarration, clearLandingTimer, clearManualResumeTimer]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -284,27 +383,96 @@ export function VoiceUpStoryCarousel({
     setGuidedActive(false);
     setGuidedPaused(false);
     setGuidedCompleted(false);
+    setIsExploreMode(false);
+    setLandingRemainingMs(autoPlayMs);
     cancelNarration();
   }, [cancelNarration, experience, reducedMotion, slides.length]);
 
   const showNextSilent = useCallback(() => {
-    setActiveIndex((current) => (current + 1) % slides.length);
-  }, [slides.length]);
+    setActiveIndex((current) => {
+      if (isLanding && current >= slides.length - 1) return current;
+      return (current + 1) % slides.length;
+    });
+  }, [isLanding, slides.length]);
 
   useEffect(() => {
+    if (isLanding) return;
     if (silentPaused || isHoverPaused || isFocusPaused || guidedActive || reducedMotion) return;
     const intervalId = window.setInterval(showNextSilent, autoPlayMs);
     return () => window.clearInterval(intervalId);
-  }, [autoPlayMs, guidedActive, isFocusPaused, isHoverPaused, reducedMotion, showNextSilent, silentPaused]);
+  }, [autoPlayMs, guidedActive, isFocusPaused, isHoverPaused, isLanding, reducedMotion, showNextSilent, silentPaused]);
 
   const slideKey = slides[Math.min(activeIndex, slides.length - 1)];
-  const title = t(`storyCarousel.${experience}.slides.${slideKey}.title`);
-  const description = t(`storyCarousel.${experience}.slides.${slideKey}.description`);
-  const narration = t(`storyCarousel.${experience}.slides.${slideKey}.narration`);
+  const customSlide = customSlides?.[slideKey];
+  const title = customSlide?.title ?? t(`storyCarousel.${experience}.slides.${slideKey}.title`);
+  const description = customSlide?.description ?? t(`storyCarousel.${experience}.slides.${slideKey}.description`);
+  const narration = customSlide?.narration ?? t(`storyCarousel.${experience}.slides.${slideKey}.narration`);
   const activeAction = actions[slideKey];
+  const isLandingOpeningSlide = experience === "landing" && slideKey === "opening";
+  const isLandingDecisionSlide = experience === "landing" && slideKey === "decision";
+  const hasLandingJourneyActions = experience === "landing" && Boolean(landingJourneyActions);
+  const isLandingFinalSlide = isLanding && activeIndex >= slides.length - 1;
+  const landingPaused = isLanding && (silentPaused || isHoverPaused || isFocusPaused || guidedPaused || reducedMotion || isExploreMode);
+  const landingJourneyAvailability = landingJourneyAvailabilityBySlide?.[slideKey] ?? { planEnabled: true, actEnabled: true };
 
   useEffect(() => {
-    if (!guidedActive) return;
+    if (!isLanding) return;
+    trackLanding("landing_scene_viewed", slideKey);
+  }, [isLanding, slideKey]);
+
+  useEffect(() => {
+    if (!isLanding) return;
+    if (firstLanguageRender.current) {
+      firstLanguageRender.current = false;
+      return;
+    }
+    setLandingRemainingMs(autoPlayMs);
+    trackLanding("landing_language_changed", language);
+  }, [autoPlayMs, isLanding, language]);
+
+  useEffect(() => {
+    if (!isLanding) return;
+    const handleVisibilityChange = () => {
+      if (!document.hidden) return;
+      setSilentPaused(true);
+      setGuidedPaused(true);
+      trackLanding("landing_paused", "tab_hidden");
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isLanding]);
+
+  useEffect(() => {
+    if (!isLanding) return;
+    setLandingRemainingMs(autoPlayMs);
+  }, [activeIndex, autoPlayMs, isLanding]);
+
+  useEffect(() => {
+    clearLandingTimer();
+    if (!isLanding || landingPaused || isLandingFinalSlide) return;
+    landingTimer.current = window.setInterval(() => {
+      setLandingRemainingMs((current) => {
+        const next = current - 100;
+        if (next > 0) return next;
+        setActiveIndex((currentIndex) => {
+          if (currentIndex >= slides.length - 1) {
+            setGuidedCompleted(true);
+            setGuidedActive(false);
+            setSilentPaused(true);
+            setGuidedPaused(true);
+            trackLanding("landing_story_completed", "timer");
+            return currentIndex;
+          }
+          return currentIndex + 1;
+        });
+        return autoPlayMs;
+      });
+    }, 100);
+    return clearLandingTimer;
+  }, [autoPlayMs, clearLandingTimer, isLanding, isLandingFinalSlide, landingPaused, slides.length]);
+
+  useEffect(() => {
+    if (isLanding || !guidedActive) return;
     cancelNarration();
     let cancelled = false;
     finishNarration.current = () => {
@@ -346,16 +514,36 @@ export function VoiceUpStoryCarousel({
       cancelled = true;
       cancelNarration();
     };
-  }, [activeIndex, cancelNarration, guidedActive, language, narration, scheduleFallback, slides.length, voices]);
+  }, [activeIndex, cancelNarration, guidedActive, isLanding, language, narration, scheduleFallback, slides.length, voices]);
 
-  function moveTo(index: number) {
+  function moveTo(index: number, context: string = "controls") {
     setSilentPaused(true);
+    if (isLanding) setGuidedPaused(true);
     cancelNarration();
-    setActiveIndex((index + slides.length) % slides.length);
+    setLandingRemainingMs(autoPlayMs);
+    const targetIndex = isLanding
+      ? Math.min(slides.length - 1, Math.max(0, index))
+      : (index + slides.length) % slides.length;
+    if (isLanding) {
+      const eventName = targetIndex < activeIndex ? "landing_previous_clicked" : "landing_next_clicked";
+      if (targetIndex !== activeIndex) trackLanding(eventName, context);
+      if (targetIndex !== activeIndex) scheduleManualResume();
+    }
+    setActiveIndex(targetIndex);
   }
 
   function startGuided() {
     cancelNarration();
+    if (isLanding) {
+      setActiveIndex(0);
+      setLandingRemainingMs(autoPlayMs);
+      setSilentPaused(false);
+      setGuidedPaused(false);
+      setGuidedActive(true);
+      setGuidedCompleted(false);
+      trackLanding("landing_guided_started", "story");
+      return;
+    }
     setSilentPaused(true);
     setGuidedCompleted(false);
     setGuidedPaused(false);
@@ -363,6 +551,12 @@ export function VoiceUpStoryCarousel({
   }
 
   function pauseGuided() {
+    if (isLanding) {
+      setSilentPaused(true);
+      setGuidedPaused(true);
+      trackLanding("landing_paused", "controls");
+      return;
+    }
     setGuidedPaused(true);
     if ("speechSynthesis" in window && utteranceRef.current) window.speechSynthesis.pause();
     if (fallbackTimer.current !== null) {
@@ -372,6 +566,13 @@ export function VoiceUpStoryCarousel({
   }
 
   function resumeGuided() {
+    if (isLanding) {
+      setGuidedPaused(false);
+      setSilentPaused(false);
+      setLandingRemainingMs(autoPlayMs);
+      trackLanding("landing_resumed", "controls");
+      return;
+    }
     setGuidedPaused(false);
     if ("speechSynthesis" in window && utteranceRef.current && window.speechSynthesis.paused) {
       window.speechSynthesis.resume();
@@ -385,29 +586,68 @@ export function VoiceUpStoryCarousel({
     setGuidedActive(false);
     setGuidedPaused(false);
     setGuidedCompleted(false);
+    if (isLanding) setSilentPaused(true);
   }
 
   function replayGuided() {
     cancelNarration();
     setActiveIndex(0);
+    setLandingRemainingMs(autoPlayMs);
+    setIsExploreMode(false);
     setGuidedCompleted(false);
     setGuidedPaused(false);
-    setGuidedActive(true);
+    setGuidedActive(!isLanding);
+    setSilentPaused(false);
+    if (isLanding) trackLanding("landing_guided_restarted", "controls");
+  }
+
+  function openExploreMode(context: string) {
+    setIsExploreMode(true);
+    setGuidedPaused(true);
+    setSilentPaused(true);
+    trackLanding("landing_paused", context);
+  }
+
+  function returnToGuidedStory() {
+    setIsExploreMode(false);
+    setLandingRemainingMs(autoPlayMs);
+    setGuidedPaused(false);
+    setSilentPaused(false);
+    trackLanding("landing_resumed", "explore_return");
+  }
+
+  function handleLandingJourneyAction(action: () => void, context: string) {
+    stopGuided();
+    setSilentPaused(true);
+    setLandingRemainingMs(autoPlayMs);
+    action();
+    if (isLanding && context === "explore") openExploreMode("explore");
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (isEditableTarget(event.target)) return;
     if (event.key === "ArrowLeft") {
       event.preventDefault();
-      moveTo(activeIndex - 1);
+      moveTo(activeIndex - 1, "keyboard");
     } else if (event.key === "ArrowRight") {
       event.preventDefault();
-      moveTo(activeIndex + 1);
+      moveTo(activeIndex + 1, "keyboard");
     } else if (event.key === "Home") {
       event.preventDefault();
-      moveTo(0);
+      moveTo(0, "keyboard");
     } else if (event.key === "End") {
       event.preventDefault();
-      moveTo(slides.length - 1);
+      moveTo(slides.length - 1, "keyboard");
+    } else if (event.key === " " && isLanding) {
+      event.preventDefault();
+      if (landingPaused) {
+        resumeGuided();
+      } else {
+        pauseGuided();
+      }
+    } else if (event.key === "Escape" && isLanding && isExploreMode) {
+      event.preventDefault();
+      returnToGuidedStory();
     }
   }
 
@@ -417,14 +657,26 @@ export function VoiceUpStoryCarousel({
 
   function handlePointerDown(event: PointerEvent<HTMLElement>) {
     if (event.pointerType !== "mouse") pointerStartX.current = event.clientX;
+    if (isLanding && event.pointerType !== "mouse") {
+      setSilentPaused(true);
+      setGuidedPaused(true);
+      trackLanding("landing_paused", "swipe_start");
+    }
   }
 
   function handlePointerUp(event: PointerEvent<HTMLElement>) {
     if (pointerStartX.current === null) return;
     const distance = event.clientX - pointerStartX.current;
     pointerStartX.current = null;
-    if (Math.abs(distance) < 48) return;
-    moveTo(distance > 0 ? activeIndex - 1 : activeIndex + 1);
+    if (Math.abs(distance) < 48) {
+      if (isLanding && !isInteractiveTarget(event.target)) {
+        setSilentPaused(true);
+        setGuidedPaused(true);
+        trackLanding("landing_paused", "tap_background");
+      }
+      return;
+    }
+    moveTo(distance > 0 ? activeIndex - 1 : activeIndex + 1, "swipe");
   }
 
   const rootClassName = [
@@ -443,8 +695,13 @@ export function VoiceUpStoryCarousel({
       aria-label={t(`storyCarousel.${experience}.regionLabel`)}
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      onMouseEnter={() => setIsHoverPaused(true)}
-      onMouseLeave={() => setIsHoverPaused(false)}
+      onMouseEnter={() => {
+        setIsHoverPaused(true);
+        if (isLanding) trackLanding("landing_paused", "hover");
+      }}
+      onMouseLeave={() => {
+        setIsHoverPaused(false);
+      }}
       onFocusCapture={() => setIsFocusPaused(true)}
       onBlurCapture={handleFocusLeave}
       onPointerDown={handlePointerDown}
@@ -453,16 +710,16 @@ export function VoiceUpStoryCarousel({
     >
       <div className="voiceup-story-header">
         <div>
-          <span className="eyebrow">{t(`storyCarousel.${experience}.eyebrow`)}</span>
-          <h2>{t(`storyCarousel.${experience}.title`)}</h2>
-          <p>{t(`storyCarousel.${experience}.subtitle`)}</p>
+          <span className="eyebrow">{customHeader?.eyebrow ?? t(`storyCarousel.${experience}.eyebrow`)}</span>
+          <h2>{customHeader?.title ?? t(`storyCarousel.${experience}.title`)}</h2>
+          <p>{customHeader?.subtitle ?? t(`storyCarousel.${experience}.subtitle`)}</p>
         </div>
-        {!guidedActive && !guidedCompleted && (
+        {!isLandingSimple && !guidedActive && !guidedCompleted && (
           <button type="button" className="voiceup-story-guided-start" onClick={startGuided}>
-            <Volume2 size={19} /> {t(`storyCarousel.${experience}.playLabel`)}
+            <Volume2 size={19} /> {customHeader?.playLabel ?? t(`storyCarousel.${experience}.playLabel`)}
           </button>
         )}
-        {guidedCompleted && (
+        {!isLandingSimple && guidedCompleted && (
           <button type="button" className="voiceup-story-guided-start" onClick={replayGuided}>
             <RotateCcw size={19} /> {t("storyCarousel.common.replay")}
           </button>
@@ -488,7 +745,17 @@ export function VoiceUpStoryCarousel({
                 ))}
               </ul>
             )}
-            {activeAction && (
+            {customSlide?.highlights && customSlide.highlights.length > 0 && (
+              <ul className="voiceup-story-benefits">
+                {customSlide.highlights.map((highlight) => (
+                  <li key={highlight}><CheckCircle2 size={15} /> {highlight}</li>
+                ))}
+              </ul>
+            )}
+            {customSlide?.status && (
+              <span className="voiceup-story-status" aria-label={t("landing.saas.labels.applicationStatus")}>{customSlide.status}</span>
+            )}
+            {activeAction && (isLandingSimple || (!isLandingOpeningSlide && !isLandingDecisionSlide)) && (
               <button
                 type="button"
                 className="voiceup-story-cta"
@@ -497,11 +764,105 @@ export function VoiceUpStoryCarousel({
                 {activeAction.label} <ArrowRight size={16} />
               </button>
             )}
+            {isLandingSimple && hasLandingJourneyActions && landingJourneyActions && (
+              <div className="voiceup-story-journey-actions" aria-label={t("storyCarousel.landing.journey.aria")}>
+                <button
+                  type="button"
+                  className="voiceup-story-cta voiceup-story-journey-cta"
+                  disabled={!landingJourneyAvailability.actEnabled}
+                  onClick={() => handleLandingJourneyAction(landingJourneyActions.onAct, "act")}
+                >
+                  <Bolt size={16} /> {t("storyCarousel.landing.journey.act")}
+                </button>
+                <button
+                  type="button"
+                  className="voiceup-story-cta voiceup-story-journey-cta"
+                  disabled={!landingJourneyAvailability.planEnabled}
+                  onClick={() => handleLandingJourneyAction(landingJourneyActions.onOrganize, "organize")}
+                >
+                  <Building2 size={16} /> {t("storyCarousel.landing.journey.organize")}
+                </button>
+              </div>
+            )}
+            {!isLandingSimple && hasLandingJourneyActions && isLandingOpeningSlide && landingJourneyActions && (
+              <div className="voiceup-story-journey-actions" aria-label={t("storyCarousel.landing.journey.aria")}>
+                <button
+                  type="button"
+                  className="voiceup-story-cta voiceup-story-journey-cta"
+                  onClick={() => handleLandingJourneyAction(landingJourneyActions.onOrganize, "organize")}
+                >
+                  <Building2 size={16} /> {t("storyCarousel.landing.journey.organize")}
+                </button>
+                <button
+                  type="button"
+                  className="voiceup-story-cta voiceup-story-journey-cta"
+                  onClick={() => handleLandingJourneyAction(landingJourneyActions.onAct, "act")}
+                >
+                  <Bolt size={16} /> {t("storyCarousel.landing.journey.act")}
+                </button>
+                <button
+                  type="button"
+                  className="voiceup-story-link-button"
+                  onClick={() => {
+                    if (landingJourneyActions.onExplore) {
+                      handleLandingJourneyAction(landingJourneyActions.onExplore, "explore");
+                    } else {
+                      stopGuided();
+                      setSilentPaused(true);
+                    }
+                  }}
+                >
+                  {t("storyCarousel.landing.journey.explore")}
+                </button>
+              </div>
+            )}
+            {!isLandingSimple && hasLandingJourneyActions && isLandingDecisionSlide && landingJourneyActions && (
+              <div className="voiceup-story-decision-grid" aria-label={t("storyCarousel.landing.decision.aria")}>
+                <article>
+                  <h4>{t("storyCarousel.landing.decision.organizeTitle")}</h4>
+                  <p>{t("storyCarousel.landing.decision.organizeText")}</p>
+                  <button
+                    type="button"
+                    className="voiceup-story-cta voiceup-story-journey-cta"
+                    onClick={() => handleLandingJourneyAction(landingJourneyActions.onOrganize, "organize")}
+                  >
+                    <Building2 size={16} /> {t("storyCarousel.landing.journey.organize")}
+                  </button>
+                </article>
+                <article>
+                  <h4>{t("storyCarousel.landing.decision.actTitle")}</h4>
+                  <p>{t("storyCarousel.landing.decision.actText")}</p>
+                  <button
+                    type="button"
+                    className="voiceup-story-cta voiceup-story-journey-cta"
+                    onClick={() => handleLandingJourneyAction(landingJourneyActions.onAct, "act")}
+                  >
+                    <Bolt size={16} /> {t("storyCarousel.landing.journey.act")}
+                  </button>
+                </article>
+                <button
+                  type="button"
+                  className="voiceup-story-link-button voiceup-story-decision-link"
+                  onClick={() => {
+                    if (landingJourneyActions.onExplore) {
+                      handleLandingJourneyAction(landingJourneyActions.onExplore, "explore");
+                    } else {
+                      stopGuided();
+                      setSilentPaused(true);
+                    }
+                  }}
+                >
+                  {t("storyCarousel.landing.journey.explore")}
+                </button>
+              </div>
+            )}
           </div>
-          <div className="voiceup-story-subtitles">
-            <span>{t("storyCarousel.common.subtitles")}</span>
-            <p>{narration}</p>
-          </div>
+          {!isLandingSimple && (
+            <div className="voiceup-story-subtitles">
+              <span>{t("storyCarousel.common.subtitles")}</span>
+              <p>{narration}</p>
+            </div>
+          )}
         </div>
         <StoryVisualScene slideKey={slideKey} title={title} media={mediaBySlide[slideKey]} t={t} />
       </div>
@@ -510,14 +871,31 @@ export function VoiceUpStoryCarousel({
         <p className="voiceup-story-notice" role="status">{t("storyCarousel.common.narrationUnavailable")}</p>
       )}
 
-      <div className="voiceup-story-media" aria-label={t("storyCarousel.common.mediaAria")}>
-        <span><Volume2 size={16} /> {t("storyCarousel.common.nativeNarration")}</span>
-        <span><Video size={16} /> {t("storyCarousel.common.videoPlaceholder")}</span>
-        <small>{t("storyCarousel.common.swipeHint")}</small>
-      </div>
+      {isLanding && !isLandingSimple && (
+        <div className="voiceup-story-timer" aria-label={t("landing.saas.carousel.timer")}>
+          <span className="voiceup-story-timer-countdown" aria-live="polite">{Math.max(0, Math.ceil(landingRemainingMs / 1000))}s</span>
+          <div className="voiceup-story-timer-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((autoPlayMs - landingRemainingMs) / autoPlayMs) * 100)}>
+            <span style={{ width: `${Math.max(0, Math.min(100, ((autoPlayMs - landingRemainingMs) / autoPlayMs) * 100))}%` }} />
+          </div>
+        </div>
+      )}
+
+      {isLanding && !isLandingSimple && landingPaused && (
+        <p className="voiceup-story-notice" role="status">
+          {t("storyCarousel.common.pause")} - {t("storyCarousel.common.resume")}
+        </p>
+      )}
+
+      {!isLandingSimple && (
+        <div className="voiceup-story-media" aria-label={t("storyCarousel.common.mediaAria")}>
+          <span><Volume2 size={16} /> {t("storyCarousel.common.nativeNarration")}</span>
+          <span><Video size={16} /> {t("storyCarousel.common.videoPlaceholder")}</span>
+          <small>{t("storyCarousel.common.swipeHint")}</small>
+        </div>
+      )}
 
       <div className="voiceup-story-controls">
-        <button type="button" className="voiceup-story-arrow" onClick={() => moveTo(activeIndex - 1)} aria-label={t("storyCarousel.common.previous")}>
+        <button type="button" className="voiceup-story-arrow" onClick={() => moveTo(activeIndex - 1, "controls")} aria-label={t("storyCarousel.common.previous")}>
           <ChevronLeft size={20} />
         </button>
 
@@ -531,15 +909,47 @@ export function VoiceUpStoryCarousel({
               type="button"
               className={index === activeIndex ? "active" : ""}
               key={item}
-              onClick={() => moveTo(index)}
+              onClick={() => moveTo(index, "dots")}
               aria-current={index === activeIndex ? "true" : undefined}
-              aria-label={`${t("storyCarousel.common.goTo")} ${index + 1}: ${t(`storyCarousel.${experience}.slides.${item}.title`)}`}
-              title={t(`storyCarousel.${experience}.slides.${item}.title`)}
+              aria-label={`${t("storyCarousel.common.goTo")} ${index + 1}: ${customSlides?.[item]?.title ?? t(`storyCarousel.${experience}.slides.${item}.title`)}`}
+              title={customSlides?.[item]?.title ?? t(`storyCarousel.${experience}.slides.${item}.title`)}
             />
           ))}
         </div>
 
-        {guidedActive ? (
+        {isLandingSimple ? (
+          <button type="button" className="voiceup-story-play voiceup-story-autoplay" onClick={landingPaused ? resumeGuided : pauseGuided}>
+            {landingPaused ? <Play size={17} /> : <Pause size={17} />}
+            {t(landingPaused ? "storyCarousel.common.resume" : "storyCarousel.common.pause")}
+          </button>
+        ) : isLanding ? (
+          <div className="voiceup-story-guided-controls">
+            <button type="button" className="voiceup-story-play" onClick={landingPaused ? resumeGuided : pauseGuided}>
+              {landingPaused ? <Play size={17} /> : <Pause size={17} />}
+              {t(landingPaused ? "storyCarousel.common.resume" : "storyCarousel.common.pause")}
+            </button>
+            <button type="button" className="voiceup-story-play" onClick={replayGuided}>
+              <RotateCcw size={15} /> {t("storyCarousel.common.replay")}
+            </button>
+            <button
+              type="button"
+              className="voiceup-story-play"
+              onClick={() => {
+                if (isExploreMode) {
+                  returnToGuidedStory();
+                  return;
+                }
+                if (landingJourneyActions?.onExplore) {
+                  handleLandingJourneyAction(landingJourneyActions.onExplore, "explore");
+                } else {
+                  openExploreMode("explore");
+                }
+              }}
+            >
+              {isExploreMode ? t("storyCarousel.common.replay") : t("storyCarousel.landing.journey.explore")}
+            </button>
+          </div>
+        ) : guidedActive ? (
           <div className="voiceup-story-guided-controls">
             <button type="button" className="voiceup-story-play" onClick={guidedPaused ? resumeGuided : pauseGuided}>
               {guidedPaused ? <Play size={17} /> : <Pause size={17} />}
@@ -553,7 +963,22 @@ export function VoiceUpStoryCarousel({
           <button
             type="button"
             className="voiceup-story-play voiceup-story-autoplay"
-            onClick={() => setSilentPaused((current) => !current)}
+            onClick={() => {
+              setSilentPaused((current) => {
+                const nextPaused = !current;
+                if (isLanding) {
+                  if (nextPaused) {
+                    setGuidedPaused(true);
+                    trackLanding("landing_paused", "autoplay_toggle");
+                  } else {
+                    setGuidedPaused(false);
+                    setLandingRemainingMs(autoPlayMs);
+                    trackLanding("landing_resumed", "autoplay_toggle");
+                  }
+                }
+                return nextPaused;
+              });
+            }}
             aria-pressed={silentPaused}
           >
             {silentPaused ? <Play size={17} /> : <Pause size={17} />}
@@ -561,7 +986,7 @@ export function VoiceUpStoryCarousel({
           </button>
         )}
 
-        <button type="button" className="voiceup-story-arrow" onClick={() => moveTo(activeIndex + 1)} aria-label={t("storyCarousel.common.next")}>
+        <button type="button" className="voiceup-story-arrow" onClick={() => moveTo(activeIndex + 1, "controls")} aria-label={t("storyCarousel.common.next")}>
           <ChevronRight size={20} />
         </button>
       </div>

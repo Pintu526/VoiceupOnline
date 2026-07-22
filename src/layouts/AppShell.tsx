@@ -11,9 +11,12 @@ import {
   FileScan,
   FileText,
   Globe2,
+  HandCoins,
+  Landmark,
   Megaphone,
   MessageCircle,
   Moon,
+  Network,
   Plus,
   Search,
   ShieldCheck,
@@ -26,28 +29,31 @@ import {
   WalletCards
 } from "lucide-react";
 import type { Campaign, Organization } from "../types";
-import type { AuthorityRule, Signer, ScanReviewItem, AuditLogEntry, IntegrationSettings, CommercialPackage } from "../types";
+import type { AuthorityRule, Signer, ScanReviewItem, AuditLogEntry, IntegrationSettings, CommercialPackage, ConfirmationQueueItem, ScanCaptureMetadata } from "../types";
 import type { LocationDeletions, LocationDeletions as LD, LocationOverrides } from "../geography";
 import { NavButton, type Tab } from "../components/NavButton";
 import { CommandPalette } from "../components/CommandPalette";
 import { AppToast } from "../components/AppToast";
 import { DashboardTab } from "../pages/app/DashboardTab";
+import { VbossModulePlaceholder } from "../pages/app/VbossModulePlaceholder";
 import { CampaignsTab } from "../pages/app/CampaignsTab";
 import { ActivityTab } from "../pages/app/ActivityTab";
 import { SaasTab } from "../pages/app/SaasTab";
 import { IdeasTab } from "../pages/app/IdeasTab";
 import { PublicCampaignPage } from "../pages/PublicCampaignPage";
 import type { getCampaignMetrics } from "../lib";
-import type { BillingPlan } from "../types";
+import type { BillingCadence, BillingPlan } from "../types";
 import type { LocationDeletionLevel, LocationWithPin } from "../geography";
 import type { ScanReviewItem as SRI } from "../types";
+import type { ScanApprovalCounts } from "../scanApproval";
 import type { FormEvent } from "react";
 import { blankSigner } from "../constants";
 import type { AiCampaignCopilotResult } from "../ai/types";
 import { createId } from "../lib";
 import { getCampaignAdminUrl, getCampaignPublicUrl } from "../utils/campaign";
 import { formatAuthorityDisplay, getAppealAuthority } from "../utils/authority";
-import { getCreateCampaignBlockReason, isFeatureIncludedInPlan } from "../utils/subscription";
+import { getCreateCampaignBlockReason } from "../utils/subscription";
+import { getCampaignEntitlements, type AddOnPurchaseRequest, type CampaignEntitlements, type FeatureKey } from "../entitlements";
 import { GROWTH_FEATURE_FLAGS } from "../growth/constants";
 import type { GrowthRuntimeState, GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
 import type { SupporterGrowthPortalModel } from "../growth/tree";
@@ -55,6 +61,9 @@ import { useTranslation } from "../i18n";
 
 const MovementCrmTab = lazy(() =>
   import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
+);
+const CoordinatorNetworkTab = lazy(() =>
+  import("../pages/app/CoordinatorNetworkTab").then((module) => ({ default: module.CoordinatorNetworkTab }))
 );
 const GrowthDashboardTab = lazy(() =>
   import("../pages/app/GrowthDashboardTab").then((module) => ({ default: module.GrowthDashboardTab }))
@@ -170,6 +179,8 @@ interface AppShellProps {
   campaignFormMode: "create" | "edit";
   setCampaignFormMode: React.Dispatch<React.SetStateAction<"create" | "edit">>;
   isCampaignAdminRoute: boolean;
+  campaignAdminSessionEmail: string;
+  campaignAdminCampaignId: string;
   isAppRoute: boolean;
   canAccessPlatformAdmin: boolean;
 
@@ -183,6 +194,7 @@ interface AppShellProps {
   setOrganization: React.Dispatch<React.SetStateAction<Organization>>;
   scanItems: ScanReviewItem[];
   setScanItems: React.Dispatch<React.SetStateAction<ScanReviewItem[]>>;
+  confirmationQueue: ConfirmationQueueItem[];
   auditLogs: AuditLogEntry[];
   integrations: IntegrationSettings;
   setIntegrations: React.Dispatch<React.SetStateAction<IntegrationSettings>>;
@@ -203,9 +215,9 @@ interface AppShellProps {
   campaignSigners: Signer[];
 
   // SaaS section
-  saasSection: "organization" | "usage" | "packages" | "integrations" | "plans";
+  saasSection: "organization" | "usage" | "packages" | "integrations" | "plans" | "entitlements";
   setSaasSection: React.Dispatch<
-    React.SetStateAction<"organization" | "usage" | "packages" | "integrations" | "plans">
+    React.SetStateAction<"organization" | "usage" | "packages" | "integrations" | "plans" | "entitlements">
   >;
 
   // Public signing (preview tab)
@@ -255,14 +267,17 @@ interface AppShellProps {
   onSendOtp: () => void;
   onVerifyOtp: () => void;
   onGrowthShare: (share: GrowthShareContext) => void;
-  onUploadScan: (file: File) => void;
+  secureFieldUploadAvailable: boolean;
+  secureFieldUploadMessage: string;
+  onUploadScan: (file: File, metadata?: ScanCaptureMetadata) => Promise<boolean>;
+  onOpenPrivateScan: (scan: SRI) => Promise<string>;
   onCreateManualScanItem: () => void;
   onUpdateScanParsedSigner: (
     scanId: string,
     field: keyof SRI["parsedSigner"],
     value: string
   ) => void;
-  onApproveScan: (scan: SRI) => void;
+  onApproveScan: (scan: SRI | SRI[]) => Promise<ScanApprovalCounts>;
   onUpdateSignerStatus: (signerId: string, status: Signer["status"]) => void;
   onAddAuthorityRule: () => void;
   onAddAdminLocationOption: (values: LocationWithPin) => boolean | Promise<boolean>;
@@ -271,12 +286,24 @@ interface AppShellProps {
   onUploadAuthorityCsv: (file: File) => void;
   onUpdateCampaignMedia: (file: File) => void;
   onUpdateCampaignDonationQr: (file: File) => void;
+  onProvisionCampaignAdmin: (email: string, password: string) => void | Promise<void>;
+  campaignAdminProvisioningPending: boolean;
+  campaignAdminProvisioningMessage: string;
   onSelectSubscriptionPlan: (planName: BillingPlan) => void;
   onStartOneDayTrial: () => void;
   onActivateSubscriptionManually: () => void;
   onMarkSubscriptionPastDue: () => void;
   onCancelSubscription: () => void;
   onApplyCommercialPackage: (pkg: CommercialPackage) => void;
+  onUpgradeSubscriptionPlan: (planName: BillingPlan) => void;
+  onDowngradeSubscriptionPlan: (planName: BillingPlan, effective?: "immediately" | "period_end") => void;
+  onRenewSubscriptionPeriod: (periodDays: number) => void;
+  onExtendSubscriptionPeriod: (extraDays: number) => void;
+  onSuspendSubscriptionWithReason: (reason: string) => void;
+  onReactivateSuspendedSubscription: () => void;
+  onCancelSubscriptionLifecycle: (atPeriodEnd: boolean) => void;
+  onChangeSubscriptionBillingCycle: (cadence: BillingCadence) => void;
+  onPurchaseEntitlementAddOn: (request: AddOnPurchaseRequest) => void;
   onAuditIntegrationUpdate: () => void;
   onCopyText: (text: string) => void;
   onLogoutCampaignAdmin: () => void;
@@ -303,6 +330,8 @@ export function AppShell({
   campaignFormMode,
   setCampaignFormMode,
   isCampaignAdminRoute,
+  campaignAdminSessionEmail,
+  campaignAdminCampaignId,
   isAppRoute,
   canAccessPlatformAdmin,
   signers,
@@ -314,6 +343,7 @@ export function AppShell({
   setOrganization,
   scanItems,
   setScanItems,
+  confirmationQueue,
   auditLogs,
   integrations,
   setIntegrations,
@@ -366,7 +396,10 @@ export function AppShell({
   onSendOtp,
   onVerifyOtp,
   onGrowthShare,
+  secureFieldUploadAvailable,
+  secureFieldUploadMessage,
   onUploadScan,
+  onOpenPrivateScan,
   onCreateManualScanItem,
   onUpdateScanParsedSigner,
   onApproveScan,
@@ -378,12 +411,24 @@ export function AppShell({
   onUploadAuthorityCsv,
   onUpdateCampaignMedia,
   onUpdateCampaignDonationQr,
+  onProvisionCampaignAdmin,
+  campaignAdminProvisioningPending,
+  campaignAdminProvisioningMessage,
   onSelectSubscriptionPlan,
   onStartOneDayTrial,
   onActivateSubscriptionManually,
   onMarkSubscriptionPastDue,
   onCancelSubscription,
   onApplyCommercialPackage,
+  onUpgradeSubscriptionPlan,
+  onDowngradeSubscriptionPlan,
+  onRenewSubscriptionPeriod,
+  onExtendSubscriptionPeriod,
+  onSuspendSubscriptionWithReason,
+  onReactivateSuspendedSubscription,
+  onCancelSubscriptionLifecycle,
+  onChangeSubscriptionBillingCycle,
+  onPurchaseEntitlementAddOn,
   onAuditIntegrationUpdate,
   onCopyText,
   onLogoutCampaignAdmin,
@@ -421,11 +466,13 @@ export function AppShell({
   const campaignCreationBlockReason = getCreateCampaignBlockReason(organization, campaigns);
   const campaignCreationLocked = Boolean(campaignCreationBlockReason);
   const canShowWorkspaceCreateActions = !isCampaignAdminRoute && activeTab === "dashboard";
+  // Single source of truth for feature availability: every gate below reads
+  // from the centralized entitlement engine (`Base Plan + Add-ons = Effective
+  // Entitlements`) instead of comparing `organization.plan` directly.
+  const campaignEntitlements = useMemo(() => getCampaignEntitlements(organization), [organization]);
   const enabledFeatureKeys = new Set(organization.enabledFeatureKeys ?? []);
   const hasWorkspaceFeature = (featureKey: string) =>
-    canAccessPlatformAdmin ||
-    isFeatureIncludedInPlan(organization.plan, featureKey) ||
-    enabledFeatureKeys.has(featureKey);
+    canAccessPlatformAdmin || campaignEntitlements.features[featureKey as FeatureKey] === true;
   const canUseGrowthEngine =
     hasWorkspaceFeature(GROWTH_FEATURE_FLAGS.growthEngine) ||
     enabledFeatureKeys.has(GROWTH_FEATURE_FLAGS.legacyMovementCrm);
@@ -504,6 +551,9 @@ export function AppShell({
       command: t("settings.shell.locks.command"),
       public: t("settings.shell.locks.public"),
       movement: t("settings.shell.locks.movement"),
+      coordinators: t("settings.shell.locks.movement"),
+      fund: t("framework.placeholder.locked"),
+      prove: t("framework.placeholder.locked"),
       growth: t("settings.shell.locks.growth"),
       scans: t("settings.shell.locks.scans"),
       reports: t("settings.shell.locks.reports"),
@@ -517,11 +567,11 @@ export function AppShell({
 
   function canAccessWorkspaceTab(tab: Tab): boolean {
     if (canAccessPlatformAdmin) return true;
-    if (tab === "dashboard" || tab === "campaigns") return true;
+    if (tab === "dashboard" || tab === "command" || tab === "fund" || tab === "prove" || tab === "campaigns") return true;
     if (tab === "public") return hasWorkspaceFeature("public_signing");
     if (tab === "reports") return canUseReports;
-    if (tab === "command") return hasWorkspaceFeature("command_center");
     if (tab === "movement") return hasWorkspaceFeature("movement_crm");
+    if (tab === "coordinators") return hasWorkspaceFeature("movement_crm");
     if (tab === "growth") return canUseGrowthEngine;
     if (tab === "scans") return hasWorkspaceFeature("field_collection");
     if (tab === "engagement") return hasWorkspaceFeature("communication_hub");
@@ -1013,6 +1063,22 @@ export function AppShell({
             </div>
           </div>
           <nav className="nav">
+            <span className="nav-section-label">{t("framework.nav.section")}</span>
+            <NavButton icon={<Crosshair />} label={t("framework.nav.commandCenter")} tab="command" activeTab={activeTab} onClick={requestTabChange} />
+            <NavButton icon={<Network />} label={t("framework.nav.organize")} tab="coordinators" activeTab={activeTab} onClick={requestTabChange} />
+            <NavButton icon={<Megaphone />} label={t("framework.nav.plan")} tab="campaigns" activeTab={activeTab} onClick={requestTabChange} />
+            {hasWorkspaceFeature("public_signing") && (
+              <NavButton icon={<Globe2 />} label={t("framework.nav.act")} tab="public" activeTab={activeTab} onClick={requestTabChange} />
+            )}
+            <NavButton icon={<HandCoins />} label={t("framework.nav.fund")} tab="fund" activeTab={activeTab} onClick={requestTabChange} />
+            <NavButton icon={<Landmark />} label={t("framework.nav.prove")} tab="prove" activeTab={activeTab} onClick={requestTabChange} />
+            {canUseGrowthEngine && (
+              <NavButton icon={<TrendingUp />} label={t("framework.nav.grow")} tab="growth" activeTab={activeTab} onClick={requestTabChange} />
+            )}
+            {!isCampaignAdminRoute && canAccessPlatformAdmin && (
+              <NavButton icon={<WalletCards />} label={t("framework.nav.settings")} tab="saas" activeTab={activeTab} onClick={requestTabChange} />
+            )}
+            <span className="nav-section-label">{t("framework.nav.connectedModules")}</span>
             <NavButton
               icon={<BarChart3 />}
               label={t("campaignAdmin.nav.dashboard")}
@@ -1020,45 +1086,11 @@ export function AppShell({
               activeTab={activeTab}
               onClick={requestTabChange}
             />
-            {hasWorkspaceFeature("command_center") && (
-              <NavButton
-                icon={<Crosshair />}
-                label={t("campaignAdmin.nav.commandCenter")}
-                tab="command"
-                activeTab={activeTab}
-                onClick={requestTabChange}
-              />
-            )}
-            <NavButton
-              icon={<Megaphone />}
-              label={t("campaignAdmin.nav.campaignAdmin")}
-              tab="campaigns"
-              activeTab={activeTab}
-              onClick={requestTabChange}
-            />
-            {hasWorkspaceFeature("public_signing") && (
-              <NavButton
-                icon={<Globe2 />}
-                label={t("campaignAdmin.nav.publicSigning")}
-                tab="public"
-                activeTab={activeTab}
-                onClick={requestTabChange}
-              />
-            )}
             {hasWorkspaceFeature("movement_crm") && (
               <NavButton
                 icon={<UsersRound />}
                 label={t("campaignAdmin.nav.movementCrm")}
                 tab="movement"
-                activeTab={activeTab}
-                onClick={requestTabChange}
-              />
-            )}
-            {canUseGrowthEngine && (
-              <NavButton
-                icon={<TrendingUp />}
-                label={t("campaignAdmin.nav.growthEngine")}
-                tab="growth"
                 activeTab={activeTab}
                 onClick={requestTabChange}
               />
@@ -1101,13 +1133,6 @@ export function AppShell({
             )}
             {!isCampaignAdminRoute && canAccessPlatformAdmin && (
               <>
-                <NavButton
-                  icon={<WalletCards />}
-                  label={t("settings.shell.saasAdmin")}
-                  tab="saas"
-                  activeTab={activeTab}
-                  onClick={requestTabChange}
-                />
                 <NavButton
                   icon={<Sparkles />}
                   label={t("settings.shell.featureIdeas")}
@@ -1171,21 +1196,33 @@ export function AppShell({
               )}
             </div>
             {isCampaignAdminRoute ? (
-              <div className="button-row">
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={requestCreateCampaign}
-                >
-                  <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={onLogoutCampaignAdmin}
-                >
-                  {t("campaignAdmin.actions.logout")}
-                </button>
+              <div className="campaign-admin-header-actions">
+                <dl className="campaign-admin-session-context" aria-label="Campaign Admin session details">
+                  <div>
+                    <dt>Campaign Admin</dt>
+                    <dd>{campaignAdminSessionEmail}</dd>
+                  </div>
+                  <div>
+                    <dt>Campaign ID</dt>
+                    <dd>{campaignAdminCampaignId}</dd>
+                  </div>
+                </dl>
+                <div className="button-row">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={requestCreateCampaign}
+                  >
+                    <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
+                  </button>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={onLogoutCampaignAdmin}
+                  >
+                    {t("campaignAdmin.actions.logout")}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="button-row">
@@ -1270,7 +1307,7 @@ export function AppShell({
             />
           )}
 
-          {activeTab === "command" && hasWorkspaceFeature("command_center") && (
+          {activeTab === "command" && (
             <Suspense fallback={<ModuleSkeleton label="Loading Command Center" />}>
               <CommandCenterTab
                 activeCampaign={activeCampaign}
@@ -1293,6 +1330,9 @@ export function AppShell({
                 onOpenAuthorities={() => requestTabChange("campaigns")}
                 onOpenSaas={() => requestTabChange("saas")}
                 onOpenMovement={() => requestTabChange("movement")}
+                onOpenActivity={() => requestTabChange("activity")}
+                onOpenFund={() => requestTabChange("fund")}
+                onOpenProve={() => requestTabChange("prove")}
                 canAccessPlatformAdmin={canAccessPlatformAdmin}
               />
             </Suspense>
@@ -1346,6 +1386,11 @@ export function AppShell({
               onUploadAuthorityCsv={onUploadAuthorityCsv}
               onUpdateCampaignMedia={onUpdateCampaignMedia}
               onUpdateCampaignDonationQr={onUpdateCampaignDonationQr}
+              onProvisionCampaignAdmin={onProvisionCampaignAdmin}
+              campaignAdminProvisioningPending={campaignAdminProvisioningPending}
+              campaignAdminProvisioningMessage={campaignAdminProvisioningMessage}
+              campaignEntitlements={campaignEntitlements}
+              onNavigateToUpgrade={() => setActiveTab("saas")}
             />
           )}
 
@@ -1398,6 +1443,48 @@ export function AppShell({
             </Suspense>
           )}
 
+          {activeTab === "coordinators" && hasWorkspaceFeature("movement_crm") && (
+            <>
+              <VbossModulePlaceholder
+                moduleName={t("framework.organize.title")}
+                purpose={t("framework.organize.purpose")}
+                sections={[
+                  { name: t("framework.organize.organization"), purpose: t("framework.organize.organizationPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.organizationFuture") },
+                  { name: t("framework.organize.hierarchy"), purpose: t("framework.organize.hierarchyPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.hierarchyFuture") },
+                  { name: t("framework.organize.roles"), purpose: t("framework.organize.rolesPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.rolesFuture") },
+                  { name: t("framework.organize.invitations"), purpose: t("framework.organize.invitationsPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.invitationsFuture") }
+                ]}
+              />
+              <Suspense fallback={<ModuleSkeleton label="Loading Coordinator Network" />}>
+                <CoordinatorNetworkTab campaigns={campaigns} locationOverrides={locationOverrides} locationDeletions={locationDeletions} />
+              </Suspense>
+            </>
+          )}
+
+          {activeTab === "fund" && (
+            <VbossModulePlaceholder
+              moduleName={t("framework.fund.title")}
+              purpose={t("framework.fund.purpose")}
+              sections={[
+                { name: t("framework.fund.budget"), purpose: t("framework.fund.budgetPurpose"), connected: t("framework.fund.connected"), future: t("framework.fund.budgetFuture") },
+                { name: t("framework.fund.contributions"), purpose: t("framework.fund.contributionsPurpose"), connected: t("framework.fund.connected"), future: t("framework.fund.contributionsFuture") },
+                { name: t("framework.fund.reconciliation"), purpose: t("framework.fund.reconciliationPurpose"), connected: t("framework.fund.connected"), future: t("framework.fund.reconciliationFuture") }
+              ]}
+            />
+          )}
+
+          {activeTab === "prove" && (
+            <VbossModulePlaceholder
+              moduleName={t("framework.prove.title")}
+              purpose={t("framework.prove.purpose")}
+              sections={[
+                { name: t("framework.prove.evidence"), purpose: t("framework.prove.evidencePurpose"), connected: t("framework.prove.connected"), future: t("framework.prove.evidenceFuture") },
+                { name: t("framework.prove.timeline"), purpose: t("framework.prove.timelinePurpose"), connected: t("framework.prove.connected"), future: t("framework.prove.timelineFuture") },
+                { name: t("framework.prove.audit"), purpose: t("framework.prove.auditPurpose"), connected: t("framework.prove.connected"), future: t("framework.prove.auditFuture") }
+              ]}
+            />
+          )}
+
           {activeTab === "growth" && canUseGrowthEngine && (
             <Suspense fallback={<ModuleSkeleton label="Loading Growth Engine" />}>
               <GrowthDashboardTab
@@ -1419,11 +1506,15 @@ export function AppShell({
                 scanItems={scanItems}
                 campaignSigners={campaignSigners}
                 setScanItems={setScanItems}
+                confirmationQueue={confirmationQueue}
                 scanText={scanText}
                 setScanText={setScanText}
                 isScanning={isScanning}
                 scanMessage={scanMessage}
+                secureFieldUploadAvailable={secureFieldUploadAvailable}
+                secureFieldUploadMessage={secureFieldUploadMessage}
                 onUploadScan={onUploadScan}
+                onOpenPrivateScan={onOpenPrivateScan}
                 onCreateManualScanItem={onCreateManualScanItem}
                 onUpdateScanParsedSigner={onUpdateScanParsedSigner}
                 onApproveScan={onApproveScan}
@@ -1493,6 +1584,15 @@ export function AppShell({
               onMarkSubscriptionPastDue={onMarkSubscriptionPastDue}
               onCancelSubscription={onCancelSubscription}
               onApplyCommercialPackage={onApplyCommercialPackage}
+              onUpgradeSubscriptionPlan={onUpgradeSubscriptionPlan}
+              onDowngradeSubscriptionPlan={onDowngradeSubscriptionPlan}
+              onRenewSubscriptionPeriod={onRenewSubscriptionPeriod}
+              onExtendSubscriptionPeriod={onExtendSubscriptionPeriod}
+              onSuspendSubscriptionWithReason={onSuspendSubscriptionWithReason}
+              onReactivateSuspendedSubscription={onReactivateSuspendedSubscription}
+              onCancelSubscriptionLifecycle={onCancelSubscriptionLifecycle}
+              onChangeSubscriptionBillingCycle={onChangeSubscriptionBillingCycle}
+              onPurchaseEntitlementAddOn={onPurchaseEntitlementAddOn}
               onAuditIntegrationUpdate={onAuditIntegrationUpdate}
             />
           )}

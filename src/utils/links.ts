@@ -24,13 +24,18 @@ function isLocalHostname(hostname: string): boolean {
 }
 
 export function resolvePublicOrigin(context: PublicOriginContext = {}): string {
+  const runtimeOrigin = normalizeHttpOrigin(context.runtimeOrigin);
+  const runtimeHostname = (context.runtimeHostname || (runtimeOrigin ? new URL(runtimeOrigin).hostname : "")).toLowerCase();
+
+  // In browsers, always prefer the live runtime origin for local and preview environments.
+  if (runtimeOrigin && runtimeHostname && runtimeHostname !== "voiceup.live" && runtimeHostname !== "www.voiceup.live") {
+    return runtimeOrigin;
+  }
+
   const explicitOrigin = normalizeHttpOrigin(context.explicitOrigin);
   if (explicitOrigin && !(context.production && isLocalHostname(new URL(explicitOrigin).hostname))) {
     return explicitOrigin;
   }
-
-  const runtimeOrigin = normalizeHttpOrigin(context.runtimeOrigin);
-  const runtimeHostname = (context.runtimeHostname || (runtimeOrigin ? new URL(runtimeOrigin).hostname : "")).toLowerCase();
 
   if (runtimeHostname === "voiceup.live" || runtimeHostname === "www.voiceup.live") {
     return PRODUCTION_PUBLIC_ORIGIN;

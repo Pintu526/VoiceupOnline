@@ -66,6 +66,11 @@ interface LandingJourneyActions {
   onExplore?: () => void;
 }
 
+interface LandingJourneyAvailability {
+  planEnabled: boolean;
+  actEnabled: boolean;
+}
+
 interface LandingAnalyticsPayload {
   eventName: string;
   context: string;
@@ -81,7 +86,9 @@ interface VoiceUpStoryCarouselProps {
   customSlides?: Partial<Record<string, VoiceUpCustomSlide>>;
   customHeader?: VoiceUpCustomHeader;
   landingJourneyActions?: LandingJourneyActions;
+  landingJourneyAvailabilityBySlide?: Partial<Record<string, LandingJourneyAvailability>>;
   onLandingAnalytics?: (payload: LandingAnalyticsPayload) => void;
+  simplifyLandingControls?: boolean;
 }
 
 const experienceSlides: Record<VoiceUpStoryExperience, readonly string[]> = {
@@ -248,7 +255,9 @@ export function VoiceUpStoryCarousel({
   customSlides,
   customHeader,
   landingJourneyActions,
-  onLandingAnalytics
+  landingJourneyAvailabilityBySlide,
+  onLandingAnalytics,
+  simplifyLandingControls = false
 }: VoiceUpStoryCarouselProps) {
   const { language, t } = useTranslation();
   const slides = useMemo(
@@ -256,6 +265,7 @@ export function VoiceUpStoryCarousel({
     [experience, slideIds]
   );
   const isLanding = experience === "landing";
+  const isLandingSimple = isLanding && simplifyLandingControls;
   const [activeIndex, setActiveIndex] = useState(0);
   const [silentPaused, setSilentPaused] = useState(false);
   const [isHoverPaused, setIsHoverPaused] = useState(false);
@@ -271,6 +281,7 @@ export function VoiceUpStoryCarousel({
   const pointerStartX = useRef<number | null>(null);
   const fallbackTimer = useRef<number | null>(null);
   const landingTimer = useRef<number | null>(null);
+  const manualResumeTimer = useRef<number | null>(null);
   const fallbackStartedAt = useRef(0);
   const fallbackRemaining = useRef(0);
   const finishNarration = useRef<() => void>(() => undefined);
@@ -293,6 +304,24 @@ export function VoiceUpStoryCarousel({
     if (landingTimer.current !== null) window.clearInterval(landingTimer.current);
     landingTimer.current = null;
   }, []);
+
+  const clearManualResumeTimer = useCallback(() => {
+    if (manualResumeTimer.current !== null) window.clearTimeout(manualResumeTimer.current);
+    manualResumeTimer.current = null;
+  }, []);
+
+  const scheduleManualResume = useCallback(() => {
+    if (!isLanding) return;
+    clearManualResumeTimer();
+    manualResumeTimer.current = window.setTimeout(() => {
+      manualResumeTimer.current = null;
+      if (reducedMotion || isHoverPaused || isFocusPaused || isExploreMode) return;
+      setGuidedPaused(false);
+      setSilentPaused(false);
+      setLandingRemainingMs(autoPlayMs);
+      trackLanding("landing_resumed", "manual_idle_resume");
+    }, 3200);
+  }, [autoPlayMs, clearManualResumeTimer, isExploreMode, isFocusPaused, isHoverPaused, isLanding, reducedMotion]);
 
   function trackLanding(eventName: string, context: string) {
     if (isLanding && onLandingAnalytics) onLandingAnalytics({ eventName, context });
@@ -345,7 +374,8 @@ export function VoiceUpStoryCarousel({
   useEffect(() => () => {
     cancelNarration();
     clearLandingTimer();
-  }, [cancelNarration, clearLandingTimer]);
+    clearManualResumeTimer();
+  }, [cancelNarration, clearLandingTimer, clearManualResumeTimer]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -383,6 +413,7 @@ export function VoiceUpStoryCarousel({
   const hasLandingJourneyActions = experience === "landing" && Boolean(landingJourneyActions);
   const isLandingFinalSlide = isLanding && activeIndex >= slides.length - 1;
   const landingPaused = isLanding && (silentPaused || isHoverPaused || isFocusPaused || guidedPaused || reducedMotion || isExploreMode);
+  const landingJourneyAvailability = landingJourneyAvailabilityBySlide?.[slideKey] ?? { planEnabled: true, actEnabled: true };
 
   useEffect(() => {
     if (!isLanding) return;
@@ -496,6 +527,7 @@ export function VoiceUpStoryCarousel({
     if (isLanding) {
       const eventName = targetIndex < activeIndex ? "landing_previous_clicked" : "landing_next_clicked";
       if (targetIndex !== activeIndex) trackLanding(eventName, context);
+      if (targetIndex !== activeIndex) scheduleManualResume();
     }
     setActiveIndex(targetIndex);
   }
@@ -682,12 +714,12 @@ export function VoiceUpStoryCarousel({
           <h2>{customHeader?.title ?? t(`storyCarousel.${experience}.title`)}</h2>
           <p>{customHeader?.subtitle ?? t(`storyCarousel.${experience}.subtitle`)}</p>
         </div>
-        {!guidedActive && !guidedCompleted && (
+        {!isLandingSimple && !guidedActive && !guidedCompleted && (
           <button type="button" className="voiceup-story-guided-start" onClick={startGuided}>
             <Volume2 size={19} /> {customHeader?.playLabel ?? t(`storyCarousel.${experience}.playLabel`)}
           </button>
         )}
-        {guidedCompleted && (
+        {!isLandingSimple && guidedCompleted && (
           <button type="button" className="voiceup-story-guided-start" onClick={replayGuided}>
             <RotateCcw size={19} /> {t("storyCarousel.common.replay")}
           </button>
@@ -723,7 +755,7 @@ export function VoiceUpStoryCarousel({
             {customSlide?.status && (
               <span className="voiceup-story-status" aria-label={t("landing.saas.labels.applicationStatus")}>{customSlide.status}</span>
             )}
-            {activeAction && !isLandingOpeningSlide && !isLandingDecisionSlide && (
+            {activeAction && (isLandingSimple || (!isLandingOpeningSlide && !isLandingDecisionSlide)) && (
               <button
                 type="button"
                 className="voiceup-story-cta"
@@ -732,7 +764,27 @@ export function VoiceUpStoryCarousel({
                 {activeAction.label} <ArrowRight size={16} />
               </button>
             )}
-            {hasLandingJourneyActions && isLandingOpeningSlide && landingJourneyActions && (
+            {isLandingSimple && hasLandingJourneyActions && landingJourneyActions && (
+              <div className="voiceup-story-journey-actions" aria-label={t("storyCarousel.landing.journey.aria")}>
+                <button
+                  type="button"
+                  className="voiceup-story-cta voiceup-story-journey-cta"
+                  disabled={!landingJourneyAvailability.actEnabled}
+                  onClick={() => handleLandingJourneyAction(landingJourneyActions.onAct, "act")}
+                >
+                  <Bolt size={16} /> {t("storyCarousel.landing.journey.act")}
+                </button>
+                <button
+                  type="button"
+                  className="voiceup-story-cta voiceup-story-journey-cta"
+                  disabled={!landingJourneyAvailability.planEnabled}
+                  onClick={() => handleLandingJourneyAction(landingJourneyActions.onOrganize, "organize")}
+                >
+                  <Building2 size={16} /> {t("storyCarousel.landing.journey.organize")}
+                </button>
+              </div>
+            )}
+            {!isLandingSimple && hasLandingJourneyActions && isLandingOpeningSlide && landingJourneyActions && (
               <div className="voiceup-story-journey-actions" aria-label={t("storyCarousel.landing.journey.aria")}>
                 <button
                   type="button"
@@ -764,7 +816,7 @@ export function VoiceUpStoryCarousel({
                 </button>
               </div>
             )}
-            {hasLandingJourneyActions && isLandingDecisionSlide && landingJourneyActions && (
+            {!isLandingSimple && hasLandingJourneyActions && isLandingDecisionSlide && landingJourneyActions && (
               <div className="voiceup-story-decision-grid" aria-label={t("storyCarousel.landing.decision.aria")}>
                 <article>
                   <h4>{t("storyCarousel.landing.decision.organizeTitle")}</h4>
@@ -805,10 +857,12 @@ export function VoiceUpStoryCarousel({
               </div>
             )}
           </div>
-          <div className="voiceup-story-subtitles">
-            <span>{t("storyCarousel.common.subtitles")}</span>
-            <p>{narration}</p>
-          </div>
+          {!isLandingSimple && (
+            <div className="voiceup-story-subtitles">
+              <span>{t("storyCarousel.common.subtitles")}</span>
+              <p>{narration}</p>
+            </div>
+          )}
         </div>
         <StoryVisualScene slideKey={slideKey} title={title} media={mediaBySlide[slideKey]} t={t} />
       </div>
@@ -817,7 +871,7 @@ export function VoiceUpStoryCarousel({
         <p className="voiceup-story-notice" role="status">{t("storyCarousel.common.narrationUnavailable")}</p>
       )}
 
-      {isLanding && (
+      {isLanding && !isLandingSimple && (
         <div className="voiceup-story-timer" aria-label={t("landing.saas.carousel.timer")}>
           <span className="voiceup-story-timer-countdown" aria-live="polite">{Math.max(0, Math.ceil(landingRemainingMs / 1000))}s</span>
           <div className="voiceup-story-timer-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(((autoPlayMs - landingRemainingMs) / autoPlayMs) * 100)}>
@@ -826,17 +880,19 @@ export function VoiceUpStoryCarousel({
         </div>
       )}
 
-      {isLanding && landingPaused && (
+      {isLanding && !isLandingSimple && landingPaused && (
         <p className="voiceup-story-notice" role="status">
           {t("storyCarousel.common.pause")} - {t("storyCarousel.common.resume")}
         </p>
       )}
 
-      <div className="voiceup-story-media" aria-label={t("storyCarousel.common.mediaAria")}>
-        <span><Volume2 size={16} /> {t("storyCarousel.common.nativeNarration")}</span>
-        <span><Video size={16} /> {t("storyCarousel.common.videoPlaceholder")}</span>
-        <small>{t("storyCarousel.common.swipeHint")}</small>
-      </div>
+      {!isLandingSimple && (
+        <div className="voiceup-story-media" aria-label={t("storyCarousel.common.mediaAria")}>
+          <span><Volume2 size={16} /> {t("storyCarousel.common.nativeNarration")}</span>
+          <span><Video size={16} /> {t("storyCarousel.common.videoPlaceholder")}</span>
+          <small>{t("storyCarousel.common.swipeHint")}</small>
+        </div>
+      )}
 
       <div className="voiceup-story-controls">
         <button type="button" className="voiceup-story-arrow" onClick={() => moveTo(activeIndex - 1, "controls")} aria-label={t("storyCarousel.common.previous")}>
@@ -861,7 +917,12 @@ export function VoiceUpStoryCarousel({
           ))}
         </div>
 
-        {isLanding ? (
+        {isLandingSimple ? (
+          <button type="button" className="voiceup-story-play voiceup-story-autoplay" onClick={landingPaused ? resumeGuided : pauseGuided}>
+            {landingPaused ? <Play size={17} /> : <Pause size={17} />}
+            {t(landingPaused ? "storyCarousel.common.resume" : "storyCarousel.common.pause")}
+          </button>
+        ) : isLanding ? (
           <div className="voiceup-story-guided-controls">
             <button type="button" className="voiceup-story-play" onClick={landingPaused ? resumeGuided : pauseGuided}>
               {landingPaused ? <Play size={17} /> : <Pause size={17} />}

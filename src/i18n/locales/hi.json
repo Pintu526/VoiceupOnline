@@ -46,14 +46,14 @@
       "playLabel": "मार्गदर्शित व्याख्या चलाएँ",
       "journey": {
         "aria": "मुख्य विकल्प",
-        "organize": "🏢 ORGANIZE",
+        "organize": "PLAN",
         "act": "⚡ ACT",
         "explore": "Business OS को समझें"
       },
       "decision": {
         "aria": "अंतिम विकल्प",
-        "organizeTitle": "🏢 ORGANIZE",
-        "organizeText": "संगठन बनाइए, टीम तैयार कीजिए, लोगों का समन्वय कीजिए, पहल शुरू कीजिए और दीर्घकालिक प्रभाव संभालिए।",
+        "organizeTitle": "PLAN",
+        "organizeText": "कार्रवाई शुरू करने से पहले संरचना, लोग, बजट और सदस्यता तैयार करें।",
         "actTitle": "⚡ ACT",
         "actText": "जुड़िए, सहयोग दीजिए, स्वयंसेवा कीजिए, दान कीजिए, हस्ताक्षर कीजिए और बदलाव में भाग लीजिए।"
       },
@@ -2155,6 +2155,7 @@
     "enterOtp": "ओटीपी दर्ज करें",
     "review": "समीक्षा करें",
     "submitSupport": "समर्थन दर्ज करें",
+    "consentRequiredInline": "हस्ताक्षर करने से पहले दोनों सहमति पुष्टिकरण स्वीकार करें।",
     "thankYou": "धन्यवाद",
     "welcomeBack": "फिर से स्वागत है",
     "required": "आवश्यक",
@@ -2254,13 +2255,13 @@
       "createWithAi": "AI से अभियान बनाएँ",
       "viewPricing": "मूल्य देखें",
       "startOneDay": "1 दिन के लिए मुफ़्त शुरू करें",
-      "organize": "🏢 ORGANIZE",
+      "organize": "🏢 PLAN",
       "act": "⚡ ACT",
       "exploreBusinessOs": "Business OS को समझें"
     },
     "signIn": {
       "title": "Sign In",
-      "workspaceAdmin": "Workspace Admin",
+      "workspaceAdmin": "VoiceUp Admin",
       "platformAdmin": "Platform Admin",
       "mobileAria": "Business OS साइन-इन विकल्प",
       "workspaceAdminHelp": "अपने संगठन का प्रबंधन करें",
@@ -2300,13 +2301,13 @@
     "saas": {
       "hero": {
         "brand": "VoiceUp",
-        "title": "एकीकृत SaaS प्लेटफ़ॉर्म",
-        "subtitle": "एक प्लेटफ़ॉर्म। अनेक SaaS एप्लिकेशन।"
+        "title": "VoiceUp Business OS",
+        "subtitle": "विश्वसनीय सार्वजनिक अभियानों को लॉन्च और संचालित करने के लिए एक ही प्रणाली।"
       },
       "actions": {
         "explore": "जानें",
-        "organize": "संगठित करें",
-        "organizeWithTeam": "संगठित करें - अपनी टीम बनाएँ",
+        "organize": "PLAN",
+        "organizeWithTeam": "PLAN",
         "act": "कार्रवाई करें",
         "actWithStartFree": "कार्रवाई करें - मुफ़्त शुरू करें",
         "startFree": "मुफ़्त शुरू करें",
@@ -2343,8 +2344,8 @@
       "apps": {
         "voiceup": {
           "name": "VoiceUp Platform",
-          "description": "एकीकृत SaaS प्लेटफ़ॉर्म। एक प्लेटफ़ॉर्म। अनेक SaaS एप्लिकेशन।",
-          "highlights": { "1": "जानें", "2": "संगठित करें - अपनी टीम बनाएँ", "3": "कार्रवाई करें - मुफ़्त शुरू करें", "4": "" }
+          "description": "VoiceUp Business OS। अभियान संचालन, टीम निर्माण और विश्वसनीय विस्तार के लिए एकीकृत प्लेटफ़ॉर्म।",
+          "highlights": { "1": "LEARN MORE", "2": "PLAN", "3": "ACT", "4": "" }
         },
         "campaign": {
           "name": "Campaign SaaS",
@@ -2375,6 +2376,75 @@
           "name": "Catering Hub SaaS",
           "description": "सदस्यता भोजन, कार्यक्रम कैटरिंग, कॉर्पोरेट कैटरिंग और स्वास्थ्यवर्धक भोजन सेवाएँ।",
           "highlights": { "1": "सदस्यता भोजन योजनाएँ", "2": "कार्यक्रम और कॉर्पोरेट कैटरिंग", "3": "घर पर कैटरिंग सेवाएँ", "4": "SuddhaOswada के स्वास्थ्यवर्धक भोजन विकल्प शामिल हैं" }
+        }
+      }
+    },
+    "gateways": {
+      "backToSelector": "एप्लिकेशन चयन पर वापस जाएँ",
+      "backToLanding": "लैंडिंग पर वापस जाएँ",
+      "backToTop": "ऊपर जाएँ",
+      "applications": {
+        "title": "VoiceUp Business OS एप्लिकेशन",
+        "subtitle": "Campaign लाइव है। अन्य एप्लिकेशन In Progress या Coming Soon हैं।"
+      },
+      "compact": {
+        "eyebrow": "Business OS अवलोकन",
+        "title": "अपने एप्लिकेशन का मार्ग चुनें",
+        "subtitle": "लंबी स्क्रॉलिंग के बिना विवरण, ACT गेटवे या टीम-बिल्डिंग गेटवे खोलें।"
+      },
+      "campaignAdmin": {
+        "slugLabel": "Campaign link या campaign ID",
+        "slugPlaceholder": "Campaign link पेस्ट करें या उसका ID दर्ज करें",
+        "validation": "जारी रखने के लिए campaign link या campaign ID दर्ज करें।"
+      },
+      "team": {
+        "title": "अपना Campaign Plan करें",
+        "subtitle": "कार्यान्वयन से पहले campaign structure, resources और subscription तैयार करें।",
+        "entitlementNote": "लॉगिन के बाद सक्रिय subscription के अनुसार ही saved configuration और enabled modules उपलब्ध होंगे।",
+        "continue": "Campaign Planning जारी रखें",
+        "learnMore": "और जानें",
+        "goToAct": "ACT पर जाएँ",
+        "backToCampaign": "Campaign पर वापस जाएँ"
+      },
+      "act": {
+        "title": "अपने Campaign पर कार्रवाई करें",
+        "subtitle": "Campaign लाइव है, और इसमें onboarding व admin login उपलब्ध है। अन्य एप्लिकेशन अभी उपलब्ध नहीं हैं।",
+        "startTrial": "1-दिन का मुफ़्त ट्रायल शुरू करें",
+        "otherApplications": "अन्य VoiceUp एप्लिकेशन",
+        "optionNew": "विकल्प A - नए ग्राहक",
+        "optionExisting": "विकल्प B - मौजूदा ग्राहक",
+        "optionNewDescription": "नया organization बनाइए, plan की पुष्टि कीजिए, और Campaign Admin workspace में प्रवेश कीजिए।",
+        "optionExistingDescription": "मौजूदा campaign में लॉगिन करके subscription entitlement के अनुसार execution जारी रखें।",
+        "optionNewItems": {
+          "1": "पहला campaign बनाइए",
+          "2": "subscription plan चुनिए या पुष्टि कीजिए",
+          "3": "enabled Campaign features कॉन्फ़िगर कीजिए",
+          "4": "Campaign Admin workspace में प्रवेश कीजिए",
+          "5": "support collection और activity management शुरू कीजिए"
+        },
+        "optionExistingItems": {
+          "1": "subscription entitlement के अनुसार campaign कॉन्फ़िगर करें",
+          "2": "publish और share करें",
+          "3": "signatures और paper support प्रबंधित करें",
+          "4": "team और volunteers समन्वित करें",
+          "5": "fundraising, progress और reports ट्रैक करें"
+        },
+        "goToPlan": "PLAN पर जाएँ",
+        "learnMore": "और जानें",
+        "backToCampaign": "Campaign पर वापस जाएँ"
+      },
+      "workflowAria": "Application workflow",
+      "plan": {
+        "categoriesAria": "Campaign planning categories",
+        "sections": {
+          "basics": { "title": "Campaign Basics", "items": { "1": "Name", "2": "Purpose", "3": "Campaign type", "4": "Target outcome" } },
+          "team": { "title": "Team and Organization", "items": { "1": "Campaign admin", "2": "Coordinators", "3": "Volunteers", "4": "Role hierarchy" } },
+          "budget": { "title": "Budget and Fundraising", "items": { "1": "Planned budget", "2": "Fundraising goal", "3": "Expense categories", "4": "Transparency approach" } },
+          "coverage": { "title": "Location and Coverage", "items": { "1": "Country", "2": "State", "3": "District", "4": "Online and offline reach" } },
+          "timeline": { "title": "Timeline and Milestones", "items": { "1": "Start date", "2": "Target date", "3": "Signature milestones", "4": "Public events" } },
+          "subscription": { "title": "Subscription and Features", "items": { "1": "Trial or plan status", "2": "Available features", "3": "Upgrade requirements", "4": "Entitlement notice" } },
+          "communication": { "title": "Communication and Growth", "items": { "1": "WhatsApp and SMS", "2": "Social sharing", "3": "Referral", "4": "Volunteer outreach" } },
+          "evidence": { "title": "Evidence and Reporting", "items": { "1": "Images and videos", "2": "Paper signatures", "3": "Expense reporting", "4": "Progress reporting" } }
         }
       }
     },

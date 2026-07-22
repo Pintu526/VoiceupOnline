@@ -1,36 +1,19 @@
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
-  BarChart3,
   Building2,
   Bolt,
-  Bot,
-  CheckCircle2,
   ChevronDown,
-  ClipboardList,
-  Clock,
-  CreditCard,
-  Database,
-  FileCheck2,
-  FileText,
-  Globe2,
   Landmark,
-  Mail,
   Megaphone,
   Moon,
-  Network,
-  Play,
-  RadioTower,
-  Rocket,
-  ShieldCheck,
   Smartphone,
   Sparkles,
   ShoppingBasket,
   Sun,
   GraduationCap,
-  UsersRound,
   WalletCards,
-  Workflow
+  UsersRound
 } from "lucide-react";
 import heroImage from "../assets/voiceup-global-hero.jpg";
 import { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";
@@ -41,14 +24,12 @@ import {
   type OnboardingCompletionResult
 } from "./OnboardingWizard";
 import {
-  ApplicationStatusCard,
-  type BusinessOsApplicationStatus
-} from "../components/ApplicationStatusCard";
-import {
   type VoiceUpCustomSlide,
   type VoiceUpStoryAction,
   type VoiceUpStoryMedia
 } from "../components/VoiceUpStoryCarousel";
+import { MarketingApplicationGateways } from "./MarketingGateways";
+import { marketingApplicationDefinitions, type MarketingApplicationKey } from "./marketingApplications";
 
 interface MarketingHomePageProps {
   theme: "light" | "dark";
@@ -59,144 +40,32 @@ interface MarketingHomePageProps {
   onCompleteOnboarding: (payload: OnboardingCompletionPayload) => OnboardingCompletionResult | Promise<OnboardingCompletionResult>;
 }
 
-const landingSections = [
-  {
-    id: "ai-copilot",
-    icon: Bot,
-    key: "aiCopilot",
-    bullets: ["briefBuilder", "appealDrafts", "regionalPrompts"]
-  },
-  {
-    id: "campaign-studio",
-    icon: ClipboardList,
-    key: "campaignStudio",
-    bullets: ["launchFlow", "publicSigning", "templateSetup"]
-  },
-  {
-    id: "authority-intelligence",
-    icon: Landmark,
-    key: "authorityIntelligence",
-    bullets: ["authorityRecommendations", "locationRouting", "dossierContext"]
-  },
-  {
-    id: "field-collection",
-    icon: Smartphone,
-    key: "fieldCollection",
-    bullets: ["qrHandouts", "scanReview", "volunteerCollection"]
-  },
-  {
-    id: "movement-crm",
-    icon: UsersRound,
-    key: "movementCrm",
-    bullets: ["supporterGraph", "referralTracking", "volunteerSegments"]
-  },
-  {
-    id: "command-center",
-    icon: RadioTower,
-    key: "commandCenter",
-    bullets: ["campaignPulse", "operationsChecklist", "escalationReadiness"]
-  },
-  {
-    id: "communication-hub",
-    icon: Mail,
-    key: "communicationHub",
-    bullets: ["messagingSetup", "milestoneUpdates", "consentCommunication"]
-  },
-  {
-    id: "reports",
-    icon: FileCheck2,
-    key: "reports",
-    bullets: ["exports", "locationAnalytics", "authorityDossier"]
-  }
-];
+type LandingView = "landing" | "applications" | "application-detail" | "application-act" | "application-team";
 
-const workflowSteps = ["describe", "shape", "publish", "collect", "route", "report"];
+const appIcons: Record<MarketingApplicationKey, typeof Megaphone> = {
+  voiceup: Sparkles,
+  campaign: Megaphone,
+  goudhan: WalletCards,
+  panditOnline: Landmark,
+  teachToday: GraduationCap,
+  homeNurseHub: Smartphone,
+  cateringHub: ShoppingBasket
+};
 
-const faqs = [
-  {
-    key: "quickLaunch"
-  },
-  {
-    key: "freeTrial"
-  },
-  {
-    key: "offlineSupport"
-  },
-  {
-    key: "outsideIndia"
-  },
-  {
-    key: "smallOrganization"
-  }
-];
+function getLandingViewFromPath(pathname: string): LandingView {
+  if (pathname === "/applications" || pathname === "/applications/") return "applications";
+  if (/^\/applications\/[^/]+\/act\/?$/.test(pathname)) return "application-act";
+  if (/^\/applications\/[^/]+\/team\/?$/.test(pathname)) return "application-team";
+  if (/^\/applications\/[^/]+\/?$/.test(pathname)) return "application-detail";
+  return "landing";
+}
 
-const trustSignals = [
-  {
-    key: "fastCampaign"
-  },
-  {
-    key: "publicTrust"
-  },
-  {
-    key: "simplePowerful"
-  }
-];
-
-const roleOptions = [
-  { key: "organizer", icon: Megaphone },
-  { key: "supporter", icon: UsersRound },
-  { key: "fieldTeam", icon: Smartphone }
-];
-
-const businessOsApplicationDefinitions: Array<{
-  key: "voiceup" | "campaign" | "goudhan" | "panditOnline" | "teachToday" | "homeNurseHub" | "cateringHub";
-  icon: typeof Megaphone;
-  status: BusinessOsApplicationStatus;
-  enabled: boolean;
-}> = [
-  {
-    key: "voiceup",
-    icon: Sparkles,
-    status: "IN PROGRESS",
-    enabled: false
-  },
-  {
-    key: "campaign",
-    icon: Megaphone,
-    status: "LIVE",
-    enabled: true
-  },
-  {
-    key: "goudhan",
-    icon: WalletCards,
-    status: "IN PROGRESS",
-    enabled: false
-  },
-  {
-    key: "panditOnline",
-    icon: Landmark,
-    status: "IN PROGRESS",
-    enabled: false
-  },
-  {
-    key: "teachToday",
-    icon: GraduationCap,
-    status: "IN PROGRESS",
-    enabled: false
-  },
-  {
-    key: "homeNurseHub",
-    icon: Smartphone,
-    status: "IN PROGRESS",
-    enabled: false
-  },
-  {
-    key: "cateringHub",
-    icon: ShoppingBasket,
-    status: "IN PROGRESS",
-    enabled: false
-  }
-];
+function getApplicationKeyFromPath(pathname: string): MarketingApplicationKey {
+  const matched = pathname.match(/^\/applications\/([^/]+)/);
+  const key = matched?.[1] as MarketingApplicationKey | undefined;
+  const exists = marketingApplicationDefinitions.some((application) => application.key === key);
+  return exists && key ? key : "campaign";
+}
 
 export function MarketingHomePage({
   theme,
@@ -208,12 +77,39 @@ export function MarketingHomePage({
 }: MarketingHomePageProps) {
   const { language, t } = useTranslation();
   const [signInOpen, setSignInOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const signInMenuRef = useRef<HTMLDivElement | null>(null);
+  const [landingView, setLandingView] = useState<LandingView>(() => getLandingViewFromPath(window.location.pathname));
+  const [activeApplicationKey, setActiveApplicationKey] = useState<MarketingApplicationKey>(() => getApplicationKeyFromPath(window.location.pathname));
 
   const signInEntries = [
     { key: "workspaceAdmin", href: "/app", helpKey: "workspaceAdminHelp" },
     { key: "platformAdmin", href: "/admin", helpKey: "platformAdminHelp" }
   ] as const;
+
+  function navigateLanding(targetPath: string, view: LandingView, applicationKey?: MarketingApplicationKey) {
+    window.history.pushState({}, "", targetPath);
+    setLandingView(view);
+    if (applicationKey) setActiveApplicationKey(applicationKey);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  useEffect(() => {
+    const onPopState = () => {
+      const view = getLandingViewFromPath(window.location.pathname);
+      setLandingView(view);
+      setActiveApplicationKey(getApplicationKeyFromPath(window.location.pathname));
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => setShowBackToTop(window.scrollY > 260);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const closeOnOutside = (event: MouseEvent) => {
@@ -242,41 +138,39 @@ export function MarketingHomePage({
 
   function startOrganize(context: string) {
     trackLandingAction("landing_organize_clicked", context);
-    window.location.assign("/app?tab=coordinators");
+    navigateLanding(`/applications/${activeApplicationKey}/team`, "application-team", activeApplicationKey);
   }
 
   function startAct(context: string) {
     trackLandingAction("landing_act_clicked", context);
-    const target = document.getElementById("act-panel");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    window.location.assign("/");
+    navigateLanding(`/applications/${activeApplicationKey}/act`, "application-act", activeApplicationKey);
   }
 
-  function exploreBusinessOs(context: string) {
+  function openApplications(context: string) {
     trackLandingAction("landing_explore_mode_opened", context);
-    const target = document.getElementById("workflow");
-    if (target) {
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    navigateLanding("/applications", "applications", activeApplicationKey);
   }
 
   function scrollToApplication(applicationKey: string, context: string) {
     trackLandingAction("landing_application_learn_more_clicked", context);
-    document.getElementById(`application-detail-${applicationKey}`)?.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
+    const targetKey = applicationKey as MarketingApplicationKey;
+    navigateLanding(`/applications/${targetKey}`, "application-detail", targetKey);
+  }
+
+  function openCampaignAdminLogin(campaignSlug: string, openCoordinatorTab: boolean) {
+    const normalizedSlug = campaignSlug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+    if (!normalizedSlug) return;
+    const suffix = openCoordinatorTab ? "?tab=coordinators" : "";
+    window.location.assign(`/admin/${normalizedSlug}${suffix}`);
   }
 
   function handleLandingAnalytics(payload: { eventName: string; context: string }) {
     trackLandingAction(payload.eventName, payload.context);
   }
 
-  const businessOsApplications = businessOsApplicationDefinitions.map((application) => ({
+  const businessOsApplications = marketingApplicationDefinitions.map((application) => ({
     ...application,
+    icon: appIcons[application.key],
     name: t(`landing.saas.apps.${application.key}.name`),
     description: t(`landing.saas.apps.${application.key}.description`),
     statusDisplay: application.key === "voiceup"
@@ -314,78 +208,105 @@ export function MarketingHomePage({
   const applicationSlideMedia: Partial<Record<string, VoiceUpStoryMedia>> = {
     campaign: { imageUrl: heroImage }
   };
+  const landingJourneyAvailabilityBySlide = Object.fromEntries(
+    businessOsApplications.map((application) => [
+      application.key,
+      {
+        planEnabled: application.key === "campaign" && application.enabled,
+        actEnabled: application.key === "campaign" && application.enabled
+      }
+    ])
+  );
+
+  const publicHeader = (
+    <header className="global-nav">
+      <a className="global-brand" href="/" aria-label={t("landing.nav.homeAria")}>
+        <span className="brand-mark">
+          <Megaphone size={24} />
+        </span>
+        <span>
+          <strong>VoiceUp</strong>
+          <small>{t("landing.saas.hero.title")}</small>
+        </span>
+      </a>
+      <nav className="global-nav-links" aria-label={t("landing.nav.sectionsAria")}>
+        <a href="/applications">{t("landing.saas.applications.title")}</a>
+        <a href="/applications/campaign/team">{t("landing.saas.actions.organize")}</a>
+        <a href="/applications/campaign/act">{t("landing.saas.actions.act")}</a>
+      </nav>
+      <div className="button-row">
+        <LanguageSwitcher />
+        <button
+          className="secondary-button icon-button"
+          type="button"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          aria-label={t("landing.nav.toggleTheme")}
+          title={t("landing.nav.toggleTheme")}
+        >
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+        <div className="landing-signin-menu" ref={signInMenuRef}>
+          <button
+            type="button"
+            className="landing-signin-trigger"
+            aria-haspopup="menu"
+            aria-expanded={signInOpen}
+            onClick={() => setSignInOpen((current) => !current)}
+          >
+            {t("landing.signIn.title")} <ChevronDown size={16} />
+          </button>
+          {signInOpen && (
+            <div className="landing-signin-dropdown" role="menu" aria-label={t("landing.signIn.title")}>
+              {signInEntries.map((entry) => (
+                <a
+                  key={entry.key}
+                  href={entry.href}
+                  role="menuitem"
+                  onClick={() => setSignInOpen(false)}
+                >
+                  {t(`landing.signIn.${entry.key}`)}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+
+  if (landingView !== "landing") {
+    return (
+      <main className="marketing-home global-landing">
+        {publicHeader}
+        <MarketingApplicationGateways
+          page={landingView === "applications" ? "applications" : landingView}
+          applications={businessOsApplications}
+          activeApplicationKey={activeApplicationKey}
+          onBackToLanding={() => navigateLanding("/", "landing")}
+          onBackToApplications={() => navigateLanding("/applications", "applications", activeApplicationKey)}
+          onOpenApplicationDetail={(applicationKey) => navigateLanding(`/applications/${applicationKey}`, "application-detail", applicationKey)}
+          onOpenActGateway={(applicationKey) => navigateLanding(`/applications/${applicationKey}/act`, "application-act", applicationKey)}
+          onOpenTeamGateway={(applicationKey) => navigateLanding(`/applications/${applicationKey}/team`, "application-team", applicationKey)}
+          onCampaignAdminLogin={openCampaignAdminLogin}
+          onStartFreeTrial={onOpenOnboarding}
+          t={t}
+          heroImageUrl={heroImage}
+        />
+        <button
+          type="button"
+          className={`back-to-top-button ${showBackToTop ? "is-visible" : ""}`}
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label={t("landing.gateways.backToTop")}
+        >
+          ↑
+        </button>
+      </main>
+    );
+  }
 
   return (
     <main className="marketing-home global-landing">
-      <header className="global-nav">
-        <a className="global-brand" href="#top" aria-label={t("landing.nav.homeAria")}>
-          <span className="brand-mark">
-            <Megaphone size={24} />
-          </span>
-          <span>
-            <strong>VoiceUp</strong>
-            <small>{t("landing.saas.hero.title")}</small>
-          </span>
-        </a>
-        <nav className="global-nav-links" aria-label={t("landing.nav.sectionsAria")}>
-          <a href="#product">{t("landing.nav.product")}</a>
-          <a href="#workflow">{t("landing.nav.workflow")}</a>
-          <a href="#pricing">{t("landing.freeze.getStarted")}</a>
-          <a href="#faq">{t("landing.nav.faq")}</a>
-        </nav>
-        <div className="button-row">
-          <LanguageSwitcher />
-          <button
-            className="secondary-button icon-button"
-            type="button"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label={t("landing.nav.toggleTheme")}
-            title={t("landing.nav.toggleTheme")}
-          >
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-          <a className="secondary-link-button" href="#demo">
-            <Play size={17} /> {t("landing.actions.watchDemo")}
-          </a>
-          <div className="landing-signin-menu" ref={signInMenuRef}>
-            <button
-              type="button"
-              className="landing-signin-trigger"
-              aria-haspopup="menu"
-              aria-expanded={signInOpen}
-              onClick={() => setSignInOpen((current) => !current)}
-            >
-              {t("landing.signIn.title")} <ChevronDown size={16} />
-            </button>
-            {signInOpen && (
-              <div className="landing-signin-dropdown" role="menu" aria-label={t("landing.signIn.title")}>
-                {signInEntries.map((entry) => (
-                  <a
-                    key={entry.key}
-                    href={entry.href}
-                    role="menuitem"
-                    onClick={() => setSignInOpen(false)}
-                  >
-                    {t(`landing.signIn.${entry.key}`)}
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-          <button className="primary-link-button" type="button" onClick={() => startOrganize("nav") }>
-            <Building2 size={17} /> {t("landing.saas.actions.organize")}
-          </button>
-        </div>
-      </header>
-
-      <section className="landing-mobile-signin" aria-label={t("landing.signIn.mobileAria")}>
-        {signInEntries.map((entry) => (
-          <a key={entry.key} className="landing-mobile-signin-card" href={entry.href}>
-            <strong>{t(`landing.signIn.${entry.key}`)}</strong>
-            <span>{t(`landing.signIn.${entry.helpKey}`)}</span>
-          </a>
-        ))}
-      </section>
+      {publicHeader}
 
       <section
         className="global-hero"
@@ -402,17 +323,6 @@ export function MarketingHomePage({
           <span className="eyebrow">{t("landing.saas.hero.brand")}</span>
           <h1>{t("landing.saas.hero.title")}</h1>
           <p>{t("landing.saas.hero.subtitle")}</p>
-          <div className="global-hero-actions">
-            <button className="secondary-link-button light" type="button" onClick={() => exploreBusinessOs("hero") }>
-              <Sparkles size={18} /> {t("landing.saas.actions.explore")}
-            </button>
-            <button className="primary-link-button" type="button" onClick={() => startOrganize("hero") }>
-              <Building2 size={18} /> {t("landing.saas.actions.organizeWithTeam")}
-            </button>
-            <button className="primary-link-button accent" type="button" onClick={() => startAct("hero") }>
-              <Bolt size={18} /> {t("landing.saas.actions.actWithStartFree")}
-            </button>
-          </div>
           <div className="hero-proof-strip" aria-label={t("landing.hero.highlightsAria")}>
             {[
               ["speedValue", "speedLabel"],
@@ -429,38 +339,10 @@ export function MarketingHomePage({
         </motion.div>
       </section>
 
-      <section className="landing-band business-os-app-strip" aria-labelledby="business-os-applications-title">
-        <div className="landing-section-heading business-os-app-strip-heading">
-          <h2 id="business-os-applications-title">{t("landing.saas.applications.title")}</h2>
-          <p>{t("landing.saas.applications.subtitle")}</p>
-        </div>
-        <div className="business-os-app-grid">
-          {businessOsApplications.map((application) => {
-            const Icon = application.icon;
-            return (
-              <ApplicationStatusCard
-                key={application.key}
-                id={`application-detail-${application.key}`}
-                icon={<Icon size={18} />}
-                name={application.name}
-                description={application.description}
-                status={application.status}
-                statusDisplay={application.statusDisplay}
-                statusLabel={t("landing.saas.labels.status")}
-                launchLabel={t("landing.saas.actions.open")}
-                enabled={application.enabled}
-                onLaunch={application.key === "campaign" ? () => startAct("applications_strip") : undefined}
-              />
-            );
-          })}
-        </div>
-      </section>
-
       <section className="landing-guided-band" id="product">
-        <span className="landing-anchor" id="demo" aria-hidden="true" />
         <VoiceUpStoryCarousel
           experience="landing"
-          autoPlayMs={4500}
+          autoPlayMs={2000}
           customHeader={{
             eyebrow: t("landing.saas.carousel.eyebrow"),
             title: t("landing.saas.carousel.title"),
@@ -475,221 +357,11 @@ export function MarketingHomePage({
           landingJourneyActions={{
             onOrganize: () => startOrganize("story"),
             onAct: () => startAct("story"),
-            onExplore: () => exploreBusinessOs("story")
+            onExplore: () => openApplications("story")
           }}
+          landingJourneyAvailabilityBySlide={landingJourneyAvailabilityBySlide}
+          simplifyLandingControls
         />
-      </section>
-
-      <section className="landing-band pricing-band" id="act-panel" aria-labelledby="act-panel-title">
-        <div className="landing-activation-copy">
-          <span className="eyebrow">{t("landing.saas.actions.act")}</span>
-          <h2 id="act-panel-title">{t("landing.saas.act.availableNow")}</h2>
-          <p>{t("landing.saas.apps.campaign.name")}</p>
-          <small>{t("landing.saas.act.description")}</small>
-        </div>
-        <div className="button-row">
-          <button className="primary-link-button accent" type="button" onClick={onOpenOnboarding}>
-            <Bolt size={18} /> {t("landing.saas.actions.startFree")}
-          </button>
-          <a className="secondary-link-button" href="/app">{t("landing.saas.act.adminLogin")}</a>
-        </div>
-        <div className="business-os-app-grid" aria-label={t("landing.saas.act.futureApplications")}>
-          {businessOsApplications.slice(2).map((application) => (
-            <ApplicationStatusCard
-              key={application.key}
-              icon={<application.icon size={18} />}
-              name={application.name}
-              description={t("landing.saas.status.COMING SOON")}
-              status="COMING SOON"
-              statusLabel={t("landing.saas.labels.status")}
-              enabled={false}
-            />
-          ))}
-        </div>
-      </section>
-
-      <section className="landing-band ai-band landing-product-showcase">
-        <div className="landing-section-heading">
-          <span className="eyebrow">{t("landing.freeze.productEyebrow")}</span>
-          <h2>{t("landing.freeze.productTitle")}</h2>
-          <p>{t("landing.freeze.productSubtitle")}</p>
-        </div>
-        <div className="landing-module-grid">
-          {landingSections.slice(0, 6).map((section) => (
-            <article className="landing-module-card" id={section.id} key={section.id}>
-              <section.icon size={24} />
-              <span className="eyebrow">{t(`landing.modules.${section.key}.eyebrow`)}</span>
-              <h3>{t(`landing.modules.${section.key}.title`)}</h3>
-              <p>{t(`landing.modules.${section.key}.text`)}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="landing-band landing-role-band" aria-labelledby="landing-role-title">
-        <div className="landing-section-heading">
-          <span className="eyebrow">{t("landing.roles.eyebrow")}</span>
-          <h2 id="landing-role-title">{t("landing.roles.title")}</h2>
-          <p>{t("landing.roles.subtitle")}</p>
-        </div>
-        <div className="landing-role-grid">
-          {roleOptions.map(({ key, icon: Icon }) => (
-            <article className="landing-role-card" key={key}>
-              <Icon size={24} aria-hidden="true" />
-              <h3>{t(`landing.roles.${key}.title`)}</h3>
-              <p>{t(`landing.roles.${key}.text`)}</p>
-              <button className="secondary-button" type="button" onClick={onOpenOnboarding}>
-                {t(`landing.roles.${key}.action`)}
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="landing-band studio-band landing-deferred-section">
-        <div className="landing-split">
-          <div>
-            <span className="eyebrow">{t("landing.workflow.eyebrow")}</span>
-            <h2>{t("landing.workflow.title")}</h2>
-            <p>{t("landing.workflow.subtitle")}</p>
-            <div className="workflow-row">
-              {workflowSteps.map((step, index) => (
-                <div className="workflow-step" key={step}>
-                  <span>{index + 1}</span>
-                  <strong>{t(`landing.workflow.steps.${step}`)}</strong>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="campaign-flow-panel">
-            <Workflow size={26} />
-            <h3>{t("landing.workflow.panelTitle")}</h3>
-            <p>{t("landing.workflow.panelText")}</p>
-            <div className="mini-flow">
-              {["brief", "studio", "collect", "route", "report"].map((item) => (
-                <span key={item}>{t(`landing.workflow.mini.${item}`)}</span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="landing-band demo-band landing-deferred-section">
-        <div className="demo-layout">
-          <div>
-            <span className="eyebrow">{t("landing.demo.eyebrow")}</span>
-            <h2>{t("landing.demo.title")}</h2>
-            <p>{t("landing.demo.subtitle")}</p>
-            <div className="button-row">
-              <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-                <Building2 size={18} /> {t("landing.actions.organize")}
-              </button>
-              <a className="secondary-link-button" href="#pricing">
-                {t("landing.actions.viewPricing")}
-              </a>
-            </div>
-          </div>
-          <div className="demo-visual">
-            <img src={heroImage} alt={t("landing.demo.imageAlt")} />
-            <button type="button" aria-label={t("landing.demo.watchAria")}>
-              <Play size={28} />
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="landing-band testimonial-band landing-compact-proof" id="workflow">
-        <div className="landing-section-heading">
-          <span className="eyebrow">{t("landing.freeze.trustEyebrow")}</span>
-          <h2>{t("landing.freeze.trustTitle")}</h2>
-          <p>{t("landing.freeze.trustSubtitle")}</p>
-        </div>
-        <div className="testimonial-grid">
-          {trustSignals.map((signal) => (
-            <article className="testimonial-card" key={signal.key}>
-              <Globe2 size={22} />
-              <strong>{t(`landing.trust.signals.${signal.key}.title`)}</strong>
-              <p>{t(`landing.trust.signals.${signal.key}.text`)}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="landing-band pricing-band" id="pricing">
-        <div className="landing-activation-copy">
-          <span className="eyebrow">{t("storyCarousel.landing.activation.eyebrow")}</span>
-          <h2>{t("storyCarousel.landing.activation.title")}</h2>
-          <p>{t("storyCarousel.landing.activation.description")}</p>
-          <small>{t("storyCarousel.landing.activation.usageNote")}</small>
-        </div>
-        <div className="button-row">
-          <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-            <Building2 size={18} /> {t("landing.actions.organize")}
-          </button>
-          <button className="primary-link-button accent" type="button" onClick={() => startAct("activation") }>
-            <Bolt size={18} /> {t("landing.actions.act")}
-          </button>
-        </div>
-      </section>
-
-      <section className="landing-band trial-band landing-deferred-section">
-        <div className="trial-panel">
-          <div>
-            <span className="eyebrow">{t("landing.trial.eyebrow")}</span>
-            <h2>{t("landing.trial.title")}</h2>
-            <p>{t("landing.trial.subtitle")}</p>
-          </div>
-          <div className="trial-checklist">
-            {["oneCampaign", "freeAccess", "publicSigning", "basicReports", "upgradeReady"].map((item) => (
-              <span key={item}>
-                <CheckCircle2 size={16} /> {t(`landing.trial.items.${item}`)}
-              </span>
-            ))}
-          </div>
-          <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-            {t("landing.actions.organize")}
-          </button>
-          <button className="secondary-link-button" type="button" onClick={() => startAct("trial") }>
-            {t("landing.actions.act")}
-          </button>
-        </div>
-      </section>
-
-      <section className="landing-band faq-band" id="faq">
-        <div className="landing-section-heading">
-          <span className="eyebrow">{t("landing.faq.eyebrow")}</span>
-          <h2>{t("landing.faq.title")}</h2>
-        </div>
-        <div className="faq-list">
-          {faqs.slice(0, 4).map((faq) => (
-            <details key={faq.key}>
-              <summary>
-                <span>{t(`landing.faq.items.${faq.key}.question`)}</span>
-                <ChevronDown size={20} />
-              </summary>
-              <p>{t(`landing.faq.items.${faq.key}.answer`)}</p>
-            </details>
-          ))}
-        </div>
-      </section>
-
-      <section className="landing-final-cta landing-deferred-section">
-        <div>
-          <span className="eyebrow">{t("landing.finalCta.eyebrow")}</span>
-          <h2>{t("landing.finalCta.title")}</h2>
-          <p>{t("landing.finalCta.subtitle")}</p>
-          <div className="global-hero-actions">
-            <button className="primary-link-button" type="button" onClick={onOpenOnboarding}>
-              <Building2 size={18} /> {t("landing.actions.organize")}
-            </button>
-            <button className="primary-link-button accent" type="button" onClick={() => startAct("final") }>
-              <Bolt size={18} /> {t("landing.actions.act")}
-            </button>
-            <button className="secondary-link-button light" type="button" onClick={() => exploreBusinessOs("final") }>
-              <Sparkles size={18} /> {t("landing.actions.exploreBusinessOs")}
-            </button>
-          </div>
-        </div>
       </section>
 
       <footer className="marketing-footer global-footer">
@@ -704,6 +376,14 @@ export function MarketingHomePage({
         onClose={onCloseOnboarding}
         onComplete={onCompleteOnboarding}
       />
+      <button
+        type="button"
+        className={`back-to-top-button ${showBackToTop ? "is-visible" : ""}`}
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+        aria-label={t("landing.gateways.backToTop")}
+      >
+        ↑
+      </button>
     </main>
   );
 }

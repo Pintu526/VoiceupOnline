@@ -11,6 +11,8 @@ import {
   FileScan,
   FileText,
   Globe2,
+  HandCoins,
+  Landmark,
   Megaphone,
   MessageCircle,
   Moon,
@@ -33,6 +35,7 @@ import { NavButton, type Tab } from "../components/NavButton";
 import { CommandPalette } from "../components/CommandPalette";
 import { AppToast } from "../components/AppToast";
 import { DashboardTab } from "../pages/app/DashboardTab";
+import { VbossModulePlaceholder } from "../pages/app/VbossModulePlaceholder";
 import { CampaignsTab } from "../pages/app/CampaignsTab";
 import { ActivityTab } from "../pages/app/ActivityTab";
 import { SaasTab } from "../pages/app/SaasTab";
@@ -176,6 +179,8 @@ interface AppShellProps {
   campaignFormMode: "create" | "edit";
   setCampaignFormMode: React.Dispatch<React.SetStateAction<"create" | "edit">>;
   isCampaignAdminRoute: boolean;
+  campaignAdminSessionEmail: string;
+  campaignAdminCampaignId: string;
   isAppRoute: boolean;
   canAccessPlatformAdmin: boolean;
 
@@ -325,6 +330,8 @@ export function AppShell({
   campaignFormMode,
   setCampaignFormMode,
   isCampaignAdminRoute,
+  campaignAdminSessionEmail,
+  campaignAdminCampaignId,
   isAppRoute,
   canAccessPlatformAdmin,
   signers,
@@ -545,6 +552,8 @@ export function AppShell({
       public: t("settings.shell.locks.public"),
       movement: t("settings.shell.locks.movement"),
       coordinators: t("settings.shell.locks.movement"),
+      fund: t("framework.placeholder.locked"),
+      prove: t("framework.placeholder.locked"),
       growth: t("settings.shell.locks.growth"),
       scans: t("settings.shell.locks.scans"),
       reports: t("settings.shell.locks.reports"),
@@ -558,10 +567,9 @@ export function AppShell({
 
   function canAccessWorkspaceTab(tab: Tab): boolean {
     if (canAccessPlatformAdmin) return true;
-    if (tab === "dashboard" || tab === "campaigns") return true;
+    if (tab === "dashboard" || tab === "command" || tab === "fund" || tab === "prove" || tab === "campaigns") return true;
     if (tab === "public") return hasWorkspaceFeature("public_signing");
     if (tab === "reports") return canUseReports;
-    if (tab === "command") return hasWorkspaceFeature("command_center");
     if (tab === "movement") return hasWorkspaceFeature("movement_crm");
     if (tab === "coordinators") return hasWorkspaceFeature("movement_crm");
     if (tab === "growth") return canUseGrowthEngine;
@@ -1055,6 +1063,22 @@ export function AppShell({
             </div>
           </div>
           <nav className="nav">
+            <span className="nav-section-label">{t("framework.nav.section")}</span>
+            <NavButton icon={<Crosshair />} label={t("framework.nav.commandCenter")} tab="command" activeTab={activeTab} onClick={requestTabChange} />
+            <NavButton icon={<Network />} label={t("framework.nav.organize")} tab="coordinators" activeTab={activeTab} onClick={requestTabChange} />
+            <NavButton icon={<Megaphone />} label={t("framework.nav.plan")} tab="campaigns" activeTab={activeTab} onClick={requestTabChange} />
+            {hasWorkspaceFeature("public_signing") && (
+              <NavButton icon={<Globe2 />} label={t("framework.nav.act")} tab="public" activeTab={activeTab} onClick={requestTabChange} />
+            )}
+            <NavButton icon={<HandCoins />} label={t("framework.nav.fund")} tab="fund" activeTab={activeTab} onClick={requestTabChange} />
+            <NavButton icon={<Landmark />} label={t("framework.nav.prove")} tab="prove" activeTab={activeTab} onClick={requestTabChange} />
+            {canUseGrowthEngine && (
+              <NavButton icon={<TrendingUp />} label={t("framework.nav.grow")} tab="growth" activeTab={activeTab} onClick={requestTabChange} />
+            )}
+            {!isCampaignAdminRoute && canAccessPlatformAdmin && (
+              <NavButton icon={<WalletCards />} label={t("framework.nav.settings")} tab="saas" activeTab={activeTab} onClick={requestTabChange} />
+            )}
+            <span className="nav-section-label">{t("framework.nav.connectedModules")}</span>
             <NavButton
               icon={<BarChart3 />}
               label={t("campaignAdmin.nav.dashboard")}
@@ -1062,54 +1086,11 @@ export function AppShell({
               activeTab={activeTab}
               onClick={requestTabChange}
             />
-            {hasWorkspaceFeature("command_center") && (
-              <NavButton
-                icon={<Crosshair />}
-                label={t("campaignAdmin.nav.commandCenter")}
-                tab="command"
-                activeTab={activeTab}
-                onClick={requestTabChange}
-              />
-            )}
-            <NavButton
-              icon={<Megaphone />}
-              label={t("campaignAdmin.nav.campaignAdmin")}
-              tab="campaigns"
-              activeTab={activeTab}
-              onClick={requestTabChange}
-            />
-            {hasWorkspaceFeature("public_signing") && (
-              <NavButton
-                icon={<Globe2 />}
-                label={t("campaignAdmin.nav.publicSigning")}
-                tab="public"
-                activeTab={activeTab}
-                onClick={requestTabChange}
-              />
-            )}
             {hasWorkspaceFeature("movement_crm") && (
               <NavButton
                 icon={<UsersRound />}
                 label={t("campaignAdmin.nav.movementCrm")}
                 tab="movement"
-                activeTab={activeTab}
-                onClick={requestTabChange}
-              />
-            )}
-            {hasWorkspaceFeature("movement_crm") && (
-              <NavButton
-                icon={<Network />}
-                label={t("campaignAdmin.nav.coordinatorNetwork")}
-                tab="coordinators"
-                activeTab={activeTab}
-                onClick={requestTabChange}
-              />
-            )}
-            {canUseGrowthEngine && (
-              <NavButton
-                icon={<TrendingUp />}
-                label={t("campaignAdmin.nav.growthEngine")}
-                tab="growth"
                 activeTab={activeTab}
                 onClick={requestTabChange}
               />
@@ -1152,13 +1133,6 @@ export function AppShell({
             )}
             {!isCampaignAdminRoute && canAccessPlatformAdmin && (
               <>
-                <NavButton
-                  icon={<WalletCards />}
-                  label={t("settings.shell.saasAdmin")}
-                  tab="saas"
-                  activeTab={activeTab}
-                  onClick={requestTabChange}
-                />
                 <NavButton
                   icon={<Sparkles />}
                   label={t("settings.shell.featureIdeas")}
@@ -1222,21 +1196,33 @@ export function AppShell({
               )}
             </div>
             {isCampaignAdminRoute ? (
-              <div className="button-row">
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={requestCreateCampaign}
-                >
-                  <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={onLogoutCampaignAdmin}
-                >
-                  {t("campaignAdmin.actions.logout")}
-                </button>
+              <div className="campaign-admin-header-actions">
+                <dl className="campaign-admin-session-context" aria-label="Campaign Admin session details">
+                  <div>
+                    <dt>Campaign Admin</dt>
+                    <dd>{campaignAdminSessionEmail}</dd>
+                  </div>
+                  <div>
+                    <dt>Campaign ID</dt>
+                    <dd>{campaignAdminCampaignId}</dd>
+                  </div>
+                </dl>
+                <div className="button-row">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={requestCreateCampaign}
+                  >
+                    <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
+                  </button>
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={onLogoutCampaignAdmin}
+                  >
+                    {t("campaignAdmin.actions.logout")}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="button-row">
@@ -1321,7 +1307,7 @@ export function AppShell({
             />
           )}
 
-          {activeTab === "command" && hasWorkspaceFeature("command_center") && (
+          {activeTab === "command" && (
             <Suspense fallback={<ModuleSkeleton label="Loading Command Center" />}>
               <CommandCenterTab
                 activeCampaign={activeCampaign}
@@ -1344,6 +1330,9 @@ export function AppShell({
                 onOpenAuthorities={() => requestTabChange("campaigns")}
                 onOpenSaas={() => requestTabChange("saas")}
                 onOpenMovement={() => requestTabChange("movement")}
+                onOpenActivity={() => requestTabChange("activity")}
+                onOpenFund={() => requestTabChange("fund")}
+                onOpenProve={() => requestTabChange("prove")}
                 canAccessPlatformAdmin={canAccessPlatformAdmin}
               />
             </Suspense>
@@ -1455,13 +1444,45 @@ export function AppShell({
           )}
 
           {activeTab === "coordinators" && hasWorkspaceFeature("movement_crm") && (
-            <Suspense fallback={<ModuleSkeleton label="Loading Coordinator Network" />}>
-              <CoordinatorNetworkTab
-                campaigns={campaigns}
-                locationOverrides={locationOverrides}
-                locationDeletions={locationDeletions}
+            <>
+              <VbossModulePlaceholder
+                moduleName={t("framework.organize.title")}
+                purpose={t("framework.organize.purpose")}
+                sections={[
+                  { name: t("framework.organize.organization"), purpose: t("framework.organize.organizationPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.organizationFuture") },
+                  { name: t("framework.organize.hierarchy"), purpose: t("framework.organize.hierarchyPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.hierarchyFuture") },
+                  { name: t("framework.organize.roles"), purpose: t("framework.organize.rolesPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.rolesFuture") },
+                  { name: t("framework.organize.invitations"), purpose: t("framework.organize.invitationsPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.invitationsFuture") }
+                ]}
               />
-            </Suspense>
+              <Suspense fallback={<ModuleSkeleton label="Loading Coordinator Network" />}>
+                <CoordinatorNetworkTab campaigns={campaigns} locationOverrides={locationOverrides} locationDeletions={locationDeletions} />
+              </Suspense>
+            </>
+          )}
+
+          {activeTab === "fund" && (
+            <VbossModulePlaceholder
+              moduleName={t("framework.fund.title")}
+              purpose={t("framework.fund.purpose")}
+              sections={[
+                { name: t("framework.fund.budget"), purpose: t("framework.fund.budgetPurpose"), connected: t("framework.fund.connected"), future: t("framework.fund.budgetFuture") },
+                { name: t("framework.fund.contributions"), purpose: t("framework.fund.contributionsPurpose"), connected: t("framework.fund.connected"), future: t("framework.fund.contributionsFuture") },
+                { name: t("framework.fund.reconciliation"), purpose: t("framework.fund.reconciliationPurpose"), connected: t("framework.fund.connected"), future: t("framework.fund.reconciliationFuture") }
+              ]}
+            />
+          )}
+
+          {activeTab === "prove" && (
+            <VbossModulePlaceholder
+              moduleName={t("framework.prove.title")}
+              purpose={t("framework.prove.purpose")}
+              sections={[
+                { name: t("framework.prove.evidence"), purpose: t("framework.prove.evidencePurpose"), connected: t("framework.prove.connected"), future: t("framework.prove.evidenceFuture") },
+                { name: t("framework.prove.timeline"), purpose: t("framework.prove.timelinePurpose"), connected: t("framework.prove.connected"), future: t("framework.prove.timelineFuture") },
+                { name: t("framework.prove.audit"), purpose: t("framework.prove.auditPurpose"), connected: t("framework.prove.connected"), future: t("framework.prove.auditFuture") }
+              ]}
+            />
           )}
 
           {activeTab === "growth" && canUseGrowthEngine && (

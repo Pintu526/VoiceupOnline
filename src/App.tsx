@@ -36,7 +36,7 @@ import {
   verifySecureFieldUploadAccess
 } from "./backend";
 import type { PublicCampaignPayload } from "./backend";
-import { ProvisionWorkspaceMemberError } from "./backend";
+import { ProvisionWorkspaceMemberError, PublicSignatureSubmissionError } from "./backend";
 import {
   applyCampaignAdminProvisioningFailure,
   applyCampaignAdminProvisioningSuccess,
@@ -222,6 +222,7 @@ import {
   getSupporterReferralCode,
   normalizeReferralCode
 } from "./utils/referrals";
+import { buildPublicWebConsentPayload } from "./utils/consent";
 import { GROWTH_FEATURE_FLAGS } from "./growth/constants";
 import {
   appendGrowthLifecycleEventIntent,
@@ -241,7 +242,6 @@ import {
 } from "./growth/supporter";
 import { applyRewardRuntimeAction, type RewardRuntimeAction } from "./growth/rewards/rewardRuntimeService";
 
-// Pages
 import { MarketingHomePage } from "./pages/MarketingHomePage";
 import type {
   OnboardingCompletionPayload,
@@ -261,6 +261,28 @@ import {
 
 // Layout
 import { AppShell } from "./layouts/AppShell";
+
+function getInitialWorkspaceTab():
+  | "dashboard"
+  | "command"
+  | "fund"
+  | "prove"
+  | "campaigns"
+  | "public"
+  | "movement"
+  | "coordinators"
+  | "growth"
+  | "scans"
+  | "reports"
+  | "engagement"
+  | "activity"
+  | "saas"
+  | "ideas" {
+  if (typeof window === "undefined") return "command";
+  const queryTab = new URLSearchParams(window.location.search).get("tab");
+  if (queryTab === "coordinators") return "coordinators";
+  return "command";
+}
 
 // ─── Route detection (computed once, outside component) ──────────────────────
 const publicCampaignSlug = getPublicCampaignSlug();
@@ -463,8 +485,8 @@ function App() {
 
   // ─── UI state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "command" | "campaigns" | "public" | "movement" | "coordinators" | "growth" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
-  >("dashboard");
+    "dashboard" | "command" | "fund" | "prove" | "campaigns" | "public" | "movement" | "coordinators" | "growth" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
+  >(() => getInitialWorkspaceTab());
   const [theme, setTheme] = usePersistentState<"light" | "dark">(`${storagePrefix}-theme`, "light");
   const [commandOpen, setCommandOpen] = useState(false);
   const [globalSearch, setGlobalSearch] = useState("");
@@ -596,6 +618,10 @@ function App() {
     }
     return campaigns.find((c) => c.id === activeCampaignId) ?? campaigns[0];
   }, [activeCampaignId, campaignDraft, campaignFormMode, campaigns, publicCampaignPayload]);
+  const campaignAdminSessionEmail =
+    isCampaignAdminRoute && activeCampaign
+      ? readCampaignAdminSupabaseSession(activeCampaign.slug)?.email ?? ""
+      : "";
   const secureFieldUploadAvailable =
     secureFieldUploadAccess.available &&
     isSupabaseStorageAvailable &&
@@ -938,7 +964,7 @@ function App() {
 
   useEffect(() => {
     if (!isBackendConfigured) return;
-    if (!isPublicCampaignRoute && startupMode !== "saas-workspace") return;
+    if (!isPublicCampaignRoute && !isCampaignAdminRoute && startupMode !== "saas-workspace") return;
     let isCancelled = false;
 
     async function loadSharedState() {
@@ -959,6 +985,25 @@ function App() {
             setCampaigns([]);
             setSigners([]);
             setBackendMessage("Campaign link was not found or is not published.");
+          }
+          return;
+        }
+
+        if (isCampaignAdminRoute && adminCampaignSlug && startupMode !== "saas-workspace") {
+          const campaignForAdminRoute = await loadPublicCampaign(adminCampaignSlug);
+          if (isCancelled) return;
+          if (campaignForAdminRoute) {
+            setCampaigns([campaignForAdminRoute.campaign]);
+            setSigners([]);
+            setAuthorities(campaignForAdminRoute.authorities ?? []);
+            if (campaignForAdminRoute.organization) setOrganization(campaignForAdminRoute.organization);
+            setActiveCampaignId(campaignForAdminRoute.campaign.id);
+            setCampaignFormMode("edit");
+            setBackendMessage("Campaign loaded for admin login.");
+          } else {
+            setCampaigns([]);
+            setSigners([]);
+            setBackendMessage("Campaign admin link was not found.");
           }
           return;
         }
@@ -1011,6 +1056,8 @@ function App() {
     void loadSharedState();
     return () => { isCancelled = true; };
   }, [
+    adminCampaignSlug,
+    isCampaignAdminRoute,
     isPublicCampaignRoute,
     startupMode,
     setAuthorities, setAuditLogs, setCampaigns, setCommercialPackages,
@@ -1669,6 +1716,7 @@ function App() {
 
   async function submitPublicSignature(event: FormEvent) {
     event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
     if (!activeCampaign) {
       setPublicMessage("Create and publish a campaign before collecting signatures.");
       return;
@@ -1690,6 +1738,17 @@ function App() {
       setPublicMessage("Please verify your phone number with OTP before signing.");
       return;
     }
+    const hasAppealConsent = Boolean(
+      (form.elements.namedItem("supportAppealConsent") as HTMLInputElement | null)?.checked
+    );
+    const hasCampaignConsent = Boolean(
+      (form.elements.namedItem("campaignConsent") as HTMLInputElement | null)?.checked
+    );
+    if (!hasAppealConsent || !hasCampaignConsent) {
+      setPublicMessage("consent_required");
+      return;
+    }
+    const consentPayload = buildPublicWebConsentPayload(activeCampaign.consentText ?? "");
     const restrictedPublicForm = applySignerLocationRestriction(activeCampaign, publicForm, organization);
     if (!isWithinLocationRestriction(activeCampaign, restrictedPublicForm, organization)) {
       setPublicMessage("Your selected location is outside this campaign's restricted signing area.");
@@ -1725,7 +1784,7 @@ function App() {
           referredBy,
           referredByPhoneOrCode: referralInput,
           referralSource: referralInput ? restrictedPublicForm.referralSource ?? "manual" : undefined
-        });
+        }, consentPayload);
         setPublicForm(blankSigner);
         setOtpInput("");
         setOtpMessage("");
@@ -1744,6 +1803,10 @@ function App() {
         );
         setPublicMessage(result.message);
       } catch (error) {
+        if (error instanceof PublicSignatureSubmissionError && error.code === "consent_required") {
+          setPublicMessage("consent_required");
+          return;
+        }
         setPublicMessage(error instanceof Error ? error.message : "Signature submission failed. Please retry.");
       }
       return;
@@ -1762,6 +1825,22 @@ function App() {
       },
       campaignSigners
     );
+      signer.consentAccepted = true;
+      signer.consentTextSnapshot = consentPayload.consentText;
+      signer.consentVersion = consentPayload.consentVersion;
+      signer.consentAcceptedAt = consentPayload.consentAcceptedAt;
+      signer.consentSource = consentPayload.consentSource;
+      signer.consentCampaignId = activeCampaign.id;
+      signer.consentWorkspaceId = getCurrentWorkspaceId();
+      signer.consentEvidence = {
+        accepted: true,
+        textSnapshot: consentPayload.consentText,
+        version: consentPayload.consentVersion,
+        acceptedAt: consentPayload.consentAcceptedAt,
+        source: consentPayload.consentSource,
+        campaignId: activeCampaign.id,
+        workspaceId: getCurrentWorkspaceId()
+      };
     const nextSigners = [signer, ...signers.filter((item) => item.id !== signer.id)];
     setSigners(nextSigners);
     if (signer.status !== "duplicate") {
@@ -3125,6 +3204,8 @@ function App() {
         campaignFormMode={campaignFormMode}
         setCampaignFormMode={setCampaignFormMode}
         isCampaignAdminRoute={isCampaignAdminRoute}
+        campaignAdminSessionEmail={campaignAdminSessionEmail}
+        campaignAdminCampaignId={isCampaignAdminRoute ? activeCampaign?.id ?? "" : ""}
         isAppRoute={isAppRoute || isSaasAdminRoute}
         canAccessPlatformAdmin={canAccessPlatformAdmin}
         signers={signers}

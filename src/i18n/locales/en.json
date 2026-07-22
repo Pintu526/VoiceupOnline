@@ -46,14 +46,14 @@
       "playLabel": "Play guided explanation",
       "journey": {
         "aria": "Primary landing actions",
-        "organize": "🏢 ORGANIZE",
+        "organize": "PLAN",
         "act": "⚡ ACT",
         "explore": "Explore Business OS"
       },
       "decision": {
         "aria": "Final action choices",
-        "organizeTitle": "🏢 ORGANIZE",
-        "organizeText": "Create organizations, build teams, coordinate people, launch initiatives and manage long-term impact.",
+        "organizeTitle": "PLAN",
+        "organizeText": "Prepare structure, people, budget, coverage, and subscription before execution.",
         "actTitle": "⚡ ACT",
         "actText": "Join, support, volunteer, donate, sign, participate and help create meaningful change."
       },
@@ -2155,6 +2155,7 @@
     "enterOtp": "Enter OTP",
     "review": "Review",
     "submitSupport": "Submit support",
+    "consentRequiredInline": "Please review and accept both consent confirmations before signing.",
     "thankYou": "Thank you",
     "welcomeBack": "Welcome back",
     "required": "Required",
@@ -2254,13 +2255,13 @@
       "createWithAi": "Create campaign with AI",
       "viewPricing": "View pricing",
       "startOneDay": "Start free for 1 day",
-      "organize": "🏢 ORGANIZE",
+      "organize": "🏢 PLAN",
       "act": "⚡ ACT",
       "exploreBusinessOs": "Explore Business OS"
     },
     "signIn": {
       "title": "Sign In",
-      "workspaceAdmin": "Workspace Admin",
+      "workspaceAdmin": "VoiceUp Admin",
       "platformAdmin": "Platform Admin",
       "mobileAria": "Business OS sign in options",
       "workspaceAdminHelp": "Manage your organization",
@@ -2300,13 +2301,13 @@
     "saas": {
       "hero": {
         "brand": "VoiceUp",
-        "title": "The Unified SaaS Platform",
-        "subtitle": "One Platform. Multiple SaaS Applications."
+        "title": "VoiceUp Business OS",
+        "subtitle": "One operating system to launch and run trusted public campaigns."
       },
       "actions": {
         "explore": "EXPLORE",
-        "organize": "ORGANIZE",
-        "organizeWithTeam": "ORGANIZE - Build Your Team",
+        "organize": "PLAN",
+        "organizeWithTeam": "PLAN",
         "act": "ACT",
         "actWithStartFree": "ACT - Start Free",
         "startFree": "Start Free",
@@ -2343,8 +2344,8 @@
       "apps": {
         "voiceup": {
           "name": "VoiceUp Platform",
-          "description": "The Unified SaaS Platform. One Platform. Multiple SaaS Applications.",
-          "highlights": { "1": "EXPLORE", "2": "ORGANIZE - Build Your Team", "3": "ACT - Start Free", "4": "" }
+          "description": "VoiceUp Business OS. One platform for campaign operations, team-building, and trusted growth.",
+          "highlights": { "1": "LEARN MORE", "2": "PLAN", "3": "ACT", "4": "" }
         },
         "campaign": {
           "name": "Campaign SaaS",
@@ -2375,6 +2376,75 @@
           "name": "Catering Hub SaaS",
           "description": "Subscription meals, event catering, corporate catering and healthy-food services.",
           "highlights": { "1": "Subscription meal plans", "2": "Event and corporate catering", "3": "Home catering services", "4": "Includes SuddhaOswada healthy-food offerings" }
+        }
+      }
+    },
+    "gateways": {
+      "backToSelector": "Back to application selector",
+      "backToLanding": "Back to landing",
+      "backToTop": "Back to top",
+      "applications": {
+        "title": "VoiceUp Business OS Applications",
+        "subtitle": "Campaign is live. Other applications are marked as In Progress or Coming Soon."
+      },
+      "compact": {
+        "eyebrow": "Business OS overview",
+        "title": "Choose the path for your application",
+        "subtitle": "Open application details, ACT gateway, or Build Your Team gateway without long scrolling."
+      },
+      "campaignAdmin": {
+        "slugLabel": "Campaign link or campaign ID",
+        "slugPlaceholder": "Paste your campaign link or enter its ID",
+        "validation": "Enter a campaign link or campaign ID to continue."
+      },
+      "team": {
+        "title": "Plan Your Campaign",
+        "subtitle": "Prepare your campaign structure, resources and subscription before execution.",
+        "entitlementNote": "Saved configuration and enabled modules depend on the active subscription after login.",
+        "continue": "Continue to Campaign Planning",
+        "learnMore": "Learn More",
+        "goToAct": "Go to ACT",
+        "backToCampaign": "Back to Campaign"
+      },
+      "act": {
+        "title": "Act on Your Campaign",
+        "subtitle": "Campaign is live with onboarding and admin login. Other applications are currently unavailable.",
+        "startTrial": "Start 1-Day Free Trial",
+        "otherApplications": "Other VoiceUp applications",
+        "optionNew": "Option A - New Customer",
+        "optionExisting": "Option B - Existing Customer",
+        "optionNewDescription": "Create a new organization, confirm the plan, and enter the Campaign Admin workspace.",
+        "optionExistingDescription": "Log into an existing campaign and continue execution according to subscription entitlement.",
+        "optionNewItems": {
+          "1": "Create the first campaign",
+          "2": "Select or confirm the subscription plan",
+          "3": "Configure enabled Campaign features",
+          "4": "Enter the Campaign Admin workspace",
+          "5": "Begin collecting support and managing activity"
+        },
+        "optionExistingItems": {
+          "1": "Configure the campaign according to subscription entitlement",
+          "2": "Publish and share responsibly",
+          "3": "Collect signatures and digitize paper support",
+          "4": "Coordinate team and volunteers",
+          "5": "Track fundraising, progress, and reports"
+        },
+        "goToPlan": "Go to PLAN",
+        "learnMore": "Learn More",
+        "backToCampaign": "Back to Campaign"
+      },
+      "workflowAria": "Application workflow",
+      "plan": {
+        "categoriesAria": "Campaign planning categories",
+        "sections": {
+          "basics": { "title": "Campaign Basics", "items": { "1": "Name", "2": "Purpose", "3": "Campaign type", "4": "Target outcome" } },
+          "team": { "title": "Team and Organization", "items": { "1": "Campaign admin", "2": "Coordinators", "3": "Volunteers", "4": "Role hierarchy" } },
+          "budget": { "title": "Budget and Fundraising", "items": { "1": "Planned budget", "2": "Fundraising goal", "3": "Expense categories", "4": "Transparency approach" } },
+          "coverage": { "title": "Location and Coverage", "items": { "1": "Country", "2": "State", "3": "District", "4": "Online and offline reach" } },
+          "timeline": { "title": "Timeline and Milestones", "items": { "1": "Start date", "2": "Target date", "3": "Signature milestones", "4": "Public events" } },
+          "subscription": { "title": "Subscription and Features", "items": { "1": "Trial or plan status", "2": "Available features", "3": "Upgrade requirements", "4": "Entitlement notice" } },
+          "communication": { "title": "Communication and Growth", "items": { "1": "WhatsApp and SMS", "2": "Social sharing", "3": "Referral", "4": "Volunteer outreach" } },
+          "evidence": { "title": "Evidence and Reporting", "items": { "1": "Images and videos", "2": "Paper signatures", "3": "Expense reporting", "4": "Progress reporting" } }
         }
       }
     },
@@ -3404,5 +3474,22 @@
       "geographyRequired": "Select a valid geography.",
       "actionFailed": "The lifecycle action could not be completed."
     }
+  },
+  "framework": {
+    "nav": { "section": "Campaign Command Center", "commandCenter": "Command Center", "organize": "Organize", "plan": "Plan", "act": "Act", "fund": "Fund", "prove": "Prove", "grow": "Grow", "settings": "Settings", "connectedModules": "Connected modules" },
+    "command": {
+      "eyebrow": "Subscriber workspace",
+      "title": "Campaign Command Center",
+      "description": "A focused starting point for campaign readiness, support, team coordination, and proof of progress.",
+      "openModule": "Open module",
+      "cards": {
+        "campaign": "Campaign", "campaignPurpose": "Plan the campaign workspace", "organization": "Organization", "organizationPurpose": "Manage workspace settings", "readiness": "Readiness", "readinessPurpose": "Review campaign setup", "supporters": "Supporters", "supportersPurpose": "Engage the supporter base", "fund": "Fund", "fundPurpose": "Prepare the funding workspace", "team": "Team", "teamPurpose": "Coordinate the campaign team", "activity": "Recent Activity", "activityPurpose": "Review the latest workspace activity", "nextAction": "Next Action", "nextActionPurpose": "Continue the most important setup task"
+      },
+      "quickActions": { "plan": "Open Campaign Studio", "prove": "Open Prove", "fund": "Open Fund" }
+    },
+    "placeholder": { "module": "Module", "status": "Coming soon", "comingSoon": "Coming Soon", "connected": "Existing connected components:", "future": "Future capabilities:", "locked": "This framework module is available in the campaign workspace." },
+    "organize": { "title": "Organize", "purpose": "Build the campaign organization around the connected Coordinator Network.", "organization": "Organization", "organizationPurpose": "Define the campaign operating model.", "hierarchy": "Hierarchy", "hierarchyPurpose": "Shape the reporting and locality structure.", "roles": "Roles", "rolesPurpose": "Clarify responsibilities for each team layer.", "invitations": "Invitations", "invitationsPurpose": "Prepare coordinated team onboarding.", "connected": "Coordinator Network", "organizationFuture": "Workspace profiles and operating units", "hierarchyFuture": "Visual hierarchy and delegation", "rolesFuture": "Role templates and permissions", "invitationsFuture": "Invite workflows and onboarding tracking" },
+    "fund": { "title": "Fund", "purpose": "A dashboard foundation for future campaign funding workflows.", "budget": "Budget", "budgetPurpose": "Frame campaign funding needs.", "contributions": "Contributions", "contributionsPurpose": "Prepare a view of incoming support.", "reconciliation": "Reconciliation", "reconciliationPurpose": "Create a future-ready finance review surface.", "connected": "Campaign and organization context", "budgetFuture": "Planning and allocation views", "contributionsFuture": "Contribution tracking and reporting", "reconciliationFuture": "Reconciliation and export workflows" },
+    "prove": { "title": "Prove", "purpose": "A foundation for demonstrating campaign progress and accountability.", "evidence": "Evidence", "evidencePurpose": "Collect campaign proof points.", "timeline": "Timeline", "timelinePurpose": "Present progress over time.", "audit": "Audit", "auditPurpose": "Prepare a transparent activity record.", "connected": "Existing activity and campaign data", "evidenceFuture": "Evidence collections and publishing", "timelineFuture": "Milestones and outcome timeline", "auditFuture": "Evidence-backed audit views" }
   }
 }

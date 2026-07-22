@@ -49,6 +49,9 @@ interface CommandCenterTabProps {
   onOpenAuthorities: () => void;
   onOpenSaas: () => void;
   onOpenMovement: () => void;
+  onOpenActivity: () => void;
+  onOpenFund: () => void;
+  onOpenProve: () => void;
   canAccessPlatformAdmin: boolean;
 }
 
@@ -105,6 +108,9 @@ export function CommandCenterTab({
   onOpenAuthorities,
   onOpenSaas,
   onOpenMovement,
+  onOpenActivity,
+  onOpenFund,
+  onOpenProve,
   canAccessPlatformAdmin
 }: CommandCenterTabProps) {
   const { t } = useTranslation();
@@ -266,6 +272,38 @@ export function CommandCenterTab({
 
   return (
     <section className="page-stack command-center">
+      <Panel title={t("framework.command.title")} icon={<Crosshair />}>
+        <div className="vboss-command-heading">
+          <div>
+            <span className="eyebrow">{t("framework.command.eyebrow")}</span>
+            <h2>{t("framework.command.title")}</h2>
+            <p>{t("framework.command.description")}</p>
+          </div>
+        </div>
+        <div className="vboss-command-grid">
+          {([
+            [t("framework.command.cards.campaign"), t("framework.command.cards.campaignPurpose"), onOpenCampaigns],
+            [t("framework.command.cards.organization"), t("framework.command.cards.organizationPurpose"), onOpenSaas],
+            [t("framework.command.cards.readiness"), t("framework.command.cards.readinessPurpose"), onOpenCampaigns],
+            [t("framework.command.cards.supporters"), t("framework.command.cards.supportersPurpose"), onOpenEngagement],
+            [t("framework.command.cards.fund"), t("framework.command.cards.fundPurpose"), onOpenFund],
+            [t("framework.command.cards.team"), t("framework.command.cards.teamPurpose"), onOpenMovement],
+            [t("framework.command.cards.activity"), t("framework.command.cards.activityPurpose"), onOpenActivity],
+            [t("framework.command.cards.nextAction"), t("framework.command.cards.nextActionPurpose"), onOpenCampaigns]
+          ] as Array<[string, string, () => void]>).map(([label, purpose, action]) => (
+            <button className="vboss-command-card" key={label} type="button" onClick={action as () => void}>
+              <span>{label}</span>
+              <strong>{purpose}</strong>
+              <small>{t("framework.command.openModule")}</small>
+            </button>
+          ))}
+        </div>
+        <div className="button-row vboss-command-actions">
+          <button className="secondary-button" type="button" onClick={onOpenCampaigns}>{t("framework.command.quickActions.plan")}</button>
+          <button className="secondary-button" type="button" onClick={onOpenProve}>{t("framework.command.quickActions.prove")}</button>
+          <button className="secondary-button" type="button" onClick={onOpenFund}>{t("framework.command.quickActions.fund")}</button>
+        </div>
+      </Panel>
       <Panel title={t("command.title")} icon={<Crosshair />}>
         <div className="command-hero">
           <div>

@@ -1257,7 +1257,14 @@ export async function createTrialWorkspace(payload: unknown): Promise<{
 
 export async function submitPublicSignatureSecure(
   slug: string,
-  signer: unknown
+  signer: unknown,
+  consent?: {
+    consentAccepted: boolean;
+    consentText: string;
+    consentVersion: string;
+    consentAcceptedAt: string;
+    consentSource: "public_web";
+  }
 ): Promise<{ signer: Signer; message: string; metrics: PublicCampaignPayload["metrics"] }> {
   const client = requireSupabase();
   const { data, error } = await client.functions.invoke<{
@@ -1265,8 +1272,9 @@ export async function submitPublicSignatureSecure(
     message: string;
     metrics: PublicCampaignPayload["metrics"];
     error?: string;
+    code?: string;
   }>("voiceup-public-signing", {
-    body: { slug, signer }
+    body: { slug, signer, consent }
   });
 
   if (error) {
@@ -1276,7 +1284,7 @@ export async function submitPublicSignatureSecure(
     throw new Error("Signature submission failed.");
   }
   if (data.error) {
-    throw new Error(data.error);
+    throw new PublicSignatureSubmissionError(data.error, data.code);
   }
 
   return {
@@ -1284,6 +1292,16 @@ export async function submitPublicSignatureSecure(
     message: data.message,
     metrics: data.metrics
   };
+}
+
+export class PublicSignatureSubmissionError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "PublicSignatureSubmissionError";
+    this.code = code;
+  }
 }
 
 export async function uploadFileToStorage(bucket: string, path: string, file: File) {

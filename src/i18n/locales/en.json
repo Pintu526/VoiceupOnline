@@ -3481,7 +3481,12 @@
       "eyebrow": "Subscriber workspace",
       "title": "Campaign Command Center",
       "description": "A focused starting point for campaign readiness, support, team coordination, and proof of progress.",
-      "openModule": "Open module",
+      "openModule": "View →",
+      "view": "View →",
+      "movementSummary": "Campaign health at a glance",
+      "status": { "connected": "Connected", "onTrack": "On track" },
+      "overview": { "label": "Campaign overview", "campaignName": "Campaign Name", "campaignStatus": "Campaign Status", "campaignProgress": "Campaign Progress", "lastActivity": "Last Activity", "teamMembers": "Team Members", "supporters": "Supporters", "fundsRaised": "Funds Raised" },
+      "movement": { "risk": "Campaign Risk", "readiness": "Campaign Readiness", "growth": "Support Growth", "pending": "Pending Tasks", "activity": "Recent Activity", "goalProgress": "Supporters toward goal", "activityDetail": "Latest campaign record" },
       "cards": {
         "campaign": "Campaign", "campaignPurpose": "Plan the campaign workspace", "organization": "Organization", "organizationPurpose": "Manage workspace settings", "readiness": "Readiness", "readinessPurpose": "Review campaign setup", "supporters": "Supporters", "supportersPurpose": "Engage the supporter base", "fund": "Fund", "fundPurpose": "Prepare the funding workspace", "team": "Team", "teamPurpose": "Coordinate the campaign team", "activity": "Recent Activity", "activityPurpose": "Review the latest workspace activity", "nextAction": "Next Action", "nextActionPurpose": "Continue the most important setup task"
       },

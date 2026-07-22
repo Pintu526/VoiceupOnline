@@ -16,20 +16,20 @@ import {
   UsersRound
 } from "lucide-react";
 import heroImage from "../assets/voiceup-global-hero.jpg";
-import { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";
 import { LanguageSwitcher, useTranslation } from "../i18n";
 import {
   OnboardingWizard,
   type OnboardingCompletionPayload,
   type OnboardingCompletionResult
 } from "./OnboardingWizard";
-import {
-  type VoiceUpCustomSlide,
-  type VoiceUpStoryAction,
-  type VoiceUpStoryMedia
-} from "../components/VoiceUpStoryCarousel";
 import { MarketingApplicationGateways } from "./MarketingGateways";
 import { marketingApplicationDefinitions, type MarketingApplicationKey } from "./marketingApplications";
+import {
+  BusinessApplicationCarousel,
+  BusinessOsHeroCards,
+  BusinessOsLifecycle,
+  SharedPlatformServices
+} from "./BusinessOsLandingSections";
 
 interface MarketingHomePageProps {
   theme: "light" | "dark";
@@ -136,19 +136,14 @@ export function MarketingHomePage({
     }
   }
 
-  function startOrganize(context: string) {
-    trackLandingAction("landing_organize_clicked", context);
-    navigateLanding(`/applications/${activeApplicationKey}/team`, "application-team", activeApplicationKey);
+  function organizeApplication(applicationKey: MarketingApplicationKey) {
+    trackLandingAction("landing_organize_clicked", `application_carousel_${applicationKey}`);
+    navigateLanding(`/applications/${applicationKey}/team`, "application-team", applicationKey);
   }
 
-  function startAct(context: string) {
-    trackLandingAction("landing_act_clicked", context);
-    navigateLanding(`/applications/${activeApplicationKey}/act`, "application-act", activeApplicationKey);
-  }
-
-  function openApplications(context: string) {
-    trackLandingAction("landing_explore_mode_opened", context);
-    navigateLanding("/applications", "applications", activeApplicationKey);
+  function startApplication(applicationKey: MarketingApplicationKey) {
+    trackLandingAction("landing_start_clicked", `application_carousel_${applicationKey}`);
+    navigateLanding(`/applications/${applicationKey}/act`, "application-act", applicationKey);
   }
 
   function scrollToApplication(applicationKey: string, context: string) {
@@ -164,10 +159,6 @@ export function MarketingHomePage({
     window.location.assign(`/admin/${normalizedSlug}${suffix}`);
   }
 
-  function handleLandingAnalytics(payload: { eventName: string; context: string }) {
-    trackLandingAction(payload.eventName, payload.context);
-  }
-
   const businessOsApplications = marketingApplicationDefinitions.map((application) => ({
     ...application,
     icon: appIcons[application.key],
@@ -181,42 +172,7 @@ export function MarketingHomePage({
       .filter(Boolean)
   }));
 
-  const applicationSlideIds = businessOsApplications.map((application) => application.key);
-  const applicationSlides: Record<string, VoiceUpCustomSlide> = Object.fromEntries(
-    businessOsApplications.map((application) => [
-      application.key,
-      {
-        title: application.name,
-        description: application.description,
-        narration: `${application.name}. ${application.description}`,
-        status: application.statusDisplay,
-        highlights: application.highlights
-      }
-    ])
-  );
-
-  const applicationSlideActions: Record<string, VoiceUpStoryAction> = Object.fromEntries(
-    businessOsApplications.map((application) => [
-      application.key,
-      {
-        label: t("landing.saas.actions.learnMore"),
-        onClick: () => scrollToApplication(application.key, `application_carousel_${application.key}`)
-      }
-    ])
-  );
-
-  const applicationSlideMedia: Partial<Record<string, VoiceUpStoryMedia>> = {
-    campaign: { imageUrl: heroImage }
-  };
-  const landingJourneyAvailabilityBySlide = Object.fromEntries(
-    businessOsApplications.map((application) => [
-      application.key,
-      {
-        planEnabled: application.key === "campaign" && application.enabled,
-        actEnabled: application.key === "campaign" && application.enabled
-      }
-    ])
-  );
+  const landingApplications = businessOsApplications.filter((application) => application.key !== "voiceup");
 
   const publicHeader = (
     <header className="global-nav">
@@ -308,61 +264,41 @@ export function MarketingHomePage({
     <main className="marketing-home global-landing">
       {publicHeader}
 
-      <section
-        className="global-hero"
-        id="top"
-        style={{ backgroundImage: language === "en" ? `url(${heroImage})` : "var(--brand-gradient)" }}
-      >
-        <div className="global-hero-overlay" />
+      <section className="global-hero business-os-hero" id="top">
+        <div className="business-os-hero-ambient" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
         <motion.div
           className="global-hero-content"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
         >
-          <span className="eyebrow">{t("landing.saas.hero.brand")}</span>
-          <h1>{t("landing.saas.hero.title")}</h1>
-          <p>{t("landing.saas.hero.subtitle")}</p>
-          <div className="hero-proof-strip" aria-label={t("landing.hero.highlightsAria")}>
-            {[
-              ["speedValue", "speedLabel"],
-              ["cardValue", "cardLabel"],
-              ["trustValue", "trustLabel"],
-              ["viralValue", "viralLabel"]
-            ].map(([value, label]) => (
-              <div key={value}>
-                <strong>{t(`landing.hero.proof.${value}`)}</strong>
-                <span>{t(`landing.hero.proof.${label}`)}</span>
-              </div>
-            ))}
+          <span className="eyebrow">{t("landing.businessOs.hero.eyebrow")}</span>
+          <h1>{t("landing.businessOs.hero.title")}</h1>
+          <p className="business-os-hero-tagline">{t("landing.businessOs.hero.tagline")}</p>
+          <div className="business-os-hero-lines">
+            <span>{t("landing.businessOs.hero.lines.organise")}</span>
+            <span>{t("landing.businessOs.hero.lines.launch")}</span>
+            <span>{t("landing.businessOs.hero.lines.operate")}</span>
+            <span>{t("landing.businessOs.hero.lines.impact")}</span>
           </div>
+          <BusinessOsHeroCards t={t} />
         </motion.div>
       </section>
 
-      <section className="landing-guided-band" id="product">
-        <VoiceUpStoryCarousel
-          experience="landing"
-          autoPlayMs={2000}
-          customHeader={{
-            eyebrow: t("landing.saas.carousel.eyebrow"),
-            title: t("landing.saas.carousel.title"),
-            subtitle: t("landing.saas.carousel.subtitle"),
-            playLabel: t("landing.saas.carousel.play")
-          }}
-          slideIds={applicationSlideIds}
-          customSlides={applicationSlides}
-          actions={applicationSlideActions}
-          mediaBySlide={applicationSlideMedia}
-          onLandingAnalytics={handleLandingAnalytics}
-          landingJourneyActions={{
-            onOrganize: () => startOrganize("story"),
-            onAct: () => startAct("story"),
-            onExplore: () => openApplications("story")
-          }}
-          landingJourneyAvailabilityBySlide={landingJourneyAvailabilityBySlide}
-          simplifyLandingControls
-        />
-      </section>
+      <BusinessOsLifecycle t={t} />
+      <BusinessApplicationCarousel
+        applications={landingApplications}
+        campaignImageUrl={heroImage}
+        t={t}
+        onOrganise={organizeApplication}
+        onLearnMore={(applicationKey) => scrollToApplication(applicationKey, `application_carousel_${applicationKey}`)}
+        onStart={startApplication}
+      />
+      <SharedPlatformServices t={t} />
 
       <footer className="marketing-footer global-footer">
         <a href="/privacy">{t("landing.footer.privacy")}</a>

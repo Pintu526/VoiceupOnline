@@ -43,12 +43,12 @@ export const marketingApplicationDefinitions: MarketingApplicationDefinition[] =
   },
   {
     key: "homeNurseHub",
-    status: "IN PROGRESS",
+    status: "COMING SOON",
     enabled: false
   },
   {
     key: "cateringHub",
-    status: "IN PROGRESS",
+    status: "COMING SOON",
     enabled: false
   }
 ];

@@ -2348,34 +2348,96 @@
           "highlights": { "1": "LEARN MORE", "2": "PLAN", "3": "ACT", "4": "" }
         },
         "campaign": {
-          "name": "Campaign SaaS",
-          "description": "Launch transparent collective action with a complete campaign workspace.",
+          "name": "Campaign",
+          "description": "Collective Action & Crowd Movement Management",
           "highlights": { "1": "Create and publish campaigns", "2": "Collect digital and paper signatures", "3": "Mobilize supporters and volunteers", "4": "Transparent collective action" }
         },
         "goudhan": {
-          "name": "Goudhan Marketplace SaaS",
-          "description": "A trusted indigenous cow-product marketplace for buyers, sellers, and partners.",
+          "name": "Goudhan",
+          "description": "Cow Economy Marketplace",
           "highlights": { "1": "Indigenous cow-product marketplace", "2": "Buyer and seller ecosystem", "3": "Partner and promoter onboarding", "4": "Commerce, fulfilment and referral capabilities" }
         },
         "panditOnline": {
-          "name": "PanditOnline SaaS",
-          "description": "Trusted priest discovery and managed ritual service booking.",
+          "name": "PanditOnline",
+          "description": "Professional Religious Services",
           "highlights": { "1": "Trusted priest discovery", "2": "Ritual and service booking", "3": "Provider onboarding and approval", "4": "Scheduling and service management" }
         },
         "teachToday": {
-          "name": "TeachToday SaaS",
-          "description": "A marketplace connecting learners with trusted tutors and services.",
+          "name": "TeachToday",
+          "description": "Education Platform",
           "highlights": { "1": "Tutor and learner marketplace", "2": "Provider onboarding and verification", "3": "Course or service discovery", "4": "Scheduling and learning support" }
         },
         "homeNurseHub": {
-          "name": "Home Nurse Hub SaaS",
-          "description": "Coordinated home-care professional discovery and service delivery.",
+          "name": "Home Nurse Hub",
+          "description": "Healthcare Services",
           "highlights": { "1": "Home-care professional discovery", "2": "Nurse onboarding and verification", "3": "Care-service requests", "4": "Scheduling and service coordination" }
         },
         "cateringHub": {
-          "name": "Catering Hub SaaS",
-          "description": "Subscription meals, event catering, corporate catering and healthy-food services.",
+          "name": "Catering Hub",
+          "description": "Food & Event Services",
           "highlights": { "1": "Subscription meal plans", "2": "Event and corporate catering", "3": "Home catering services", "4": "Includes SuddhaOswada healthy-food offerings" }
+        }
+      }
+    },
+    "businessOs": {
+      "hero": {
+        "eyebrow": "Unified business infrastructure",
+        "title": "VoiceUp Business OS",
+        "tagline": "One Business Operating Suite.",
+        "lines": {
+          "organise": "Organise teams.",
+          "launch": "Launch applications.",
+          "operate": "Operate organizations.",
+          "impact": "Create measurable impact."
+        },
+        "cards": {
+          "applications": { "title": "Business Applications", "description": "Launch multiple applications from one platform." },
+          "ai": { "title": "Shared AI", "description": "One AI powering every application." },
+          "enterprise": { "title": "Enterprise Ready", "description": "Secure, scalable, multilingual, multi-tenant." },
+          "modular": { "title": "Modular Platform", "description": "Reusable services across every application." }
+        }
+      },
+      "lifecycle": {
+        "eyebrow": "Business OS lifecycle",
+        "title": "From organization to measurable growth.",
+        "subtitle": "A connected operating rhythm shared across every VoiceUp application.",
+        "stages": {
+          "organise": { "title": "ORGANISE", "items": { "teams": "Teams", "roles": "Roles", "coordinatorNetwork": "Coordinator Network", "organizationSetup": "Organization Setup" } },
+          "plan": { "title": "PLAN", "items": { "campaigns": "Campaigns", "projects": "Projects", "events": "Events", "missions": "Missions", "aiPlanning": "AI Planning" } },
+          "act": { "title": "ACT", "items": { "execute": "Execute", "volunteers": "Volunteers", "tasks": "Tasks", "mobileWorkforce": "Mobile Workforce", "offlineOperations": "Offline Operations" } },
+          "fund": { "title": "FUND", "items": { "donations": "Donations", "membership": "Membership", "marketplace": "Marketplace", "commerce": "Commerce", "subscriptions": "Subscriptions" } },
+          "prove": { "title": "PROVE", "items": { "transparency": "Transparency", "evidence": "Evidence", "reports": "Reports", "analytics": "Analytics", "auditTrail": "Audit Trail" } },
+          "grow": { "title": "GROW", "items": { "crm": "CRM", "referrals": "Referrals", "recognition": "Recognition", "rewards": "Rewards", "communication": "Communication", "aiInsights": "AI Insights" } }
+        }
+      },
+      "carousel": {
+        "eyebrow": "Application portfolio",
+        "title": "Business applications, one operating system.",
+        "subtitle": "Move between focused applications without rebuilding identity, data, intelligence, or operations.",
+        "illustration": "application illustration",
+        "previous": "Previous application",
+        "next": "Next application",
+        "navigation": "Choose an application",
+        "actions": { "organise": "Organise", "learnMore": "Learn More", "start": "Start" }
+      },
+      "services": {
+        "eyebrow": "Shared platform services",
+        "title": "One foundation. Every application.",
+        "subtitle": "Common enterprise services reduce duplication and keep every product consistent, secure, and ready to scale.",
+        "foundation": "Reusable across the complete VoiceUp application portfolio",
+        "items": {
+          "aiCopilot": "AI Copilot",
+          "identity": "Identity",
+          "notifications": "Notifications",
+          "reports": "Reports",
+          "analytics": "Analytics",
+          "payments": "Payments",
+          "localization": "Localization",
+          "integrations": "Integrations",
+          "automation": "Automation",
+          "documents": "Document Management",
+          "media": "Media Library",
+          "audit": "Audit Logs"
         }
       }
     },

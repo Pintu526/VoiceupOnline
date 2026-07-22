@@ -13736,3 +13736,302 @@ button.secondary-link-button {
 @media (max-width: 1100px) { .vboss-overview-strip { grid-template-columns: repeat(4, minmax(110px, 1fr)); } .movement-dashboard-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .vboss-command-grid, .vboss-placeholder-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .vboss-overview-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .movement-dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .vboss-command-grid, .vboss-placeholder-grid, .vboss-overview-strip, .movement-dashboard-grid, .vboss-command-actions { grid-template-columns: 1fr; } .vboss-command-heading, .vboss-placeholder-heading, .vboss-section-heading { align-items: flex-start; flex-direction: column; } .vboss-command-card { min-height: 108px; } }
+
+/* Final Business OS landing experience */
+.global-landing .business-os-hero {
+  background:
+    radial-gradient(circle at 82% 16%, rgba(91, 124, 255, 0.34), transparent 28rem),
+    radial-gradient(circle at 18% 86%, rgba(18, 184, 134, 0.22), transparent 30rem),
+    linear-gradient(145deg, #030712 0%, #08152f 46%, #10275a 100%);
+  min-height: 720px;
+  overflow: hidden;
+}
+
+.global-landing .business-os-hero .global-hero-content {
+  gap: 16px;
+  margin: 0 auto;
+  max-width: 1320px;
+  padding: clamp(64px, 8vw, 104px) clamp(20px, 5vw, 72px) clamp(46px, 6vw, 78px);
+  position: relative;
+  width: 100%;
+  z-index: 2;
+}
+
+.global-landing .business-os-hero .global-hero-content h1 {
+  font-size: clamp(3.4rem, 7vw, 6.7rem);
+  letter-spacing: -0.055em;
+  line-height: 0.92;
+  max-width: 960px;
+}
+
+.business-os-hero-tagline {
+  font-size: clamp(1.25rem, 2.2vw, 1.75rem) !important;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.business-os-hero-lines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 18px;
+  max-width: 920px;
+}
+
+.business-os-hero-lines span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: clamp(0.9rem, 1.25vw, 1.02rem);
+  font-weight: 650;
+}
+
+.business-os-hero-lines span::before {
+  color: #7ee2bb;
+  content: "•";
+  margin-right: 8px;
+}
+
+.business-os-hero-cards {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: clamp(20px, 3.2vw, 36px);
+}
+
+.business-os-hero-cards article {
+  backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.075);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  display: grid;
+  gap: 8px;
+  min-height: 166px;
+  padding: clamp(18px, 2vw, 24px);
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.business-os-hero-cards article:hover {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: translateY(-3px);
+}
+
+.business-os-hero-cards article > svg { color: #8ca7ff; }
+.business-os-hero-cards strong { font-size: 1rem; }
+.business-os-hero-cards p { color: rgba(255, 255, 255, 0.66) !important; font-size: 0.84rem !important; line-height: 1.5 !important; }
+
+.business-os-hero-ambient span {
+  animation: business-os-float 10s ease-in-out infinite;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 28px;
+  height: 150px;
+  position: absolute;
+  right: 8%;
+  top: 14%;
+  transform: rotate(18deg);
+  width: 150px;
+}
+
+.business-os-hero-ambient span:nth-child(2) { animation-delay: -3s; height: 78px; right: 26%; top: 9%; transform: rotate(-15deg); width: 78px; }
+.business-os-hero-ambient span:nth-child(3) { animation-delay: -6s; bottom: 8%; height: 110px; right: 3%; top: auto; transform: rotate(32deg); width: 110px; }
+
+.business-os-section {
+  padding: clamp(72px, 8vw, 110px) clamp(20px, 5vw, 72px);
+}
+
+.business-os-section-heading {
+  display: grid;
+  gap: 12px;
+  margin: 0 auto clamp(30px, 4vw, 48px);
+  max-width: 820px;
+  text-align: center;
+}
+
+.business-os-section-heading > span {
+  color: #3858c8;
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.business-os-section-heading h2 {
+  color: #0b1220;
+  font-size: clamp(2.2rem, 4.6vw, 4.3rem);
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  margin: 0;
+}
+
+.business-os-section-heading p {
+  color: #667085;
+  font-size: clamp(0.98rem, 1.5vw, 1.14rem);
+  line-height: 1.65;
+  margin: 0;
+}
+
+.business-os-lifecycle {
+  background:
+    linear-gradient(rgba(18, 58, 140, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 58, 140, 0.035) 1px, transparent 1px),
+    #f8fafc;
+  background-size: 36px 36px;
+}
+
+.business-os-lifecycle-flow {
+  margin: 0 auto;
+  max-width: 880px;
+}
+
+.business-os-lifecycle-stage { position: relative; }
+
+.business-os-lifecycle-stage > button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e4e7ec;
+  border-radius: 18px;
+  color: #101828;
+  cursor: pointer;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  min-height: 76px;
+  padding: 15px 20px;
+  text-align: left;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  width: 100%;
+}
+
+.business-os-lifecycle-stage > button:hover,
+.business-os-lifecycle-stage > button:focus-visible,
+.business-os-lifecycle-stage.is-active > button {
+  border-color: rgba(56, 88, 200, 0.46);
+  box-shadow: 0 18px 44px rgba(18, 58, 140, 0.12);
+  transform: translateY(-1px);
+}
+
+.business-os-stage-index { color: #98a2b3; font-size: 0.74rem; font-weight: 850; }
+.business-os-stage-icon { background: #eef2ff; border-radius: 12px; color: #3858c8; display: grid; height: 42px; place-items: center; width: 42px; }
+.business-os-lifecycle-stage strong { font-size: clamp(1.08rem, 2vw, 1.34rem); letter-spacing: 0.06em; }
+.business-os-stage-chevron { color: #667085; transition: transform 180ms ease; }
+.business-os-lifecycle-stage.is-active .business-os-stage-chevron { transform: rotate(180deg); }
+
+.business-os-lifecycle-panel { overflow: hidden; }
+.business-os-lifecycle-panel > div { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 18px 2px 88px; }
+.business-os-lifecycle-panel span { background: #fff; border: 1px solid #e4e7ec; border-radius: 999px; color: #344054; font-size: 0.8rem; font-weight: 700; padding: 8px 12px; }
+.business-os-stage-arrow { color: #98a2b3; display: grid; height: 34px; place-items: center; }
+
+.business-application-carousel {
+  background:
+    radial-gradient(circle at 10% 15%, rgba(82, 113, 255, 0.18), transparent 26rem),
+    linear-gradient(155deg, #030712, #08152f 68%, #10275a);
+  color: #fff;
+}
+
+.business-application-carousel .business-os-section-heading > span { color: #91a8ff; }
+.business-application-carousel .business-os-section-heading h2 { color: #fff; }
+.business-application-carousel .business-os-section-heading p { color: rgba(255, 255, 255, 0.66); }
+
+.business-application-carousel-shell { margin: 0 auto; max-width: 1180px; outline: none; }
+.business-application-carousel-shell:focus-visible { border-radius: 26px; box-shadow: 0 0 0 3px #8ca7ff; }
+
+.business-application-card {
+  background: rgba(255, 255, 255, 0.075);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 28px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
+  min-height: 500px;
+  overflow: hidden;
+}
+
+.business-application-image {
+  align-items: center;
+  background: linear-gradient(145deg, #2847b6, #0a183b);
+  display: flex;
+  isolation: isolate;
+  justify-content: center;
+  min-height: 500px;
+  overflow: hidden;
+  position: relative;
+}
+
+.business-application-image::after { background: linear-gradient(180deg, transparent 48%, rgba(3, 7, 18, 0.52)); content: ""; inset: 0; position: absolute; z-index: -1; }
+.business-application-image > svg { color: rgba(255, 255, 255, 0.88); filter: drop-shadow(0 22px 42px rgba(0, 0, 0, 0.3)); position: relative; z-index: 2; }
+.business-application-image img { height: 100%; inset: 0; object-fit: cover; position: absolute; width: 100%; z-index: -2; }
+.business-application-image--campaign::before { background: linear-gradient(90deg, rgba(5, 18, 44, 0.15), rgba(5, 18, 44, 0.42)); content: ""; inset: 0; position: absolute; z-index: -1; }
+.business-application-image--goudhan { background: linear-gradient(145deg, #8f5f20, #3b2108); }
+.business-application-image--panditOnline { background: linear-gradient(145deg, #b54b21, #4b160d); }
+.business-application-image--teachToday { background: linear-gradient(145deg, #3159c9, #112555); }
+.business-application-image--homeNurseHub { background: linear-gradient(145deg, #178c8b, #073e4f); }
+.business-application-image--cateringHub { background: linear-gradient(145deg, #8e3f62, #3e1731); }
+
+.business-application-orbit { border: 1px solid rgba(255, 255, 255, 0.24); border-radius: 50%; height: 300px; position: absolute; width: 300px; }
+.business-application-orbit.orbit-one { animation: business-os-spin 18s linear infinite; }
+.business-application-orbit.orbit-two { animation: business-os-spin 25s linear infinite reverse; height: 430px; width: 430px; }
+.business-application-image-label { align-items: center; backdrop-filter: blur(12px); background: rgba(3, 7, 18, 0.38); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 999px; bottom: 24px; display: inline-flex; font-size: 0.76rem; font-weight: 750; gap: 7px; left: 24px; padding: 8px 11px; position: absolute; z-index: 3; }
+
+.business-application-copy { align-content: center; display: grid; gap: 16px; padding: clamp(28px, 4vw, 48px); position: relative; }
+.business-application-copy h3 { font-size: clamp(2.1rem, 4vw, 4rem); letter-spacing: -0.045em; margin: 0; }
+.business-application-copy p { color: rgba(255, 255, 255, 0.68); font-size: 1.02rem; line-height: 1.6; margin: 0; }
+.business-application-status { border: 1px solid currentColor; border-radius: 999px; font-size: 0.7rem; font-weight: 900; letter-spacing: 0.1em; padding: 6px 9px; text-transform: uppercase; width: fit-content; }
+.business-application-status.status-live { color: #78e1b6; }
+.business-application-status.status-in-progress { color: #ffd479; }
+.business-application-status.status-coming-soon { color: #bdc8ff; }
+.business-application-count { color: rgba(255, 255, 255, 0.46); font-size: 0.76rem; font-weight: 800; position: absolute; right: 30px; top: 30px; }
+.business-application-actions { display: grid; gap: 8px; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 10px; }
+.business-application-actions button { justify-content: center; min-width: 0; width: 100%; }
+.business-application-actions .secondary-button { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; }
+.business-application-actions .primary-button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.business-application-controls { align-items: center; display: flex; gap: 16px; justify-content: center; margin-top: 24px; }
+.business-application-controls .icon-button { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.17); color: #fff; }
+.business-application-dots { align-items: center; display: flex; gap: 7px; }
+.business-application-dots button { background: rgba(255, 255, 255, 0.26); border: 0; border-radius: 999px; cursor: pointer; height: 7px; padding: 0; transition: background 180ms ease, width 180ms ease; width: 7px; }
+.business-application-dots button[aria-selected="true"] { background: #8ca7ff; width: 28px; }
+
+.business-platform-services { background: #fff; }
+.business-platform-service-grid { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 auto; max-width: 1180px; }
+.business-platform-service-grid article { align-items: center; background: #fff; border: 1px solid #e4e7ec; border-radius: 18px; display: flex; gap: 13px; min-height: 88px; padding: 18px; transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
+.business-platform-service-grid article:hover { border-color: rgba(56, 88, 200, 0.42); box-shadow: 0 16px 38px rgba(18, 58, 140, 0.1); transform: translateY(-2px); }
+.business-platform-service-grid article > span { background: #eef2ff; border-radius: 12px; color: #3858c8; display: grid; flex: 0 0 auto; height: 40px; place-items: center; width: 40px; }
+.business-platform-service-grid strong { color: #101828; font-size: 0.9rem; }
+.business-platform-foundation { align-items: center; background: #f8fafc; border: 1px solid #e4e7ec; border-radius: 999px; color: #475467; display: flex; font-size: 0.82rem; font-weight: 750; gap: 9px; justify-content: center; margin: 28px auto 0; max-width: 560px; padding: 11px 16px; }
+
+@keyframes business-os-float { 0%, 100% { translate: 0 0; } 50% { translate: 0 -16px; } }
+@keyframes business-os-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 980px) {
+  .business-os-hero-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .business-application-card { grid-template-columns: 1fr; }
+  .business-application-image { min-height: 360px; }
+  .business-platform-service-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 700px) {
+  .global-landing .business-os-hero { min-height: 0; }
+  .global-landing .business-os-hero .global-hero-content h1 { font-size: clamp(2.75rem, 15vw, 4.7rem); }
+  .business-os-hero-lines { display: grid; gap: 6px; }
+  .business-os-hero-cards { grid-template-columns: 1fr; }
+  .business-os-hero-cards article { min-height: 0; }
+  .business-os-section { padding: 64px 16px; }
+  .business-os-lifecycle-stage > button { gap: 10px; grid-template-columns: auto auto minmax(0, 1fr) auto; padding: 13px; }
+  .business-os-lifecycle-panel > div { padding-left: 14px; }
+  .business-application-card { min-height: 0; }
+  .business-application-image { min-height: 280px; }
+  .business-application-copy { padding: 26px 20px; }
+  .business-application-copy h3 { font-size: 2.35rem; }
+  .business-application-actions { grid-template-columns: 1fr; }
+  .business-platform-service-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .business-platform-service-grid article { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 430px) {
+  .business-platform-service-grid { grid-template-columns: 1fr; }
+  .business-platform-service-grid article { align-items: center; flex-direction: row; }
+  .business-platform-foundation { align-items: flex-start; border-radius: 18px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .business-os-hero-ambient span,
+  .business-application-orbit { animation: none !important; }
+}

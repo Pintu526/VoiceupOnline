@@ -1,4 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
+import {
+  mergeWorkspaceStateForSave,
+  nextWorkspaceUpdatedAt
+} from "../supabase/functions/_shared/workspaceStateMerge";
 import type {
   AuditLogEntry,
   AuthorityRule,
@@ -65,13 +69,43 @@ export interface PublicCampaignPayload {
     online: number;
     scanned: number;
     progress: number;
+    digitalSupporters?: number;
+    paperRecordsReceived?: number;
+    paperRecordsDigitised?: number;
+    paperRecordsPending?: number;
+    verifiedSupporters?: number;
+    activeGeographyCoverage?: number;
+    coordinatorCounts?: {
+      total: number;
+      active: number;
+    };
   };
+}
+
+export type PublicParticipationAction =
+  | "save_draft"
+  | "submit_support"
+  | "resume_verified_supporter"
+  | "update_profile"
+  | "record_consents"
+  | "submit_coordinator_application"
+  | "sync_coordinator_application_state";
+
+export interface PublicParticipationResult {
+  action: PublicParticipationAction;
+  signer: Signer | null;
+  profile: Signer | null;
+  supporterStatus: string;
+  coordinatorApplicationStatus?: string;
+  message: string;
+  metrics: PublicCampaignPayload["metrics"];
 }
 
 export interface OtpRequestResult {
   challengeId: string;
   resendAfterSeconds: number;
   message: string;
+  developmentOtp?: string;
 }
 
 export interface OtpVerifyResult {
@@ -264,23 +298,107 @@ function publicAuthoritiesForCampaign(state: VoiceupRemoteState, campaign: Campa
     : [];
 }
 
-async function loadWorkspaceStateById(workspaceId: string): Promise<VoiceupRemoteState | null> {
+interface WorkspaceStateSnapshot {
+  state: VoiceupRemoteState | null;
+  updatedAt: string | null;
+}
+
+interface WorkspaceSaveBaseline {
+  serverState: VoiceupRemoteState | Record<string, unknown>;
+  clientState: VoiceupRemoteState | Record<string, unknown>;
+  updatedAt: string | null;
+}
+
+const workspaceSaveBaselines = new Map<string, WorkspaceSaveBaseline>();
+
+async function readWorkspaceSnapshotById(workspaceId: string): Promise<WorkspaceStateSnapshot> {
   const client = requireSupabase();
   const { data, error } = await client
     .from("voiceup_workspaces")
-    .select("data")
+    .select("data,updated_at")
     .eq("id", workspaceId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data?.data as VoiceupRemoteState | null) ?? null;
+  return {
+    state: (data?.data as VoiceupRemoteState | null) ?? null,
+    updatedAt: data?.updated_at ? String(data.updated_at) : null
+  };
+}
+
+async function loadWorkspaceStateById(workspaceId: string): Promise<VoiceupRemoteState | null> {
+  const snapshot = await readWorkspaceSnapshotById(workspaceId);
+  const baselineState = snapshot.state ?? {};
+  workspaceSaveBaselines.set(workspaceId, {
+    serverState: baselineState,
+    clientState: baselineState,
+    updatedAt: snapshot.updatedAt
+  });
+  return snapshot.state;
 }
 
 async function saveWorkspaceState(workspaceId: string, state: VoiceupRemoteState): Promise<void> {
   const client = requireSupabase();
-  const { error } = await client
-    .from("voiceup_workspaces")
-    .upsert({ id: workspaceId, data: state, updated_at: new Date().toISOString() }, { onConflict: "id" });
-  if (error) throw new Error(error.message);
+  const baseline = workspaceSaveBaselines.get(workspaceId);
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const snapshot = await readWorkspaceSnapshotById(workspaceId);
+
+    if (!snapshot.state) {
+      if (baseline?.updatedAt) {
+        throw new Error("The workspace was removed after it was loaded. Refresh before saving.");
+      }
+      const nextUpdatedAt = nextWorkspaceUpdatedAt(null);
+      const { error } = await client
+        .from("voiceup_workspaces")
+        .insert({ id: workspaceId, data: state, updated_at: nextUpdatedAt });
+      if (error?.code === "23505") continue;
+      if (error) throw new Error(error.message);
+      workspaceSaveBaselines.set(workspaceId, {
+        serverState: state,
+        clientState: state,
+        updatedAt: nextUpdatedAt
+      });
+      return;
+    }
+
+    if (!baseline) {
+      throw new Error("Reload the workspace before saving so recent participation is preserved.");
+    }
+
+    const merged = mergeWorkspaceStateForSave(
+      snapshot.state,
+      state,
+      baseline.serverState,
+      baseline.clientState
+    );
+    if (merged.conflicts.length > 0) {
+      throw new Error("Public participation changed while this workspace was being edited. Refresh and retry.");
+    }
+
+    const nextUpdatedAt = nextWorkspaceUpdatedAt(snapshot.updatedAt);
+    let update = client
+      .from("voiceup_workspaces")
+      .update({ data: merged.state, updated_at: nextUpdatedAt })
+      .eq("id", workspaceId);
+    update = snapshot.updatedAt
+      ? update.eq("updated_at", snapshot.updatedAt)
+      : update.is("updated_at", null);
+    const { data: updated, error } = await update
+      .select("updated_at")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!updated) continue;
+
+    const savedUpdatedAt = updated.updated_at ? String(updated.updated_at) : nextUpdatedAt;
+    workspaceSaveBaselines.set(workspaceId, {
+      serverState: merged.state as unknown as VoiceupRemoteState,
+      clientState: state,
+      updatedAt: savedUpdatedAt
+    });
+    return;
+  }
+
+  throw new Error("The workspace changed repeatedly while saving. Refresh and retry.");
 }
 
 async function listWorkspaceStates(): Promise<Array<{ id: string; data: VoiceupRemoteState | null }>> {
@@ -1012,6 +1130,31 @@ export async function requestOtp(
   if (!normalizedPhone) {
     throw new Error("Phone and purpose are required.");
   }
+  if (supabase) {
+    const { data, error } = await supabase.functions.invoke<{
+      challengeId?: string;
+      resendAfterSeconds?: number;
+      message?: string;
+      otp?: string;
+      error?: string;
+    }>("voiceup-otp", {
+      body: {
+        action: "send",
+        phone: normalizedPhone,
+        purpose,
+        metadata
+      }
+    });
+    if (error || data?.error || !data?.challengeId) {
+      throw new Error(data?.error || error?.message || "Verification code could not be sent.");
+    }
+    return {
+      challengeId: data.challengeId,
+      resendAfterSeconds: data.resendAfterSeconds ?? 30,
+      message: data.message ?? "Verification code sent.",
+      developmentOtp: data.otp
+    };
+  }
   const challenges = readLocalOtpChallenges().filter((item) => item.expiresAt > Date.now());
   const challengeId = createId("otp");
   const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -1027,7 +1170,8 @@ export async function requestOtp(
   return {
     challengeId,
     resendAfterSeconds: 30,
-    message: metadata && Object.keys(metadata).length >= 0 ? "Development OTP generated." : "Development OTP generated."
+    message: metadata && Object.keys(metadata).length >= 0 ? "Development OTP generated." : "Development OTP generated.",
+    developmentOtp: code
   };
 }
 
@@ -1039,6 +1183,31 @@ export async function verifyOtp(
   metadata: Record<string, unknown> = {}
 ): Promise<OtpVerifyResult> {
   const normalizedPhone = normalizePhone(phone);
+  if (supabase) {
+    const { data, error } = await supabase.functions.invoke<{
+      verified?: boolean;
+      verificationToken?: string;
+      message?: string;
+      error?: string;
+    }>("voiceup-otp", {
+      body: {
+        action: "verify",
+        challengeId,
+        phone: normalizedPhone,
+        code,
+        purpose,
+        metadata
+      }
+    });
+    if (error || data?.error || !data?.verified || !data.verificationToken) {
+      throw new Error(data?.error || error?.message || "Phone verification failed.");
+    }
+    return {
+      verified: true,
+      verificationToken: data.verificationToken,
+      message: data.message ?? "Phone number verified."
+    };
+  }
   const challenges = readLocalOtpChallenges().filter((item) => item.expiresAt > Date.now());
   const challenge = challenges.find(
     (item) => item.challengeId === challengeId && item.phone === normalizedPhone && item.purpose === purpose
@@ -1264,33 +1433,148 @@ export async function submitPublicSignatureSecure(
     consentVersion: string;
     consentAcceptedAt: string;
     consentSource: "public_web";
-  }
+  },
+  communicationConsent = false
 ): Promise<{ signer: Signer; message: string; metrics: PublicCampaignPayload["metrics"] }> {
-  const client = requireSupabase();
-  const { data, error } = await client.functions.invoke<{
-    signer: Signer;
-    message: string;
-    metrics: PublicCampaignPayload["metrics"];
-    error?: string;
-    code?: string;
-  }>("voiceup-public-signing", {
-    body: { slug, signer, consent }
+  const result = await mutatePublicParticipation({
+    slug,
+    action: "submit_support",
+    signer,
+    consent,
+    communicationConsent,
+    idempotencyKey: createPublicParticipationIdempotencyKey("support")
   });
+  if (!result.signer) throw new Error("Signature submission failed.");
+  return {
+    signer: result.signer,
+    message: result.message,
+    metrics: result.metrics
+  };
+}
 
+export function createPublicParticipationIdempotencyKey(scope: string): string {
+  const random = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${scope}:${random}`;
+}
+
+export async function mutatePublicParticipation(input: {
+  slug: string;
+  action: PublicParticipationAction;
+  phone?: string;
+  otpVerificationToken?: string;
+  idempotencyKey: string;
+  signer?: unknown;
+  consent?: {
+    consentAccepted: boolean;
+    consentText: string;
+    consentVersion: string;
+    consentAcceptedAt: string;
+    consentSource: "public_web";
+  };
+  payload?: {
+    profile?: Record<string, unknown>;
+    consents?: Record<string, {
+      granted: boolean;
+      version: string;
+      policyId?: string;
+    }>;
+    application?: Record<string, unknown>;
+    baseUpdatedAt?: string;
+  };
+  communicationConsent?: boolean;
+}): Promise<PublicParticipationResult> {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke<
+    PublicParticipationResult & { error?: string; code?: string; retryable?: boolean }
+  >("voiceup-public-signing", {
+    body: {
+      slug: input.slug,
+      action: input.action,
+      phone: input.phone,
+      otpVerificationToken: input.otpVerificationToken,
+      idempotencyKey: input.idempotencyKey,
+      signer: input.signer,
+      consent: input.consent,
+      payload: input.payload,
+      communicationConsent: input.communicationConsent,
+      clientVersion: "public-participation-v1"
+    }
+  });
   if (error) {
-    throw new Error(error.message || "Signature submission failed.");
+    throw new Error(error.message || "Participation request failed.");
   }
   if (!data) {
-    throw new Error("Signature submission failed.");
+    throw new Error("Participation request failed.");
   }
   if (data.error) {
     throw new PublicSignatureSubmissionError(data.error, data.code);
   }
+  return data;
+}
 
+export async function uploadPublicSupporterPhoto(input: {
+  slug: string;
+  supporterId: string;
+  phone: string;
+  otpVerificationToken: string;
+  file: File;
+}): Promise<{ signer: Signer; message: string }> {
+  const client = requireSupabase();
+  if (!input.file.type.startsWith("image/")) throw new Error("Choose an image file.");
+  if (input.file.size <= 0 || input.file.size > 5 * 1024 * 1024) {
+    throw new Error("Supporter photos must be 5 MB or smaller.");
+  }
+  const commonBody = {
+    slug: input.slug,
+    supporterId: input.supporterId,
+    phone: input.phone,
+    otpVerificationToken: input.otpVerificationToken
+  };
+  const { data: prepared, error: prepareError } = await client.functions.invoke<{
+    path?: string;
+    token?: string;
+    error?: string;
+  }>("voiceup-public-signing", {
+    body: {
+      ...commonBody,
+      action: "prepare_supporter_photo",
+      idempotencyKey: createPublicParticipationIdempotencyKey("photo-prepare"),
+      contentType: input.file.type,
+      fileSize: input.file.size
+    }
+  });
+  if (prepareError || prepared?.error || !prepared?.path || !prepared.token) {
+    throw new Error(prepared?.error || prepareError?.message || "Private photo upload could not be prepared.");
+  }
+
+  const { error: uploadError } = await client.storage
+    .from("campaign-private")
+    .uploadToSignedUrl(prepared.path, prepared.token, input.file, {
+      contentType: input.file.type,
+      upsert: false
+    });
+  if (uploadError) throw new Error(uploadError.message || "Private photo upload failed.");
+
+  const { data: attached, error: attachError } = await client.functions.invoke<{
+    signer?: Signer;
+    message?: string;
+    error?: string;
+  }>("voiceup-public-signing", {
+    body: {
+      ...commonBody,
+      action: "attach_supporter_photo",
+      idempotencyKey: createPublicParticipationIdempotencyKey("photo-attach"),
+      path: prepared.path
+    }
+  });
+  if (attachError || attached?.error || !attached?.signer) {
+    throw new Error(attached?.error || attachError?.message || "Private photo could not be attached.");
+  }
   return {
-    signer: data.signer,
-    message: data.message,
-    metrics: data.metrics
+    signer: attached.signer,
+    message: attached.message ?? "Private profile photo saved."
   };
 }
 

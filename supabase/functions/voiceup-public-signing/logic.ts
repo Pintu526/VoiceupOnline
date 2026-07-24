@@ -2,6 +2,47 @@ export const CONSENT_REQUIRED_CODE = "consent_required" as const;
 
 export type PublicSigningConsentSource = "public_web";
 
+export const PUBLIC_PARTICIPATION_ACTIONS = [
+  "save_draft",
+  "submit_support",
+  "resume_verified_supporter",
+  "update_profile",
+  "record_consents",
+  "submit_coordinator_application",
+  "sync_coordinator_application_state"
+] as const;
+
+export type PublicParticipationAction = (typeof PUBLIC_PARTICIPATION_ACTIONS)[number];
+
+export const PUBLIC_PROFILE_FIELDS = new Set([
+  "name", "email", "whatsappNumber", "telegramHandle",
+  "selectedAuthorityId", "selectedAuthorityName",
+  "countryId", "country", "stateId", "state", "districtId", "district",
+  "blockId", "block", "panchayatId", "panchayat", "wardId", "ward",
+  "address", "postalCode", "comment", "languagePreference",
+  "communicationPreference", "volunteerInterest", "coordinatorInterest",
+  "profilePhotoPath", "profilePhotoUpdatedAt", "profileCompletion",
+  "referredBy", "referredByPhoneOrCode", "referralSource", "referralCode"
+]);
+
+export function isPublicParticipationAction(value: string): value is PublicParticipationAction {
+  return (PUBLIC_PARTICIPATION_ACTIONS as readonly string[]).includes(value);
+}
+
+export function hasBase64Image(value: unknown): boolean {
+  try {
+    return /data:[^;]+;base64,/i.test(JSON.stringify(value));
+  } catch {
+    return true;
+  }
+}
+
+export function validateProfileFields(profile: unknown): boolean {
+  if (profile === undefined) return true;
+  if (!profile || typeof profile !== "object" || Array.isArray(profile)) return false;
+  return Object.keys(profile as Record<string, unknown>).every((key) => PUBLIC_PROFILE_FIELDS.has(key));
+}
+
 export interface ValidatedPublicSigningConsent {
   accepted: true;
   textSnapshot: string;
@@ -16,6 +57,9 @@ function normalizeConsentText(value: string): string {
 
 function normalizePhone(value: string): string {
   const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("0") && /^[6-9]/.test(digits.slice(1))) {
+    return digits.slice(1);
+  }
   if (digits.length === 12 && digits.startsWith("91")) return digits.slice(2);
   return digits;
 }
@@ -131,6 +175,43 @@ export function validatePublicSigningConsent(
       version: consentVersion,
       acceptedAt: consentAcceptedAt,
       source: "public_web"
+    }
+  };
+}
+
+export function buildCanonicalSubmitSupportConsents(
+  consentInput: unknown,
+  campaignConsentText: string,
+  suppliedConsents: unknown,
+  communicationConsent = false
+):
+  | { ok: true; consents: Record<string, unknown> }
+  | { ok: false; code: typeof CONSENT_REQUIRED_CODE; message: string } {
+  const validation = validatePublicSigningConsent(consentInput, campaignConsentText);
+  if (!validation.ok) return validation;
+
+  const clientPreferences =
+    suppliedConsents
+    && typeof suppliedConsents === "object"
+    && !Array.isArray(suppliedConsents)
+      ? suppliedConsents as Record<string, unknown>
+      : {};
+  const canonicalCampaignConsent = {
+    granted: true,
+    version: validation.evidence.version,
+    policyId: validation.evidence.version
+  };
+
+  return {
+    ok: true,
+    consents: {
+      ...clientPreferences,
+      // A caller may submit other consent preferences, but campaign-support
+      // evidence always comes from the campaign's validated consent contract.
+      campaignSupport: canonicalCampaignConsent,
+      ...(communicationConsent
+        ? { campaignCommunication: canonicalCampaignConsent }
+        : {})
     }
   };
 }

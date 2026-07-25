@@ -63,7 +63,17 @@ export async function sha256Hex(value: string): Promise<string> {
 }
 
 export function normalizePhone(value: string): string {
-  return value.replace(/[^\d+]/g, "");
+  const digits = value.replace(/\D/g, "");
+
+  if (digits.startsWith("0") && /^0[6-9][0-9]{9}$/.test(digits)) {
+    return digits.slice(1);
+  }
+
+  if (/^91[6-9][0-9]{9}$/.test(digits)) {
+    return digits.slice(2);
+  }
+
+  return digits;
 }
 
 export function createSecureToken(prefix: string): string {

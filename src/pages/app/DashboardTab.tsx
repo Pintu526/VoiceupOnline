@@ -40,6 +40,7 @@ interface DashboardTabProps {
   onOpenCampaignAdmin: () => void;
   onOpenPublicCampaign: () => void;
   onOpenReports: () => void;
+  onOpenOrganise: () => void;
   createCampaignBlockReason?: string;
   canUseAiCopilot: boolean;
   onUpgradePlan: () => void;
@@ -123,6 +124,7 @@ export function DashboardTab({
   onOpenCampaignAdmin,
   onOpenPublicCampaign,
   onOpenReports,
+  onOpenOrganise,
   createCampaignBlockReason = "",
   canUseAiCopilot,
   onUpgradePlan,
@@ -249,6 +251,11 @@ export function DashboardTab({
         metrics={metrics}
         authority={authorityMatch?.authority}
       />
+      <div className="button-row dashboard-organise-action">
+        <button className="secondary-button" type="button" onClick={onOpenOrganise}>
+          <Users size={18} /> Plan / Organise · Coordinator Network
+        </button>
+      </div>
       {isCampaignAdminRoute && (
         <VoiceUpStoryCarousel
           experience="campaignAdmin"

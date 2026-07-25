@@ -12,6 +12,7 @@ import {
   approveScanReviewItem,
   assignCurrentWorkspaceMemberAsCampaignAdmin,
   clearCustomerSessionToken,
+  createPublicParticipationIdempotencyKey,
   createTrialWorkspace,
   getAuthContext,
   getCurrentAuthSession,
@@ -23,8 +24,10 @@ import {
   loadAuthoritativeFieldCollectionState,
   loadPublicCampaign,
   loadRemoteState,
+  mutatePublicParticipation,
   provisionWorkspaceMember,
   recordScanApprovalBatchAudit,
+  requestOtp as requestPublicOtp,
   resolveCampaignAdminAssignmentContext,
   saveRemoteState,
   signInWithSupabase,
@@ -32,7 +35,9 @@ import {
   submitPublicSignatureSecure,
   uploadFileToStorage,
   uploadPrivateFileToStorage,
+  uploadPublicSupporterPhoto,
   createSignedStorageUrl,
+  verifyOtp as verifyPublicOtp,
   verifySecureFieldUploadAccess
 } from "./backend";
 import type { PublicCampaignPayload } from "./backend";
@@ -500,6 +505,7 @@ function App() {
   const [otpInput, setOtpInput] = useState("");
   const [otpMessage, setOtpMessage] = useState("");
   const [lastSignedSigner, setLastSignedSigner] = useState<Signer | null>(null);
+  const [lastPublicOtpVerificationToken, setLastPublicOtpVerificationToken] = useState("");
   const [publicCampaignPayload, setPublicCampaignPayload] = useState<PublicCampaignPayload | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(isStartRoute);
   const [broadcastMessage, setBroadcastMessage] = useState("");
@@ -1738,11 +1744,18 @@ function App() {
       setPublicMessage("Please verify your phone number with OTP before signing.");
       return;
     }
+    if (isBackendConfigured && !publicForm.otpVerificationToken) {
+      setPublicMessage("Your OTP verification expired. Request a new code and verify again.");
+      return;
+    }
     const hasAppealConsent = Boolean(
       (form.elements.namedItem("supportAppealConsent") as HTMLInputElement | null)?.checked
     );
     const hasCampaignConsent = Boolean(
       (form.elements.namedItem("campaignConsent") as HTMLInputElement | null)?.checked
+    );
+    const hasCommunicationConsent = Boolean(
+      (form.elements.namedItem("campaignCommunicationConsent") as HTMLInputElement | null)?.checked
     );
     if (!hasAppealConsent || !hasCampaignConsent) {
       setPublicMessage("consent_required");
@@ -1784,10 +1797,11 @@ function App() {
           referredBy,
           referredByPhoneOrCode: referralInput,
           referralSource: referralInput ? restrictedPublicForm.referralSource ?? "manual" : undefined
-        }, consentPayload);
+        }, consentPayload, hasCommunicationConsent);
         setPublicForm(blankSigner);
         setOtpInput("");
         setOtpMessage("");
+        setLastPublicOtpVerificationToken(restrictedPublicForm.otpVerificationToken);
         setLastSignedSigner(result.signer);
         if (result.signer.status !== "duplicate") {
           recordGrowthLifecycle(
@@ -1852,6 +1866,7 @@ function App() {
     }
     addAuditLog("campaign.signed", `${signer.name} signed "${activeCampaign.title}"`, activeCampaign.id);
     setPublicForm(blankSigner);
+    setLastPublicOtpVerificationToken(restrictedPublicForm.otpVerificationToken);
     setLastSignedSigner(signer);
     setPublicMessage(
       signer.status === "duplicate"
@@ -1860,21 +1875,230 @@ function App() {
     );
   }
 
-  function sendOtp() {
-    if (!publicForm.phone.trim()) { setOtpMessage("Enter phone number before requesting OTP."); return; }
-    const nextOtp = String(Math.floor(100000 + Math.random() * 900000));
-    setOtpCode(nextOtp);
-    setPublicForm({ ...publicForm, otpVerified: false });
-    setOtpMessage(
-      `OTP : ${nextOtp}.`
-    );
+  async function sendOtp() {
+    const phone = publicForm.phone.trim();
+    if (!phone) { setOtpMessage("Enter phone number before requesting OTP."); return; }
+    setOtpMessage("Requesting verification code...");
+    try {
+      const result = await requestPublicOtp(phone, "public-signing", {
+        slug: activeCampaign?.slug ?? "",
+        campaignId: activeCampaign?.id ?? ""
+      });
+      setOtpCode(result.developmentOtp ?? "");
+      setPublicForm((current) => current.phone.trim() === phone
+        ? {
+            ...current,
+            otpVerified: false,
+            otpChallengeId: result.challengeId,
+            otpVerificationToken: ""
+          }
+        : current
+      );
+      setOtpMessage(
+        result.developmentOtp
+          ? `${result.message} OTP: ${result.developmentOtp}`
+          : result.message
+      );
+    } catch (error) {
+      setOtpMessage(error instanceof Error ? error.message : "Verification code could not be sent.");
+    }
   }
 
-  function verifyOtp() {
-    if (!otpCode) { setOtpMessage("Generate OTP first."); return; }
-    if (otpInput.trim() !== otpCode) { setOtpMessage("Invalid OTP."); return; }
-    setPublicForm({ ...publicForm, otpVerified: true });
-    setOtpMessage("Phone number verified.");
+  async function verifyOtp() {
+    const phone = publicForm.phone.trim();
+    if (!publicForm.otpChallengeId) { setOtpMessage("Request a verification code first."); return; }
+    if (!otpInput.trim()) { setOtpMessage("Enter the verification code."); return; }
+    setOtpMessage("Verifying phone number...");
+    try {
+      const result = await verifyPublicOtp(
+        publicForm.otpChallengeId,
+        phone,
+        otpInput,
+        "public-signing",
+        {
+          slug: activeCampaign?.slug ?? "",
+          campaignId: activeCampaign?.id ?? ""
+        }
+      );
+      setOtpCode("");
+      setLastPublicOtpVerificationToken(result.verificationToken);
+      setPublicForm((current) => current.phone.trim() === phone
+        ? {
+            ...current,
+            otpVerified: result.verified,
+            otpVerificationToken: result.verificationToken
+          }
+        : current
+      );
+      setOtpMessage(result.message);
+      if (isBackendConfigured && activeCampaign?.slug) {
+        const resumed = await mutatePublicParticipation({
+          slug: activeCampaign.slug,
+          action: "resume_verified_supporter",
+          phone,
+          otpVerificationToken: result.verificationToken,
+          idempotencyKey: createPublicParticipationIdempotencyKey("resume")
+        });
+        if (resumed.signer) {
+          let restoredSigner = resumed.signer;
+          if (resumed.signer.coordinatorApplication) {
+            const synchronized = await mutatePublicParticipation({
+              slug: activeCampaign.slug,
+              action: "sync_coordinator_application_state",
+              phone,
+              otpVerificationToken: result.verificationToken,
+              idempotencyKey: createPublicParticipationIdempotencyKey("coordinator-sync")
+            });
+            restoredSigner = synchronized.signer ?? restoredSigner;
+          }
+          setPublicForm((current) => {
+            const restored = Object.fromEntries(
+              Object.keys(blankSigner)
+                .filter((key) => key in restoredSigner)
+                .map((key) => [key, restoredSigner[key as keyof Signer]])
+            );
+            return {
+              ...current,
+              ...restored,
+              phone,
+              otpVerified: true,
+              otpChallengeId: current.otpChallengeId,
+              otpVerificationToken: result.verificationToken
+            };
+          });
+          if (restoredSigner.status === "verified") setLastSignedSigner(restoredSigner);
+          setPublicCampaignPayload((current) =>
+            current?.campaign.id === activeCampaign.id
+              ? { ...current, metrics: resumed.metrics }
+              : current
+          );
+        }
+      }
+    } catch (error) {
+      setOtpMessage(error instanceof Error ? error.message : "Phone verification failed.");
+    }
+  }
+
+  async function saveVerifiedPublicDraft() {
+    if (!isBackendConfigured || !activeCampaign?.slug || !publicForm.otpVerificationToken) return;
+    try {
+      const saved = await mutatePublicParticipation({
+        slug: activeCampaign.slug,
+        action: "save_draft",
+        phone: publicForm.phone,
+        otpVerificationToken: publicForm.otpVerificationToken,
+        idempotencyKey: createPublicParticipationIdempotencyKey("draft"),
+        payload: {
+          profile: {
+            name: publicForm.name,
+            email: publicForm.email,
+            whatsappNumber: publicForm.whatsappNumber,
+            telegramHandle: publicForm.telegramHandle,
+            selectedAuthorityId: publicForm.selectedAuthorityId,
+            selectedAuthorityName: publicForm.selectedAuthorityName,
+            country: publicForm.country,
+            state: publicForm.state,
+            district: publicForm.district,
+            block: publicForm.block,
+            panchayat: publicForm.panchayat,
+            address: publicForm.address,
+            postalCode: publicForm.postalCode,
+            comment: publicForm.comment,
+            referredBy: publicForm.referredBy,
+            referredByPhoneOrCode: publicForm.referredByPhoneOrCode,
+            referralSource: publicForm.referralSource,
+            referralCode: publicForm.referralCode
+          },
+          baseUpdatedAt: lastSignedSigner?.profileUpdatedAt ?? lastSignedSigner?.draftUpdatedAt
+        }
+      });
+      if (saved.signer?.status === "verified") setLastSignedSigner(saved.signer);
+    } catch (error) {
+      setPublicMessage(error instanceof Error ? error.message : "Verified draft could not be saved.");
+    }
+  }
+
+  async function updatePublicCommunicationConsent(granted: boolean) {
+    if (!isBackendConfigured || !activeCampaign?.slug || !publicForm.otpVerificationToken) return;
+    const policy = buildPublicWebConsentPayload(activeCampaign.consentText ?? "");
+    try {
+      await mutatePublicParticipation({
+        slug: activeCampaign.slug,
+        action: "record_consents",
+        phone: publicForm.phone,
+        otpVerificationToken: publicForm.otpVerificationToken,
+        idempotencyKey: createPublicParticipationIdempotencyKey("consent"),
+        payload: {
+          consents: {
+            campaignCommunication: {
+              granted,
+              version: policy.consentVersion,
+              policyId: policy.consentVersion
+            }
+          }
+        }
+      });
+    } catch (error) {
+      setPublicMessage(error instanceof Error ? error.message : "Communication preference could not be saved.");
+    }
+  }
+
+  async function submitPublicCoordinatorApplication() {
+    if (!isBackendConfigured || !activeCampaign?.slug || !lastSignedSigner || !lastPublicOtpVerificationToken) {
+      setPublicMessage("Verify your phone and complete support before applying.");
+      return;
+    }
+    const policy = buildPublicWebConsentPayload(activeCampaign.consentText ?? "");
+    try {
+      const application = await mutatePublicParticipation({
+        slug: activeCampaign.slug,
+        action: "submit_coordinator_application",
+        phone: lastSignedSigner.phone,
+        otpVerificationToken: lastPublicOtpVerificationToken,
+        idempotencyKey: createPublicParticipationIdempotencyKey("coordinator-application"),
+        payload: {
+          application: {
+            requestedLevel: "field_coordinator",
+            requestedGeography: {
+              country: lastSignedSigner.country ?? "",
+              state: lastSignedSigner.state,
+              district: lastSignedSigner.district,
+              block: lastSignedSigner.block,
+              panchayat: lastSignedSigner.panchayat
+            },
+            experience: "",
+            availability: "",
+            coordinatorConsent: {
+              granted: true,
+              version: policy.consentVersion,
+              policyId: policy.consentVersion
+            }
+          }
+        }
+      });
+      if (application.signer) setLastSignedSigner(application.signer);
+      setPublicMessage(application.message);
+    } catch (error) {
+      setPublicMessage(error instanceof Error ? error.message : "Coordinator application could not be submitted.");
+    }
+  }
+
+  async function uploadLastSupporterPhoto(file: File) {
+    if (!activeCampaign || !lastSignedSigner || lastSignedSigner.campaignId !== activeCampaign.id) {
+      throw new Error("Complete signing before adding an optional photo.");
+    }
+    if (!lastPublicOtpVerificationToken) {
+      throw new Error("Verify your phone again before adding a private photo.");
+    }
+    const result = await uploadPublicSupporterPhoto({
+      slug: activeCampaign.slug,
+      supporterId: lastSignedSigner.id,
+      phone: lastSignedSigner.phone,
+      otpVerificationToken: lastPublicOtpVerificationToken,
+      file
+    });
+    setLastSignedSigner(result.signer);
+    setPublicMessage(result.message);
   }
 
   async function uploadScan(file: File, metadata?: ScanCaptureMetadata): Promise<boolean> {
@@ -3048,6 +3272,7 @@ function App() {
     setPublicForm(blankSigner);
     setPublicMessage("");
     setLastSignedSigner(null);
+    setLastPublicOtpVerificationToken("");
     setBackendMessage("");
     setCommandOpen(false);
     setGlobalSearch("");
@@ -3123,6 +3348,10 @@ function App() {
           onSendOtp={sendOtp}
           onVerifyOtp={verifyOtp}
           onGrowthShare={recordPublicShareGrowth}
+          onUploadSupporterPhoto={isBackendConfigured ? uploadLastSupporterPhoto : undefined}
+          onSaveDraft={isBackendConfigured ? saveVerifiedPublicDraft : undefined}
+          onCommunicationConsentChange={isBackendConfigured ? updatePublicCommunicationConsent : undefined}
+          onSubmitCoordinatorApplication={isBackendConfigured ? submitPublicCoordinatorApplication : undefined}
           locationOverrides={locationOverrides}
           locationDeletions={locationDeletions}
           onSubmit={submitPublicSignature}
@@ -3271,6 +3500,9 @@ function App() {
         onSubmitPublicSignature={submitPublicSignature}
         onSendOtp={sendOtp}
         onVerifyOtp={verifyOtp}
+        onSavePublicDraft={isBackendConfigured ? saveVerifiedPublicDraft : undefined}
+        onPublicCommunicationConsentChange={isBackendConfigured ? updatePublicCommunicationConsent : undefined}
+        onSubmitPublicCoordinatorApplication={isBackendConfigured ? submitPublicCoordinatorApplication : undefined}
         onGrowthShare={recordPublicShareGrowth}
         onUploadScan={uploadScan}
         onOpenPrivateScan={openPrivateScan}

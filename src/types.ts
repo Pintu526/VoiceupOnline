@@ -4,6 +4,41 @@ export type SignatureSource = "online" | "scan" | "field";
 
 export type VerificationStatus = "verified" | "pending" | "duplicate" | "rejected";
 
+export type PublicSigningConsentSource = "public_web";
+
+export interface PublicSigningConsentEvidence {
+  accepted: true;
+  textSnapshot: string;
+  version: string;
+  acceptedAt: string;
+  source: PublicSigningConsentSource;
+  campaignId: string;
+  workspaceId: string;
+}
+
+export interface PublicParticipationConsentRecord {
+  granted: boolean;
+  recordedAt: string;
+  version: string;
+  policyId?: string;
+  captureSource: string;
+  campaignId: string;
+  supporterId: string;
+}
+
+export interface PublicCoordinatorApplication {
+  requestedLevel?: string;
+  requestedGeography?: Record<string, unknown>;
+  experience?: string;
+  availability?: string;
+  coordinatorConsent: PublicParticipationConsentRecord;
+  status: "Incomplete" | "Pending Approval" | "Approved" | "Rejected" | "Suspended";
+  submittedAt: string;
+  updatedAt: string;
+  authoritativeCoordinatorId?: string;
+  authoritativeSyncedAt?: string;
+}
+
 export type SupporterConfirmationStatus =
   | "pending_confirmation"
   | "not_requested"
@@ -263,6 +298,34 @@ export interface Signer {
   confirmationStatus?: SupporterConfirmationStatus;
   approvalKey?: string;
   sourceRowFingerprint?: string;
+  consentAccepted?: boolean;
+  consentTextSnapshot?: string;
+  consentVersion?: string;
+  consentAcceptedAt?: string;
+  consentSource?: PublicSigningConsentSource;
+  consentCampaignId?: string;
+  consentWorkspaceId?: string;
+  consentEvidence?: PublicSigningConsentEvidence;
+  profilePhotoPath?: string;
+  profilePhotoUpdatedAt?: string;
+  supportSubmittedAt?: string;
+  digitalSupportedAt?: string;
+  profileUpdatedAt?: string;
+  draftUpdatedAt?: string;
+  canonicalPhone?: string;
+  languagePreference?: string;
+  communicationPreference?: {
+    email?: boolean;
+    sms?: boolean;
+    whatsapp?: boolean;
+  };
+  volunteerInterest?: boolean;
+  coordinatorInterest?: boolean;
+  consents?: Partial<Record<
+    "campaignSupport" | "campaignCommunication" | "coordinatorContact" | "photoUsage",
+    PublicParticipationConsentRecord
+  >>;
+  coordinatorApplication?: PublicCoordinatorApplication;
 }
 
 export interface ConfirmationQueueItem {

@@ -1,3 +1,13 @@
+import {
+  GeographyService,
+  INDIA_STATE_AND_UNION_TERRITORY_NAMES,
+  BUSINESS_OS_COMPATIBILITY_SOURCE,
+  createIndiaAdministrativeDataset,
+  indiaAdministrativeHierarchy,
+  type GeographyLevel,
+  type GeographyNode
+} from "./businessOs/geography/index.ts";
+
 export interface LocationValues {
   state: string;
   district: string;
@@ -33,44 +43,7 @@ export const emptyLocationDeletions: LocationDeletions = {
   panchayats: []
 };
 
-export const indianStatesAndUnionTerritories = [
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chhattisgarh",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-  "Andaman and Nicobar Islands",
-  "Chandigarh",
-  "Dadra and Nagar Haveli and Daman and Diu",
-  "Delhi",
-  "Jammu and Kashmir",
-  "Ladakh",
-  "Lakshadweep",
-  "Puducherry"
-];
+export const indianStatesAndUnionTerritories = [...INDIA_STATE_AND_UNION_TERRITORY_NAMES];
 
 export const indiaLocationCatalog: LocationCatalogEntry[] = [
   {
@@ -205,8 +178,20 @@ const districtOptionsByState: Record<string, string[]> = {
   Puducherry: ["Karaikal", "Mahe", "Puducherry", "Yanam"]
 };
 
+export const indiaGeographyService = new GeographyService({
+  hierarchies: [indiaAdministrativeHierarchy],
+  datasets: [
+    createIndiaAdministrativeDataset({
+      datasetVersion: "business-os-compatibility-v1",
+      source: BUSINESS_OS_COMPATIBILITY_SOURCE,
+      districtsByState: districtOptionsByState,
+      localCatalog: indiaLocationCatalog
+    })
+  ]
+});
+
 export function getMaintainedDistrictOptions(state: string): string[] {
-  return [...(districtOptionsByState[state] ?? [])];
+  return getSharedChildNames(findSharedNode("state", state), "district");
 }
 
 export const pinCodeDirectory: PinCodeEntry[] = [
@@ -329,11 +314,9 @@ export function getDistrictOptions(
   overrides: LocationOverrides = {},
   deletions: LocationDeletions = emptyLocationDeletions
 ) {
-  const entry = indiaLocationCatalog.find((item) => item.state === state);
-  const catalogDistricts = entry ? Object.keys(entry.districts) : [];
-  const fallbackDistricts = districtOptionsByState[state] ?? [];
+  const sharedDistricts = getSharedChildNames(findSharedNode("state", state), "district");
   const customDistricts = Object.keys(overrides[state] ?? {});
-  return uniqueOptions([...catalogDistricts, ...fallbackDistricts, ...customDistricts]).filter(
+  return uniqueOptions([...sharedDistricts, ...customDistricts]).filter(
     (district) => !isDistrictDeleted(deletions, state, district)
   );
 }
@@ -344,11 +327,12 @@ export function getBlockOptions(
   overrides: LocationOverrides = {},
   deletions: LocationDeletions = emptyLocationDeletions
 ) {
-  const entry = indiaLocationCatalog.find((item) => item.state === state);
-  const blocks = entry?.districts[district];
+  const stateNode = findSharedNode("state", state);
+  const districtNode = findSharedNode("district", district, stateNode?.id);
+  const blocks = getSharedChildNames(districtNode, "block");
   const customBlocks = Object.keys(overrides[state]?.[district] ?? {});
-  if (blocks) {
-    return uniqueOptions([...Object.keys(blocks), ...customBlocks]).filter(
+  if (blocks.length > 0) {
+    return uniqueOptions([...blocks, ...customBlocks]).filter(
       (block) => !isBlockDeleted(deletions, state, district, block)
     );
   }
@@ -369,10 +353,12 @@ export function getPanchayatOptions(
   overrides: LocationOverrides = {},
   deletions: LocationDeletions = emptyLocationDeletions
 ) {
-  const entry = indiaLocationCatalog.find((item) => item.state === state);
-  const panchayats = entry?.districts[district]?.[block];
+  const stateNode = findSharedNode("state", state);
+  const districtNode = findSharedNode("district", district, stateNode?.id);
+  const blockNode = findSharedNode("block", block, districtNode?.id);
+  const panchayats = getSharedChildNames(blockNode, "local_body");
   const customPanchayats = overrides[state]?.[district]?.[block] ?? [];
-  if (panchayats) {
+  if (panchayats.length > 0) {
     return uniqueOptions([...panchayats, ...customPanchayats]).filter(
       (panchayat) => !isPanchayatDeleted(deletions, state, district, block, panchayat)
     );
@@ -648,6 +634,21 @@ export function formatLocation(values: LocationValues) {
 
 function equalsIgnoreCase(first: string, second: string) {
   return first.trim().toLowerCase() === second.trim().toLowerCase();
+}
+
+function findSharedNode(level: GeographyLevel, name: string, parentId?: string) {
+  if (!name.trim()) return undefined;
+  return indiaGeographyService.findNode({
+    countryCode: "IN",
+    level,
+    name,
+    parentId
+  });
+}
+
+function getSharedChildNames(parent: GeographyNode | undefined, level: GeographyLevel) {
+  if (!parent) return [];
+  return indiaGeographyService.getChildren(parent.id, { levels: [level] }).map((node) => node.name);
 }
 
 function uniqueOptions(values: string[]) {

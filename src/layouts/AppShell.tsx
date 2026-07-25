@@ -266,6 +266,9 @@ interface AppShellProps {
   onSubmitPublicSignature: (event: FormEvent) => void;
   onSendOtp: () => void;
   onVerifyOtp: () => void;
+  onSavePublicDraft?: () => void | Promise<void>;
+  onPublicCommunicationConsentChange?: (granted: boolean) => void | Promise<void>;
+  onSubmitPublicCoordinatorApplication?: () => void | Promise<void>;
   onGrowthShare: (share: GrowthShareContext) => void;
   secureFieldUploadAvailable: boolean;
   secureFieldUploadMessage: string;
@@ -395,6 +398,9 @@ export function AppShell({
   onSubmitPublicSignature,
   onSendOtp,
   onVerifyOtp,
+  onSavePublicDraft,
+  onPublicCommunicationConsentChange,
+  onSubmitPublicCoordinatorApplication,
   onGrowthShare,
   secureFieldUploadAvailable,
   secureFieldUploadMessage,
@@ -1300,6 +1306,7 @@ export function AppShell({
               onOpenCampaignAdmin={() => requestTabChange("campaigns")}
               onOpenPublicCampaign={() => requestTabChange("public")}
               onOpenReports={() => requestTabChange("reports")}
+              onOpenOrganise={() => requestTabChange("coordinators")}
               createCampaignBlockReason={campaignCreationBlockReason}
               canUseAiCopilot={canUseAiCopilot}
               onUpgradePlan={requestUpgradePlan}
@@ -1415,6 +1422,9 @@ export function AppShell({
                 otpMessage={otpMessage}
                 onSendOtp={onSendOtp}
                 onVerifyOtp={onVerifyOtp}
+                onSaveDraft={onSavePublicDraft}
+                onCommunicationConsentChange={onPublicCommunicationConsentChange}
+                onSubmitCoordinatorApplication={onSubmitPublicCoordinatorApplication}
                 onGrowthShare={onGrowthShare}
                 locationOverrides={locationOverrides}
                 locationDeletions={locationDeletions}

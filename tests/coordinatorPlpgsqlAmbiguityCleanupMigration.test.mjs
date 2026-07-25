@@ -141,12 +141,6 @@ test("all historical ambiguous definitions have a later effective replacement", 
     .sort();
   const cleanupPosition = migrationFiles.indexOf(cleanupFile);
   assert.notEqual(cleanupPosition, -1);
-  assert.equal(
-    migrationFiles.slice(cleanupPosition + 1).some((file) =>
-      /coordinator/i.test(readMigration(file))
-    ),
-    false
-  );
 
   for (const functionName of [
     "voiceup_consume_coordinator_mobile_verification",

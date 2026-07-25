@@ -13,9 +13,9 @@ import {
   validateProfileFields
 } from "./logic.ts";
 import { fetchCanonicalPublishedCampaignBySlug } from "../_shared/publicCampaignIndex.ts";
+import { normalizePublicCampaignSlug } from "../_shared/publicCampaignSlug.ts";
 
 const MAX_PUBLIC_BODY_BYTES = 64 * 1024;
-const SAFE_SLUG = /^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/;
 
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -248,8 +248,8 @@ Deno.serve(async (req) => {
     const body = await parseBoundedJson(req);
     const rawAction = String(body.action ?? "submit_support");
     const action = rawAction === "submit" ? "submit_support" : rawAction;
-    const slug = String(body.slug ?? "").trim().toLowerCase();
-    if (!SAFE_SLUG.test(slug)) {
+    const slug = String(body.slug ?? "").trim();
+    if (!normalizePublicCampaignSlug(slug)) {
       return jsonResponse({ error: "Campaign identifier is invalid.", code: "invalid_payload" }, 400);
     }
     if (!hasValidActionEnvelope(body, action)) {

@@ -3,6 +3,10 @@ import {
   mergeWorkspaceStateForSave,
   nextWorkspaceUpdatedAt
 } from "../supabase/functions/_shared/workspaceStateMerge";
+import {
+  normalizePublicCampaignSlug,
+  publicCampaignSlugsMatch
+} from "../supabase/functions/_shared/publicCampaignSlug";
 import type {
   AuditLogEntry,
   AuthorityRule,
@@ -411,14 +415,26 @@ async function listWorkspaceStates(): Promise<Array<{ id: string; data: VoiceupR
 async function findPublishedCampaignBySlug(
   slug: string
 ): Promise<{ workspaceId: string; state: VoiceupRemoteState; campaign: Campaign } | null> {
+  const normalizedSlug = normalizePublicCampaignSlug(slug);
+  if (!normalizedSlug) return null;
+
   const rows = await listWorkspaceStates();
+  let resolved: { workspaceId: string; state: VoiceupRemoteState; campaign: Campaign } | null = null;
   for (const row of rows) {
     const state = row.data;
     if (!state || !Array.isArray(state.campaigns)) continue;
-    const campaign = state.campaigns.find((item) => item.slug === slug && item.status === "Published");
-    if (campaign) return { workspaceId: row.id, state, campaign };
+    for (const campaign of state.campaigns) {
+      if (
+        campaign.status !== "Published" ||
+        !publicCampaignSlugsMatch(campaign.slug, normalizedSlug)
+      ) {
+        continue;
+      }
+      if (resolved) return null;
+      resolved = { workspaceId: row.id, state, campaign };
+    }
   }
-  return null;
+  return resolved;
 }
 
 function readCustomerSessionToken(): string {

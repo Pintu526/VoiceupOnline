@@ -4,31 +4,30 @@ import {
   jsonResponse,
   parseJson
 } from "../_shared/voiceup.ts";
+import { fetchCanonicalPublishedCampaignBySlug } from "../_shared/publicCampaignIndex.ts";
+import { normalizePublicCampaignSlug } from "../_shared/publicCampaignSlug.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const body = await parseJson(req);
     const slug = String(body?.slug ?? "").trim();
-    if (!slug) return jsonResponse({ campaign: null }, 400);
+    if (!normalizePublicCampaignSlug(slug)) {
+      return jsonResponse({ campaign: null }, 400);
+    }
 
     const admin = createAdminClient();
-    const { data, error } = await admin
-      .from("voiceup_public_campaign_index")
-      .select("campaign, organization, authorities, metrics")
-      .eq("slug", slug)
-      .eq("status", "Published")
-      .limit(1)
-      .maybeSingle();
-    if (error) throw error;
-    if (!data?.campaign) return jsonResponse({ campaign: null });
+    const resolved = await fetchCanonicalPublishedCampaignBySlug(admin, slug);
+    if (!resolved.ok || !resolved.row.campaign) {
+      return jsonResponse({ campaign: null });
+    }
 
     return jsonResponse({
       campaign: {
-        campaign: data.campaign,
-        organization: data.organization ?? undefined,
-        authorities: data.authorities ?? [],
-        metrics: data.metrics
+        campaign: resolved.row.campaign,
+        organization: resolved.row.organization ?? undefined,
+        authorities: resolved.row.authorities ?? [],
+        metrics: resolved.row.metrics
       }
     });
   } catch (error) {

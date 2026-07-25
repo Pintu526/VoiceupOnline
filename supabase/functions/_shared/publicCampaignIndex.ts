@@ -1,4 +1,8 @@
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2.45.4";
+import {
+  normalizePublicCampaignSlug,
+  publicCampaignSlugsMatch
+} from "./publicCampaignSlug.ts";
 
 export interface PublicCampaignIndexRow {
   workspace_id: string;
@@ -16,10 +20,20 @@ export type CanonicalPublicCampaignResolution =
   | { ok: false; reason: "not_found" | "ambiguous" };
 
 export function resolveCanonicalPublishedCampaign(
-  rows: PublicCampaignIndexRow[] | null | undefined
+  rows: PublicCampaignIndexRow[] | null | undefined,
+  slug?: string
 ): CanonicalPublicCampaignResolution {
+  const normalizedSlug = slug === undefined
+    ? undefined
+    : normalizePublicCampaignSlug(slug);
+  if (slug !== undefined && !normalizedSlug) {
+    return { ok: false, reason: "not_found" };
+  }
   const publishedRows = (rows ?? []).filter(
-    (row) => row?.status === "Published" && Boolean(String(row?.workspace_id ?? "").trim())
+    (row) =>
+      row?.status === "Published" &&
+      Boolean(String(row?.workspace_id ?? "").trim()) &&
+      (normalizedSlug === undefined || publicCampaignSlugsMatch(row?.slug, normalizedSlug))
   );
   if (publishedRows.length === 0) return { ok: false, reason: "not_found" };
   if (publishedRows.length > 1) return { ok: false, reason: "ambiguous" };
@@ -30,16 +44,19 @@ export async function fetchCanonicalPublishedCampaignBySlug(
   admin: SupabaseClient,
   slug: string
 ): Promise<CanonicalPublicCampaignResolution> {
-  const normalizedSlug = String(slug ?? "").trim();
+  const normalizedSlug = normalizePublicCampaignSlug(slug);
   if (!normalizedSlug) return { ok: false, reason: "not_found" };
 
   const { data, error } = await admin
     .from("voiceup_public_campaign_index")
     .select("workspace_id, campaign_id, slug, status, campaign, organization, authorities, metrics")
-    .eq("slug", normalizedSlug)
+    .ilike("slug", normalizedSlug)
     .eq("status", "Published")
     .limit(2);
 
   if (error) throw error;
-  return resolveCanonicalPublishedCampaign((data ?? []) as PublicCampaignIndexRow[]);
+  return resolveCanonicalPublishedCampaign(
+    (data ?? []) as PublicCampaignIndexRow[],
+    normalizedSlug
+  );
 }

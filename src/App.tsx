@@ -246,6 +246,7 @@ import {
   SupporterGrowthPortalPage
 } from "./growth/supporter";
 import { applyRewardRuntimeAction, type RewardRuntimeAction } from "./growth/rewards/rewardRuntimeService";
+import { publicCampaignSlugsMatch } from "../supabase/functions/_shared/publicCampaignSlug";
 
 import { MarketingHomePage } from "./pages/MarketingHomePage";
 import type {
@@ -612,9 +613,10 @@ function App() {
   // ─── Derived / memoised ──────────────────────────────────────────────────
   const activeCampaign = useMemo(() => {
     if (publicCampaignSlug) {
-      return publicCampaignPayload?.campaign.slug === publicCampaignSlug
+      return publicCampaignPayload &&
+        publicCampaignSlugsMatch(publicCampaignPayload.campaign.slug, publicCampaignSlug)
         ? publicCampaignPayload.campaign
-        : campaigns.find((c) => c.slug === publicCampaignSlug);
+        : campaigns.find((c) => publicCampaignSlugsMatch(c.slug, publicCampaignSlug));
     }
     if (adminCampaignSlug) {
       return campaigns.find((c) => c.slug === adminCampaignSlug);
@@ -624,6 +626,7 @@ function App() {
     }
     return campaigns.find((c) => c.id === activeCampaignId) ?? campaigns[0];
   }, [activeCampaignId, campaignDraft, campaignFormMode, campaigns, publicCampaignPayload]);
+  const publicParticipationSlug = publicCampaignSlug || activeCampaign?.slug || "";
   const campaignAdminSessionEmail =
     isCampaignAdminRoute && activeCampaign
       ? readCampaignAdminSupabaseSession(activeCampaign.slug)?.email ?? ""
@@ -1110,7 +1113,9 @@ function App() {
   useEffect(() => {
     const slugFromPath = window.location.pathname.match(/^\/c\/([^/]+)/)?.[1];
     if (!slugFromPath) return;
-    const campaignFromPath = campaigns.find((c) => c.slug === slugFromPath);
+    const campaignFromPath = campaigns.find((c) =>
+      publicCampaignSlugsMatch(c.slug, slugFromPath)
+    );
     if (campaignFromPath) {
       setCampaignFormMode("edit");
       setActiveCampaignId(campaignFromPath.id);
@@ -1789,7 +1794,7 @@ function App() {
     );
     if (isBackendConfigured) {
       try {
-        const result = await submitPublicSignatureSecure(activeCampaign.slug, {
+        const result = await submitPublicSignatureSecure(publicParticipationSlug, {
           ...restrictedPublicForm,
           selectedAuthorityId: signerAuthority.id,
           selectedAuthorityName: signerAuthority.name,
@@ -1881,7 +1886,7 @@ function App() {
     setOtpMessage("Requesting verification code...");
     try {
       const result = await requestPublicOtp(phone, "public-signing", {
-        slug: activeCampaign?.slug ?? "",
+        slug: publicParticipationSlug,
         campaignId: activeCampaign?.id ?? ""
       });
       setOtpCode(result.developmentOtp ?? "");
@@ -1916,7 +1921,7 @@ function App() {
         otpInput,
         "public-signing",
         {
-          slug: activeCampaign?.slug ?? "",
+          slug: publicParticipationSlug,
           campaignId: activeCampaign?.id ?? ""
         }
       );
@@ -1933,7 +1938,7 @@ function App() {
       setOtpMessage(result.message);
       if (isBackendConfigured && activeCampaign?.slug) {
         const resumed = await mutatePublicParticipation({
-          slug: activeCampaign.slug,
+          slug: publicParticipationSlug,
           action: "resume_verified_supporter",
           phone,
           otpVerificationToken: result.verificationToken,
@@ -1943,7 +1948,7 @@ function App() {
           let restoredSigner = resumed.signer;
           if (resumed.signer.coordinatorApplication) {
             const synchronized = await mutatePublicParticipation({
-              slug: activeCampaign.slug,
+              slug: publicParticipationSlug,
               action: "sync_coordinator_application_state",
               phone,
               otpVerificationToken: result.verificationToken,
@@ -1980,10 +1985,10 @@ function App() {
   }
 
   async function saveVerifiedPublicDraft() {
-    if (!isBackendConfigured || !activeCampaign?.slug || !publicForm.otpVerificationToken) return;
+    if (!isBackendConfigured || !activeCampaign || !publicParticipationSlug || !publicForm.otpVerificationToken) return;
     try {
       const saved = await mutatePublicParticipation({
-        slug: activeCampaign.slug,
+        slug: publicParticipationSlug,
         action: "save_draft",
         phone: publicForm.phone,
         otpVerificationToken: publicForm.otpVerificationToken,
@@ -2019,11 +2024,11 @@ function App() {
   }
 
   async function updatePublicCommunicationConsent(granted: boolean) {
-    if (!isBackendConfigured || !activeCampaign?.slug || !publicForm.otpVerificationToken) return;
+    if (!isBackendConfigured || !activeCampaign || !publicParticipationSlug || !publicForm.otpVerificationToken) return;
     const policy = buildPublicWebConsentPayload(activeCampaign.consentText ?? "");
     try {
       await mutatePublicParticipation({
-        slug: activeCampaign.slug,
+        slug: publicParticipationSlug,
         action: "record_consents",
         phone: publicForm.phone,
         otpVerificationToken: publicForm.otpVerificationToken,
@@ -2044,14 +2049,14 @@ function App() {
   }
 
   async function submitPublicCoordinatorApplication() {
-    if (!isBackendConfigured || !activeCampaign?.slug || !lastSignedSigner || !lastPublicOtpVerificationToken) {
+    if (!isBackendConfigured || !activeCampaign || !publicParticipationSlug || !lastSignedSigner || !lastPublicOtpVerificationToken) {
       setPublicMessage("Verify your phone and complete support before applying.");
       return;
     }
     const policy = buildPublicWebConsentPayload(activeCampaign.consentText ?? "");
     try {
       const application = await mutatePublicParticipation({
-        slug: activeCampaign.slug,
+        slug: publicParticipationSlug,
         action: "submit_coordinator_application",
         phone: lastSignedSigner.phone,
         otpVerificationToken: lastPublicOtpVerificationToken,
@@ -2091,7 +2096,7 @@ function App() {
       throw new Error("Verify your phone again before adding a private photo.");
     }
     const result = await uploadPublicSupporterPhoto({
-      slug: activeCampaign.slug,
+      slug: publicParticipationSlug,
       supporterId: lastSignedSigner.id,
       phone: lastSignedSigner.phone,
       otpVerificationToken: lastPublicOtpVerificationToken,

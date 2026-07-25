@@ -255,7 +255,7 @@ test("whole-workspace JSON cannot be supplied or overwritten by the public clien
 
 test("Edge validation is bounded, action-specific, service-role mediated, and does not expose raw database errors", () => {
   assert.match(edge, /MAX_PUBLIC_BODY_BYTES = 64 \* 1024/);
-  assert.match(edge, /SAFE_SLUG/);
+  assert.match(edge, /normalizePublicCampaignSlug\(slug\)/);
   assert.match(edge, /isPublicParticipationAction/);
   assert.match(edge, /admin\.rpc\("mutate_voiceup_public_participation"/);
   assert.match(edge, /rpcErrorCode/);

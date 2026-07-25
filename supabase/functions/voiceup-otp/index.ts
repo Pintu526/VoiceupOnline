@@ -9,6 +9,7 @@
     parseJson,
     sha256Hex
   } from "../_shared/voiceup.ts";
+  import { fetchCanonicalPublishedCampaignBySlug } from "../_shared/publicCampaignIndex.ts";
 
   const OTP_EXPIRY_MINUTES = 10;
   const OTP_MAX_SENDS = 4;
@@ -74,20 +75,13 @@
           return jsonResponse({ error: "Coordinator mobile verification is not authorized." }, 403);
         }
       }
-      const publicSlug = typeof metadata?.slug === "string" ? metadata.slug.trim() : "";
-      if (purpose === "public-signing" && publicSlug) {
-        const { data: campaignIndex, error: indexError } = await admin
-          .from("voiceup_public_campaign_index")
-          .select("workspace_id")
-          .eq("slug", publicSlug)
-          .eq("status", "Published")
-          .limit(1)
-          .maybeSingle();
-        if (indexError) throw indexError;
-        if (!campaignIndex?.workspace_id) {
+      const publicSlug = typeof metadata?.slug === "string" ? metadata.slug : "";
+      if (purpose === "public-signing") {
+        const resolved = await fetchCanonicalPublishedCampaignBySlug(admin, publicSlug);
+        if (!resolved.ok) {
           return jsonResponse({ error: "Campaign is not available for verification." }, 404);
         }
-        workspaceId = campaignIndex.workspace_id;
+        workspaceId = resolved.row.workspace_id;
       }
       const phoneHash = await sha256Hex(`${workspaceId}:${phone}`);
 

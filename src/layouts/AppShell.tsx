@@ -264,6 +264,7 @@ interface AppShellProps {
   onSaveCampaign: (event: FormEvent) => void;
   onPublishCampaign: () => void;
   onSubmitPublicSignature: (event: FormEvent) => void;
+  onStartPublicSigningJourney: () => void;
   onSendOtp: () => void;
   onVerifyOtp: () => void;
   onSavePublicDraft?: () => void | Promise<void>;
@@ -396,6 +397,7 @@ export function AppShell({
   onSaveCampaign,
   onPublishCampaign,
   onSubmitPublicSignature,
+  onStartPublicSigningJourney,
   onSendOtp,
   onVerifyOtp,
   onSavePublicDraft,
@@ -1420,6 +1422,7 @@ export function AppShell({
                 otpInput={otpInput}
                 setOtpInput={setOtpInput}
                 otpMessage={otpMessage}
+                onStartNewJourney={onStartPublicSigningJourney}
                 onSendOtp={onSendOtp}
                 onVerifyOtp={onVerifyOtp}
                 onSaveDraft={onSavePublicDraft}

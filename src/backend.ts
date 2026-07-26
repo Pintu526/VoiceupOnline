@@ -37,6 +37,7 @@ import {
   type WorkspaceMembershipStatus,
   type WorkspaceResourceAssignmentStatus
 } from "./authorization/workspaceAccess";
+import { readPublicSigningBackendError } from "./publicSigningJourney";
 
 export interface VoiceupRemoteState {
   campaigns: Campaign[];
@@ -1147,7 +1148,7 @@ export async function requestOtp(
     throw new Error("Phone and purpose are required.");
   }
   if (supabase) {
-    const { data, error } = await supabase.functions.invoke<{
+    const { data, error, response } = await supabase.functions.invoke<{
       challengeId?: string;
       resendAfterSeconds?: number;
       message?: string;
@@ -1162,7 +1163,8 @@ export async function requestOtp(
       }
     });
     if (error || data?.error || !data?.challengeId) {
-      throw new Error(data?.error || error?.message || "Verification code could not be sent.");
+      const safeError = error ? await readPublicSigningBackendError(response) : null;
+      throw new Error(data?.error || safeError?.message || error?.message || "Verification code could not be sent.");
     }
     return {
       challengeId: data.challengeId,
@@ -1200,7 +1202,7 @@ export async function verifyOtp(
 ): Promise<OtpVerifyResult> {
   const normalizedPhone = normalizePhone(phone);
   if (supabase) {
-    const { data, error } = await supabase.functions.invoke<{
+    const { data, error, response } = await supabase.functions.invoke<{
       verified?: boolean;
       verificationToken?: string;
       message?: string;
@@ -1216,7 +1218,8 @@ export async function verifyOtp(
       }
     });
     if (error || data?.error || !data?.verified || !data.verificationToken) {
-      throw new Error(data?.error || error?.message || "Phone verification failed.");
+      const safeError = error ? await readPublicSigningBackendError(response) : null;
+      throw new Error(data?.error || safeError?.message || error?.message || "Phone verification failed.");
     }
     return {
       verified: true,
@@ -1450,7 +1453,8 @@ export async function submitPublicSignatureSecure(
     consentAcceptedAt: string;
     consentSource: "public_web";
   },
-  communicationConsent = false
+  communicationConsent = false,
+  idempotencyKey = createPublicParticipationIdempotencyKey("support")
 ): Promise<{ signer: Signer; message: string; metrics: PublicCampaignPayload["metrics"] }> {
   const result = await mutatePublicParticipation({
     slug,
@@ -1458,7 +1462,7 @@ export async function submitPublicSignatureSecure(
     signer,
     consent,
     communicationConsent,
-    idempotencyKey: createPublicParticipationIdempotencyKey("support")
+    idempotencyKey
   });
   if (!result.signer) throw new Error("Signature submission failed.");
   return {
@@ -1502,7 +1506,7 @@ export async function mutatePublicParticipation(input: {
   communicationConsent?: boolean;
 }): Promise<PublicParticipationResult> {
   const client = requireSupabase();
-  const { data, error } = await client.functions.invoke<
+  const { data, error, response } = await client.functions.invoke<
     PublicParticipationResult & { error?: string; code?: string; retryable?: boolean }
   >("voiceup-public-signing", {
     body: {
@@ -1519,7 +1523,7 @@ export async function mutatePublicParticipation(input: {
     }
   });
   if (error) {
-    throw new Error(error.message || "Participation request failed.");
+    throw await readPublicParticipationInvokeError(error, response);
   }
   if (!data) {
     throw new Error("Participation request failed.");
@@ -1602,6 +1606,33 @@ export class PublicSignatureSubmissionError extends Error {
     this.name = "PublicSignatureSubmissionError";
     this.code = code;
   }
+}
+
+interface PublicParticipationErrorResponse {
+  clone?: () => PublicParticipationErrorResponse;
+  json?: () => Promise<unknown>;
+}
+
+export async function readPublicParticipationInvokeError(
+  invokeError: unknown,
+  response?: PublicParticipationErrorResponse
+): Promise<PublicSignatureSubmissionError> {
+  const contextualResponse =
+    response ??
+    (
+      invokeError &&
+      typeof invokeError === "object" &&
+      "context" in invokeError
+        ? (invokeError as { context?: PublicParticipationErrorResponse }).context
+        : undefined
+    );
+  const safeError = await readPublicSigningBackendError(contextualResponse);
+  if (safeError) return new PublicSignatureSubmissionError(safeError.message, safeError.code);
+  const message =
+    invokeError instanceof Error && invokeError.message !== "Edge Function returned a non-2xx status code"
+      ? invokeError.message
+      : "Participation request failed. Please retry.";
+  return new PublicSignatureSubmissionError(message);
 }
 
 export async function uploadFileToStorage(bucket: string, path: string, file: File) {

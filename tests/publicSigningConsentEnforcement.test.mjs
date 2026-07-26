@@ -24,6 +24,10 @@ const publicPageSource = readFileSync(
   new URL("../src/pages/PublicCampaignPage.tsx", import.meta.url),
   "utf8"
 );
+const publicSigningJourneySource = readFileSync(
+  new URL("../src/publicSigningJourney.ts", import.meta.url),
+  "utf8"
+);
 const publicPhotoSource = readFileSync(
   new URL("../src/components/PublicSupporterPhoto.tsx", import.meta.url),
   "utf8"
@@ -214,10 +218,10 @@ test("K. production public signing reuses server OTP and requires its proof", ()
 });
 
 test("L. signing recovery stays in the tab and never restores OTP proof", () => {
-  assert.match(publicPageSource, /window\.sessionStorage\.getItem\(draftStorageKey\)/);
-  assert.match(publicPageSource, /window\.sessionStorage\.setItem/);
-  assert.match(publicPageSource, /otpVerificationToken:\s*""/);
-  assert.doesNotMatch(publicPageSource, /window\.localStorage\.(getItem|setItem)\(draftStorageKey/);
+  assert.match(publicPageSource, /readPublicSigningDraft\(window\.sessionStorage/);
+  assert.match(publicPageSource, /writePublicSigningDraft\(window\.sessionStorage/);
+  assert.match(publicSigningJourneySource, /otpVerificationToken:\s*""/);
+  assert.doesNotMatch(publicPageSource, /window\.localStorage/);
 });
 
 test("M. optional location captures accuracy only and never reads coordinates", () => {

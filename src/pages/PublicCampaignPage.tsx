@@ -78,6 +78,13 @@ import {
   getSupporterReferralCode,
   normalizeReferralCode
 } from "../utils/referrals";
+import {
+  clearPublicSigningJourney,
+  clearPublicSigningOtpState,
+  getPublicSigningJourneyStorageKey,
+  readPublicSigningDraft,
+  writePublicSigningDraft
+} from "../publicSigningJourney";
 import "../publicSigningExperience.css";
 
 interface PublicCampaignPageProps {
@@ -105,6 +112,7 @@ interface PublicCampaignPageProps {
   onSaveDraft?: () => void | Promise<void>;
   onCommunicationConsentChange?: (granted: boolean) => void | Promise<void>;
   onSubmitCoordinatorApplication?: () => void | Promise<void>;
+  onStartNewJourney: () => void;
   gpsAdapter?: GPSAdapter;
   onSubmit: (event: FormEvent) => void | Promise<void>;
 }
@@ -551,6 +559,7 @@ export function PublicCampaignPage({
   onSaveDraft,
   onCommunicationConsentChange,
   onSubmitCoordinatorApplication,
+  onStartNewJourney,
   gpsAdapter = defaultPublicGpsAdapter,
   onSubmit
 }: PublicCampaignPageProps) {
@@ -629,7 +638,7 @@ export function PublicCampaignPage({
   const [shareClicks, setShareClicks] = useState(0);
   const [actChannels, setActChannels] = useState<GrowthShareContext["channel"][]>([]);
   const [wizardStep, setWizardStep] = useState<SigningStepId>(publicForm.otpVerified ? "profile" : "phone");
-  const [hasRestoredWizard, setHasRestoredWizard] = useState(false);
+  const [restoredDraftStorageKey, setRestoredDraftStorageKey] = useState("");
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -641,7 +650,11 @@ export function PublicCampaignPage({
   const [communicationConsent, setCommunicationConsent] = useState(false);
   const hasSignedCampaign = lastSignedSigner?.campaignId === campaign.id;
   const campaignGoal = getCampaignGoalValue(campaign);
-  const draftStorageKey = `voiceup-public-signing-progress-${campaign.id}`;
+  const signingCampaignScope = useMemo(
+    () => ({ campaignId: campaign.id, slug: campaign.slug }),
+    [campaign.id, campaign.slug]
+  );
+  const draftStorageKey = getPublicSigningJourneyStorageKey(signingCampaignScope);
   const isRequired = (field: SignerRequiredField) => requiredFields.includes(field);
   const locationRequired = requiredFields.some((field) =>
     ["country", "state", "district", "block", "panchayat", "postalCode"].includes(field)
@@ -798,47 +811,29 @@ export function PublicCampaignPage({
   }, [incomingReferralCode, setPublicForm]);
 
   useEffect(() => {
-    if (hasRestoredWizard || typeof window === "undefined") return;
-    setHasRestoredWizard(true);
-    try {
-      const saved = JSON.parse(window.sessionStorage.getItem(draftStorageKey) ?? "null") as
-        | { step?: SigningStepId; form?: Partial<typeof blankSigner> }
-        | null;
-      if (!saved) return;
-      if (saved.form) {
-        setPublicForm((current) => ({
+    if (typeof window === "undefined" || restoredDraftStorageKey === draftStorageKey) return;
+    const saved = readPublicSigningDraft(window.sessionStorage, signingCampaignScope);
+    if (saved?.form) {
+      setPublicForm((current) =>
+        clearPublicSigningOtpState({
           ...current,
-          ...saved.form,
-          otpVerified: false,
-          otpChallengeId: "",
-          otpVerificationToken: ""
-        }));
-      }
-      if (saved.step === "phone") {
-        setWizardStep(saved.step);
-      }
-    } catch {
-      window.sessionStorage.removeItem(draftStorageKey);
+          ...saved.form
+        })
+      );
     }
-  }, [draftStorageKey, hasRestoredWizard, setPublicForm]);
+    setWizardStep("phone");
+    setCommunicationConsent(false);
+    setRestoredDraftStorageKey(draftStorageKey);
+  }, [draftStorageKey, restoredDraftStorageKey, setPublicForm, signingCampaignScope]);
 
   useEffect(() => {
-    if (!hasRestoredWizard || typeof window === "undefined") return;
+    if (restoredDraftStorageKey !== draftStorageKey || typeof window === "undefined") return;
     if (hasSignedCampaign) {
-      window.sessionStorage.removeItem(draftStorageKey);
+      clearPublicSigningJourney(window.sessionStorage, signingCampaignScope);
       return;
     }
-    const recoverableForm = {
-      ...publicForm,
-      otpVerified: false,
-      otpChallengeId: "",
-      otpVerificationToken: ""
-    };
-    window.sessionStorage.setItem(
-      draftStorageKey,
-      JSON.stringify({ step: "phone", form: recoverableForm })
-    );
-  }, [draftStorageKey, hasRestoredWizard, hasSignedCampaign, publicForm]);
+    writePublicSigningDraft(window.sessionStorage, signingCampaignScope, publicForm);
+  }, [draftStorageKey, restoredDraftStorageKey, hasSignedCampaign, publicForm, signingCampaignScope]);
 
   useEffect(() => {
     if (!onSaveDraft || !publicForm.otpVerified || !publicForm.otpVerificationToken || hasSignedCampaign) return;
@@ -856,6 +851,7 @@ export function PublicCampaignPage({
 
   useEffect(() => {
     if (hasSignedCampaign && wizardStep !== "done") {
+      setCommunicationConsent(false);
       setWizardStep("done");
       return;
     }
@@ -899,6 +895,11 @@ export function PublicCampaignPage({
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleStartNewJourney() {
+    setCommunicationConsent(false);
+    onStartNewJourney();
   }
 
   async function requestSmartLocation() {
@@ -1120,7 +1121,17 @@ export function PublicCampaignPage({
                   <span className="act-task-status">{task.complete ? <CheckCircle2 size={18} /> : <span />}</span>
                   <div><strong>{t(`act.tasks.${task.id}`)}</strong><small>{t(`act.tasks.${task.id}Help`)}</small></div>
                   {task.id === "participate" ? (
-                    <a className="secondary-link-button" href="#public-sign-form">{t(task.complete ? "act.actions.review" : "act.actions.start")}</a>
+                    <a
+                      className="secondary-link-button"
+                      href="#public-sign-form"
+                      onClick={
+                        task.id === "participate" && !task.complete
+                          ? handleStartNewJourney
+                          : undefined
+                      }
+                    >
+                      {t(task.complete ? "act.actions.review" : "act.actions.start")}
+                    </a>
                   ) : task.id === "whatsapp" ? (
                     <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>{t("act.actions.whatsapp")}</a>
                   ) : task.id === "social" ? (
@@ -1299,7 +1310,14 @@ export function PublicCampaignPage({
             <span>{metrics.progress}% · {metrics.verified.toLocaleString()} {t("public.verifiedSupporters")}</span>
           </div>
           {!hasSignedCampaign && (
-            <button className="primary-button public-mobile-sign-now" type="button" onClick={() => setWizardStep("phone")}>
+            <button
+              className="primary-button public-mobile-sign-now"
+              type="button"
+              onClick={() => {
+                handleStartNewJourney();
+                setWizardStep("phone");
+              }}
+            >
               {experienceCopy.signNow} <ArrowRight size={20} />
             </button>
           )}
@@ -1406,13 +1424,16 @@ export function PublicCampaignPage({
                   value={publicForm.phone}
                   inputMode="tel"
                   autoComplete="tel"
-                  onChange={(event) => setPublicForm({
-                    ...publicForm,
-                    phone: event.target.value,
-                    otpVerified: false,
-                    otpChallengeId: "",
-                    otpVerificationToken: ""
-                  })}
+                  onChange={(event) => {
+                    const phone = event.target.value;
+                    handleStartNewJourney();
+                    setPublicForm({
+                      ...blankSigner,
+                      phone,
+                      referredByPhoneOrCode: publicForm.referredByPhoneOrCode,
+                      referralSource: publicForm.referralSource
+                    });
+                  }}
                 />
               </Field>
               <button className="primary-button" type="button" disabled={sendingOtp} aria-busy={sendingOtp} onClick={() => void handleSendOtpWizard()}>

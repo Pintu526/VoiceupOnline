@@ -2238,6 +2238,57 @@
       "title": "Loading campaign details..."
     }
   },
+  "act": {
+    "eyebrow": "Take action",
+    "title": "Act for this campaign",
+    "description": "Track your participation, complete practical actions, and help this campaign grow.",
+    "progressLabel": "Action progress",
+    "tasksComplete": "{complete} of {total} actions complete",
+    "metrics": {
+      "participation": "Participants",
+      "verified": "Verified",
+      "field": "Field participation",
+      "referrals": "Referral supporters",
+      "growth": "Growth points",
+      "recognition": "Recognition",
+      "building": "Building momentum"
+    },
+    "tasks": {
+      "title": "Your action checklist",
+      "description": "Choose the next practical way to support this campaign.",
+      "participate": "Participate in the campaign",
+      "participateHelp": "Submit or review your verified support.",
+      "whatsapp": "Share on WhatsApp",
+      "whatsappHelp": "Send the campaign to people you know on WhatsApp.",
+      "social": "Share on social media",
+      "socialHelp": "Use your preferred social channel to extend campaign reach.",
+      "qr": "Share the campaign QR",
+      "qrHelp": "Download the QR code for print, events, or field outreach.",
+      "referral": "Invite through your referral link",
+      "referralHelp": "Copy your personal link and invite another supporter."
+    },
+    "actions": {
+      "review": "Review support",
+      "start": "Start",
+      "whatsapp": "WhatsApp",
+      "share": "Share",
+      "qr": "Download QR",
+      "invite": "Invite"
+    },
+    "timeline": {
+      "title": "Recent activity",
+      "description": "Verified participation and campaign actions appear here.",
+      "share": "Campaign shared",
+      "shareDetail": "Shared {count} times in this session.",
+      "fieldParticipation": "Field participation recorded",
+      "referralParticipation": "Referral participation recorded",
+      "publicParticipation": "Public participation recorded",
+      "verified": "Verified participation",
+      "recorded": "Participation recorded",
+      "started": "Campaign started",
+      "empty": "No campaign activity has been recorded yet."
+    }
+  },
   "landing": {
     "nav": {
       "homeAria": "VoiceUp home",

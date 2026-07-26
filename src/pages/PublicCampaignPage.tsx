@@ -1122,7 +1122,7 @@ export function PublicCampaignPage({
                   {task.id === "participate" ? (
                     <a className="secondary-link-button" href="#public-sign-form">{t(task.complete ? "act.actions.review" : "act.actions.start")}</a>
                   ) : task.id === "whatsapp" ? (
-                    <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>WhatsApp</a>
+                    <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>{t("act.actions.whatsapp")}</a>
                   ) : task.id === "social" ? (
                     <button className="secondary-button" type="button" onClick={shareNatively}>{t("act.actions.share")}</button>
                   ) : task.id === "qr" ? (

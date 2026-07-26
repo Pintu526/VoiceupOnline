@@ -223,6 +223,12 @@ async function invokeMutation(
     }
   });
   if (error) {
+    console.error("voiceup-public-signing RPC failure", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
     const code = rpcErrorCode(error);
     const mapped = publicError(code);
     return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
@@ -343,6 +349,7 @@ Deno.serve(async (req) => {
       const mapped = publicError(code);
       return jsonResponse({ error: mapped.message, code }, error.status || mapped.status);
     }
+    console.error("voiceup-public-signing unexpected failure", error);
     return jsonResponse({
       error: "Participation could not be completed. Please retry.",
       code: "server_error"

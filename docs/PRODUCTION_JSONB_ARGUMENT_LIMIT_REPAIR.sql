@@ -1,40 +1,7 @@
 BEGIN;
 
-create extension if not exists pgcrypto;
-
--- Canonical public identity rule. Indian mobiles accept local, leading-zero,
--- 91 and +91 spellings. Explicit international numbers retain their country
--- code; ambiguous local numbers are never merged with an international form.
-create or replace function public.voiceup_normalize_public_phone(raw_phone text)
-returns text
-language plpgsql
-immutable
-set search_path = public, pg_temp
-as $$
-declare
-  trimmed text := btrim(coalesce(raw_phone, ''));
-  digits text := regexp_replace(btrim(coalesce(raw_phone, '')), '[^0-9]', '', 'g');
-begin
-  if digits ~ '^0[6-9][0-9]{9}$' then
-    return substr(digits, 2);
-  end if;
-  if digits ~ '^91[6-9][0-9]{9}$' then
-    return substr(digits, 3);
-  end if;
-  if digits ~ '^[6-9][0-9]{9}$' then
-    return digits;
-  end if;
-  if left(trimmed, 1) = '+' and digits ~ '^[1-9][0-9]{7,14}$' then
-    return '+' || digits;
-  end if;
-  if digits ~ '^[0-9]{8,15}$' then
-    return digits;
-  end if;
-  return null;
-end;
-$$;
-
-revoke all on function public.voiceup_normalize_public_phone(text) from public;
+-- Production repair for PostgreSQL error 54023. This recreates only the
+-- public participation RPC with bounded jsonb_build_object calls.
 
 create or replace function public.mutate_voiceup_public_participation(
   p_workspace_id text,
@@ -1013,5 +980,7 @@ comment on function public.mutate_voiceup_public_participation(
   text, text, text, text, text, text, text, jsonb, jsonb
 ) is
   'Atomic public participation boundary. Whole-workspace row locking is an accepted temporary scaling constraint.';
+
+notify pgrst, 'reload schema';
 
 COMMIT;

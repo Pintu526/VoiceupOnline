@@ -37,6 +37,80 @@ function rpcSource() {
   );
 }
 
+function jsonbBuildObjectCalls(source) {
+  const calls = [];
+  const callPattern = /\bjsonb_build_object\s*\(/g;
+  let match;
+
+  while ((match = callPattern.exec(source)) !== null) {
+    const openParenthesis = source.indexOf("(", match.index);
+    let depth = 1;
+    let argumentCount = 0;
+    let hasArgumentToken = false;
+    let closed = false;
+
+    for (let index = openParenthesis + 1; index < source.length; index += 1) {
+      const character = source[index];
+      const nextCharacter = source[index + 1];
+
+      if (character === "-" && nextCharacter === "-") {
+        index = source.indexOf("\n", index + 2);
+        if (index === -1) break;
+        continue;
+      }
+      if (character === "/" && nextCharacter === "*") {
+        const commentEnd = source.indexOf("*/", index + 2);
+        assert.notEqual(commentEnd, -1, "Unterminated SQL block comment");
+        index = commentEnd + 1;
+        continue;
+      }
+      if (character === "'" || character === '"') {
+        if (depth === 1) hasArgumentToken = true;
+        const quote = character;
+        for (index += 1; index < source.length; index += 1) {
+          if (source[index] !== quote) continue;
+          if (source[index + 1] === quote) {
+            index += 1;
+            continue;
+          }
+          break;
+        }
+        continue;
+      }
+      if (character === "(") {
+        if (depth === 1) hasArgumentToken = true;
+        depth += 1;
+        continue;
+      }
+      if (character === ")") {
+        depth -= 1;
+        if (depth === 0) {
+          if (hasArgumentToken) argumentCount += 1;
+          calls.push({
+            argumentCount,
+            line: source.slice(0, match.index).split("\n").length
+          });
+          closed = true;
+          break;
+        }
+        continue;
+      }
+      if (depth === 1 && character === ",") {
+        argumentCount += 1;
+        hasArgumentToken = false;
+        continue;
+      }
+      if (depth === 1 && !/\s/.test(character)) {
+        hasArgumentToken = true;
+      }
+    }
+
+    assert.equal(closed, true, `Unterminated jsonb_build_object call at offset ${match.index}`);
+  }
+
+  return calls;
+}
+
 test("RPC is additive, forward-only, service-role-only, and exposes only approved actions", () => {
   assert.deepEqual(PUBLIC_PARTICIPATION_ACTIONS, [
     "save_draft",
@@ -74,6 +148,17 @@ test("RPC resolves pgcrypto from its installed Supabase schema", () => {
     migration,
     /alter function public\.mutate_voiceup_public_participation\(text,text,text,text,text,text,text,jsonb,jsonb\) set search_path = public, %I, pg_temp/
   );
+});
+
+test("every jsonb_build_object call remains within PostgreSQL's 100-argument limit", () => {
+  const calls = jsonbBuildObjectCalls(migration);
+  assert.ok(calls.length > 0);
+  assert.ok(
+    calls.every(({ argumentCount }) => argumentCount % 2 === 0),
+    `jsonb_build_object requires key/value pairs: ${JSON.stringify(calls)}`
+  );
+  const oversizedCalls = calls.filter(({ argumentCount }) => argumentCount > 100);
+  assert.deepEqual(oversizedCalls, []);
 });
 
 test("two concurrent submissions for the same phone serialize and resolve one canonical supporter", () => {
@@ -259,6 +344,8 @@ test("Edge validation is bounded, action-specific, service-role mediated, and do
   assert.match(edge, /isPublicParticipationAction/);
   assert.match(edge, /admin\.rpc\("mutate_voiceup_public_participation"/);
   assert.match(edge, /rpcErrorCode/);
-  assert.doesNotMatch(edge, /console\.(log|info|debug|warn|error)/);
+  assert.doesNotMatch(edge, /console\.(log|info|debug|warn)/);
+  assert.match(edge, /console\.error\("voiceup-public-signing RPC failure"/);
+  assert.match(edge, /console\.error\("voiceup-public-signing unexpected failure"/);
   assert.doesNotMatch(edge, /error instanceof Error \? error\.message/);
 });

@@ -2023,7 +2023,7 @@ function App() {
 
   async function sendOtp() {
     const phone = publicForm.phone.trim();
-    if (!phone) { setOtpMessage("Enter phone number before requesting OTP."); return; }
+    if (!phone) { setOtpMessage("Enter phone number before requesting OTP."); return false; }
     publicSigningSubmissionRef.current = null;
     if (typeof window !== "undefined" && publicSigningCampaignRef.current) {
       clearPublicSigningJourney(window.sessionStorage, publicSigningCampaignRef.current);
@@ -2056,6 +2056,7 @@ function App() {
           ? `${result.message} OTP: ${developmentOtp}`
           : result.message
       );
+      return true;
     } catch (error) {
       setPublicForm((current) => clearPublicSigningOtpState(current));
       setPublicOtpExpiresAt(0);
@@ -2064,6 +2065,7 @@ function App() {
           ? formatPublicSigningBackendError(error)
           : "Verification code could not be sent. Please retry."
       );
+      return false;
     }
   }
 

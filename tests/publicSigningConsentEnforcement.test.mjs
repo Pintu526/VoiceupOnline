@@ -40,6 +40,10 @@ const publicSigningCss = readFileSync(
   new URL("../src/publicSigningExperience.css", import.meta.url),
   "utf8"
 );
+const i18nProviderSource = readFileSync(
+  new URL("../src/i18n/provider.tsx", import.meta.url),
+  "utf8"
+);
 
 const campaignConsentText = "I consent to this organization storing my details and using them only for this campaign.";
 
@@ -284,14 +288,45 @@ test("N. post-sign photo processing uses private signed upload without base64", 
   assert.match(signingFunctionSource, /invokeMutation\(admin, resolved, body, "update_profile"\)/);
 });
 
-test("O. responsive public signing keeps the existing route and provides independent desktop scroll", () => {
+test("O. responsive public signing keeps the route and puts the mobile phone action first", () => {
   assert.match(publicPageSource, /className="public-layout public-campaign-modern"/);
   assert.match(publicPageSource, /className="public-mobile-campaign-summary"/);
   assert.match(publicPageSource, /className="public-sign-share-tools"/);
+  assert.match(publicPageSource, /const sent = await onSendOtp\(\);[\s\S]*if \(sent === false\) return;[\s\S]*setWizardStep\("otp"\)/);
+  assert.match(appSource, /async function sendOtp\(\)[\s\S]*return true;[\s\S]*catch \(error\)[\s\S]*return false;/);
+
+  const summaryPosition = publicPageSource.indexOf('className="public-mobile-campaign-summary"');
+  const languagePosition = publicPageSource.indexOf('className="public-language-selector"');
+  const phonePosition = publicPageSource.indexOf('{wizardStep === "phone" && (', languagePosition);
+  const shareToolsPosition = publicPageSource.indexOf('className="public-sign-share-tools"');
+  assert.ok(summaryPosition < languagePosition);
+  assert.ok(languagePosition < phonePosition);
+  assert.ok(phonePosition < shareToolsPosition);
+
   assert.match(publicSigningCss, /height:\s*calc\(100vh - 56px\)/);
   assert.match(publicSigningCss, /\.public-story-column[\s\S]*overflow-y:\s*auto/);
   assert.match(publicSigningCss, /> \.panel[\s\S]*overflow-y:\s*auto/);
   assert.match(publicSigningCss, /@media \(max-width: 1100px\)/);
+  assert.match(publicSigningCss, /\[data-wizard-step="phone"\][\s\S]*\.wizard-header/);
+  assert.match(publicSigningCss, /> \.panel > header[\s\S]*display:\s*none/);
+});
+
+test("O1. post-sign UI is factual, compact, and accessible", () => {
+  assert.doesNotMatch(publicPageSource, /ViralPostSignExperience/);
+  assert.match(publicPageSource, /href=\{shareLinks\.whatsapp\}/);
+  assert.match(publicPageSource, /onClick=\{shareNatively\}[\s\S]*t\("referrals\.dashboard\.nativeShare"\)/);
+  assert.match(publicPageSource, /t\("public\.copyLink"\)/);
+  assert.match(publicPageSource, /onClick=\{downloadActQr\}/);
+  assert.match(publicPageSource, /setPostSignPanel\(\(current\)/);
+  assert.match(publicPageSource, /className=\{publicMessageIsError \? "error-message" : "success-message"\}/);
+  assert.match(publicPageSource, /className=\{otpMessageIsError \? "error-message" : "info-message"\}/);
+  assert.match(publicPageSource, /role=\{publicMessageIsError \? "alert" : "status"\}/);
+  assert.doesNotMatch(publicPageSource, /Business OS|बिज़नेस OS/);
+});
+
+test("O2. language selection synchronizes the document language", () => {
+  assert.match(i18nProviderSource, /document\.documentElement\.lang = language/);
+  assert.match(i18nProviderSource, /\[language\]/);
 });
 
 test("P. optional coordinator action is a secure handoff to the existing managed lifecycle", () => {

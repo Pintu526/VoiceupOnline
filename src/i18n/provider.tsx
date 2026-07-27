@@ -1,4 +1,4 @@
-import { createContext, useCallback, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import en from "./locales/en.json";
 import hi from "./locales/hi.json";
 import or from "./locales/or.json";
@@ -42,6 +42,10 @@ function findTranslation(tree: TranslationTree, key: string): string | undefined
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(readStoredLanguage);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   const setLanguage = useCallback((nextLanguage: Language) => {
     const safeLanguage = isSupportedLanguage(nextLanguage) ? nextLanguage : "en";

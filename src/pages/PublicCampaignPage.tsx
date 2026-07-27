@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import {
-  Activity,
   ArrowRight,
-  Award,
   BadgeCheck,
   CalendarDays,
   CheckCircle2,
@@ -15,13 +13,10 @@ import {
   MapPin,
   MessageCircle,
   QrCode,
-  Send,
   Share2,
   ShieldCheck,
   Smartphone,
   Sparkles,
-  Target,
-  TrendingUp,
   UserRound,
   Users
 } from "lucide-react";
@@ -29,7 +24,6 @@ import type { AuthorityRule, Campaign, Organization, Signer, SignerRequiredField
 import { getConfiguredGrowthShareMessages } from "../growth/configuration";
 import type { GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
 import type { SupporterGrowthPortalModel } from "../growth/tree";
-import { ViralPostSignExperience } from "../growth/supporter";
 import {
   indiaGeographyService,
   type LocationDeletions,
@@ -47,10 +41,7 @@ import {
   BrowserGPSAdapter,
   type GPSAdapter
 } from "../businessOs/geography/index.ts";
-import {
-  PublicSupporterPhoto,
-  type PublicSupporterPhotoCopy
-} from "../components/PublicSupporterPhoto";
+import type { PublicSupporterPhotoCopy } from "../components/PublicSupporterPhoto";
 import { blankSigner } from "../constants";
 import { LanguageSwitcher, useTranslation, type Language } from "../i18n";
 import {
@@ -103,7 +94,7 @@ interface PublicCampaignPageProps {
   otpInput: string;
   setOtpInput: React.Dispatch<React.SetStateAction<string>>;
   otpMessage: string;
-  onSendOtp: () => void | Promise<void>;
+  onSendOtp: () => void | boolean | Promise<void | boolean>;
   onVerifyOtp: () => void | Promise<void>;
   locationOverrides: LocationOverrides;
   locationDeletions: LocationDeletions;
@@ -129,6 +120,14 @@ const signingSteps: Array<{ id: SigningStepId }> = [
 ];
 
 const defaultPublicGpsAdapter = new BrowserGPSAdapter();
+
+function isPublicFailureMessage(message: string) {
+  return (
+    /\([a-z][a-z0-9_]{1,63}\)\s*$/i.test(message) ||
+    /\b(could not|failed|failure|expired|invalid|unavailable|required|outside|retry|error|blocked|has ended|past due|cancelled|not active|not currently open|reached its|reached the)\b/i.test(message) ||
+    /^(create and publish|enter |request |please verify|verify your)/i.test(message)
+  );
+}
 
 const publicSigningCopyEn = {
   steps: {
@@ -360,6 +359,7 @@ interface PublicExperienceCopy {
   coordinatorLearn: string;
   coordinatorHandoff: string;
   coordinatorContact: string;
+  coordinatorPending: string;
   nationwideReach: string;
   statesReached: string;
   districtsReached: string;
@@ -397,13 +397,14 @@ const publicExperienceCopyEn: PublicExperienceCopy = {
   coordinatorLearn: "Coordinators help organise verified local activity through the existing campaign hierarchy.",
   coordinatorHandoff: "For security, a campaign manager must create the invited coordinator inside Coordinator Network.",
   coordinatorContact: "Request an invitation",
+  coordinatorPending: "Invitation requested",
   nationwideReach: "Nationwide campaign reach",
   statesReached: "States / UTs reached",
   districtsReached: "Districts reached",
   paperSupporters: "Paper signatures",
   remainingToGoal: "Verified support needed",
   structuredLocationTitle: "Confirmed administrative path",
-  structuredLocationHelp: "Matched against the shared Business OS India geography hierarchy. Review every field before signing.",
+  structuredLocationHelp: "Matched against the India geography hierarchy. Review every field before signing.",
   paperReminderTitle: "Already signed on paper?",
   paperReminderWithCount: "{count} paper signatures are already included. Use the same mobile number so duplicates can be identified safely.",
   paperReminderEmpty: "Use the same mobile number if you signed a paper sheet. Paper entries may require review before appearing in totals.",
@@ -452,13 +453,14 @@ const publicExperienceCopy: Record<Language, PublicExperienceCopy> = {
     coordinatorLearn: "समन्वयक मौजूदा अभियान पदानुक्रम के माध्यम से सत्यापित स्थानीय गतिविधि व्यवस्थित करते हैं।",
     coordinatorHandoff: "सुरक्षा के लिए अभियान प्रबंधक को समन्वयक नेटवर्क में आमंत्रित समन्वयक बनाना होगा।",
     coordinatorContact: "आमंत्रण का अनुरोध करें",
+    coordinatorPending: "आमंत्रण का अनुरोध भेजा गया",
     nationwideReach: "राष्ट्रव्यापी अभियान पहुँच",
     statesReached: "राज्य / केंद्र शासित प्रदेश",
     districtsReached: "जिले",
     paperSupporters: "कागज़ी हस्ताक्षर",
     remainingToGoal: "लक्ष्य के लिए सत्यापित समर्थन",
     structuredLocationTitle: "पुष्ट प्रशासनिक मार्ग",
-    structuredLocationHelp: "साझा बिज़नेस OS भारत भूगोल पदानुक्रम से मिलान किया गया। हस्ताक्षर से पहले हर फ़ील्ड की समीक्षा करें।",
+    structuredLocationHelp: "भारत के भूगोल पदानुक्रम से मिलान किया गया। हस्ताक्षर से पहले हर फ़ील्ड की समीक्षा करें।",
     paperReminderTitle: "क्या आपने पहले कागज़ पर हस्ताक्षर किए हैं?",
     paperReminderWithCount: "{count} कागज़ी हस्ताक्षर पहले से शामिल हैं। डुप्लिकेट सुरक्षित रूप से पहचानने के लिए वही मोबाइल नंबर उपयोग करें।",
     paperReminderEmpty: "यदि आपने कागज़ी शीट पर हस्ताक्षर किए हैं तो वही मोबाइल नंबर उपयोग करें। कुल में आने से पहले कागज़ी प्रविष्टियों की समीक्षा हो सकती है।",
@@ -504,13 +506,14 @@ const publicExperienceCopy: Record<Language, PublicExperienceCopy> = {
     coordinatorLearn: "ସମନ୍ୱୟକାରୀମାନେ ବର୍ତ୍ତମାନର ଅଭିଯାନ ପଦାନୁକ୍ରମ ମାଧ୍ୟମରେ ସତ୍ୟାପିତ ସ୍ଥାନୀୟ କାର୍ଯ୍ୟକଳାପ ସଂଗଠିତ କରନ୍ତି।",
     coordinatorHandoff: "ସୁରକ୍ଷା ପାଇଁ ଅଭିଯାନ ପରିଚାଳକଙ୍କୁ ସମନ୍ୱୟକାରୀ ନେଟୱର୍କରେ ଆମନ୍ତ୍ରିତ ସମନ୍ୱୟକାରୀ ସୃଷ୍ଟି କରିବାକୁ ପଡ଼ିବ।",
     coordinatorContact: "ଆମନ୍ତ୍ରଣ ଅନୁରୋଧ କରନ୍ତୁ",
+    coordinatorPending: "ଆମନ୍ତ୍ରଣ ଅନୁରୋଧ ପଠାଯାଇଛି",
     nationwideReach: "ଦେଶବ୍ୟାପୀ ଅଭିଯାନ ପହଞ୍ଚ",
     statesReached: "ରାଜ୍ୟ / କେନ୍ଦ୍ରଶାସିତ ଅଞ୍ଚଳ",
     districtsReached: "ଜିଲ୍ଲା",
     paperSupporters: "କାଗଜ ସହି",
     remainingToGoal: "ଲକ୍ଷ୍ୟ ପାଇଁ ସତ୍ୟାପିତ ସମର୍ଥନ",
     structuredLocationTitle: "ନିଶ୍ଚିତ ପ୍ରଶାସନିକ ପଥ",
-    structuredLocationHelp: "ସାଧାରଣ Business OS ଭାରତ ଭୂଗୋଳ ପଦାନୁକ୍ରମ ସହିତ ମେଳ ହୋଇଛି। ସହି ପୂର୍ବରୁ ପ୍ରତ୍ୟେକ କ୍ଷେତ୍ର ସମୀକ୍ଷା କରନ୍ତୁ।",
+    structuredLocationHelp: "ଭାରତର ଭୂଗୋଳ ପଦାନୁକ୍ରମ ସହିତ ମେଳ ହୋଇଛି। ସହି ପୂର୍ବରୁ ପ୍ରତ୍ୟେକ କ୍ଷେତ୍ର ସମୀକ୍ଷା କରନ୍ତୁ।",
     paperReminderTitle: "ଆପଣ ପୂର୍ବରୁ କାଗଜରେ ସହି କରିଛନ୍ତି କି?",
     paperReminderWithCount: "{count} କାଗଜ ସହି ପୂର୍ବରୁ ଅନ୍ତର୍ଭୁକ୍ତ। ନକଲ ସୁରକ୍ଷିତ ଭାବେ ଚିହ୍ନଟ ପାଇଁ ସେହି ମୋବାଇଲ୍ ନମ୍ବର ବ୍ୟବହାର କରନ୍ତୁ।",
     paperReminderEmpty: "କାଗଜ ସିଟ୍‌ରେ ସହି କରିଥିଲେ ସେହି ମୋବାଇଲ୍ ନମ୍ବର ବ୍ୟବହାର କରନ୍ତୁ। ମୋଟରେ ଆସିବା ପୂର୍ବରୁ କାଗଜ ଏଣ୍ଟ୍ରି ସମୀକ୍ଷା ହୋଇପାରେ।",
@@ -555,7 +558,6 @@ export function PublicCampaignPage({
   locationOverrides,
   locationDeletions,
   onGrowthShare,
-  onUploadSupporterPhoto,
   onSaveDraft,
   onCommunicationConsentChange,
   onSubmitCoordinatorApplication,
@@ -610,6 +612,9 @@ export function PublicCampaignPage({
   ]);
   const displayPublicMessage =
     publicMessage === "consent_required" ? t("public.consentRequiredInline") : publicMessage;
+  const publicMessageIsError =
+    publicMessage === "consent_required" || isPublicFailureMessage(displayPublicMessage);
+  const otpMessageIsError = isPublicFailureMessage(otpMessage);
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
     requiredFields.includes(field) ? `${label} *` : label;
   const publicUrl = getCampaignPublicUrl(organization, campaign);
@@ -635,8 +640,6 @@ export function PublicCampaignPage({
     verifiedSupporters: metrics.verified
   });
   const [copiedReferral, setCopiedReferral] = useState("");
-  const [shareClicks, setShareClicks] = useState(0);
-  const [actChannels, setActChannels] = useState<GrowthShareContext["channel"][]>([]);
   const [wizardStep, setWizardStep] = useState<SigningStepId>(publicForm.otpVerified ? "profile" : "phone");
   const [restoredDraftStorageKey, setRestoredDraftStorageKey] = useState("");
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -645,7 +648,7 @@ export function PublicCampaignPage({
   const [locationRequested, setLocationRequested] = useState(false);
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
   const [locationMessage, setLocationMessage] = useState("");
-  const [postSignPanel, setPostSignPanel] = useState<"none" | "photo" | "coordinator" | "donation">("none");
+  const [postSignPanel, setPostSignPanel] = useState<"none" | "coordinator">("none");
   const [coordinatorLearnMore, setCoordinatorLearnMore] = useState(false);
   const [communicationConsent, setCommunicationConsent] = useState(false);
   const hasSignedCampaign = lastSignedSigner?.campaignId === campaign.id;
@@ -717,62 +720,6 @@ export function PublicCampaignPage({
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(personalReferralUrl)}`,
     email: `mailto:?subject=${encodeURIComponent(shareMessages.emailSubject)}&body=${encodeURIComponent(shareMessages.emailBody)}`
   };
-  const campaignParticipants = campaignSigners.filter((signer) => signer.campaignId === campaign.id);
-  const fieldParticipants = campaignParticipants.filter((signer) => signer.source === "field" || signer.source === "scan");
-  const paperParticipants = campaignParticipants.filter((signer) => signer.source === "scan");
-  const reachedStates = new Set(
-    campaignParticipants.map((signer) => signer.state.trim().toLowerCase()).filter(Boolean)
-  );
-  const reachedDistricts = new Set(
-    campaignParticipants
-      .filter((signer) => signer.district.trim())
-      .map((signer) => `${signer.state.trim().toLowerCase()}::${signer.district.trim().toLowerCase()}`)
-  );
-  const verifiedRemaining = Math.max(0, campaignGoal - metrics.verified);
-  const referralParticipants = campaignParticipants.filter((signer) => Boolean(signer.referredBy || signer.referredByPhoneOrCode));
-  const hasSocialShare = actChannels.some((channel) => ["native", "telegram", "facebook", "x", "linkedin", "email"].includes(channel));
-  const actTasks = [
-    { id: "participate", complete: hasSignedCampaign },
-    { id: "whatsapp", complete: actChannels.includes("whatsapp") },
-    { id: "social", complete: hasSocialShare },
-    { id: "qr", complete: actChannels.includes("qr") },
-    { id: "referral", complete: referralParticipants.length > 0 }
-  ] as const;
-  const completedActTasks = actTasks.filter((task) => task.complete).length;
-  const actProgress = Math.round((completedActTasks / actTasks.length) * 100);
-  const recognitionLabel = growthSnapshot?.currentRecognitionLevelName
-    ?? growthPortal?.tree.currentRecognition
-    ?? t("act.metrics.building");
-  const actTimeline = [
-    ...(shareClicks > 0 ? [{
-      id: "current-share-activity",
-      title: t("act.timeline.share"),
-      detail: t("act.timeline.shareDetail").replace("{count}", String(shareClicks)),
-      occurredAt: new Date().toISOString()
-    }] : []),
-    ...campaignParticipants
-      .slice()
-      .sort((left, right) => new Date(right.signedAt).getTime() - new Date(left.signedAt).getTime())
-      .slice(0, 5)
-      .map((signer) => ({
-        id: signer.id,
-        title: signer.source === "scan" || signer.source === "field"
-          ? t("act.timeline.fieldParticipation")
-          : signer.referredBy || signer.referredByPhoneOrCode
-            ? t("act.timeline.referralParticipation")
-            : t("act.timeline.publicParticipation"),
-        detail: signer.otpVerified || signer.status === "verified"
-          ? t("act.timeline.verified")
-          : t("act.timeline.recorded"),
-        occurredAt: signer.signedAt
-      })),
-    ...(campaign.startDate ? [{
-      id: "campaign-start",
-      title: t("act.timeline.started"),
-      detail: campaign.title,
-      occurredAt: campaign.startDate
-    }] : [])
-  ].slice(0, 6);
   const locationFields = isGlobalMode ? (
     <GlobalLocationFields
       idPrefix="public-signer-location"
@@ -867,7 +814,8 @@ export function PublicCampaignPage({
     }
     setSendingOtp(true);
     try {
-      await onSendOtp();
+      const sent = await onSendOtp();
+      if (sent === false) return;
       setWizardStep("otp");
     } finally {
       setSendingOtp(false);
@@ -953,7 +901,6 @@ export function PublicCampaignPage({
     try {
       await navigator.clipboard.writeText(value);
       setCopiedReferral(t("public.copied"));
-      setActChannels((current) => current.includes(channel) ? current : [...current, channel]);
       onGrowthShare?.({ channel, url: value });
     } catch {
       setCopiedReferral(t("public.copyFailed"));
@@ -961,8 +908,6 @@ export function PublicCampaignPage({
   }
 
   function trackShareClick(channel: GrowthShareContext["channel"]) {
-    setShareClicks((current) => current + 1);
-    setActChannels((current) => current.includes(channel) ? current : [...current, channel]);
     onGrowthShare?.({ channel, url: personalReferralUrl });
   }
 
@@ -994,7 +939,7 @@ export function PublicCampaignPage({
   }
 
   return (
-    <section className="public-layout public-campaign-modern">
+    <section className="public-layout public-campaign-modern" data-wizard-step={wizardStep}>
       <div className="public-story-column">
         <article
           className={campaign.heroImage ? "campaign-page campaign-page-with-media" : "campaign-page"}
@@ -1057,31 +1002,6 @@ export function PublicCampaignPage({
               </div>
             </div>
 
-            <section className="public-national-progress" aria-label={experienceCopy.nationwideReach}>
-              <div className="public-national-progress-heading">
-                <TrendingUp size={18} />
-                <strong>{experienceCopy.nationwideReach}</strong>
-              </div>
-              <div className="public-national-progress-grid">
-                <article>
-                  <span>{experienceCopy.statesReached}</span>
-                  <strong>{reachedStates.size.toLocaleString()}</strong>
-                </article>
-                <article>
-                  <span>{experienceCopy.districtsReached}</span>
-                  <strong>{reachedDistricts.size.toLocaleString()}</strong>
-                </article>
-                <article>
-                  <span>{experienceCopy.paperSupporters}</span>
-                  <strong>{paperParticipants.length.toLocaleString()}</strong>
-                </article>
-                <article>
-                  <span>{experienceCopy.remainingToGoal}</span>
-                  <strong>{verifiedRemaining.toLocaleString()}</strong>
-                </article>
-              </div>
-            </section>
-
             <div className="public-trust-strip" aria-label={t("public.trustIndicators")}>
               <span><ShieldCheck size={16} /> {t("public.privacyRespected")}</span>
               <span><LockKeyhole size={16} /> {t("public.otpVerified")}</span>
@@ -1089,78 +1009,6 @@ export function PublicCampaignPage({
             </div>
           </div>
         </article>
-
-        <section className="public-section act-home" aria-labelledby="act-home-heading">
-          <div className="public-section-heading act-home-heading">
-            <div>
-              <span className="eyebrow">{t("act.eyebrow")}</span>
-              <h2 id="act-home-heading">{t("act.title")}</h2>
-              <p>{t("act.description")}</p>
-            </div>
-            <div className="act-progress-summary" aria-label={t("act.progressLabel")}>
-              <strong>{actProgress}%</strong>
-              <span>{t("act.tasksComplete").replace("{complete}", String(completedActTasks)).replace("{total}", String(actTasks.length))}</span>
-              <progress max={100} value={actProgress}>{actProgress}%</progress>
-            </div>
-          </div>
-
-          <div className="act-metric-grid">
-            <article><Users size={19} /><span>{t("act.metrics.participation")}</span><strong>{campaignParticipants.length.toLocaleString()}</strong></article>
-            <article><BadgeCheck size={19} /><span>{t("act.metrics.verified")}</span><strong>{metrics.verified.toLocaleString()}</strong></article>
-            <article><Activity size={19} /><span>{t("act.metrics.field")}</span><strong>{fieldParticipants.length.toLocaleString()}</strong></article>
-            <article><Share2 size={19} /><span>{t("act.metrics.referrals")}</span><strong>{referralParticipants.length.toLocaleString()}</strong></article>
-            <article><TrendingUp size={19} /><span>{t("act.metrics.growth")}</span><strong>{Math.round(growthSnapshot?.lifetimeGrowth ?? growthPortal?.wallet.balance.totalEarned ?? 0).toLocaleString()}</strong></article>
-            <article><Award size={19} /><span>{t("act.metrics.recognition")}</span><strong>{recognitionLabel}</strong></article>
-          </div>
-
-          <div className="act-home-grid">
-            <div className="act-task-board">
-              <div className="act-section-title"><Target size={20} /><div><strong>{t("act.tasks.title")}</strong><span>{t("act.tasks.description")}</span></div></div>
-              {actTasks.map((task) => (
-                <article className={task.complete ? "is-complete" : ""} key={task.id}>
-                  <span className="act-task-status">{task.complete ? <CheckCircle2 size={18} /> : <span />}</span>
-                  <div><strong>{t(`act.tasks.${task.id}`)}</strong><small>{t(`act.tasks.${task.id}Help`)}</small></div>
-                  {task.id === "participate" ? (
-                    <a
-                      className="secondary-link-button"
-                      href="#public-sign-form"
-                      onClick={
-                        task.id === "participate" && !task.complete
-                          ? handleStartNewJourney
-                          : undefined
-                      }
-                    >
-                      {t(task.complete ? "act.actions.review" : "act.actions.start")}
-                    </a>
-                  ) : task.id === "whatsapp" ? (
-                    <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>{t("act.actions.whatsapp")}</a>
-                  ) : task.id === "social" ? (
-                    <button className="secondary-button" type="button" onClick={shareNatively}>{t("act.actions.share")}</button>
-                  ) : task.id === "qr" ? (
-                    <button className="secondary-button" type="button" onClick={downloadActQr}><QrCode size={16} /> {t("act.actions.qr")}</button>
-                  ) : (
-                    <button className="secondary-button" type="button" onClick={() => void copyReferralText(t("public.referralLink"), personalReferralUrl, "copy")}><Copy size={16} /> {t("act.actions.invite")}</button>
-                  )}
-                </article>
-              ))}
-            </div>
-
-            <div className="act-timeline">
-              <div className="act-section-title"><CalendarDays size={20} /><div><strong>{t("act.timeline.title")}</strong><span>{t("act.timeline.description")}</span></div></div>
-              {actTimeline.length > 0 ? (
-                <ol>
-                  {actTimeline.map((entry) => (
-                    <li key={entry.id}>
-                      <span aria-hidden="true" />
-                      <div><strong>{entry.title}</strong><small>{entry.detail}</small></div>
-                      <time dateTime={entry.occurredAt}>{new Date(entry.occurredAt).toLocaleDateString()}</time>
-                    </li>
-                  ))}
-                </ol>
-              ) : <p className="helper-text">{t("act.timeline.empty")}</p>}
-            </div>
-          </div>
-        </section>
 
         <VoiceUpStoryCarousel
           experience="publicCampaign"
@@ -1309,55 +1157,10 @@ export function PublicCampaignPage({
             <progress max={100} value={metrics.progress}>{metrics.progress}%</progress>
             <span>{metrics.progress}% · {metrics.verified.toLocaleString()} {t("public.verifiedSupporters")}</span>
           </div>
-          {!hasSignedCampaign && (
-            <button
-              className="primary-button public-mobile-sign-now"
-              type="button"
-              onClick={() => {
-                handleStartNewJourney();
-                setWizardStep("phone");
-              }}
-            >
-              {experienceCopy.signNow} <ArrowRight size={20} />
-            </button>
-          )}
         </div>
         <div className="public-language-selector">
           <LanguageSwitcher />
         </div>
-        <div className="public-sign-share-tools" aria-label={t("public.shareThisCampaign")}>
-          <ReferralQrPreview value={personalReferralUrl} label={t("public.campaignQr")} caption={campaign.qrLabel} compact />
-          <div>
-            <button className="secondary-button" type="button" onClick={shareNatively}>
-              <Share2 size={17} /> {t("public.share")}
-            </button>
-            <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>
-              WhatsApp
-            </a>
-            <button
-              className="secondary-button"
-              type="button"
-              onClick={() => void copyReferralText(t("public.campaignLink"), personalReferralUrl, "copy")}
-            >
-              <Copy size={17} /> {t("public.campaignLink")}
-            </button>
-          </div>
-          {copiedReferral && <span className="public-share-status" role="status">{copiedReferral}</span>}
-        </div>
-        <aside className="public-paper-reminder" aria-label={experienceCopy.paperReminderTitle}>
-          <ClipboardList size={20} />
-          <div>
-            <strong>{experienceCopy.paperReminderTitle}</strong>
-            <p>
-              {paperParticipants.length > 0
-                ? experienceCopy.paperReminderWithCount.replace(
-                    "{count}",
-                    paperParticipants.length.toLocaleString()
-                  )
-                : experienceCopy.paperReminderEmpty}
-            </p>
-          </div>
-        </aside>
         <div className="wizard-header">
           <span className="eyebrow">{copy.secureSigning}</span>
           <h2>{hasSignedCampaign ? copy.headerComplete : copy.headerActive}</h2>
@@ -1468,7 +1271,15 @@ export function PublicCampaignPage({
                   </button>
                 </div>
                 {publicForm.otpVerified && <span className="status-pill">{copy.phoneVerified}</span>}
-                {otpMessage && <p className="info-message">{otpMessage}</p>}
+                {otpMessage && (
+                  <p
+                    className={otpMessageIsError ? "error-message" : "info-message"}
+                    role={otpMessageIsError ? "alert" : "status"}
+                    aria-live={otpMessageIsError ? "assertive" : "polite"}
+                  >
+                    {otpMessage}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -1710,130 +1521,120 @@ export function PublicCampaignPage({
               <CheckCircle2 size={28} />
               <h3>{t("public.thankYou")}</h3>
               <p>{copy.doneBody}</p>
-              <div className="wizard-actions">
-                <button className="secondary-button" type="button" onClick={() => setWizardStep("review")}>{copy.viewSignature}</button>
-                <button className="primary-button" type="button" onClick={shareNatively}>{t("public.share")} <Send size={18} /></button>
+              <ReferralQrPreview
+                value={personalReferralUrl}
+                label={t("public.campaignQr")}
+                caption={campaign.qrLabel}
+                compact
+              />
+              <div className="public-post-sign-actions" aria-label={t("public.shareThisCampaign")}>
+                <a
+                  className="secondary-link-button"
+                  href={shareLinks.whatsapp}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => trackShareClick("whatsapp")}
+                >
+                  <MessageCircle size={18} /> WhatsApp
+                </a>
+                <button className="secondary-button" type="button" onClick={shareNatively}>
+                  <Share2 size={18} /> {t("referrals.dashboard.nativeShare")}
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => void copyReferralText(t("public.referralLink"), personalReferralUrl, "copy")}
+                >
+                  <Copy size={18} /> {t("public.copyLink")}
+                </button>
+                <button className="secondary-button" type="button" onClick={downloadActQr}>
+                  <QrCode size={18} /> {t("public.campaignQr")}
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => setPostSignPanel((current) => current === "coordinator" ? "none" : "coordinator")}
+                >
+                  <Users size={18} /> {experienceCopy.becomeCoordinator}
+                </button>
               </div>
-              <section className="public-post-sign-next" aria-labelledby="public-next-steps-title">
-                <h4 id="public-next-steps-title">{experienceCopy.optionalNext}</h4>
-                <div className="public-post-sign-actions">
-                  <button className="secondary-button" type="button" onClick={shareNatively}>
-                    <Share2 size={18} /> {t("public.share")}
-                  </button>
-                  {onUploadSupporterPhoto && (
-                    <button className="secondary-button" type="button" onClick={() => setPostSignPanel("photo")}>
-                      {experienceCopy.photo.title}
-                    </button>
-                  )}
-                  <button className="secondary-button" type="button" onClick={() => setPostSignPanel("coordinator")}>
-                    <Users size={18} /> {experienceCopy.becomeCoordinator}
-                  </button>
-                  {campaign.donationEnabled && (
-                    <button className="secondary-button" type="button" onClick={() => setPostSignPanel("donation")}>
-                      <HeartHandshake size={18} /> {campaign.donationCaption || "Donate"}
-                    </button>
-                  )}
-                  <button className="text-button" type="button" onClick={() => setPostSignPanel("none")}>
-                    {experienceCopy.notNow}
-                  </button>
-                </div>
+              {copiedReferral && <span className="public-share-status" role="status">{copiedReferral}</span>}
 
-                {postSignPanel === "photo" && onUploadSupporterPhoto && (
-                  <PublicSupporterPhoto
-                    copy={experienceCopy.photo}
-                    onUpload={onUploadSupporterPhoto}
-                    onSkip={() => setPostSignPanel("none")}
-                  />
-                )}
-
-                {postSignPanel === "coordinator" && (
-                  <div className="public-coordinator-handoff">
-                    <h4>{experienceCopy.helpOrganise}</h4>
-                    <p>{experienceCopy.coordinatorHandoff}</p>
-                    {coordinatorLearnMore && <p>{experienceCopy.coordinatorLearn}</p>}
-                    <div className="button-row">
+              {postSignPanel === "coordinator" && (
+                <div className="public-coordinator-handoff">
+                  <h4>{experienceCopy.helpOrganise}</h4>
+                  <p>{experienceCopy.coordinatorHandoff}</p>
+                  {coordinatorLearnMore && <p>{experienceCopy.coordinatorLearn}</p>}
+                  <div className="button-row">
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => setCoordinatorLearnMore((value) => !value)}
+                    >
+                      {experienceCopy.learnMore}
+                    </button>
+                    {onSubmitCoordinatorApplication ? (
                       <button
-                        className="secondary-button"
+                        className="primary-button"
                         type="button"
-                        onClick={() => setCoordinatorLearnMore((value) => !value)}
+                        disabled={lastSignedSigner?.coordinatorApplication?.status === "Pending Approval"}
+                        onClick={() => void onSubmitCoordinatorApplication()}
                       >
-                        {experienceCopy.learnMore}
+                        <Mail size={18} /> {
+                          lastSignedSigner?.coordinatorApplication?.status === "Pending Approval"
+                            ? experienceCopy.coordinatorPending
+                            : experienceCopy.coordinatorContact
+                        }
                       </button>
-                      {onSubmitCoordinatorApplication ? (
-                        <button
-                          className="primary-button"
-                          type="button"
-                          disabled={lastSignedSigner?.coordinatorApplication?.status === "Pending Approval"}
-                          onClick={() => void onSubmitCoordinatorApplication()}
-                        >
-                          <Mail size={18} /> {
-                            lastSignedSigner?.coordinatorApplication?.status === "Pending Approval"
-                              ? "Pending Approval"
-                              : experienceCopy.coordinatorContact
-                          }
-                        </button>
-                      ) : (
-                        <a
-                          className="primary-link-button"
-                          href={`mailto:${campaign.adminEmail}?subject=${encodeURIComponent(
-                            `${experienceCopy.becomeCoordinator}: ${campaign.title}`
-                          )}&body=${encodeURIComponent(
-                            `I signed "${campaign.title}" and would like a coordinator invitation. Please use my verified supporter profile and the existing Coordinator Network approval, role, geography, and reporting-manager workflow.`
-                          )}`}
-                        >
-                          <Mail size={18} /> {experienceCopy.coordinatorContact}
-                        </a>
-                      )}
-                    </div>
+                    ) : (
+                      <a
+                        className="primary-link-button"
+                        href={`mailto:${campaign.adminEmail}?subject=${encodeURIComponent(
+                          `${experienceCopy.becomeCoordinator}: ${campaign.title}`
+                        )}&body=${encodeURIComponent(
+                          `I signed "${campaign.title}" and would like a coordinator invitation. Please use my verified supporter profile and the existing Coordinator Network approval, role, geography, and reporting-manager workflow.`
+                        )}`}
+                      >
+                        <Mail size={18} /> {experienceCopy.coordinatorContact}
+                      </a>
+                    )}
                   </div>
-                )}
-
-                {postSignPanel === "donation" && campaign.donationEnabled && (
-                  <DonationCard campaign={campaign} />
-                )}
-              </section>
+                </div>
+              )}
             </div>
           )}
 
-          {displayPublicMessage && <p className="success-message">{displayPublicMessage}</p>}
-          {hasSignedCampaign && lastSignedSigner && (
-            <ViralPostSignExperience
-              campaign={campaign}
-              organization={organization}
-              signer={lastSignedSigner}
-              campaignSigners={campaignSigners}
-              metrics={metrics}
-              growthSnapshot={growthSnapshot}
-              growthPortal={growthPortal}
-              personalReferralUrl={personalReferralUrl}
-              personalReferralCode={personalReferralCode}
-              shareMessages={shareMessages}
-              shareClicks={shareClicks}
-              copiedReferral={copiedReferral}
-              publicMessage={publicMessage}
-              onTrackShareClick={trackShareClick}
-              onCopyReferralText={copyReferralText}
-              onShareNatively={shareNatively}
-              onDownloadQrPoster={() => {
-                trackShareClick("qr");
-                downloadQrPosterSvg({
-                  campaign,
-                  organizationName: organization?.name ?? "VoiceUp",
-                  url: personalReferralUrl,
-                  referralCode: personalReferralCode
-                });
-              }}
-              onPrintPoster={() => {
-                trackShareClick("poster");
-                window.print();
-              }}
-              onDownloadAppealPdf={async () => {
-                const { exportSignerAppealPdf } = await import("../pdfExports");
-                exportSignerAppealPdf(campaign, lastSignedSigner, resolvedAuthority);
-              }}
-            />
+          {displayPublicMessage && (
+            <p
+              className={publicMessageIsError ? "error-message" : "success-message"}
+              role={publicMessageIsError ? "alert" : "status"}
+              aria-live={publicMessageIsError ? "assertive" : "polite"}
+            >
+              {displayPublicMessage}
+            </p>
           )}
         </form>
+        {!hasSignedCampaign && (
+          <div className="public-sign-share-tools" aria-label={t("public.shareThisCampaign")}>
+            <ReferralQrPreview value={personalReferralUrl} label={t("public.campaignQr")} caption={campaign.qrLabel} compact />
+            <div>
+              <button className="secondary-button" type="button" onClick={shareNatively}>
+                <Share2 size={17} /> {t("public.share")}
+              </button>
+              <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>
+                WhatsApp
+              </a>
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => void copyReferralText(t("public.campaignLink"), personalReferralUrl, "copy")}
+              >
+                <Copy size={17} /> {t("public.copyLink")}
+              </button>
+            </div>
+            {copiedReferral && <span className="public-share-status" role="status">{copiedReferral}</span>}
+          </div>
+        )}
       </Panel>
 
       {!hasSignedCampaign && (

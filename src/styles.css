@@ -2327,6 +2327,7 @@ button {
     linear-gradient(180deg, rgba(255, 153, 51, 0.22), transparent 24%),
     linear-gradient(0deg, rgba(19, 136, 8, 0.2), transparent 28%),
     linear-gradient(180deg, #101827 0%, #07120e 100%);
+  box-sizing: border-box;
   color: #f8fafc;
   display: flex;
   flex-direction: column;
@@ -2335,6 +2336,9 @@ button {
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 .brand {
@@ -8971,6 +8975,7 @@ td {
 
   .sidebar {
     height: auto;
+    overflow-y: visible;
     position: static;
   }
 

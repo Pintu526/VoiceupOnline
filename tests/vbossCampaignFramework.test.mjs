@@ -38,8 +38,16 @@ test("command center snapshot includes the compact overview and movement dashboa
 });
 
 test("command center layout keeps actions equal, active navigation clear, and responsive", () => {
+  const desktopSidebarRule = styles.match(/\.sidebar\s*\{([^}]*)\}/s)?.[1] ?? "";
   assert.match(styles, /\.vboss-command-actions\s*\{[^}]*grid-template-columns:\s*repeat\(3,/s);
   assert.match(styles, /\.nav button\.active\s*\{[^}]*box-shadow:/s);
+  assert.match(desktopSidebarRule, /height:\s*100dvh/);
+  assert.match(desktopSidebarRule, /overflow-y:\s*auto/);
+  assert.match(desktopSidebarRule, /overscroll-behavior-y:\s*contain/);
+  assert.match(
+    styles,
+    /@media \(max-width: 1100px\)[\s\S]*?\.sidebar\s*\{[^}]*height:\s*auto;[^}]*overflow-y:\s*visible;[^}]*position:\s*static;/s
+  );
   assert.match(styles, /@media \(max-width: 560px\)[^{]*\{[^}]*\.vboss-command-actions/s);
 });
 

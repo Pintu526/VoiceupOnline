@@ -14,6 +14,10 @@ const signingFunctionSource = readFileSync(
   new URL("../supabase/functions/voiceup-public-signing/index.ts", import.meta.url),
   "utf8"
 );
+const otpFunctionSource = readFileSync(
+  new URL("../supabase/functions/voiceup-otp/index.ts", import.meta.url),
+  "utf8"
+);
 const atomicMigrationSource = readFileSync(
   new URL("../supabase/migrations/20260724010000_atomic_public_participation.sql", import.meta.url),
   "utf8"
@@ -215,6 +219,43 @@ test("K. production public signing reuses server OTP and requires its proof", ()
   assert.match(atomicMigrationSource, /challenge\.purpose = 'public-signing'/);
   assert.match(atomicMigrationSource, /verificationTokenHash/);
   assert.match(signingFunctionSource, /otp_verification_required/);
+});
+
+test("K1. invalid public phones are rejected before browser invocation and every Edge side effect", () => {
+  const requestOtpSource = backendSource.slice(
+    backendSource.indexOf("export async function requestOtp("),
+    backendSource.indexOf("export async function verifyOtp(")
+  );
+  const browserGuard = requestOtpSource.indexOf("if (!isValidPublicPhone(normalizedPhone))");
+  const browserInvoke = requestOtpSource.indexOf('supabase.functions.invoke<');
+  assert.ok(browserGuard >= 0);
+  assert.ok(browserGuard < browserInvoke);
+  assert.match(backendSource, /function isValidPublicPhone[\s\S]*\^\[0-9\]\{8,15\}\$/);
+
+  const edgeGuard = otpFunctionSource.indexOf("if (!isValidPublicPhone(phone))");
+  assert.ok(edgeGuard >= 0);
+  for (const sideEffect of [
+    "const admin = createAdminClient()",
+    "const phoneHash = await sha256Hex",
+    "const code = createOtpCode()",
+    "await sendWithProvider"
+  ]) {
+    assert.ok(edgeGuard < otpFunctionSource.indexOf(sideEffect), `${sideEffect} must follow phone validation`);
+  }
+  assert.ok(edgeGuard < otpFunctionSource.indexOf(".insert({"), "OTP challenge insert must follow phone validation");
+  assert.match(otpFunctionSource, /code:\s*"invalid_phone"/);
+  assert.match(atomicMigrationSource, /\^\[0-9\]\{8,15\}\$/);
+});
+
+test("K2. Preview and Production cannot receive a development OTP", () => {
+  const requestOtpSource = backendSource.slice(
+    backendSource.indexOf("export async function requestOtp("),
+    backendSource.indexOf("export async function verifyOtp(")
+  );
+  assert.doesNotMatch(otpFunctionSource, /\botp:\s*code\b/);
+  assert.doesNotMatch(requestOtpSource, /developmentOtp:\s*data\.otp/);
+  assert.match(backendSource, /if \(!import\.meta\.env\.DEV\)[\s\S]*Verification service is temporarily unavailable/);
+  assert.match(appSource, /const developmentOtp = import\.meta\.env\.DEV \? result\.developmentOtp : undefined/);
 });
 
 test("L. signing recovery stays in the tab and never restores OTP proof", () => {

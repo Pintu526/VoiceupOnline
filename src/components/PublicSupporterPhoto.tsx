@@ -124,9 +124,9 @@ export function PublicSupporterPhoto({
       await onUpload(prepared);
       setProgress(100);
       setMessage(copy.uploaded);
-    } catch (error) {
+    } catch {
       setProgress(0);
-      setMessage(error instanceof Error ? error.message : copy.uploadFailed);
+      setMessage(copy.uploadFailed);
     } finally {
       setUploading(false);
     }

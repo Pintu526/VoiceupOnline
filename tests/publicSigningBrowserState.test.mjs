@@ -208,3 +208,42 @@ test("App integrates required reset codes and backend unwrap without exposing re
   assert.match(backendSource, /readPublicSigningBackendError\(contextualResponse\)/);
   assert.doesNotMatch(appSource, /error\.(details|hint)/);
 });
+
+test("unknown backend, Postgres, Supabase, and Storage errors use supporter-safe fallbacks", () => {
+  const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const backendSource = readFileSync(new URL("../src/backend.ts", import.meta.url), "utf8");
+  const otpSource = readFileSync(
+    new URL("../supabase/functions/voiceup-otp/index.ts", import.meta.url),
+    "utf8"
+  );
+  const photoSource = readFileSync(
+    new URL("../src/components/PublicSupporterPhoto.tsx", import.meta.url),
+    "utf8"
+  );
+
+  const requestOtpSource = backendSource.slice(
+    backendSource.indexOf("export async function requestOtp("),
+    backendSource.indexOf("export async function createTrialWorkspace(")
+  );
+  const photoUploadSource = backendSource.slice(
+    backendSource.indexOf("export async function uploadPublicSupporterPhoto("),
+    backendSource.indexOf("export class PublicSignatureSubmissionError")
+  );
+  const publicHandlersSource = appSource.slice(
+    appSource.indexOf("async function submitPublicSignature("),
+    appSource.indexOf("async function uploadScan(")
+  );
+
+  assert.match(backendSource, /function trustedPublicError/);
+  assert.match(backendSource, /\^\[a-z\]\[a-z0-9_\]\{1,63\}\$/);
+  assert.doesNotMatch(requestOtpSource, /error\?\.message/);
+  assert.doesNotMatch(photoUploadSource, /(prepareError|uploadError|attachError)\??\.message/);
+  assert.doesNotMatch(backendSource, /invokeError\.message/);
+  assert.doesNotMatch(publicHandlersSource, /error instanceof Error\s*\?\s*error\.message/);
+  assert.match(appSource, /isPublicCampaignRoute\s*\?\s*"Campaign could not be loaded\. Please retry\."/);
+  assert.doesNotMatch(otpSource, /error instanceof Error\s*\?\s*error\.message/);
+  assert.match(otpSource, /console\.error\("voiceup-otp unexpected failure", error\)/);
+  assert.match(otpSource, /code:\s*"server_error"/);
+  assert.doesNotMatch(photoSource, /setMessage\(error instanceof Error \? error\.message/);
+  assert.match(photoSource, /catch \{[\s\S]*setMessage\(copy\.uploadFailed\)/);
+});

@@ -261,6 +261,18 @@ function normalizePhone(value: string) {
   return String(value || "").replace(/[^\d+]/g, "");
 }
 
+function isValidPublicPhone(value: string) {
+  return /^[0-9]{8,15}$/.test(normalizePhone(value).replace(/\D/g, ""));
+}
+
+function trustedPublicError(
+  error: { message: string; code?: string } | null,
+  fallbackMessage: string
+) {
+  if (error?.code && /^[a-z][a-z0-9_]{1,63}$/.test(error.code)) return error;
+  return { message: fallbackMessage, code: "server_error" };
+}
+
 function hasDuplicateSigner(candidate: unknown, signers: Signer[], campaignId: string) {
   const input = (candidate ?? {}) as Record<string, unknown>;
   const email = String(input.email ?? "").trim().toLowerCase();
@@ -1144,16 +1156,16 @@ export async function requestOtp(
   metadata: Record<string, unknown> = {}
 ): Promise<OtpRequestResult> {
   const normalizedPhone = normalizePhone(phone);
-  if (!normalizedPhone) {
-    throw new Error("Phone and purpose are required.");
+  if (!isValidPublicPhone(normalizedPhone)) {
+    throw new PublicSignatureSubmissionError("Enter a valid phone number.", "invalid_phone");
   }
   if (supabase) {
     const { data, error, response } = await supabase.functions.invoke<{
       challengeId?: string;
       resendAfterSeconds?: number;
       message?: string;
-      otp?: string;
       error?: string;
+      code?: string;
     }>("voiceup-otp", {
       body: {
         action: "send",
@@ -1164,14 +1176,26 @@ export async function requestOtp(
     });
     if (error || data?.error || !data?.challengeId) {
       const safeError = error ? await readPublicSigningBackendError(response) : null;
-      throw new Error(data?.error || safeError?.message || error?.message || "Verification code could not be sent.");
+      const publicError = trustedPublicError(
+        data?.error ? { message: data.error, code: data.code } : safeError,
+        "Verification code could not be sent. Please retry."
+      );
+      throw new PublicSignatureSubmissionError(
+        publicError.message,
+        publicError.code
+      );
     }
     return {
       challengeId: data.challengeId,
       resendAfterSeconds: data.resendAfterSeconds ?? 30,
-      message: data.message ?? "Verification code sent.",
-      developmentOtp: data.otp
+      message: data.message ?? "Verification code sent."
     };
+  }
+  if (!import.meta.env.DEV) {
+    throw new PublicSignatureSubmissionError(
+      "Verification service is temporarily unavailable. Please retry.",
+      "server_error"
+    );
   }
   const challenges = readLocalOtpChallenges().filter((item) => item.expiresAt > Date.now());
   const challengeId = createId("otp");
@@ -1201,12 +1225,16 @@ export async function verifyOtp(
   metadata: Record<string, unknown> = {}
 ): Promise<OtpVerifyResult> {
   const normalizedPhone = normalizePhone(phone);
+  if (!isValidPublicPhone(normalizedPhone)) {
+    throw new PublicSignatureSubmissionError("Enter a valid phone number.", "invalid_phone");
+  }
   if (supabase) {
     const { data, error, response } = await supabase.functions.invoke<{
       verified?: boolean;
       verificationToken?: string;
       message?: string;
       error?: string;
+      code?: string;
     }>("voiceup-otp", {
       body: {
         action: "verify",
@@ -1219,7 +1247,14 @@ export async function verifyOtp(
     });
     if (error || data?.error || !data?.verified || !data.verificationToken) {
       const safeError = error ? await readPublicSigningBackendError(response) : null;
-      throw new Error(data?.error || safeError?.message || error?.message || "Phone verification failed.");
+      const publicError = trustedPublicError(
+        data?.error ? { message: data.error, code: data.code } : safeError,
+        "Phone verification failed. Please retry."
+      );
+      throw new PublicSignatureSubmissionError(
+        publicError.message,
+        publicError.code
+      );
     }
     return {
       verified: true,
@@ -1552,10 +1587,11 @@ export async function uploadPublicSupporterPhoto(input: {
     phone: input.phone,
     otpVerificationToken: input.otpVerificationToken
   };
-  const { data: prepared, error: prepareError } = await client.functions.invoke<{
+  const { data: prepared, error: prepareError, response: prepareResponse } = await client.functions.invoke<{
     path?: string;
     token?: string;
     error?: string;
+    code?: string;
   }>("voiceup-public-signing", {
     body: {
       ...commonBody,
@@ -1566,7 +1602,15 @@ export async function uploadPublicSupporterPhoto(input: {
     }
   });
   if (prepareError || prepared?.error || !prepared?.path || !prepared.token) {
-    throw new Error(prepared?.error || prepareError?.message || "Private photo upload could not be prepared.");
+    const safeError = prepareError ? await readPublicSigningBackendError(prepareResponse) : null;
+    const publicError = trustedPublicError(
+      prepared?.error ? { message: prepared.error, code: prepared.code } : safeError,
+      "Private photo upload could not be prepared."
+    );
+    throw new PublicSignatureSubmissionError(
+      publicError.message,
+      publicError.code
+    );
   }
 
   const { error: uploadError } = await client.storage
@@ -1575,12 +1619,13 @@ export async function uploadPublicSupporterPhoto(input: {
       contentType: input.file.type,
       upsert: false
     });
-  if (uploadError) throw new Error(uploadError.message || "Private photo upload failed.");
+  if (uploadError) throw new Error("Private photo upload failed. Please retry.");
 
-  const { data: attached, error: attachError } = await client.functions.invoke<{
+  const { data: attached, error: attachError, response: attachResponse } = await client.functions.invoke<{
     signer?: Signer;
     message?: string;
     error?: string;
+    code?: string;
   }>("voiceup-public-signing", {
     body: {
       ...commonBody,
@@ -1590,7 +1635,15 @@ export async function uploadPublicSupporterPhoto(input: {
     }
   });
   if (attachError || attached?.error || !attached?.signer) {
-    throw new Error(attached?.error || attachError?.message || "Private photo could not be attached.");
+    const safeError = attachError ? await readPublicSigningBackendError(attachResponse) : null;
+    const publicError = trustedPublicError(
+      attached?.error ? { message: attached.error, code: attached.code } : safeError,
+      "Private photo could not be attached."
+    );
+    throw new PublicSignatureSubmissionError(
+      publicError.message,
+      publicError.code
+    );
   }
   return {
     signer: attached.signer,
@@ -1627,12 +1680,8 @@ export async function readPublicParticipationInvokeError(
         : undefined
     );
   const safeError = await readPublicSigningBackendError(contextualResponse);
-  if (safeError) return new PublicSignatureSubmissionError(safeError.message, safeError.code);
-  const message =
-    invokeError instanceof Error && invokeError.message !== "Edge Function returned a non-2xx status code"
-      ? invokeError.message
-      : "Participation request failed. Please retry.";
-  return new PublicSignatureSubmissionError(message);
+  const publicError = trustedPublicError(safeError, "Participation request failed. Please retry.");
+  return new PublicSignatureSubmissionError(publicError.message, publicError.code);
 }
 
 export async function uploadFileToStorage(bucket: string, path: string, file: File) {

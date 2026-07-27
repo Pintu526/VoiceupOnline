@@ -1108,7 +1108,11 @@ function App() {
           setBackendMessage("Shared campaign database connected (0 campaign(s)).");
         }
       } catch (error) {
-        setBackendMessage(`Shared database error: ${error instanceof Error ? error.message : "Unable to connect"}`);
+        setBackendMessage(
+          isPublicCampaignRoute
+            ? "Campaign could not be loaded. Please retry."
+            : `Shared database error: ${error instanceof Error ? error.message : "Unable to connect"}`
+        );
       } finally {
         if (!isCancelled) {
           setRemoteStateLoaded(true);
@@ -1937,9 +1941,7 @@ function App() {
         setPublicMessage(
           error instanceof PublicSignatureSubmissionError
             ? formatPublicSigningBackendError(error)
-            : error instanceof Error
-              ? error.message
-              : "Signature submission failed. Please retry."
+            : "Signature submission failed. Please retry."
         );
       }
       return;
@@ -2037,8 +2039,9 @@ function App() {
         slug: publicParticipationSlug,
         campaignId: activeCampaign?.id ?? ""
       });
+      const developmentOtp = import.meta.env.DEV ? result.developmentOtp : undefined;
       setPublicOtpExpiresAt(Date.now() + 10 * 60 * 1000);
-      setOtpCode(result.developmentOtp ?? "");
+      setOtpCode(developmentOtp ?? "");
       setPublicForm((current) => current.phone.trim() === phone
         ? {
             ...current,
@@ -2049,14 +2052,18 @@ function App() {
         : current
       );
       setOtpMessage(
-        result.developmentOtp
-          ? `${result.message} OTP: ${result.developmentOtp}`
+        developmentOtp
+          ? `${result.message} OTP: ${developmentOtp}`
           : result.message
       );
     } catch (error) {
       setPublicForm((current) => clearPublicSigningOtpState(current));
       setPublicOtpExpiresAt(0);
-      setOtpMessage(error instanceof Error ? error.message : "Verification code could not be sent.");
+      setOtpMessage(
+        error instanceof PublicSignatureSubmissionError
+          ? formatPublicSigningBackendError(error)
+          : "Verification code could not be sent. Please retry."
+      );
     }
   }
 
@@ -2131,7 +2138,10 @@ function App() {
         }
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Phone verification failed.";
+      const message =
+        error instanceof PublicSignatureSubmissionError
+          ? formatPublicSigningBackendError(error)
+          : "Phone verification failed. Please retry.";
       if (
         /expir|challenge not found/i.test(message) ||
         (
@@ -2146,11 +2156,7 @@ function App() {
         setPublicOtpExpiresAt(0);
         setLastPublicOtpVerificationToken("");
       }
-      setOtpMessage(
-        error instanceof PublicSignatureSubmissionError
-          ? formatPublicSigningBackendError(error)
-          : message
-      );
+      setOtpMessage(message);
     }
   }
 
@@ -2204,9 +2210,7 @@ function App() {
       setPublicMessage(
         error instanceof PublicSignatureSubmissionError
           ? formatPublicSigningBackendError(error)
-          : error instanceof Error
-            ? error.message
-            : "Verified draft could not be saved."
+          : "Verified draft could not be saved."
       );
     }
   }
@@ -2247,9 +2251,7 @@ function App() {
       setPublicMessage(
         error instanceof PublicSignatureSubmissionError
           ? formatPublicSigningBackendError(error)
-          : error instanceof Error
-            ? error.message
-            : "Communication preference could not be saved."
+          : "Communication preference could not be saved."
       );
     }
   }
@@ -2290,7 +2292,11 @@ function App() {
       if (application.signer) setLastSignedSigner(application.signer);
       setPublicMessage(application.message);
     } catch (error) {
-      setPublicMessage(error instanceof Error ? error.message : "Coordinator application could not be submitted.");
+      setPublicMessage(
+        error instanceof PublicSignatureSubmissionError
+          ? formatPublicSigningBackendError(error)
+          : "Coordinator application could not be submitted."
+      );
     }
   }
 

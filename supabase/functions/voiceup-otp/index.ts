@@ -23,6 +23,10 @@
     return String(100000 + (value % 900000));
   }
 
+  function isValidPublicPhone(phone: string) {
+    return /^[0-9]{8,15}$/.test(phone);
+  }
+
   async function sendWithProvider(phone: string, code: string, purpose: string) {
     const webhookUrl = Deno.env.get("VOICEUP_OTP_WEBHOOK_URL");
     const webhookToken = Deno.env.get("VOICEUP_OTP_WEBHOOK_TOKEN");
@@ -51,14 +55,21 @@
       const action = String(body?.action ?? "");
       const purpose = String(body?.purpose ?? "");
       const phone = normalizePhone(String(body?.phone ?? ""));
-      if (!phone || !purpose) return jsonResponse({ error: "Phone and purpose are required." }, 400);
+      if (!purpose) {
+        return jsonResponse({ error: "Phone and purpose are required.", code: "invalid_request" }, 400);
+      }
+      if (!isValidPublicPhone(phone)) {
+        return jsonResponse({ error: "Enter a valid phone number.", code: "invalid_phone" }, 400);
+      }
 
       const admin = createAdminClient();
       let workspaceId = String(body?.workspaceId ?? "default");
       const metadata = body?.metadata ?? {};
       if (purpose === "coordinator-mobile") {
         const caller = await getUser(req);
-        if (!caller) return jsonResponse({ error: "A valid Supabase session is required." }, 401);
+        if (!caller) {
+          return jsonResponse({ error: "A valid Supabase session is required.", code: "unauthorized" }, 401);
+        }
         const [platformAdmin, membershipResult] = await Promise.all([
           isPlatformAdmin(admin, caller.id),
           admin
@@ -72,14 +83,20 @@
         if (membershipResult.error) throw membershipResult.error;
         const workspaceRole = membershipResult.data?.role ?? "";
         if (!platformAdmin && !["platform_owner", "workspace_admin", "campaign_admin"].includes(workspaceRole)) {
-          return jsonResponse({ error: "Coordinator mobile verification is not authorized." }, 403);
+          return jsonResponse({
+            error: "Coordinator mobile verification is not authorized.",
+            code: "unauthorized"
+          }, 403);
         }
       }
       const publicSlug = typeof metadata?.slug === "string" ? metadata.slug : "";
       if (purpose === "public-signing") {
         const resolved = await fetchCanonicalPublishedCampaignBySlug(admin, publicSlug);
         if (!resolved.ok) {
-          return jsonResponse({ error: "Campaign is not available for verification." }, 404);
+          return jsonResponse({
+            error: "Campaign is not available for verification.",
+            code: "campaign_unavailable"
+          }, 404);
         }
         workspaceId = resolved.row.workspace_id;
       }
@@ -96,7 +113,10 @@
           .gte("created_at", windowStart);
 
         if ((recentChallenges?.length ?? 0) >= OTP_MAX_SENDS) {
-          return jsonResponse({ error: "Too many OTP requests. Try again later." }, 429);
+          return jsonResponse({
+            error: "Too many OTP requests. Try again later.",
+            code: "otp_rate_limited"
+          }, 429);
         }
 
         const code = createOtpCode();
@@ -123,15 +143,6 @@
           .single();
         if (error) throw error;
 
-        if (DEV_MODE) {
-          return jsonResponse({
-            challengeId: data.id,
-            otp: code,
-            resendAfterSeconds: 30,
-            message: "Development OTP generated."
-          });
-        }
-
         return jsonResponse({
           challengeId: data.id,
           resendAfterSeconds: 30,
@@ -142,7 +153,12 @@
       if (action === "verify") {
         const challengeId = String(body?.challengeId ?? "");
         const code = String(body?.code ?? "").trim();
-        if (!challengeId || !code) return jsonResponse({ error: "Challenge and code are required." }, 400);
+        if (!challengeId || !code) {
+          return jsonResponse({
+            error: "Challenge and code are required.",
+            code: "invalid_request"
+          }, 400);
+        }
 
         const { data: challenge, error } = await admin
           .from("voiceup_otp_challenges")
@@ -153,13 +169,23 @@
           .eq("purpose", purpose)
           .maybeSingle();
         if (error) throw error;
-        if (!challenge) return jsonResponse({ error: "OTP challenge not found." }, 404);
-        if (challenge.verified_at) return jsonResponse({ error: "OTP already used. Request a new code." }, 409);
+        if (!challenge) {
+          return jsonResponse({ error: "OTP challenge not found.", code: "otp_challenge_not_found" }, 404);
+        }
+        if (challenge.verified_at) {
+          return jsonResponse({
+            error: "OTP already used. Request a new code.",
+            code: "otp_already_used"
+          }, 409);
+        }
         if (new Date(challenge.expires_at).getTime() <= Date.now()) {
-          return jsonResponse({ error: "OTP expired. Request a new code." }, 410);
+          return jsonResponse({ error: "OTP expired. Request a new code.", code: "otp_expired" }, 410);
         }
         if (challenge.attempt_count >= OTP_MAX_ATTEMPTS) {
-          return jsonResponse({ error: "Too many incorrect attempts. Request a fresh OTP." }, 429);
+          return jsonResponse({
+            error: "Too many incorrect attempts. Request a fresh OTP.",
+            code: "otp_attempts_exceeded"
+          }, 429);
         }
 
         const expectedHash = await sha256Hex(`${workspaceId}:${phone}:${code}`);
@@ -168,7 +194,7 @@
             .from("voiceup_otp_challenges")
             .update({ attempt_count: challenge.attempt_count + 1 })
             .eq("id", challenge.id);
-          return jsonResponse({ error: "Invalid OTP." }, 401);
+          return jsonResponse({ error: "Invalid OTP.", code: "invalid_otp" }, 401);
         }
 
         const verificationToken = createSecureToken("otpv");
@@ -193,8 +219,12 @@
         });
       }
 
-      return jsonResponse({ error: "Unsupported OTP action." }, 400);
+      return jsonResponse({ error: "Unsupported OTP action.", code: "unsupported_action" }, 400);
     } catch (error) {
-      return jsonResponse({ error: error instanceof Error ? error.message : "OTP request failed." }, 500);
+      console.error("voiceup-otp unexpected failure", error);
+      return jsonResponse({
+        error: "Verification service is temporarily unavailable. Please retry.",
+        code: "server_error"
+      }, 500);
     }
   });

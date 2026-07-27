@@ -409,6 +409,24 @@ test("O1e. lazy image loading is opt-in only for the below-fold public carousel"
   assert.doesNotMatch(publicPageSource, /slideIds=\{[^}]*volunteerUpdates/);
 });
 
+test("O1f. successful support preserves its accepted OTP proof for the coordinator action", () => {
+  const submitStart = appSource.indexOf("async function submitPublicSignature(");
+  const submitEnd = appSource.indexOf("\n  async function sendOtp()", submitStart);
+  const submitSource = appSource.slice(submitStart, submitEnd);
+  const coordinatorStart = appSource.indexOf("async function submitPublicCoordinatorApplication()");
+  const coordinatorEnd = appSource.indexOf("\n  async function uploadLastSupporterPhoto", coordinatorStart);
+  const coordinatorSource = appSource.slice(coordinatorStart, coordinatorEnd);
+  const remoteSuccessStart = submitSource.indexOf("const result = await submitPublicSignatureSecure");
+  const remoteSuccessEnd = submitSource.indexOf("if (result.signer.status", remoteSuccessStart);
+  const remoteSuccessSource = submitSource.slice(remoteSuccessStart, remoteSuccessEnd);
+
+  assert.match(remoteSuccessSource, /setLastPublicOtpVerificationToken\(signerPayload\.otpVerificationToken\)/);
+  assert.doesNotMatch(remoteSuccessSource, /setLastPublicOtpVerificationToken\(""\)/);
+  assert.match(coordinatorSource, /!lastSignedSigner \|\| !lastPublicOtpVerificationToken/);
+  assert.match(coordinatorSource, /phone:\s*lastSignedSigner\.phone/);
+  assert.match(coordinatorSource, /otpVerificationToken:\s*lastPublicOtpVerificationToken/);
+});
+
 test("O2. language selection synchronizes the document language", () => {
   assert.match(i18nProviderSource, /document\.documentElement\.lang = language/);
   assert.match(i18nProviderSource, /\[language\]/);

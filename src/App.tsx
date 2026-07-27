@@ -1906,7 +1906,7 @@ function App() {
         setOtpInput("");
         setOtpMessage("");
         setPublicOtpExpiresAt(0);
-        setLastPublicOtpVerificationToken("");
+        setLastPublicOtpVerificationToken(signerPayload.otpVerificationToken);
         setLastSignedSigner(result.signer);
         if (result.signer.status !== "duplicate") {
           recordGrowthLifecycle(

@@ -16,7 +16,6 @@ import {
   Share2,
   ShieldCheck,
   Smartphone,
-  Sparkles,
   UserRound,
   Users
 } from "lucide-react";
@@ -548,8 +547,6 @@ export function PublicCampaignPage({
   setPublicForm,
   publicMessage,
   lastSignedSigner,
-  growthSnapshot,
-  growthPortal,
   otpInput,
   setOtpInput,
   otpMessage,
@@ -584,8 +581,6 @@ export function PublicCampaignPage({
     ...getLockedLocationValues(campaign, signerRestrictionLevel)
   };
   const lockedLocationParts = formatLocationForCampaign(campaign, lockedLocation).split(", ").filter(Boolean);
-  const participationLabel = isGlobalMode ? `${locationLabels.district} ${t("public.participation")}` : t("public.districtParticipation");
-  const locationParticipation = campaign.district || restrictedPublicForm.district || t("public.notCapturedYet");
   const requiredFields = campaign.requiredFields ?? [];
   const copy = publicSigningCopy[language];
   const experienceCopy = publicExperienceCopy[language];
@@ -633,8 +628,6 @@ export function PublicCampaignPage({
     organization,
     signer: lastSignedSigner,
     referralLink: personalReferralUrl,
-    walletCredits: growthPortal?.wallet.balance.walletCredits ?? growthSnapshot?.lifetimeGrowth,
-    recognitionLevel: growthSnapshot?.currentRecognitionLevelName ?? growthPortal?.tree.currentRecognition,
     campaignProgress: metrics.progress,
     supporterCount: metrics.total,
     verifiedSupporters: metrics.verified
@@ -700,26 +693,21 @@ export function PublicCampaignPage({
     {
       icon: <CalendarDays size={20} />,
       title: t("public.story.window"),
-      body: `${campaign.startDate || t("public.openNow")} ${t("public.to")} ${campaign.endDate || t("public.goalReached")}`
+      body: [campaign.startDate, campaign.endDate].filter(Boolean).join(` ${t("public.to")} `)
     }
-  ];
-  const testimonialCards = [
-    t("public.trust.signature"),
-    t("public.trust.structure"),
-    t("public.trust.sharing")
-  ];
-  const updateCards = [
-    t("public.updates.verified").replace("{count}", metrics.verified.toLocaleString()),
-    t("public.updates.progress").replace("{progress}", String(metrics.progress)),
-    `${t("public.petitionPreparedFor")} ${resolvedAuthority.name}.`
-  ];
+  ].filter((item) => item.body.trim());
   const shareText = `${shareMessages.social}\n${personalReferralUrl}`;
+  const whatsappText = shareMessages.whatsapp.includes(personalReferralUrl)
+    ? shareMessages.whatsapp
+    : `${shareMessages.whatsapp || shareMessages.social}\n${personalReferralUrl}`;
   const shareLinks = {
-    whatsapp: `https://wa.me/?text=${encodeURIComponent(shareMessages.whatsapp || shareText)}`,
+    whatsapp: `https://wa.me/?text=${encodeURIComponent(whatsappText || shareText)}`,
     telegram: `https://t.me/share/url?url=${encodeURIComponent(personalReferralUrl)}&text=${encodeURIComponent(shareMessages.social)}`,
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(personalReferralUrl)}`,
     email: `mailto:?subject=${encodeURIComponent(shareMessages.emailSubject)}&body=${encodeURIComponent(shareMessages.emailBody)}`
   };
+  const nativeShareSupported =
+    typeof navigator !== "undefined" && typeof navigator.share === "function";
   const locationFields = isGlobalMode ? (
     <GlobalLocationFields
       idPrefix="public-signer-location"
@@ -922,20 +910,17 @@ export function PublicCampaignPage({
   }
 
   async function shareNatively() {
-    trackShareClick("native");
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: campaign.title,
-          text: shareMessages.social,
-          url: personalReferralUrl
-        });
-        return;
-      } catch {
-        // User cancelled or native share failed; keep the copied fallback available.
-      }
+    if (!navigator.share) return;
+    try {
+      await navigator.share({
+        title: campaign.title,
+        text: shareMessages.social,
+        url: personalReferralUrl
+      });
+      trackShareClick("native");
+    } catch {
+      // Cancellation and browser share failures are intentionally not recorded.
     }
-    await copyReferralText(t("public.referralLink"), personalReferralUrl);
   }
 
   return (
@@ -964,9 +949,11 @@ export function PublicCampaignPage({
                 <a className="primary-button" href="#public-sign-form">
                   {t("public.signInMinutes")} <ArrowRight size={18} />
                 </a>
-                <button className="secondary-button" type="button" onClick={shareNatively}>
-                  <Share2 size={18} /> {t("public.shareCampaign")}
-                </button>
+                {nativeShareSupported && (
+                  <button className="secondary-button" type="button" onClick={shareNatively}>
+                    <Share2 size={18} /> {t("public.shareCampaign")}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -995,11 +982,6 @@ export function PublicCampaignPage({
                 <span>{t("public.verifiedSupporters")}</span>
                 <strong>{metrics.verified.toLocaleString()}</strong>
               </div>
-              <div>
-                <MapPin size={18} />
-                <span>{participationLabel}</span>
-                <strong>{locationParticipation}</strong>
-              </div>
             </div>
 
             <div className="public-trust-strip" aria-label={t("public.trustIndicators")}>
@@ -1013,34 +995,40 @@ export function PublicCampaignPage({
         <VoiceUpStoryCarousel
           experience="publicCampaign"
           className="voiceup-story-carousel--compact"
+          slideIds={["objective", "evidence", "progress", "afterSigning", "share"]}
           mediaBySlide={campaign.heroImage ? { objective: { imageUrl: campaign.heroImage } } : undefined}
+          lazyLoadImages
         />
 
-        <section className="public-section public-share-panel" aria-labelledby="share-campaign-heading">
-          <div className="public-section-heading">
-            <span className="eyebrow">{t("public.shareThisCampaign")}</span>
-            <h2 id="share-campaign-heading">{t("public.shareImpact")}</h2>
-          </div>
-          <div className="share-panel-grid">
-            <div className="share-qr-card">
-              <ReferralQrPreview value={personalReferralUrl} label={t("public.campaignQr")} caption={campaign.qrLabel} compact />
-              <code>{personalReferralUrl}</code>
-              {copiedReferral && <span className="inline-copy-state">{copiedReferral}</span>}
+        {!hasSignedCampaign && (
+          <section className="public-section public-share-panel" aria-labelledby="share-campaign-heading">
+            <div className="public-section-heading">
+              <span className="eyebrow">{t("public.shareThisCampaign")}</span>
+              <h2 id="share-campaign-heading">{t("public.shareImpact")}</h2>
             </div>
-            <div className="share-actions-grid">
-              <button className="secondary-button" type="button" onClick={() => copyReferralText(t("public.campaignLink"), personalReferralUrl, "copy")}>
-                <Copy size={16} /> {t("public.copyLink")}
-              </button>
-              <button className="secondary-button" type="button" onClick={shareNatively}>
-                <Share2 size={16} /> {t("public.share")}
-              </button>
-              <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>WhatsApp</a>
-              <a className="secondary-link-button" href={shareLinks.telegram} target="_blank" rel="noreferrer" onClick={() => trackShareClick("telegram")}>Telegram</a>
-              <a className="secondary-link-button" href={shareLinks.facebook} target="_blank" rel="noreferrer" onClick={() => trackShareClick("facebook")}>Facebook</a>
-              <a className="secondary-link-button" href={shareLinks.email} onClick={() => trackShareClick("email")}><Mail size={16} /> {t("public.email")}</a>
+            <div className="share-panel-grid">
+              <div className="share-qr-card">
+                <ReferralQrPreview value={personalReferralUrl} label={t("public.campaignQr")} caption={campaign.qrLabel} compact />
+                <code>{personalReferralUrl}</code>
+                {copiedReferral && <span className="inline-copy-state">{copiedReferral}</span>}
+              </div>
+              <div className="share-actions-grid">
+                <button className="secondary-button" type="button" onClick={() => copyReferralText(t("public.campaignLink"), personalReferralUrl, "copy")}>
+                  <Copy size={16} /> {t("public.copyLink")}
+                </button>
+                {nativeShareSupported && (
+                  <button className="secondary-button" type="button" onClick={shareNatively}>
+                    <Share2 size={16} /> {t("public.share")}
+                  </button>
+                )}
+                <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>WhatsApp</a>
+                <a className="secondary-link-button" href={shareLinks.telegram} target="_blank" rel="noreferrer" onClick={() => trackShareClick("telegram")}>Telegram</a>
+                <a className="secondary-link-button" href={shareLinks.facebook} target="_blank" rel="noreferrer" onClick={() => trackShareClick("facebook")}>Facebook</a>
+                <a className="secondary-link-button" href={shareLinks.email} onClick={() => trackShareClick("email")}><Mail size={16} /> {t("public.email")}</a>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         <section className="public-section" aria-labelledby="authority-heading">
           <div className="public-section-heading">
@@ -1075,31 +1063,6 @@ export function PublicCampaignPage({
           </div>
         </section>
 
-        <section className="public-section public-updates-grid" aria-labelledby="updates-heading">
-          <div>
-            <div className="public-section-heading">
-              <span className="eyebrow">{t("public.updatesTitle")}</span>
-              <h2 id="updates-heading">{t("public.updatesHelp")}</h2>
-            </div>
-            <div className="update-stack">
-              {updateCards.map((item) => (
-                <div key={item}><Sparkles size={16} /> {item}</div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="public-section-heading">
-              <span className="eyebrow">{t("public.supporterTrust")}</span>
-              <h2>{t("public.supporterTrustHelp")}</h2>
-            </div>
-            <div className="testimonial-grid">
-              {testimonialCards.map((item) => (
-                <blockquote key={item}>{item}</blockquote>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <section className="public-section" aria-labelledby="faq-heading">
           <div className="public-section-heading">
             <span className="eyebrow">{t("public.faq")}</span>
@@ -1121,26 +1084,6 @@ export function PublicCampaignPage({
           </div>
         </section>
 
-        <section className="public-section" aria-labelledby="related-heading">
-          <div className="public-section-heading">
-            <span className="eyebrow">{t("public.relatedCampaigns")}</span>
-            <h2 id="related-heading">{t("public.moreWaysToSupport")}</h2>
-          </div>
-          <div className="related-campaigns-grid">
-            <a href={publicUrl}>
-              <span>{campaign.category}</span>
-              <strong>{campaign.title}</strong>
-              <p>{formatLocationForCampaign(campaign, campaign)}</p>
-            </a>
-            <a href={publicUrl}>
-              <span>{organization?.name || "VoiceUp"}</span>
-              <strong>{t("public.shareWithNetwork")}</strong>
-              <p>{t("public.nextMilestoneHelp")}</p>
-            </a>
-          </div>
-        </section>
-
-        {campaign.donationEnabled && <DonationCard campaign={campaign} compact />}
         {campaign.campaignVideoUrl && (
           <a className="video-link" href={campaign.campaignVideoUrl} target="_blank" rel="noreferrer">
             {t("public.watchCampaignVideo")}
@@ -1177,7 +1120,9 @@ export function PublicCampaignPage({
             <div className="verified-actions">
               <button className="secondary-button" type="button" onClick={() => setWizardStep("profile")}>{t("public.continue")}</button>
               <button className="secondary-button" type="button" onClick={() => setWizardStep("review")}>{copy.viewSignature}</button>
-              <button className="secondary-button" type="button" onClick={shareNatively}>{t("public.share")}</button>
+              {nativeShareSupported && (
+                <button className="secondary-button" type="button" onClick={shareNatively}>{t("public.share")}</button>
+              )}
               <button className="secondary-button" type="button" onClick={() => copyReferralText(t("public.campaignLink"), personalReferralUrl, "copy")}>{copy.referFriends}</button>
             </div>
           </div>
@@ -1487,26 +1432,30 @@ export function PublicCampaignPage({
                 <span><LockKeyhole size={18} /> {copy.storedSecurely}</span>
                 <span><CheckCircle2 size={18} /> {copy.routedAuthority}</span>
               </div>
-              <label className="check-row">
-                <input required type="checkbox" name="supportAppealConsent" /> {copy.supportCheckbox}
-              </label>
-              <label className="check-row">
-                <input required type="checkbox" name="campaignConsent" /> {campaign.consentText}
-              </label>
-              <label className="check-row">
-                <input
-                  type="checkbox"
-                  name="campaignCommunicationConsent"
-                  checked={communicationConsent}
-                  onChange={(event) => {
-                    const granted = event.target.checked;
-                    setCommunicationConsent(granted);
-                    void onCommunicationConsentChange?.(granted);
-                  }}
-                />
-                Keep me informed about this campaign. This optional communication consent can be withdrawn.
-              </label>
-              {campaign.donationEnabled && <DonationCard campaign={campaign} />}
+              <fieldset className="public-consent-group">
+                <legend>{t("public.consentChoices")}</legend>
+                <label className="check-row">
+                  <input required type="checkbox" name="supportAppealConsent" />
+                  <span><strong>{t("public.required")}</strong>{copy.supportCheckbox}</span>
+                </label>
+                <label className="check-row">
+                  <input required type="checkbox" name="campaignConsent" />
+                  <span><strong>{t("public.required")}</strong>{campaign.consentText}</span>
+                </label>
+                <label className="check-row">
+                  <input
+                    type="checkbox"
+                    name="campaignCommunicationConsent"
+                    checked={communicationConsent}
+                    onChange={(event) => {
+                      const granted = event.target.checked;
+                      setCommunicationConsent(granted);
+                      void onCommunicationConsentChange?.(granted);
+                    }}
+                  />
+                  <span><strong>{t("public.optional")}</strong>{t("public.communicationConsentHelp")}</span>
+                </label>
+              </fieldset>
               <div className="wizard-actions">
                 <button className="secondary-button" type="button" onClick={() => setWizardStep(detailsRequired || hasOptionalDetails ? "address" : "profile")}>{t("public.back")}</button>
                 <button className="primary-button" type="submit" disabled={submitting} aria-busy={submitting}>
@@ -1521,44 +1470,49 @@ export function PublicCampaignPage({
               <CheckCircle2 size={28} />
               <h3>{t("public.thankYou")}</h3>
               <p>{copy.doneBody}</p>
-              <ReferralQrPreview
-                value={personalReferralUrl}
-                label={t("public.campaignQr")}
-                caption={campaign.qrLabel}
-                compact
-              />
-              <div className="public-post-sign-actions" aria-label={t("public.shareThisCampaign")}>
-                <a
-                  className="secondary-link-button"
-                  href={shareLinks.whatsapp}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => trackShareClick("whatsapp")}
-                >
-                  <MessageCircle size={18} /> WhatsApp
-                </a>
-                <button className="secondary-button" type="button" onClick={shareNatively}>
-                  <Share2 size={18} /> {t("referrals.dashboard.nativeShare")}
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => void copyReferralText(t("public.referralLink"), personalReferralUrl, "copy")}
-                >
-                  <Copy size={18} /> {t("public.copyLink")}
-                </button>
-                <button className="secondary-button" type="button" onClick={downloadActQr}>
-                  <QrCode size={18} /> {t("public.campaignQr")}
-                </button>
-                <button
-                  className="secondary-button"
-                  type="button"
-                  onClick={() => setPostSignPanel((current) => current === "coordinator" ? "none" : "coordinator")}
-                >
-                  <Users size={18} /> {experienceCopy.becomeCoordinator}
-                </button>
-              </div>
-              {copiedReferral && <span className="public-share-status" role="status">{copiedReferral}</span>}
+              <section className="public-post-sign-sharing" aria-label={t("public.shareThisCampaign")}>
+                <ReferralQrPreview
+                  value={personalReferralUrl}
+                  label={t("public.campaignQr")}
+                  caption={campaign.qrLabel}
+                  compact
+                />
+                <div className="public-post-sign-actions">
+                  <a
+                    className="secondary-link-button"
+                    href={shareLinks.whatsapp}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => trackShareClick("whatsapp")}
+                  >
+                    <MessageCircle size={18} /> WhatsApp
+                  </a>
+                  {nativeShareSupported && (
+                    <button className="secondary-button" type="button" onClick={shareNatively}>
+                      <Share2 size={18} /> {t("referrals.dashboard.nativeShare")}
+                    </button>
+                  )}
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={() => void copyReferralText(t("public.referralLink"), personalReferralUrl, "copy")}
+                  >
+                    <Copy size={18} /> {t("public.copyLink")}
+                  </button>
+                  <button className="secondary-button" type="button" onClick={downloadActQr}>
+                    <QrCode size={18} /> {t("public.campaignQr")}
+                  </button>
+                </div>
+                {copiedReferral && <span className="public-share-status" role="status">{copiedReferral}</span>}
+              </section>
+
+              <button
+                className="secondary-button public-coordinator-action"
+                type="button"
+                onClick={() => setPostSignPanel((current) => current === "coordinator" ? "none" : "coordinator")}
+              >
+                <Users size={18} /> {experienceCopy.becomeCoordinator}
+              </button>
 
               {postSignPanel === "coordinator" && (
                 <div className="public-coordinator-handoff">
@@ -1601,6 +1555,7 @@ export function PublicCampaignPage({
                   </div>
                 </div>
               )}
+              {campaign.donationEnabled && <DonationCard campaign={campaign} compact />}
             </div>
           )}
 
@@ -1618,9 +1573,11 @@ export function PublicCampaignPage({
           <div className="public-sign-share-tools" aria-label={t("public.shareThisCampaign")}>
             <ReferralQrPreview value={personalReferralUrl} label={t("public.campaignQr")} caption={campaign.qrLabel} compact />
             <div>
-              <button className="secondary-button" type="button" onClick={shareNatively}>
-                <Share2 size={17} /> {t("public.share")}
-              </button>
+              {nativeShareSupported && (
+                <button className="secondary-button" type="button" onClick={shareNatively}>
+                  <Share2 size={17} /> {t("public.share")}
+                </button>
+              )}
               <a className="secondary-link-button" href={shareLinks.whatsapp} target="_blank" rel="noreferrer" onClick={() => trackShareClick("whatsapp")}>
                 WhatsApp
               </a>

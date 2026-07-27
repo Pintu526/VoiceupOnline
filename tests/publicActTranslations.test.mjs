@@ -63,6 +63,29 @@ test("Act translations never render raw keys and keep EN, HI, and OR parity", ()
   }
 });
 
+test("public campaign translations keep exact EN, HI, and OR parity", () => {
+  for (const section of ["public", "storyCarousel.publicCampaign"]) {
+    const sectionFor = (locale) =>
+      section.split(".").reduce((current, segment) => current[segment], locale);
+    const keysByLanguage = Object.fromEntries(
+      Object.entries(localeByLanguage).map(([language, locale]) => [
+        language,
+        flattenStringKeys(sectionFor(locale), section).sort()
+      ])
+    );
+
+    assert.deepEqual(keysByLanguage.hi, keysByLanguage.en);
+    assert.deepEqual(keysByLanguage.or, keysByLanguage.en);
+    for (const language of ["en", "hi", "or"]) {
+      for (const key of keysByLanguage.en) {
+        const renderedText = translate(language, key);
+        assert.ok(renderedText.trim().length > 0, `${language} translation is empty for ${key}`);
+        assert.doesNotMatch(renderedText, /^(?:public|storyCarousel)\./);
+      }
+    }
+  }
+});
+
 test("public campaign hides activity panels that require unavailable signer records", () => {
   assert.doesNotMatch(publicCampaignSource, /className="public-section act-home"/);
   assert.doesNotMatch(publicCampaignSource, /className="public-national-progress"/);

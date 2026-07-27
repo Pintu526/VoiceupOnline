@@ -130,9 +130,9 @@
           "narration": "Start with the campaign objective. Read the organizer's published description to understand the requested change, affected community, and intended public outcome."
         },
         "evidence": {
-          "title": "Evidence and background",
-          "description": "Review the context the organizer has made available.",
-          "narration": "Consider the published background and any supporting material shown on this page. If evidence is not provided, seek additional context before deciding to participate."
+          "title": "Campaign facts and background",
+          "description": "Review the facts the campaign organizer has published.",
+          "narration": "Review the campaign description and any supporting material published on this page. Treat only that campaign-authored content as campaign facts."
         },
         "progress": {
           "title": "Campaign progress",
@@ -2160,6 +2160,8 @@
     "welcomeBack": "Welcome back",
     "required": "Required",
     "optional": "Optional",
+    "consentChoices": "Consent choices",
+    "communicationConsentHelp": "Keep me informed about this campaign. I can withdraw this permission at any time.",
     "verifiedCampaign": "Verified public campaign",
     "supporterCount": "Supporter count",
     "petitionPreparedFor": "The petition is prepared for",

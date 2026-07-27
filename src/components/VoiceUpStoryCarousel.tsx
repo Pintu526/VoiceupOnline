@@ -83,6 +83,7 @@ interface VoiceUpStoryCarouselProps {
   slideIds?: readonly string[];
   actions?: Partial<Record<string, VoiceUpStoryAction>>;
   mediaBySlide?: Partial<Record<string, VoiceUpStoryMedia>>;
+  lazyLoadImages?: boolean;
   customSlides?: Partial<Record<string, VoiceUpCustomSlide>>;
   customHeader?: VoiceUpCustomHeader;
   landingJourneyActions?: LandingJourneyActions;
@@ -170,11 +171,13 @@ function StoryVisualScene({
   slideKey,
   title,
   media,
+  lazyLoadImages,
   t
 }: {
   slideKey: string;
   title: string;
   media?: VoiceUpStoryMedia;
+  lazyLoadImages: boolean;
   t: (key: string) => string;
 }) {
   if (media?.videoUrl) {
@@ -188,7 +191,12 @@ function StoryVisualScene({
   if (media?.imageUrl) {
     return (
       <div className="voiceup-story-visual voiceup-story-visual--media">
-        <img src={media.imageUrl} alt="" />
+        <img
+          src={media.imageUrl}
+          alt=""
+          loading={lazyLoadImages ? "lazy" : undefined}
+          decoding={lazyLoadImages ? "async" : undefined}
+        />
         <span className="voiceup-story-media-caption">{title}</span>
       </div>
     );
@@ -252,6 +260,7 @@ export function VoiceUpStoryCarousel({
   slideIds,
   actions = {},
   mediaBySlide = {},
+  lazyLoadImages = false,
   customSlides,
   customHeader,
   landingJourneyActions,
@@ -864,7 +873,13 @@ export function VoiceUpStoryCarousel({
             </div>
           )}
         </div>
-        <StoryVisualScene slideKey={slideKey} title={title} media={mediaBySlide[slideKey]} t={t} />
+        <StoryVisualScene
+          slideKey={slideKey}
+          title={title}
+          media={mediaBySlide[slideKey]}
+          lazyLoadImages={lazyLoadImages}
+          t={t}
+        />
       </div>
 
       {narrationUnavailable && guidedActive && (

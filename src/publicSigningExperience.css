@@ -196,8 +196,24 @@
   gap: 9px;
 }
 
-.done-card > .qr-preview {
+.public-post-sign-sharing {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  width: 100%;
+}
+
+.public-post-sign-sharing > .qr-preview {
   margin-inline: auto;
+}
+
+.public-coordinator-action {
+  justify-content: center;
+  min-height: 48px;
+  width: 100%;
 }
 
 .public-post-sign-actions > *,
@@ -223,6 +239,55 @@
 
 .public-supporter-photo {
   width: 100%;
+}
+
+.public-consent-group {
+  border: 0;
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.public-consent-group legend {
+  color: var(--text);
+  font-weight: 850;
+  margin-bottom: 4px;
+}
+
+.public-consent-group .check-row {
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  min-height: 44px;
+  min-width: 0;
+  padding: 10px 12px;
+}
+
+.public-consent-group .check-row input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.public-consent-group .check-row > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.public-consent-group .check-row strong {
+  color: var(--primary);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.public-campaign-modern .public-language-selector .language-switcher,
+.public-campaign-modern .public-language-selector select {
+  min-height: 44px;
 }
 
 .public-photo-editor {

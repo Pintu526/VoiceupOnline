@@ -44,6 +44,14 @@ const i18nProviderSource = readFileSync(
   new URL("../src/i18n/provider.tsx", import.meta.url),
   "utf8"
 );
+const storyCarouselSource = readFileSync(
+  new URL("../src/components/VoiceUpStoryCarousel.tsx", import.meta.url),
+  "utf8"
+);
+const referralUtilsSource = readFileSync(
+  new URL("../src/utils/referrals.ts", import.meta.url),
+  "utf8"
+);
 
 const campaignConsentText = "I consent to this organization storing my details and using them only for this campaign.";
 
@@ -322,6 +330,83 @@ test("O1. post-sign UI is factual, compact, and accessible", () => {
   assert.match(publicPageSource, /className=\{otpMessageIsError \? "error-message" : "info-message"\}/);
   assert.match(publicPageSource, /role=\{publicMessageIsError \? "alert" : "status"\}/);
   assert.doesNotMatch(publicPageSource, /Business OS|बिज़नेस OS/);
+});
+
+test("O1a. native and clipboard shares are recorded only after successful browser completion", () => {
+  const nativeShareStart = publicPageSource.indexOf("async function shareNatively()");
+  const nativeShareEnd = publicPageSource.indexOf("\n  return (", nativeShareStart);
+  const nativeShareSource = publicPageSource.slice(nativeShareStart, nativeShareEnd);
+  const nativeAwait = nativeShareSource.indexOf("await navigator.share({");
+  const nativeTrack = nativeShareSource.indexOf('trackShareClick("native")');
+  const nativeCatch = nativeShareSource.indexOf("} catch {");
+  assert.ok(nativeShareStart >= 0);
+  assert.ok(nativeAwait >= 0);
+  assert.ok(nativeTrack > nativeAwait);
+  assert.ok(nativeCatch > nativeTrack);
+  assert.doesNotMatch(nativeShareSource.slice(nativeCatch), /trackShareClick|copyReferralText/);
+
+  const copyStart = publicPageSource.indexOf("async function copyReferralText(");
+  const copyEnd = publicPageSource.indexOf("\n  function trackShareClick", copyStart);
+  const copySource = publicPageSource.slice(copyStart, copyEnd);
+  const clipboardWrite = copySource.indexOf("await navigator.clipboard.writeText(value)");
+  const clipboardTrack = copySource.indexOf("onGrowthShare?.({ channel, url: value })");
+  const clipboardCatch = copySource.indexOf("} catch {");
+  assert.ok(clipboardWrite >= 0);
+  assert.ok(clipboardTrack > clipboardWrite);
+  assert.ok(clipboardCatch > clipboardTrack);
+  assert.doesNotMatch(copySource.slice(clipboardCatch), /onGrowthShare/);
+});
+
+test("O1b. successful support has exactly one personal-referral sharing surface", () => {
+  const doneStart = publicPageSource.indexOf('{wizardStep === "done" && hasSignedCampaign');
+  const doneEnd = publicPageSource.indexOf("{displayPublicMessage && (", doneStart);
+  const doneSource = publicPageSource.slice(doneStart, doneEnd);
+  assert.equal(
+    (publicPageSource.match(/className="public-post-sign-sharing"/g) ?? []).length,
+    1
+  );
+  assert.match(doneSource, /href=\{shareLinks\.whatsapp\}/);
+  assert.match(doneSource, /value=\{personalReferralUrl\}/);
+  assert.match(doneSource, /copyReferralText\(t\("public\.referralLink"\), personalReferralUrl/);
+  assert.match(doneSource, /onClick=\{downloadActQr\}/);
+  assert.match(doneSource, /nativeShareSupported &&/);
+  assert.match(doneSource, /public-post-sign-sharing[\s\S]*public-coordinator-action/);
+  assert.match(referralUtilsSource, /`\$\{publicUrl\}\?ref=\$\{encodeURIComponent\(normalizedReferral\)\}`/);
+  assert.match(publicPageSource, /const whatsappText = shareMessages\.whatsapp\.includes\(personalReferralUrl\)[\s\S]*personalReferralUrl/);
+  assert.match(publicPageSource, /!hasSignedCampaign && \([\s\S]*className="public-section public-share-panel"/);
+});
+
+test("O1c. public facts do not synthesize related campaigns, updates, testimonials, or growth claims", () => {
+  const doneStart = publicPageSource.indexOf('{wizardStep === "done" && hasSignedCampaign');
+  const doneEnd = publicPageSource.indexOf("{displayPublicMessage && (", doneStart);
+  const beforeDoneSource = publicPageSource.slice(0, doneStart);
+  const doneSource = publicPageSource.slice(doneStart, doneEnd);
+  assert.doesNotMatch(publicPageSource, /related-campaigns-grid|const updateCards|const testimonialCards/);
+  assert.doesNotMatch(publicPageSource, /t\("public\.(?:updatesTitle|supporterTrust|relatedCampaigns)"/);
+  assert.doesNotMatch(beforeDoneSource, /<DonationCard/);
+  assert.match(doneSource, /campaign\.donationEnabled && <DonationCard/);
+  assert.doesNotMatch(doneSource, /wallet|rank|influence|projected|reward|earnings|recognition/i);
+  assert.doesNotMatch(publicPageSource, /walletCredits:|recognitionLevel:/);
+});
+
+test("O1d. consent rows and language controls preserve 44px mobile tap targets", () => {
+  assert.match(publicPageSource, /<fieldset className="public-consent-group">/);
+  assert.equal((publicPageSource.match(/<input required type="checkbox"/g) ?? []).length, 2);
+  assert.match(publicPageSource, /name="campaignCommunicationConsent"/);
+  assert.match(publicPageSource, /t\("public\.communicationConsentHelp"\)/);
+  assert.match(publicSigningCss, /\.public-consent-group \.check-row[\s\S]*min-height:\s*44px/);
+  assert.match(publicSigningCss, /\.public-consent-group \.check-row > span[\s\S]*overflow-wrap:\s*anywhere/);
+  assert.match(publicSigningCss, /\.public-language-selector select[\s\S]*min-height:\s*44px/);
+});
+
+test("O1e. lazy image loading is opt-in only for the below-fold public carousel", () => {
+  assert.match(storyCarouselSource, /lazyLoadImages\?: boolean/);
+  assert.match(storyCarouselSource, /lazyLoadImages = false/);
+  assert.match(storyCarouselSource, /loading=\{lazyLoadImages \? "lazy" : undefined\}/);
+  assert.match(publicPageSource, /<VoiceUpStoryCarousel[\s\S]*lazyLoadImages[\s\S]*\/>/);
+  assert.equal((publicPageSource.match(/\blazyLoadImages\b/g) ?? []).length, 1);
+  assert.match(publicPageSource, /slideIds=\{\["objective", "evidence", "progress", "afterSigning", "share"\]\}/);
+  assert.doesNotMatch(publicPageSource, /slideIds=\{[^}]*volunteerUpdates/);
 });
 
 test("O2. language selection synchronizes the document language", () => {

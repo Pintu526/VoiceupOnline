@@ -582,9 +582,11 @@ export function CampaignsTab({
   function applyTemplate(template: CampaignTemplate) {
     if (!campaignDraft) return;
     const shouldCreateNewDraft = campaignFormMode === "edit";
+    const productionBlueprint = template.productionBlueprint;
+    const templateSlug = productionBlueprint?.campaign.slug || slugifyCampaignTitle(template.campaignTitle);
     const nextSlug = shouldCreateNewDraft
-      ? `${slugifyCampaignTitle(template.campaignTitle)}-${Date.now()}`
-      : campaignDraft.slug;
+      ? `${templateSlug}-${Date.now()}`
+      : productionBlueprint?.campaign.slug || campaignDraft.slug;
     const requiredFields = campaignDraft.requiredFieldsLockedBySaas
       ? campaignDraft.requiredFields
       : Array.from(new Set(template.suggestedSupporterFields)) as SignerRequiredField[];
@@ -599,6 +601,10 @@ export function CampaignsTab({
       category: template.suggestedCategory,
       description: template.summary,
       appealContent: template.detailedDescription,
+      geographyMode: productionBlueprint ? "global" : campaignDraft.geographyMode,
+      campaignScope: productionBlueprint?.geography.scope ?? campaignDraft.campaignScope,
+      country: productionBlueprint?.geography.country ?? campaignDraft.country,
+      location: productionBlueprint?.geography.country ?? campaignDraft.location,
       goal: campaignDraft.goalLockedBySaas ? campaignDraft.goal : template.suggestedTarget,
       endDate: campaignDraft.datesLockedBySaas
         ? campaignDraft.endDate
@@ -608,9 +614,12 @@ export function CampaignsTab({
         "I consent to add my signature to this public petition and allow the campaign team to submit it to the relevant authority.",
       requiredFields,
       socialShareText: template.socialShareText,
-      thankYouMessage: template.whatsappMessage,
-      participantUpdateMessage: template.whatsappMessage,
-      qrLabel: shouldCreateNewDraft ? template.name : campaignDraft.qrLabel || template.name,
+      thankYouMessage: productionBlueprint?.campaign.thankYouMessage ?? template.whatsappMessage,
+      participantUpdateMessage: productionBlueprint?.campaign.participantUpdateMessage ?? template.whatsappMessage,
+      qrLabel: productionBlueprint?.campaign.qrLabel ?? (shouldCreateNewDraft ? template.name : campaignDraft.qrLabel || template.name),
+      heroImage: productionBlueprint?.branding.heroBannerUrl ?? campaignDraft.heroImage,
+      heroImagePosition: productionBlueprint ? "center center" : campaignDraft.heroImagePosition,
+      heroImageZoom: productionBlueprint ? 100 : campaignDraft.heroImageZoom,
       shareUrl: getCampaignPublicUrl(organization, { slug: nextSlug }),
       adminUrl: getCampaignAdminUrl(organization, { slug: nextSlug })
     });

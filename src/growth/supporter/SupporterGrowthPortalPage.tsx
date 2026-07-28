@@ -32,6 +32,8 @@ import {
 } from "./supporterPortalViewService";
 import { SupporterPortalEngagementCard } from "../components/engagement/SupporterPortalEngagementCard";
 import { useTranslation } from "../../i18n/useTranslation";
+import { isGoudhanProductionCampaign } from "../../config/goudhanProduction";
+import { goudhanCampaignBlueprint } from "../../config/goudhanCampaignBlueprint";
 
 const RewardCenter = lazy(() => import("../rewards/components/RewardCenter"));
 
@@ -111,6 +113,7 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
   const displayName = getSupporterDisplayName(portal.supporter);
   const journeyDisplayName = getCampaignJourneyDisplayName(portal.campaign);
   const referralLink = portal.portal.referralLink;
+  const isGoudhanExperience = isGoudhanProductionCampaign(portal.campaign, portal.organization);
   const progress = Math.min(100, Math.max(0, portal.progressPercentage));
   const projected = useMemo(() => {
     const result = simulateSupporterGrowth({
@@ -138,12 +141,15 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
     window.setTimeout(() => setCopied(""), 2200);
   }
 
-  async function shareNative() {
+  async function shareNative(
+    title = portal.campaign.title,
+    text = `Support ${portal.campaign.title} with me on VoiceUp.`
+  ) {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: portal.campaign.title,
-          text: `Support ${portal.campaign.title} with me on VoiceUp.`,
+          title,
+          text,
           url: referralLink
         });
         return;
@@ -152,6 +158,133 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
       }
     }
     await copy(referralLink, t("referrals.linkCopied"));
+  }
+
+  if (isGoudhanExperience) {
+    const location = [
+      portal.supporter.panchayat,
+      portal.supporter.block,
+      portal.supporter.district,
+      portal.supporter.state,
+      portal.supporter.country
+    ].filter(Boolean).join(", ") || t("supporters.common.notAvailable");
+    const isCoordinator =
+      portal.supporter.coordinatorApplication?.status === "Approved";
+    const role = isCoordinator
+      ? t("goudhanCampaign.profileCoordinator")
+      : t("goudhanCampaign.profileSupporter");
+    const joinedDate = portal.supporter.signedAt
+      ? portal.supporter.signedAt.slice(0, 10)
+      : t("supporters.common.notAvailable");
+    const contribution = 1 + portal.impact.signaturesInfluenced;
+    const coordinatorMail = portal.campaign.adminEmail
+      ? `mailto:${portal.campaign.adminEmail}?subject=${encodeURIComponent(
+          t("goudhanCampaign.profileInviteCoordinator")
+        )}&body=${encodeURIComponent(t("goudhanCampaign.profileCoordinatorEmailBody"))}`
+      : "";
+    const shareText = `${t("goudhanCampaign.share")} ${referralLink}`;
+
+    return (
+      <main className="supporter-portal-shell goudhan-supporter-profile">
+        <section className="supporter-portal-hero">
+          <div className="supporter-avatar" aria-label={t("goudhanCampaign.profilePhotoPrivate")}>
+            {firstInitial(displayName)}
+          </div>
+          <div>
+            <img
+              className="goudhan-supporter-logo"
+              src={goudhanCampaignBlueprint.branding.logoUrl}
+              alt={t("goudhanCampaign.brandName")}
+            />
+            <span className="eyebrow">{t("goudhanCampaign.title")}</span>
+            <h1>{displayName}</h1>
+            <div className="supporter-status-row">
+              <span><BadgeCheck size={16} /> {role}</span>
+              <span><CalendarClock size={16} /> {t("goudhanCampaign.profileJoined")} {joinedDate}</span>
+              <span><ShieldCheck size={16} /> {t("supporters.status.verified")}</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="supporter-portal-grid">
+          <article className="supporter-portal-card wide">
+            <div className="supporter-card-heading">
+              <UserRound />
+              <div>
+                <span className="eyebrow">{t("goudhanCampaign.myProfile")}</span>
+                <h2>{t("goudhanCampaign.profileCampaignContribution")}</h2>
+              </div>
+            </div>
+            <div className="supporter-metric-grid">
+              {metric(t("goudhanCampaign.profileRole"), role)}
+              {metric(t("goudhanCampaign.profileLocation"), location)}
+              {metric(t("goudhanCampaign.profileMyTeam"), Math.max(0, portal.tree.nodes.length - 1))}
+              {metric(t("goudhanCampaign.profileMySupporters"), portal.tree.network.directNetwork)}
+              {metric(t("goudhanCampaign.profileCampaignContribution"), contribution)}
+              {metric(t("goudhanCampaign.profileVerifiedSupport"), portal.impact.verifiedReferrals)}
+            </div>
+          </article>
+
+          <article className="supporter-portal-card">
+            <div className="supporter-card-heading">
+              <QrCode />
+              <div>
+                <span className="eyebrow">{t("goudhanCampaign.profileReferralLink")}</span>
+                <h2>{t("goudhanCampaign.shareCampaign")}</h2>
+              </div>
+            </div>
+            <ReferralQrPreview
+              value={portal.portal.qrPayload}
+              label={t("public.campaignQr")}
+              caption={portal.supporterCode}
+            />
+            <code className="supporter-referral-code">{referralLink}</code>
+            <div className="supporter-share-grid">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => void shareNative(t("goudhanCampaign.title"), t("goudhanCampaign.share"))}
+              >
+                <Share2 size={16} /> {t("goudhanCampaign.shareCampaign")}
+              </button>
+              <button type="button" className="secondary-button" onClick={() => copy(referralLink, t("referrals.linkCopied"))}>
+                <Copy size={16} /> {t("common.copy")}
+              </button>
+              <a className="secondary-link-button" href={whatsAppLink("", shareText)} target="_blank" rel="noreferrer">
+                WhatsApp
+              </a>
+              {coordinatorMail && (
+                <a className="secondary-link-button" href={coordinatorMail}>
+                  <Mail size={16} /> {t("goudhanCampaign.profileInviteCoordinator")}
+                </a>
+              )}
+            </div>
+            {copied && <p className="success-message" role="status">{copied}</p>}
+          </article>
+
+          <article className="supporter-portal-card">
+            <div className="supporter-card-heading">
+              <GitBranch />
+              <div>
+                <span className="eyebrow">{t("goudhanCampaign.profileMyTeam")}</span>
+                <h2>{portal.tree.network.directNetwork} {t("goudhanCampaign.profileMySupporters")}</h2>
+              </div>
+            </div>
+            <div className="supporter-tree">
+              {portal.tree.nodes.slice(1, 12).map((node) => (
+                <div key={`${node.supporterId}-${node.depth}`}>
+                  <strong>{node.referralCode ?? node.supporterId}</strong>
+                  <span>{t("goudhanCampaign.profileLevel")} {node.depth}</span>
+                </div>
+              ))}
+              {portal.tree.nodes.length <= 1 && (
+                <p className="helper-text">{t("goudhanCampaign.profileTeamEmpty")}</p>
+              )}
+            </div>
+          </article>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -203,7 +336,7 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
           <ReferralQrPreview value={portal.portal.qrPayload} label={t("referrals.personalQr")} caption={portal.supporterCode} />
           <code className="supporter-referral-code">{referralLink}</code>
           <div className="supporter-share-grid">
-            <button type="button" className="primary-button" onClick={shareNative}><Share2 size={16} /> {t("public.share")}</button>
+            <button type="button" className="primary-button" onClick={() => void shareNative()}><Share2 size={16} /> {t("public.share")}</button>
             <button type="button" className="secondary-button" onClick={() => copy(referralLink, t("referrals.linkCopied"))}><Copy size={16} /> {t("common.copy")}</button>
             <a className="secondary-link-button" href={whatsAppLink("", referralLink)} target="_blank" rel="noreferrer">WhatsApp</a>
             <a className="secondary-link-button" href={`https://t.me/share/url?url=${encodeURIComponent(referralLink)}`} target="_blank" rel="noreferrer">Telegram</a>
@@ -419,7 +552,7 @@ export function SupporterGrowthPortalPage({ portal, onRewardAction }: SupporterG
       </section>
 
       <nav className="supporter-bottom-share" aria-label={t("supporters.portal.sharingAria")}>
-        <button type="button" onClick={shareNative}><Share2 size={18} /> {t("public.share")}</button>
+        <button type="button" onClick={() => void shareNative()}><Share2 size={18} /> {t("public.share")}</button>
         <a href={whatsAppLink("", referralLink)} target="_blank" rel="noreferrer"><MessageCircle size={18} /> WhatsApp</a>
         <button type="button" onClick={() => copy(referralLink, t("referrals.linkCopied"))}><Copy size={18} /> {t("common.copy")}</button>
         <a href={`mailto:?subject=${encodeURIComponent(portal.campaign.title)}&body=${encodeURIComponent(referralLink)}`}><Mail size={18} /> Email</a>

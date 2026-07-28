@@ -118,6 +118,8 @@ test("RPC is additive, forward-only, service-role-only, and exposes only approve
     "resume_verified_supporter",
     "update_profile",
     "record_consents",
+    "submit_participation_request",
+    "read_participation_requests",
     "submit_coordinator_application",
     "sync_coordinator_application_state"
   ]);

@@ -25,6 +25,7 @@ import {
   loadPublicCampaign,
   loadRemoteState,
   mutatePublicParticipation,
+  readOwnParticipationRequests,
   provisionWorkspaceMember,
   recordScanApprovalBatchAudit,
   requestOtp as requestPublicOtp,
@@ -32,6 +33,7 @@ import {
   saveRemoteState,
   signInWithSupabase,
   signOutSupabase,
+  submitParticipationRequest,
   submitPublicSignatureSecure,
   uploadFileToStorage,
   uploadPrivateFileToStorage,
@@ -127,6 +129,8 @@ import type {
   ConfirmationQueueItem,
   IntegrationSettings,
   Organization,
+  ParticipationRequestSubmission,
+  PublicParticipationRequest,
   ScanCaptureMetadata,
   ScanReviewItem,
   Signer
@@ -175,6 +179,7 @@ import { fileToDataUrl } from "./utils/files";
 import { parseCsv, getCsvColumns, getCsvValue } from "./utils/csv";
 import {
   getAppealAuthority,
+  getConfiguredAppealAuthority,
   getAuthorityDepartmentLabel,
   getAuthorityPositionLabel,
   getSignerSelectedAuthority,
@@ -256,6 +261,11 @@ import {
   type PublicSigningCampaignScope,
   type PublicSigningSubmissionAttempt
 } from "./publicSigningJourney";
+import {
+  isGaumataPublicHostname,
+  isGoudhanProductionCampaign
+} from "./config/goudhanProduction";
+import { toPublicParticipationRequest } from "./movementRequests";
 
 import { MarketingHomePage } from "./pages/MarketingHomePage";
 import type {
@@ -517,6 +527,15 @@ function App() {
   const [publicOtpExpiresAt, setPublicOtpExpiresAt] = useState(0);
   const [lastSignedSigner, setLastSignedSigner] = useState<Signer | null>(null);
   const [lastPublicOtpVerificationToken, setLastPublicOtpVerificationToken] = useState("");
+  const [publicMovementRequests, setPublicMovementRequests] =
+    useState<PublicParticipationRequest[]>([]);
+  const [publicMovementRequestsLoading, setPublicMovementRequestsLoading] = useState(false);
+  const [publicMovementRequestsError, setPublicMovementRequestsError] = useState("");
+  const publicMovementRequestLoadRef = useRef<{
+    key: string;
+    promise: Promise<PublicParticipationRequest[]>;
+  } | null>(null);
+  const publicMovementRequestLoadGenerationRef = useRef(0);
   const publicSigningCampaignRef = useRef<PublicSigningCampaignScope | null>(null);
   const publicSigningSubmissionRef = useRef<PublicSigningSubmissionAttempt | null>(null);
   const [publicCampaignPayload, setPublicCampaignPayload] = useState<PublicCampaignPayload | null>(null);
@@ -663,6 +682,11 @@ function App() {
     setPublicOtpExpiresAt(0);
     setLastPublicOtpVerificationToken("");
     setLastSignedSigner(null);
+    publicMovementRequestLoadGenerationRef.current += 1;
+    publicMovementRequestLoadRef.current = null;
+    setPublicMovementRequests([]);
+    setPublicMovementRequestsLoading(false);
+    setPublicMovementRequestsError("");
   }, [activeCampaign?.id, activeCampaign?.slug, publicParticipationSlug]);
 
   useEffect(() => {
@@ -677,6 +701,11 @@ function App() {
       setPublicMessage("Your OTP verification expired. Request a new code and verify again.");
       setPublicOtpExpiresAt(0);
       setLastPublicOtpVerificationToken("");
+      publicMovementRequestLoadGenerationRef.current += 1;
+      publicMovementRequestLoadRef.current = null;
+      setPublicMovementRequests([]);
+      setPublicMovementRequestsLoading(false);
+      setPublicMovementRequestsError("otp_verification_required");
       return;
     }
     const timer = window.setTimeout(() => setPublicOtpExpiresAt(Date.now()), remaining);
@@ -752,9 +781,19 @@ function App() {
   const authorityMatch = useMemo(
     () =>
       activeCampaign
-        ? { authority: getAppealAuthority(activeCampaign, authorities), score: 100 }
+        ? (() => {
+            const requiresConfirmedPublicAuthority =
+              isPublicCampaignRoute &&
+              isGoudhanProductionCampaign(activeCampaign, organization) &&
+              typeof window !== "undefined" &&
+              isGaumataPublicHostname(window.location.hostname);
+            const authority = requiresConfirmedPublicAuthority
+              ? getConfiguredAppealAuthority(activeCampaign, authorities)
+              : getAppealAuthority(activeCampaign, authorities);
+            return authority ? { authority, score: 100 } : undefined;
+          })()
         : undefined,
-    [activeCampaign, authorities]
+    [activeCampaign, authorities, organization]
   );
   const dailyTotals = useMemo(() => groupSignersByDay(campaignSigners), [campaignSigners]);
   const weeklyTotals = useMemo(() => groupSignersByWeek(campaignSigners), [campaignSigners]);
@@ -776,6 +815,7 @@ function App() {
   );
 
   const commandItems = useMemo(() => {
+    const showUnfinishedModules = !isGoudhanProductionCampaign(activeCampaign, organization);
     const enabledFeatureKeys = new Set(organization.enabledFeatureKeys ?? []);
     const hasFeature = (featureKey: string) =>
       canAccessPlatformAdmin ||
@@ -803,10 +843,10 @@ function App() {
       ...(hasFeature("movement_crm")
         ? [{ label: "Coordinator Network", detail: "Manage coordinator hierarchy", action: () => setActiveTab("coordinators" as const) }]
         : []),
-      ...(canUseGrowthEngine
+      ...(showUnfinishedModules && canUseGrowthEngine
         ? [{ label: "Growth Engine", detail: "Open campaign growth dashboard", action: () => setActiveTab("growth" as const) }]
         : []),
-      ...(hasFeature("field_collection")
+      ...(showUnfinishedModules && hasFeature("field_collection")
         ? [{ label: "Field Collection", detail: "Open scan and field collection", action: () => setActiveTab("scans" as const) }]
         : []),
       ...(hasFeature("communication_hub")
@@ -851,7 +891,9 @@ function App() {
     campaignCreationBlockReason,
     campaigns,
     canAccessPlatformAdmin,
+    activeCampaign,
     isCampaignAdminRoute,
+    organization.customDomain,
     organization.enabledFeatureKeys,
     organization.plan
   ]);
@@ -1908,6 +1950,8 @@ function App() {
         setPublicOtpExpiresAt(0);
         setLastPublicOtpVerificationToken(signerPayload.otpVerificationToken);
         setLastSignedSigner(result.signer);
+        setPublicMovementRequests([]);
+        setPublicMovementRequestsError("");
         if (result.signer.status !== "duplicate") {
           recordGrowthLifecycle(
             result.signer.referredBy || result.signer.referredByPhoneOrCode ? "referral_signed" : "supporter_signed",
@@ -2019,6 +2063,11 @@ function App() {
     setPublicOtpExpiresAt(0);
     setLastPublicOtpVerificationToken("");
     setLastSignedSigner(null);
+    publicMovementRequestLoadGenerationRef.current += 1;
+    publicMovementRequestLoadRef.current = null;
+    setPublicMovementRequests([]);
+    setPublicMovementRequestsLoading(false);
+    setPublicMovementRequestsError("");
   }
 
   async function sendOtp() {
@@ -2033,6 +2082,11 @@ function App() {
     setOtpInput("");
     setPublicOtpExpiresAt(0);
     setLastPublicOtpVerificationToken("");
+    publicMovementRequestLoadGenerationRef.current += 1;
+    publicMovementRequestLoadRef.current = null;
+    setPublicMovementRequests([]);
+    setPublicMovementRequestsLoading(false);
+    setPublicMovementRequestsError("");
     setOtpMessage("Requesting verification code...");
     try {
       const result = await requestPublicOtp(phone, "public-signing", {
@@ -2131,7 +2185,12 @@ function App() {
               otpVerificationToken: result.verificationToken
             };
           });
-          if (restoredSigner.status === "verified") setLastSignedSigner(restoredSigner);
+          if (restoredSigner.status === "verified") {
+            setLastSignedSigner(restoredSigner);
+            await hydratePublicMovementRequests(phone, result.verificationToken);
+          } else {
+            setPublicMovementRequests([]);
+          }
           setPublicCampaignPayload((current) =>
             current?.campaign.id === activeCampaign.id
               ? { ...current, metrics: resumed.metrics }
@@ -2299,6 +2358,118 @@ function App() {
           ? formatPublicSigningBackendError(error)
           : "Coordinator application could not be submitted."
       );
+    }
+  }
+
+  async function hydratePublicMovementRequests(
+    phone: string,
+    verificationToken: string,
+    force = false
+  ): Promise<PublicParticipationRequest[]> {
+    if (!isBackendConfigured || !activeCampaign || !publicParticipationSlug) {
+      return [];
+    }
+    const key = `${activeCampaign.id}:${phone}:${verificationToken}`;
+    if (!force && publicMovementRequestLoadRef.current?.key === key) {
+      return publicMovementRequestLoadRef.current.promise;
+    }
+
+    const generation = publicMovementRequestLoadGenerationRef.current + 1;
+    publicMovementRequestLoadGenerationRef.current = generation;
+    setPublicMovementRequestsLoading(true);
+    setPublicMovementRequestsError("");
+    const promise = readOwnParticipationRequests({
+      slug: publicParticipationSlug,
+      phone,
+      otpVerificationToken: verificationToken
+    });
+    publicMovementRequestLoadRef.current = { key, promise };
+
+    try {
+      const requests = await promise;
+      if (publicMovementRequestLoadGenerationRef.current === generation) {
+        setPublicMovementRequests(requests);
+      }
+      return requests;
+    } catch (error) {
+      if (publicMovementRequestLoadGenerationRef.current === generation) {
+        setPublicMovementRequestsError(
+          error instanceof PublicSignatureSubmissionError && error.code
+            ? error.code
+            : "request_read_failed"
+        );
+      }
+      return [];
+    } finally {
+      if (publicMovementRequestLoadGenerationRef.current === generation) {
+        setPublicMovementRequestsLoading(false);
+      }
+      if (publicMovementRequestLoadRef.current?.promise === promise) {
+        publicMovementRequestLoadRef.current = null;
+      }
+    }
+  }
+
+  async function refreshPublicMovementRequests() {
+    if (!lastSignedSigner || !lastPublicOtpVerificationToken) return;
+    await hydratePublicMovementRequests(
+      lastSignedSigner.phone,
+      lastPublicOtpVerificationToken,
+      true
+    );
+  }
+
+  async function submitPublicMovementRequest(
+    request: ParticipationRequestSubmission,
+    idempotencyKey: string
+  ): Promise<PublicParticipationRequest> {
+    if (
+      !isBackendConfigured
+      || !activeCampaign
+      || !publicParticipationSlug
+      || !lastSignedSigner
+      || !lastPublicOtpVerificationToken
+    ) {
+      const message = "Verify your phone and complete support before applying.";
+      setPublicMessage(message);
+      throw new Error(message);
+    }
+    try {
+      const result = await submitParticipationRequest({
+        slug: publicParticipationSlug,
+        phone: lastSignedSigner.phone,
+        otpVerificationToken: lastPublicOtpVerificationToken,
+        idempotencyKey,
+        request
+      });
+      setPublicMessage(result.message);
+      const publicRequest = toPublicParticipationRequest(result.request, activeCampaign);
+      setPublicMovementRequests((current) => [
+        publicRequest,
+        ...current.filter(
+          (item) => item.id !== publicRequest.id && item.requestType !== publicRequest.requestType
+        )
+      ]);
+      return publicRequest;
+    } catch (error) {
+      if (
+        error instanceof PublicSignatureSubmissionError
+        && (error.code === "otp_verification_required" || error.code === "invalid_idempotency_key")
+      ) {
+        publicSigningSubmissionRef.current = null;
+        setPublicForm((current) => clearPublicSigningOtpState(current));
+        setOtpCode("");
+        setOtpInput("");
+        setOtpMessage("");
+        setPublicOtpExpiresAt(0);
+        setLastPublicOtpVerificationToken("");
+      }
+      setPublicMessage(
+        error instanceof PublicSignatureSubmissionError
+          ? formatPublicSigningBackendError(error)
+          : "Your application could not be submitted. Please retry."
+      );
+      throw error;
     }
   }
 
@@ -3571,6 +3742,11 @@ function App() {
           onUploadSupporterPhoto={isBackendConfigured ? uploadLastSupporterPhoto : undefined}
           onSaveDraft={isBackendConfigured ? saveVerifiedPublicDraft : undefined}
           onCommunicationConsentChange={isBackendConfigured ? updatePublicCommunicationConsent : undefined}
+          onSubmitMovementRequest={isBackendConfigured ? submitPublicMovementRequest : undefined}
+          movementRequests={publicMovementRequests}
+          movementRequestsLoading={publicMovementRequestsLoading}
+          movementRequestsError={publicMovementRequestsError}
+          onRefreshMovementRequests={isBackendConfigured ? refreshPublicMovementRequests : undefined}
           onSubmitCoordinatorApplication={isBackendConfigured ? submitPublicCoordinatorApplication : undefined}
           locationOverrides={locationOverrides}
           locationDeletions={locationDeletions}

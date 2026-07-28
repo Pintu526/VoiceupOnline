@@ -8,41 +8,18 @@ import type {
   SubscriptionPlan,
   SuggestedFeature
 } from "./types";
+import {
+  goudhanGauSammanCampaign,
+  goudhanProductionOrganization
+} from "./config/goudhanCampaignBlueprint.ts";
 
-export const initialCampaigns: Campaign[] = [];
+export const initialCampaigns: Campaign[] = [goudhanGauSammanCampaign];
 
 export const initialSigners: Signer[] = [];
 
 export const initialAuthorities: AuthorityRule[] = [];
 
-export const initialOrganization: Organization = {
-  id: "org-current",
-  name: "",
-  plan: "Free Trial",
-  subscriptionStatus: "Trial",
-  trialEndsAt: "",
-  monthlySignatureLimit: 100,
-  monthlyScanLimit: 10,
-  monthlyMessageLimit: 0,
-  bonusSignatureCredits: 0,
-  bonusScanCredits: 0,
-  bonusMessageCredits: 0,
-  customBranding: false,
-  customDomain: "",
-  ownerEmail: "",
-  billingEmail: "",
-  seats: 2,
-  paymentReference: "",
-  billingCadence: "monthly",
-  campaignDurationDays: 30,
-  supporterCountEstimate: 1000,
-  enabledFeatureKeys: [],
-  prepaidWalletEnabled: false,
-  prepaidWalletMode: "online_payment",
-  signaturePriceInr: 1,
-  signatureWalletBalanceInr: 0,
-  signaturePinPrefix: "VUP"
-};
+export const initialOrganization: Organization = goudhanProductionOrganization;
 
 export const initialCommercialPackages: CommercialPackage[] = [
   {

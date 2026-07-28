@@ -44,6 +44,16 @@ function publicError(code: string) {
     monthly_limit_reached: { status: 402, message: "This campaign owner has reached the monthly supporter limit." },
     invalid_consent: { status: 400, message: "Consent evidence is incomplete." },
     invalid_geography: { status: 400, message: "Structured geography is incomplete or invalid." },
+    invalid_request_payload: { status: 400, message: "Check the application details and retry." },
+    unsupported_request_field: { status: 400, message: "One or more application fields cannot be submitted." },
+    invalid_request_type: { status: 400, message: "Choose a supported application type." },
+    invalid_requested_role: { status: 400, message: "The requested role does not match this application." },
+    invalid_coordinator_level: { status: 400, message: "Choose a valid coordinator level." },
+    invalid_minimum_level: { status: 400, message: "Choose a valid minimum service level." },
+    incomplete_request_geography: { status: 400, message: "Complete the required geographic area for this level." },
+    request_consent_required: { status: 400, message: "Consent is required to submit this application." },
+    support_completion_required: { status: 400, message: "Complete campaign support before applying." },
+    active_participation_request_exists: { status: 409, message: "An active application of this type already exists." },
     invalid_photo_reference: { status: 400, message: "Private photo reference is invalid." },
     coordinator_consent_required: { status: 400, message: "Coordinator contact consent is required to apply." },
     active_coordinator_application_exists: { status: 409, message: "An active coordinator application already exists." },
@@ -107,10 +117,19 @@ function hasValidActionEnvelope(body: Record<string, any>, action: string) {
     "organization", "authorities", "scanItems", "coordinators"
   ];
   if (protectedFields.some((key) => key in body)) return false;
+  if (
+    action === "read_participation_requests"
+    && (
+      body.payload !== undefined
+      || ["requestId", "supporterId", "requesterSupporterId"].some((key) => key in body)
+    )
+  ) {
+    return false;
+  }
   if (body.payload !== undefined) {
     if (!body.payload || typeof body.payload !== "object" || Array.isArray(body.payload)) return false;
     if (Object.keys(body.payload).some((key) =>
-      !["profile", "consents", "application", "baseUpdatedAt", "idempotencyKey"].includes(key)
+      !["profile", "consents", "application", "request", "baseUpdatedAt", "idempotencyKey"].includes(key)
     )) return false;
   }
   const consents = body.payload?.consents ?? body.consents;
@@ -121,6 +140,18 @@ function hasValidActionEnvelope(body: Record<string, any>, action: string) {
   }
   if (action === "record_consents" && (!consents || Object.keys(consents).length === 0)) return false;
   if (action === "submit_coordinator_application" && (!application || Object.keys(application).length === 0)) {
+    return false;
+  }
+  const participationRequest = body.payload?.request ?? body.request;
+  if (
+    action === "submit_participation_request"
+    && (
+      !participationRequest
+      || typeof participationRequest !== "object"
+      || Array.isArray(participationRequest)
+      || Object.keys(participationRequest).length === 0
+    )
+  ) {
     return false;
   }
   return true;
@@ -246,6 +277,141 @@ async function invokeMutation(
   return { data };
 }
 
+async function invokeParticipationRequest(
+  admin: any,
+  resolved: any,
+  body: Record<string, any>
+) {
+  const phone = normalizePhone(String(body.phone ?? ""));
+  const verificationToken = String(body.otpVerificationToken ?? "").trim();
+  const idempotencyKey = String(
+    body.idempotencyKey ?? body.payload?.idempotencyKey ?? ""
+  ).trim();
+  if (!phone || !verificationToken || !idempotencyKey) {
+    const code = !phone
+      ? "invalid_phone"
+      : !verificationToken
+        ? "otp_verification_required"
+        : "invalid_idempotency_key";
+    const mapped = publicError(code);
+    return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
+  }
+
+  const request = body.payload?.request ?? body.request;
+  const protectedRequestFields = new Set([
+    "id",
+    "workspaceId",
+    "applicationKey",
+    "resourceType",
+    "resourceId",
+    "requesterSupporterId",
+    "status",
+    "routingMetadata",
+    "escalationState",
+    "submittedAt",
+    "updatedAt",
+    "auditMetadata"
+  ]);
+  if (
+    !request
+    || typeof request !== "object"
+    || Array.isArray(request)
+    || Object.keys(request).some((key) => protectedRequestFields.has(key))
+    || hasBase64Image(request)
+  ) {
+    const code = hasBase64Image(request) ? "base64_not_allowed" : "invalid_request_payload";
+    const mapped = publicError(code);
+    return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
+  }
+
+  const clientFingerprint = await sha256Hex([
+    body.clientVersion ?? "",
+    resolved.row.workspace_id,
+    resolved.row.campaign_id,
+    "submit_participation_request"
+  ].join(":"));
+  const { data, error } = await admin.rpc("voiceup_submit_participation_request", {
+    p_workspace_id: resolved.row.workspace_id,
+    p_campaign_id: resolved.row.campaign_id,
+    p_campaign_slug: resolved.row.slug,
+    p_phone: phone,
+    p_verification_token: verificationToken,
+    p_idempotency_key: idempotencyKey,
+    p_request: request,
+    p_server_metadata: {
+      source: "public-web-edge",
+      requestId: createId("req"),
+      clientHash: clientFingerprint
+    }
+  });
+  if (error) {
+    console.error("voiceup-public-signing request RPC failure", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    const code = rpcErrorCode(error);
+    const mapped = publicError(code);
+    return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
+  }
+  if (!data?.ok) {
+    const code = String(data?.code ?? "server_error");
+    const mapped = publicError(code);
+    return {
+      response: jsonResponse(
+        { error: data?.message || mapped.message, code, retryable: Boolean(data?.retryable) },
+        mapped.status
+      )
+    };
+  }
+  return { data };
+}
+
+async function invokeParticipationRequestRead(
+  admin: any,
+  resolved: any,
+  body: Record<string, any>
+) {
+  const phone = normalizePhone(String(body.phone ?? ""));
+  const verificationToken = String(body.otpVerificationToken ?? "").trim();
+  if (!phone || !verificationToken) {
+    const code = !phone ? "invalid_phone" : "otp_verification_required";
+    const mapped = publicError(code);
+    return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
+  }
+
+  const { data, error } = await admin.rpc("voiceup_read_own_participation_requests", {
+    p_workspace_id: resolved.row.workspace_id,
+    p_campaign_id: resolved.row.campaign_id,
+    p_campaign_slug: resolved.row.slug,
+    p_phone: phone,
+    p_verification_token: verificationToken
+  });
+  if (error) {
+    console.error("voiceup-public-signing request read RPC failure", {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    const code = rpcErrorCode(error);
+    const mapped = publicError(code);
+    return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
+  }
+  if (!data?.ok || !Array.isArray(data.requests)) {
+    const code = String(data?.code ?? "server_error");
+    const mapped = publicError(code);
+    return {
+      response: jsonResponse(
+        { error: data?.message || mapped.message, code },
+        mapped.status
+      )
+    };
+  }
+  return { data };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return jsonResponse({ error: "Method not allowed." }, 405);
@@ -333,6 +499,18 @@ Deno.serve(async (req) => {
 
     if (!isPublicParticipationAction(action)) {
       return jsonResponse({ error: "This participation action is not supported.", code: "unsupported_action" }, 400);
+    }
+
+    if (action === "submit_participation_request") {
+      const requestMutation = await invokeParticipationRequest(admin, resolved, body);
+      if (requestMutation.response) return requestMutation.response;
+      return jsonResponse(requestMutation.data);
+    }
+
+    if (action === "read_participation_requests") {
+      const requestRead = await invokeParticipationRequestRead(admin, resolved, body);
+      if (requestRead.response) return requestRead.response;
+      return jsonResponse({ requests: requestRead.data.requests });
     }
 
     const mutation = await invokeMutation(admin, resolved, body, action);

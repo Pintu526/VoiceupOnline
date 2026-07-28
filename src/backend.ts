@@ -14,6 +14,9 @@ import type {
   CommercialPackage,
   IntegrationSettings,
   Organization,
+  ParticipationRequest,
+  ParticipationRequestSubmission,
+  PublicParticipationRequest,
   ScanReviewItem,
   Signer
 } from "./types";
@@ -93,6 +96,7 @@ export type PublicParticipationAction =
   | "resume_verified_supporter"
   | "update_profile"
   | "record_consents"
+  | "read_participation_requests"
   | "submit_coordinator_application"
   | "sync_coordinator_application_state";
 
@@ -1140,14 +1144,15 @@ export async function openCoordinatorPhoto(path: string): Promise<string> {
 
 export async function loadPublicCampaign(slug: string): Promise<PublicCampaignPayload | null> {
   if (!supabase) return null;
-  const found = await findPublishedCampaignBySlug(slug);
-  if (!found) return null;
-  return {
-    campaign: found.campaign,
-    organization: found.state.organization,
-    authorities: publicAuthoritiesForCampaign(found.state, found.campaign),
-    metrics: getCampaignMetrics(found.campaign, found.state.signers ?? [])
-  };
+  const { data, error } = await supabase.functions.invoke<{
+    campaign?: PublicCampaignPayload | null;
+  }>("voiceup-public-campaign", {
+    body: { slug }
+  });
+  if (error) {
+    throw new Error("Campaign could not be loaded.");
+  }
+  return data?.campaign ?? null;
 }
 
 export async function requestOtp(
@@ -1567,6 +1572,80 @@ export async function mutatePublicParticipation(input: {
     throw new PublicSignatureSubmissionError(data.error, data.code);
   }
   return data;
+}
+
+export async function submitParticipationRequest(input: {
+  slug: string;
+  phone: string;
+  otpVerificationToken: string;
+  idempotencyKey: string;
+  request: ParticipationRequestSubmission;
+}): Promise<{ request: ParticipationRequest; message: string }> {
+  const client = requireSupabase();
+  const { data, error, response } = await client.functions.invoke<{
+    request?: ParticipationRequest;
+    message?: string;
+    error?: string;
+    code?: string;
+    retryable?: boolean;
+  }>("voiceup-public-signing", {
+    body: {
+      slug: input.slug,
+      action: "submit_participation_request",
+      phone: input.phone,
+      otpVerificationToken: input.otpVerificationToken,
+      idempotencyKey: input.idempotencyKey,
+      payload: { request: input.request },
+      clientVersion: "public-participation-v1"
+    }
+  });
+  if (error) {
+    throw await readPublicParticipationInvokeError(error, response);
+  }
+  if (!data) {
+    throw new Error("Participation request failed.");
+  }
+  if (data.error) {
+    throw new PublicSignatureSubmissionError(data.error, data.code);
+  }
+  if (!data.request || !data.message) {
+    throw new Error("Participation request response was incomplete.");
+  }
+  return { request: data.request, message: data.message };
+}
+
+export async function readOwnParticipationRequests(input: {
+  slug: string;
+  phone: string;
+  otpVerificationToken: string;
+}): Promise<PublicParticipationRequest[]> {
+  const client = requireSupabase();
+  const { data, error, response } = await client.functions.invoke<{
+    requests?: PublicParticipationRequest[];
+    error?: string;
+    code?: string;
+  }>("voiceup-public-signing", {
+    body: {
+      slug: input.slug,
+      action: "read_participation_requests",
+      phone: input.phone,
+      otpVerificationToken: input.otpVerificationToken,
+      clientVersion: "public-participation-v1"
+    }
+  });
+  if (error) {
+    throw await readPublicParticipationInvokeError(error, response);
+  }
+  if (!data) {
+    throw new Error("Movement requests could not be loaded.");
+  }
+  if (data.error) {
+    throw new PublicSignatureSubmissionError(data.error, data.code);
+  }
+  if (!Array.isArray(data.requests)) {
+    throw new Error("Movement request response was incomplete.");
+  }
+  return data.requests;
 }
 
 export async function uploadPublicSupporterPhoto(input: {

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Gau Samman Ahvaan Abhiyan</title>
+  <desc id="desc">A warm rural landscape for the Goudhan.com Gau Samman campaign</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f8d98a"/>
+      <stop offset=".52" stop-color="#f4a95b"/>
+      <stop offset="1" stop-color="#8a4b16"/>
+    </linearGradient>
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2=".3">
+      <stop offset="0" stop-color="#183f27"/>
+      <stop offset="1" stop-color="#397348"/>
+    </linearGradient>
+    <radialGradient id="sun">
+      <stop offset="0" stop-color="#fff6bf"/>
+      <stop offset="1" stop-color="#facc15"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1240" cy="210" r="112" fill="url(#sun)" opacity=".9"/>
+  <path d="M0 510c210-100 410-83 620 10 215 96 420 92 620-12 135-70 255-70 360-24v416H0Z" fill="#275638"/>
+  <path d="M0 640c230-95 446-73 652 45 228 130 447 102 666-10 98-50 192-57 282-22v247H0Z" fill="url(#field)"/>
+  <path d="M0 740c330-75 614-40 852 105 143 87 305 82 486 26 103-32 190-35 262-12v41H0Z" fill="#102b1b"/>
+  <g fill="#173621" opacity=".75">
+    <path d="M178 470h12v184h-12zM130 500c39-94 106-116 146-20-29-15-50-11-65 3 36 5 54 29 58 54-47-8-77-1-88 22-18-31-56-39-91-27 9-25 29-44 58-49-8-10-14-14-18-13Z"/>
+    <path d="M1390 490h10v150h-10zM1343 513c31-77 87-94 120-17-24-12-41-8-54 3 30 4 45 24 48 44-38-6-63 0-72 18-15-25-46-32-75-22 8-21 24-36 48-40-7-8-12-11-15-10Z"/>
+  </g>
+  <g transform="translate(875 505)" fill="#fff4d6">
+    <path d="M-210 68c0-90 72-154 186-154 108 0 172 52 208 119 21 39 58 56 119 49l24 38c-75 17-139 5-184-38-25 51-81 81-171 81-113 0-182-33-182-95Z"/>
+    <path d="M153-13c24-60 83-79 126-39-27 1-44 11-54 30 29-5 52 5 66 30-44 3-77-4-99-22-10 9-23 18-39 26Z"/>
+    <path d="m170-39-30-47c32 4 53 18 65 43m70 5 34-44c-33 1-56 14-70 39" fill="none" stroke="#facc15" stroke-width="15" stroke-linecap="round"/>
+    <rect x="-136" y="128" width="30" height="119" rx="14"/>
+    <rect x="74" y="120" width="30" height="127" rx="14"/>
+    <path d="M-208 58c-55 12-77 45-64 99" fill="none" stroke="#fff4d6" stroke-width="22" stroke-linecap="round"/>
+    <circle cx="237" cy="-9" r="7" fill="#173621"/>
+  </g>
+</svg>

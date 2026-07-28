@@ -2348,6 +2348,16 @@ button {
   min-width: 0;
 }
 
+.goudhan-sidebar-logo {
+  background: #fffaf0;
+  border-radius: 12px;
+  display: block;
+  max-height: 62px;
+  object-fit: contain;
+  padding: 4px;
+  width: 100%;
+}
+
 .brand-mark,
 .metric-icon {
   align-items: center;
@@ -10954,6 +10964,27 @@ button.secondary-link-button {
   margin: 0 auto 16px;
   max-width: 1180px;
   padding: clamp(18px, 4vw, 34px);
+}
+
+.goudhan-supporter-profile .supporter-portal-hero {
+  background:
+    radial-gradient(circle at 86% 18%, rgba(250, 204, 21, 0.2), transparent 32%),
+    linear-gradient(135deg, #102b1b, #1f5b35 58%, #8a4b16);
+}
+
+.goudhan-supporter-profile .supporter-avatar {
+  background: #fffaf0;
+  color: #1f5b35;
+}
+
+.goudhan-supporter-logo {
+  border-radius: 10px;
+  display: block;
+  height: 44px;
+  margin-bottom: 12px;
+  max-width: min(100%, 230px);
+  object-fit: contain;
+  width: auto;
 }
 
 .supporter-avatar {

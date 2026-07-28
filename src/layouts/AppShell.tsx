@@ -58,6 +58,8 @@ import { GROWTH_FEATURE_FLAGS } from "../growth/constants";
 import type { GrowthRuntimeState, GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
 import type { SupporterGrowthPortalModel } from "../growth/tree";
 import { useTranslation } from "../i18n";
+import { isGoudhanProductionCampaign } from "../config/goudhanProduction";
+import { goudhanCampaignBlueprint } from "../config/goudhanCampaignBlueprint";
 
 const MovementCrmTab = lazy(() =>
   import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
@@ -484,8 +486,19 @@ export function AppShell({
   const canUseGrowthEngine =
     hasWorkspaceFeature(GROWTH_FEATURE_FLAGS.growthEngine) ||
     enabledFeatureKeys.has(GROWTH_FEATURE_FLAGS.legacyMovementCrm);
+  const isGoudhanExperience = isGoudhanProductionCampaign(activeCampaign, organization);
+  const showUnfinishedModules = !isGoudhanExperience;
   const canUseReports = hasWorkspaceFeature("basic_reports") || hasWorkspaceFeature("advanced_reports");
-  const canUseAiCopilot = hasWorkspaceFeature("ai_copilot");
+  const canUseAiCopilot = showUnfinishedModules && hasWorkspaceFeature("ai_copilot");
+
+  useEffect(() => {
+    if (!showUnfinishedModules) {
+      setAiCopilotOpen(false);
+      if (["fund", "prove", "growth", "scans", "ideas"].includes(activeTab)) {
+        setActiveTab("dashboard");
+      }
+    }
+  }, [activeTab, setActiveTab, showUnfinishedModules]);
 
   useEffect(() => {
     setPinnedCampaignIds(readStoredIdList(pinnedCampaignStorageKey));
@@ -574,6 +587,7 @@ export function AppShell({
   }
 
   function canAccessWorkspaceTab(tab: Tab): boolean {
+    if (!showUnfinishedModules && ["fund", "prove", "growth", "scans", "ideas"].includes(tab)) return false;
     if (canAccessPlatformAdmin) return true;
     if (tab === "dashboard" || tab === "command" || tab === "fund" || tab === "prove" || tab === "campaigns") return true;
     if (tab === "public") return hasWorkspaceFeature("public_signing");
@@ -1062,13 +1076,23 @@ export function AppShell({
       <div className="app-shell">
         <aside className="sidebar">
           <div className="brand">
-            <div className="brand-mark">
-              <Megaphone size={24} />
-            </div>
-            <div>
-              <strong>Voiceup Global</strong>
-              <span>{t("campaignAdmin.shell.tagline")}</span>
-            </div>
+            {isGoudhanExperience ? (
+              <img
+                className="goudhan-sidebar-logo"
+                src={goudhanCampaignBlueprint.branding.logoUrl}
+                alt={t("goudhanCampaign.brandName")}
+              />
+            ) : (
+              <>
+                <div className="brand-mark">
+                  <Megaphone size={24} />
+                </div>
+                <div>
+                  <strong>Voiceup Global</strong>
+                  <span>{t("campaignAdmin.shell.tagline")}</span>
+                </div>
+              </>
+            )}
           </div>
           <nav className="nav">
             <span className="nav-section-label">{t("framework.nav.section")}</span>
@@ -1078,9 +1102,9 @@ export function AppShell({
             {hasWorkspaceFeature("public_signing") && (
               <NavButton icon={<Globe2 />} label={t("framework.nav.act")} tab="public" activeTab={activeTab} onClick={requestTabChange} />
             )}
-            <NavButton icon={<HandCoins />} label={t("framework.nav.fund")} tab="fund" activeTab={activeTab} onClick={requestTabChange} />
-            <NavButton icon={<Landmark />} label={t("framework.nav.prove")} tab="prove" activeTab={activeTab} onClick={requestTabChange} />
-            {canUseGrowthEngine && (
+            {showUnfinishedModules && <NavButton icon={<HandCoins />} label={t("framework.nav.fund")} tab="fund" activeTab={activeTab} onClick={requestTabChange} />}
+            {showUnfinishedModules && <NavButton icon={<Landmark />} label={t("framework.nav.prove")} tab="prove" activeTab={activeTab} onClick={requestTabChange} />}
+            {showUnfinishedModules && canUseGrowthEngine && (
               <NavButton icon={<TrendingUp />} label={t("framework.nav.grow")} tab="growth" activeTab={activeTab} onClick={requestTabChange} />
             )}
             {!isCampaignAdminRoute && canAccessPlatformAdmin && (
@@ -1103,7 +1127,7 @@ export function AppShell({
                 onClick={requestTabChange}
               />
             )}
-            {hasWorkspaceFeature("field_collection") && (
+            {showUnfinishedModules && hasWorkspaceFeature("field_collection") && (
               <NavButton
                 icon={<FileScan />}
                 label={t("campaignAdmin.nav.fieldCollection")}
@@ -1139,7 +1163,7 @@ export function AppShell({
                 onClick={requestTabChange}
               />
             )}
-            {!isCampaignAdminRoute && canAccessPlatformAdmin && (
+            {showUnfinishedModules && !isCampaignAdminRoute && canAccessPlatformAdmin && (
               <>
                 <NavButton
                   icon={<Sparkles />}
@@ -1343,6 +1367,7 @@ export function AppShell({
                 onOpenFund={() => requestTabChange("fund")}
                 onOpenProve={() => requestTabChange("prove")}
                 canAccessPlatformAdmin={canAccessPlatformAdmin}
+                showUnfinishedModules={showUnfinishedModules}
               />
             </Suspense>
           )}
@@ -1458,7 +1483,7 @@ export function AppShell({
 
           {activeTab === "coordinators" && hasWorkspaceFeature("movement_crm") && (
             <>
-              <VbossModulePlaceholder
+              {showUnfinishedModules && <VbossModulePlaceholder
                 moduleName={t("framework.organize.title")}
                 purpose={t("framework.organize.purpose")}
                 sections={[
@@ -1467,14 +1492,14 @@ export function AppShell({
                   { name: t("framework.organize.roles"), purpose: t("framework.organize.rolesPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.rolesFuture") },
                   { name: t("framework.organize.invitations"), purpose: t("framework.organize.invitationsPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.invitationsFuture") }
                 ]}
-              />
+              />}
               <Suspense fallback={<ModuleSkeleton label="Loading Coordinator Network" />}>
                 <CoordinatorNetworkTab campaigns={campaigns} locationOverrides={locationOverrides} locationDeletions={locationDeletions} />
               </Suspense>
             </>
           )}
 
-          {activeTab === "fund" && (
+          {showUnfinishedModules && activeTab === "fund" && (
             <VbossModulePlaceholder
               moduleName={t("framework.fund.title")}
               purpose={t("framework.fund.purpose")}
@@ -1486,7 +1511,7 @@ export function AppShell({
             />
           )}
 
-          {activeTab === "prove" && (
+          {showUnfinishedModules && activeTab === "prove" && (
             <VbossModulePlaceholder
               moduleName={t("framework.prove.title")}
               purpose={t("framework.prove.purpose")}
@@ -1498,7 +1523,7 @@ export function AppShell({
             />
           )}
 
-          {activeTab === "growth" && canUseGrowthEngine && (
+          {showUnfinishedModules && activeTab === "growth" && canUseGrowthEngine && (
             <Suspense fallback={<ModuleSkeleton label="Loading Growth Engine" />}>
               <GrowthDashboardTab
                 campaigns={campaigns}
@@ -1512,7 +1537,7 @@ export function AppShell({
             </Suspense>
           )}
 
-          {activeTab === "scans" && hasWorkspaceFeature("field_collection") && (
+          {showUnfinishedModules && activeTab === "scans" && hasWorkspaceFeature("field_collection") && (
             <Suspense fallback={<ModuleSkeleton label="Loading Field Collection" />}>
               <ScansTab
                 activeCampaign={activeCampaign}
@@ -1610,7 +1635,7 @@ export function AppShell({
             />
           )}
 
-          {activeTab === "ideas" && canAccessPlatformAdmin && <IdeasTab />}
+          {showUnfinishedModules && activeTab === "ideas" && canAccessPlatformAdmin && <IdeasTab />}
         </motion.main>
       </div>
       {aiCopilotOpen && (

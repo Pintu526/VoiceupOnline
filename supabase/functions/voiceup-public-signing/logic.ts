@@ -8,6 +8,8 @@ export const PUBLIC_PARTICIPATION_ACTIONS = [
   "resume_verified_supporter",
   "update_profile",
   "record_consents",
+  "submit_participation_request",
+  "read_participation_requests",
   "submit_coordinator_application",
   "sync_coordinator_application_state"
 ] as const;

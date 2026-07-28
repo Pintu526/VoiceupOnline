@@ -51,6 +51,7 @@ interface CommandCenterTabProps {
   onOpenFund: () => void;
   onOpenProve: () => void;
   canAccessPlatformAdmin: boolean;
+  showUnfinishedModules?: boolean;
 }
 
 type ActionPriority = "P0" | "P1" | "P2";
@@ -116,7 +117,8 @@ export function CommandCenterTab({
   onOpenActivity,
   onOpenFund,
   onOpenProve,
-  canAccessPlatformAdmin
+  canAccessPlatformAdmin,
+  showUnfinishedModules = true
 }: CommandCenterTabProps) {
   const { t } = useTranslation();
   const campaignScanItems = activeCampaign
@@ -182,7 +184,7 @@ export function CommandCenterTab({
           action: onOpenEngagement
         },
         {
-          show: metrics.total > 0 && verifiedSupporters < Math.ceil(metrics.total * 0.5),
+          show: showUnfinishedModules && metrics.total > 0 && verifiedSupporters < Math.ceil(metrics.total * 0.5),
           priority: "P1" as ActionPriority,
           title: t("command.actions.lowVerified"),
           reason: t("command.actions.lowVerifiedReason"),
@@ -190,7 +192,7 @@ export function CommandCenterTab({
           action: onOpenFieldCollection
         },
         {
-          show: pendingScans > 0,
+          show: showUnfinishedModules && pendingScans > 0,
           priority: "P1" as ActionPriority,
           title: t("command.actions.scansPending"),
           reason: `${pendingScans} ${t(pendingScans === 1 ? "command.actions.scanItemNeedsReview" : "command.actions.scanItemsNeedReview")}`,
@@ -236,6 +238,7 @@ export function CommandCenterTab({
       onOpenFieldCollection,
       onOpenSaas,
       pendingScans,
+      showUnfinishedModules,
       t,
       verifiedSupporters
     ]
@@ -285,7 +288,7 @@ export function CommandCenterTab({
           <FrameworkLinkCard icon={<Building2 />} title={t("framework.command.cards.organization")} description={t("framework.command.cards.organizationPurpose")} status={organization.name || "--"} viewLabel={t("framework.command.view")} onClick={onOpenSaas} />
           <FrameworkLinkCard icon={<BadgeCheck />} title={t("framework.command.cards.readiness")} description={t("framework.command.cards.readinessPurpose")} status={campaignProgressLabel} viewLabel={t("framework.command.view")} onClick={onOpenCampaigns} />
           <FrameworkLinkCard icon={<UsersRound />} title={t("framework.command.cards.supporters")} description={t("framework.command.cards.supportersPurpose")} status={metrics.total.toLocaleString()} viewLabel={t("framework.command.view")} onClick={onOpenEngagement} />
-          <FrameworkLinkCard icon={<Sparkles />} title={t("framework.command.cards.fund")} description={t("framework.command.cards.fundPurpose")} status={t("framework.placeholder.comingSoon")} viewLabel={t("framework.command.view")} onClick={onOpenFund} />
+          {showUnfinishedModules && <FrameworkLinkCard icon={<Sparkles />} title={t("framework.command.cards.fund")} description={t("framework.command.cards.fundPurpose")} status={t("framework.placeholder.comingSoon")} viewLabel={t("framework.command.view")} onClick={onOpenFund} />}
           <FrameworkLinkCard icon={<UsersRound />} title={t("framework.command.cards.team")} description={t("framework.command.cards.teamPurpose")} status={t("framework.command.status.connected")} viewLabel={t("framework.command.view")} onClick={onOpenMovement} />
           <FrameworkLinkCard icon={<Activity />} title={t("framework.command.cards.activity")} description={t("framework.command.cards.activityPurpose")} status={lastActivity} viewLabel={t("framework.command.view")} onClick={onOpenActivity} />
           <FrameworkLinkCard icon={<ClipboardList />} title={t("framework.command.cards.nextAction")} description={actionBoard[0]?.title ?? t("framework.command.cards.nextActionPurpose")} status={actionBoard[0]?.priority ?? t("framework.command.status.onTrack")} viewLabel={t("framework.command.view")} onClick={actionBoard[0]?.action ?? onOpenCampaigns} />
@@ -298,13 +301,13 @@ export function CommandCenterTab({
           <MovementDashboardCard icon={<AlertTriangle />} title={t("framework.command.movement.risk")} value={t(`command.risk.${riskLevel.toLowerCase()}`)} detail={`${movementHealthScore}/100 ${t("command.metrics.movementHealth")}`} />
           <MovementDashboardCard icon={<BadgeCheck />} title={t("framework.command.movement.readiness")} value={campaignProgressLabel} detail={authorityReady ? t("command.status.ready") : t("command.status.setupNeeded")} />
           <MovementDashboardCard icon={<Gauge />} title={t("framework.command.movement.growth")} value={campaignGoalLabel} detail={t("framework.command.movement.goalProgress")} />
-          <MovementDashboardCard icon={<ClipboardList />} title={t("framework.command.movement.pending")} value={actionBoard.length.toLocaleString()} detail={pendingScans ? `${pendingScans} ${t("command.status.pending")}` : t("command.status.clear")} />
+          <MovementDashboardCard icon={<ClipboardList />} title={t("framework.command.movement.pending")} value={actionBoard.length.toLocaleString()} detail={showUnfinishedModules && pendingScans ? `${pendingScans} ${t("command.status.pending")}` : t("command.status.clear")} />
           <MovementDashboardCard icon={<BellRing />} title={t("framework.command.movement.activity")} value={lastActivity} detail={t("framework.command.movement.activityDetail")} />
         </div>
         <div className="button-row vboss-command-actions">
           <button className="secondary-button" type="button" onClick={onOpenCampaigns}>{t("framework.command.quickActions.plan")}</button>
-          <button className="secondary-button" type="button" onClick={onOpenProve}>{t("framework.command.quickActions.prove")}</button>
-          <button className="secondary-button" type="button" onClick={onOpenFund}>{t("framework.command.quickActions.fund")}</button>
+          {showUnfinishedModules && <button className="secondary-button" type="button" onClick={onOpenProve}>{t("framework.command.quickActions.prove")}</button>}
+          {showUnfinishedModules && <button className="secondary-button" type="button" onClick={onOpenFund}>{t("framework.command.quickActions.fund")}</button>}
         </div>
       </Panel>
 

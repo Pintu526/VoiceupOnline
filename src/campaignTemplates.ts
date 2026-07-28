@@ -1,4 +1,6 @@
 import type { CampaignCategory, SignerRequiredField } from "./types";
+import { goudhanCampaignBlueprint } from "./config/goudhanCampaignBlueprint.ts";
+import type { ProductionCampaignBlueprint } from "./config/productionCampaignBlueprint";
 
 export interface CampaignTemplate {
   id: string;
@@ -21,6 +23,7 @@ export interface CampaignTemplate {
   whatsappMessage: string;
   emailSubject: string;
   preview: string;
+  productionBlueprint?: ProductionCampaignBlueprint;
 }
 
 const categoryMap: Record<string, CampaignCategory> = {
@@ -124,8 +127,39 @@ function makeTemplate(categoryGroup: string, name: string, index: number): Campa
   };
 }
 
-export const campaignTemplates: CampaignTemplate[] = Object.entries(templateNames).flatMap(
-  ([categoryGroup, names]) => names.map((name, index) => makeTemplate(categoryGroup, name, index))
-);
+export const goudhanCampaignTemplate: CampaignTemplate = {
+  id: goudhanCampaignBlueprint.id,
+  categoryGroup: "Production Blueprints",
+  name: "Goudhan.com — Gau Samman",
+  icon: "Shield",
+  campaignTitle: goudhanCampaignBlueprint.campaign.title,
+  campaignSubtitle: goudhanCampaignBlueprint.branding.slogan,
+  summary: goudhanCampaignBlueprint.campaign.description,
+  detailedDescription: goudhanCampaignBlueprint.campaign.appealContent,
+  objectives: [
+    "Collect one verified campaign support per mobile number",
+    "Build a geography-aligned coordinator network",
+    "Provide personal referral links, QR codes and transparent reports"
+  ],
+  suggestedAuthorities: ["Relevant national and state authorities"],
+  suggestedDurationDays: 365,
+  suggestedTarget: goudhanCampaignBlueprint.campaign.supporterGoal,
+  suggestedCategory: goudhanCampaignBlueprint.campaign.category,
+  suggestedTags: ["Goudhan.com", "Gau Samman", "National Campaign"],
+  suggestedBannerStyle: "Use the approved Goudhan.com Gau Samman campaign banner.",
+  suggestedSupporterFields: goudhanCampaignBlueprint.joinFlow.requiredFields,
+  socialShareText: goudhanCampaignBlueprint.campaign.socialShareText,
+  whatsappMessage: goudhanCampaignBlueprint.campaign.socialShareText,
+  emailSubject: goudhanCampaignBlueprint.campaign.title,
+  preview: "Production blueprint with verified public support, referrals, coordinator hierarchy and reports.",
+  productionBlueprint: goudhanCampaignBlueprint
+};
 
-export const campaignTemplateCategories = ["All", ...Object.keys(templateNames)];
+export const campaignTemplates: CampaignTemplate[] = [
+  goudhanCampaignTemplate,
+  ...Object.entries(templateNames).flatMap(
+  ([categoryGroup, names]) => names.map((name, index) => makeTemplate(categoryGroup, name, index))
+  )
+];
+
+export const campaignTemplateCategories = ["All", "Production Blueprints", ...Object.keys(templateNames)];

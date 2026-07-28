@@ -1,6 +1,31 @@
+import {
+  GOUDHAN_CAMPAIGN_SLUG,
+  isGaumataPublicHostname
+} from "../config/goudhanProduction.ts";
+
+export interface PublicCampaignRouteLocation {
+  pathname: string;
+  hostname: string;
+}
+
+export function resolvePublicCampaignSlug({
+  pathname,
+  hostname
+}: PublicCampaignRouteLocation): string {
+  const directCampaignSlug = pathname.match(/^\/c\/([^/]+)\/?$/)?.[1] ?? "";
+  if (directCampaignSlug) return directCampaignSlug;
+  if ((pathname === "/" || pathname === "") && isGaumataPublicHostname(hostname)) {
+    return GOUDHAN_CAMPAIGN_SLUG;
+  }
+  return "";
+}
+
 export function getPublicCampaignSlug(): string {
   if (typeof window === "undefined") return "";
-  return window.location.pathname.match(/^\/c\/([^/]+)\/?$/)?.[1] ?? "";
+  return resolvePublicCampaignSlug({
+    pathname: window.location.pathname,
+    hostname: window.location.hostname
+  });
 }
 
 export function getSupporterPortalCode(): string {

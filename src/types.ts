@@ -39,6 +39,143 @@ export interface PublicCoordinatorApplication {
   authoritativeSyncedAt?: string;
 }
 
+export type ParticipationRequestType = "volunteer" | "coordinator";
+
+export type ParticipationRequestStatus =
+  | "pending"
+  | "escalated"
+  | "approved"
+  | "rejected"
+  | "assigned"
+  | "withdrawn";
+
+export type ParticipationRequestLevel =
+  | "national"
+  | "state"
+  | "district"
+  | "block"
+  | "panchayat"
+  | "ward";
+
+export interface ParticipationRequestGeographicScope {
+  countryId?: string;
+  country?: string;
+  stateId?: string;
+  state?: string;
+  districtId?: string;
+  district?: string;
+  blockId?: string;
+  block?: string;
+  panchayatId?: string;
+  panchayat?: string;
+  wardId?: string;
+  ward?: string;
+}
+
+export interface ParticipationRequestConsentEvidence {
+  granted: true;
+  recordedAt: string;
+  version: string;
+  policyId?: string;
+  textSnapshot: string;
+  captureSource: string;
+  campaignId: string;
+  supporterId: string;
+}
+
+export interface ParticipationRequestRoutingMetadata {
+  candidateApproverType?: "coordinator" | "workspace_resource_member";
+  candidateApproverId?: string;
+  approvalScope: ParticipationRequestGeographicScope;
+  nextLevel: ParticipationRequestLevel | "campaign_owner";
+  routingPath: Array<ParticipationRequestLevel | "campaign_owner">;
+  resolvedAt: string;
+  resolution: "candidate_resolved" | "no_authoritative_approver";
+}
+
+export interface ParticipationRequestAuditMetadata {
+  source: string;
+  requestId?: string;
+  clientHash?: string;
+  submittedBy: "verified_supporter";
+}
+
+export interface ParticipationRequest {
+  id: string;
+  workspaceId: string;
+  applicationKey: string;
+  resourceType: string;
+  resourceId: string;
+  requesterSupporterId: string;
+  requestType: ParticipationRequestType;
+  requestedRole: ParticipationRequestType;
+  preferredLevel?: ParticipationRequestLevel;
+  minimumAcceptableLevel?: ParticipationRequestLevel;
+  geographicScope: ParticipationRequestGeographicScope;
+  skills: string[];
+  areasOfInterest: string[];
+  motivation?: string;
+  experience?: string;
+  availability?: string;
+  preferredWorkingArea?: string;
+  status: ParticipationRequestStatus;
+  routingMetadata: ParticipationRequestRoutingMetadata;
+  escalationState: "none" | "required";
+  consentEvidence: ParticipationRequestConsentEvidence;
+  submittedAt: string;
+  updatedAt: string;
+  auditMetadata: ParticipationRequestAuditMetadata;
+}
+
+export interface ParticipationRequestSubmission {
+  requestType: ParticipationRequestType;
+  requestedRole: ParticipationRequestType;
+  preferredLevel?: ParticipationRequestLevel;
+  minimumAcceptableLevel?: ParticipationRequestLevel;
+  geographicScope: ParticipationRequestGeographicScope;
+  skills?: string[];
+  areasOfInterest?: string[];
+  motivation?: string;
+  experience?: string;
+  availability?: string;
+  preferredWorkingArea?: string;
+  consent: {
+    granted: true;
+    version: string;
+    policyId?: string;
+  };
+}
+
+export type PublicParticipationRequestStage =
+  | "pending_review"
+  | "awaiting_assignment"
+  | "escalated"
+  | "approved"
+  | "rejected"
+  | "assigned"
+  | "withdrawn";
+
+export interface PublicParticipationRequest {
+  id: string;
+  requestType: ParticipationRequestType;
+  requestedRole: ParticipationRequestType;
+  campaign: {
+    id: string;
+    slug: string;
+    title: string;
+  };
+  status: ParticipationRequestStatus;
+  preferredLevel?: ParticipationRequestLevel;
+  minimumAcceptableLevel?: ParticipationRequestLevel;
+  geographicScope: Pick<
+    ParticipationRequestGeographicScope,
+    "country" | "state" | "district" | "block" | "panchayat" | "ward"
+  >;
+  currentStage: PublicParticipationRequestStage;
+  submittedAt: string;
+  updatedAt: string;
+}
+
 export type SupporterConfirmationStatus =
   | "pending_confirmation"
   | "not_requested"

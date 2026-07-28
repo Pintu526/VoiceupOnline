@@ -432,6 +432,59 @@ test("O2. language selection synchronizes the document language", () => {
   assert.match(i18nProviderSource, /\[language\]/);
 });
 
+test("O2a. participation steps expose one valid next action and keep Enter inside the current step", () => {
+  const submitStart = publicPageSource.indexOf("async function handlePublicSubmit(");
+  const submitEnd = publicPageSource.indexOf("\n  function handleStartNewJourney", submitStart);
+  const submitSource = publicPageSource.slice(submitStart, submitEnd);
+  assert.match(submitSource, /if \(wizardStep !== "review"\)/);
+  assert.match(submitSource, /wizardStep === "phone" && phoneReady/);
+  assert.match(submitSource, /wizardStep === "otp" && otpReady/);
+  assert.match(submitSource, /wizardStep === "profile" && profileReady/);
+  assert.match(submitSource, /wizardStep === "address" && detailsReady/);
+  assert.ok(submitSource.indexOf('if (wizardStep !== "review")') < submitSource.indexOf("await onSubmit(event)"));
+
+  const progressStart = publicPageSource.indexOf('<ol className="wizard-steps"');
+  const progressEnd = publicPageSource.indexOf("</ol>", progressStart);
+  const progressSource = publicPageSource.slice(progressStart, progressEnd);
+  assert.match(progressSource, /aria-current=\{index === activeStepIndex \? "step"/);
+  assert.doesNotMatch(progressSource, /<button|onClick/);
+  assert.match(publicPageSource, /t\("public\.stepProgress"\)/);
+});
+
+test("O2b. phone and OTP failures remain visible and inputs expose accessible validation", () => {
+  const phoneStart = publicPageSource.indexOf('{wizardStep === "phone" && (');
+  const otpStart = publicPageSource.indexOf('{wizardStep === "otp" && (', phoneStart);
+  const phoneSource = publicPageSource.slice(phoneStart, otpStart);
+  const otpEnd = publicPageSource.indexOf('{wizardStep === "profile" && (', otpStart);
+  const otpSource = publicPageSource.slice(otpStart, otpEnd);
+
+  assert.match(phoneSource, /\{otpMessage && \(/);
+  assert.match(phoneSource, /role=\{otpMessageIsError \? "alert" : "status"\}/);
+  assert.match(phoneSource, /aria-invalid=\{Boolean\(publicForm\.phone\.trim\(\)\) && !phoneReady\}/);
+  assert.match(phoneSource, /disabled=\{sendingOtp \|\| !phoneReady\}/);
+  assert.match(otpSource, /pattern="\[0-9\]\{6\}"/);
+  assert.match(otpSource, /replace\(\/\\D\/g, ""\)\.slice\(0, 6\)/);
+  assert.match(otpSource, /disabled=\{verifyingOtp \|\| !otpReady\}/);
+  assert.match(otpSource, /t\("public\.changePhone"\)/);
+  assert.match(publicPageSource, /ref=\{stepHeadingRef\} tabIndex=\{-1\}/);
+  assert.match(publicPageSource, /ref=\{publicMessageRef\}/);
+  assert.match(publicPageSource, /publicMessageRef\.current\?\.focus\(\)/);
+  assert.match(publicSigningCss, /\.public-sign-wizard > \.error-message[\s\S]*order:\s*-1/);
+});
+
+test("O2c. required details and consent gate submission without changing consent semantics", () => {
+  assert.match(publicPageSource, /disabled=\{!profileReady\}/);
+  assert.match(publicPageSource, /disabled=\{!detailsReady\}/);
+  assert.match(publicPageSource, /checked=\{appealConsent\}/);
+  assert.match(publicPageSource, /checked=\{campaignConsent\}/);
+  assert.match(publicPageSource, /disabled=\{submitting \|\| !requiredConsentsAccepted\}/);
+  assert.equal((publicPageSource.match(/<input required type="checkbox"/g) ?? []).length, 2);
+  assert.match(appSource, /form\.elements\.namedItem\("supportAppealConsent"\)/);
+  assert.match(appSource, /form\.elements\.namedItem\("campaignConsent"\)/);
+  assert.match(publicSigningCss, /\.public-sign-wizard input,[\s\S]*min-height:\s*48px/);
+  assert.match(publicSigningCss, /\.otp-box \.button-row[\s\S]*grid-template-columns:\s*1fr/);
+});
+
 test("P. optional coordinator action is a secure handoff to the existing managed lifecycle", () => {
   assert.match(publicPageSource, /campaign manager must create the invited coordinator inside Coordinator Network/);
   assert.match(publicPageSource, /href=\{`mailto:/);
@@ -443,4 +496,52 @@ test("Q. Sprint 2E experience copy is type-enforced for English, Hindi, and Odia
   assert.match(publicPageSource, /\ben:\s*publicExperienceCopyEn/);
   assert.match(publicPageSource, /\bhi:\s*\{/);
   assert.match(publicPageSource, /\bor:\s*\{/);
+});
+
+test("R1. Gau Samman hero keeps one primary action and gates progress on a configured goal", () => {
+  const heroStart = publicPageSource.indexOf('<div className="public-hero-actions">');
+  const heroEnd = publicPageSource.indexOf("</div>", heroStart);
+  const heroSource = publicPageSource.slice(heroStart, heroEnd);
+  assert.equal((heroSource.match(/className="primary-button"/g) ?? []).length, 1);
+  assert.match(heroSource, /!isGoudhanExperience && nativeShareSupported/);
+  assert.match(heroSource, /t\("goudhanCampaign\.joinMovement"\)/);
+  assert.match(publicPageSource, /\(!isGoudhanExperience \|\| configuredCampaignGoal !== null\)/);
+  assert.match(publicPageSource, /metrics\.verified\.toLocaleString\(\)/);
+});
+
+test("R2. movement narrative, updates, and media use configured campaign fields only", () => {
+  assert.match(publicPageSource, /body: displayCampaign\.description/);
+  assert.match(publicPageSource, /body: displayCampaign\.appealContent/);
+  assert.match(publicPageSource, /body: displayCampaign\.socialShareText \|\| displayCampaign\.appealContent/);
+  assert.match(publicPageSource, /campaign\.participantUpdateMessage\.trim\(\)/);
+  assert.match(publicPageSource, /campaignUpdates\.length > 0/);
+  assert.match(publicPageSource, /t\("public\.movement\.noUpdates"\)/);
+  assert.match(publicPageSource, /displayCampaign\.heroImage \|\| campaign\.campaignVideoUrl\.trim\(\)/);
+  assert.match(publicPageSource, /https:\/\/www\.youtube-nocookie\.com\/embed/);
+  assert.match(publicPageSource, /t\("public\.movement\.noMedia"\)/);
+  assert.doesNotMatch(publicPageSource, /campaignUpdates\s*=\s*\[[\s\S]*new Date\(/);
+});
+
+test("R3. movement trust and FAQs disclose only configured information", () => {
+  assert.match(publicPageSource, /campaignConfiguredAuthority[\s\S]*movementTrustItems/);
+  assert.match(publicPageSource, /organization\?\.name\.trim\(\)/);
+  assert.match(publicPageSource, /displayCampaign\.consentText\.trim\(\)/);
+  assert.match(publicPageSource, /campaign\.adminEmail\.trim\(\)/);
+  assert.match(publicPageSource, /movementFaqItems\.map/);
+  assert.match(publicPageSource, /faqSubmissionPending/);
+  assert.doesNotMatch(publicPageSource, /Verified organiser|Official campaign|Last updated/);
+});
+
+test("R4. volunteer presentation reuses the existing coordinator interest surface", () => {
+  const volunteerStart = publicPageSource.indexOf(
+    '<section className="public-section movement-volunteer"'
+  );
+  const volunteerEnd = publicPageSource.indexOf("</section>", volunteerStart);
+  const volunteerSource = publicPageSource.slice(volunteerStart, volunteerEnd);
+  assert.ok(volunteerStart > 0);
+  assert.equal((volunteerSource.match(/movement-volunteer-cta/g) ?? []).length, 1);
+  assert.match(volunteerSource, /href="#public-sign-form"/);
+  assert.match(volunteerSource, /setPostSignPanel\("coordinator"\)/);
+  assert.doesNotMatch(volunteerSource, /onSubmitCoordinatorApplication|saveCoordinator|createCoordinator/);
+  assert.match(publicSigningCss, /\.movement-volunteer-cta[\s\S]*min-height:\s*52px/);
 });

@@ -9,13 +9,8 @@ export function getAppealAuthority(
   campaign: Campaign,
   authorities: AuthorityRule[] = []
 ): AuthorityRule {
-  const selectedAuthority = authorities.find(
-    (authority) => authority.id === campaign.selectedAuthorityId
-  );
-  if (selectedAuthority) return selectedAuthority;
-
-  const matchingUploadedAuthority = getAuthorityOptionsForCampaign(campaign, authorities)[0];
-  if (matchingUploadedAuthority) return matchingUploadedAuthority;
+  const configuredAuthority = getConfiguredAppealAuthority(campaign, authorities);
+  if (configuredAuthority) return configuredAuthority;
 
   const level = campaign.authorityTargetLevel ?? "district";
   const isIndiaDetailed = getCampaignGeographyMode(campaign) === "india_detailed";
@@ -91,6 +86,18 @@ export function getAppealAuthority(
     submissionMethod: "Email",
     confidence: 100
   };
+}
+
+export function getConfiguredAppealAuthority(
+  campaign: Campaign,
+  authorities: AuthorityRule[] = []
+): AuthorityRule | undefined {
+  const selectedAuthority = authorities.find(
+    (authority) => authority.id === campaign.selectedAuthorityId
+  );
+  if (selectedAuthority) return selectedAuthority;
+
+  return getAuthorityOptionsForCampaign(campaign, authorities)[0];
 }
 
 export function getSignerSelectedAuthority(

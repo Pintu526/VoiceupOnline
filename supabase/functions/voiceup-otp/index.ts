@@ -30,7 +30,7 @@
   async function sendWithProvider(phone: string, code: string, purpose: string) {
     const webhookUrl = Deno.env.get("VOICEUP_OTP_WEBHOOK_URL");
     const webhookToken = Deno.env.get("VOICEUP_OTP_WEBHOOK_TOKEN");
-    if (!webhookUrl) return;
+    if (!webhookUrl) throw new Error("OTP provider is not configured.");
 
     const response = await fetch(webhookUrl, {
       method: "POST",

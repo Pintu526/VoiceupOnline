@@ -237,10 +237,12 @@ test("Goudhan presentation reuses the existing signing, referral, QR, profile an
   assert.match(supporterProfileSource, /portal\.tree\.network\.directNetwork/);
   assert.match(supporterProfileSource, /portal\.impact\.signaturesInfluenced/);
   const goudhanProfileStart = supporterProfileSource.indexOf("if (isGoudhanExperience)");
-  const standardProfileStart = supporterProfileSource.indexOf(
-    "\n  return (\n    <main className=\"supporter-portal-shell\">",
-    goudhanProfileStart
-  );
+  const standardProfileMatch = supporterProfileSource
+    .slice(goudhanProfileStart)
+    .match(/\r?\n  return \(\r?\n    <main className="supporter-portal-shell">/);
+  assert.ok(standardProfileMatch, "standard supporter profile boundary must exist");
+  const standardProfileStart =
+    goudhanProfileStart + standardProfileMatch.index;
   const goudhanProfile = supporterProfileSource.slice(goudhanProfileStart, standardProfileStart);
   assert.doesNotMatch(goudhanProfile, /\b(wallet|reward|rank|projection|estimated earnings)\b/i);
   assert.match(publicCampaignSource, /displayCampaign\.consentText/);

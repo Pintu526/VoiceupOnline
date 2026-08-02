@@ -184,6 +184,57 @@ Deno.serve(async (req) => {
       return jsonResponse({ location: result.location, configurationVersion: result.configurationVersion, result: result.code });
     }
 
+    if (request.action === "validate_campaign_location_import") {
+      const idempotencyKey = String(request.idempotencyKey ?? "");
+      const contentHash = String(request.contentHash ?? "");
+      const rows = request.rows;
+      if (!/^[A-Za-z0-9._:-]{8,160}$/.test(idempotencyKey) || !/^[a-f0-9]{64}$/.test(contentHash) || !Array.isArray(rows) || rows.length > 2000) {
+        return error("validation_failed");
+      }
+      const master = await masterPaths();
+      if (!master) return error("master_catalog_unavailable");
+      const seen = new Set<string>();
+      const normalizedRows = rows.map((row) => {
+        const parsed = parsePath(row);
+        if (!parsed) return { classification: "invalid", errorCode: "validation_failed" };
+        if (master.has(parsed.normalizedPath)) return { ...parsed.path, normalizedPath: parsed.normalizedPath, leafLevel: parsed.leafLevel, classification: "master_conflict", errorCode: "master_value_protected" };
+        if (seen.has(parsed.normalizedPath)) return { ...parsed.path, normalizedPath: parsed.normalizedPath, leafLevel: parsed.leafLevel, classification: "duplicate_in_file", errorCode: "duplicate" };
+        seen.add(parsed.normalizedPath);
+        return { ...parsed.path, normalizedPath: parsed.normalizedPath, leafLevel: parsed.leafLevel, classification: "valid", errorCode: null };
+      });
+      const result = await rpc(admin, "validate_resource_location_import", {
+        ...base, p_idempotency_key: idempotencyKey, p_content_hash: contentHash, p_rows: normalizedRows
+      });
+      if (result.code !== "ok") return error(String(result.code));
+      const snapshot = await rpc(admin, "read_resource_location_import", { ...base, p_import_id: result.importId });
+      if (snapshot.code !== "ok") return error(String(snapshot.code));
+      return jsonResponse(snapshot);
+    }
+
+    if (request.action === "commit_campaign_location_import") {
+      const importId = requiredString(request.importId);
+      const idempotencyKey = String(request.idempotencyKey ?? "");
+      const contentHash = String(request.contentHash ?? "");
+      if (!importId || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(importId) || !/^[A-Za-z0-9._:-]{8,160}$/.test(idempotencyKey) || !/^[a-f0-9]{64}$/.test(contentHash)) {
+        return error("validation_failed");
+      }
+      const master = await masterPaths();
+      if (!master) return error("master_catalog_unavailable");
+      const result = await rpc(admin, "commit_resource_location_import", {
+        ...base, p_import_id: importId, p_idempotency_key: idempotencyKey, p_content_hash: contentHash
+      });
+      if (result.code !== "completed") return error(String(result.code));
+      return jsonResponse(result);
+    }
+
+    if (request.action === "read_campaign_location_import") {
+      const importId = requiredString(request.importId);
+      if (!importId || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(importId)) return error("validation_failed");
+      const result = await rpc(admin, "read_resource_location_import", { ...base, p_import_id: importId });
+      if (result.code !== "ok") return error(String(result.code));
+      return jsonResponse(result);
+    }
+
     if (request.action === "deactivate_campaign_location") {
       const locationId = requiredString(request.locationId);
       const expectedVersion = request.expectedVersion;

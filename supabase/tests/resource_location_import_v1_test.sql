@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public','resource_location_imports','imports table exists');
+select has_table('public','resource_location_import_rows','import rows table exists');
+select ok((select relrowsecurity from pg_class where oid='public.resource_location_imports'::regclass),'imports use RLS');
+select ok(not has_table_privilege('authenticated','public.resource_location_imports','insert'),'browser cannot create imports directly');
+select ok((select prosecdef from pg_proc where oid=to_regprocedure('public.validate_resource_location_import(uuid,text,text,text,text,text,text,text,jsonb)')),'validation RPC is SECURITY DEFINER');
+select ok((select prosecdef from pg_proc where oid=to_regprocedure('public.commit_resource_location_import(uuid,text,text,text,text,text,uuid,text,text)')),'commit RPC is SECURITY DEFINER');
+select ok(has_function_privilege('service_role','public.commit_resource_location_import(uuid,text,text,text,text,text,uuid,text,text)','EXECUTE'),'service role can commit imports');
+select ok(not has_function_privilege('authenticated','public.commit_resource_location_import(uuid,text,text,text,text,text,uuid,text,text)','EXECUTE'),'browser cannot commit imports directly');
+select * from finish();
+rollback;

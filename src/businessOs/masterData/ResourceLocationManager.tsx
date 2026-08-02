@@ -4,14 +4,24 @@ import type { Campaign } from "../../types";
 import {
   addCampaignLocation,
   CampaignLocationApiError,
+  commitCampaignLocationImport,
   deactivateCampaignLocation,
   getCurrentWorkspaceId,
   readCampaignLocations,
+  validateCampaignLocationImport,
+  type CampaignLocationImport,
   type CampaignLocationPath,
   type CampaignLocationRecord,
   type CampaignLocationScope
 } from "../../backend";
 import { Field } from "../../ui/Field";
+import {
+  downloadResourceLocationCsv,
+  parseResourceLocationCsv,
+  resourceLocationErrorsCsv,
+  resourceLocationTemplateCsv,
+  toResourceLocationErrorCsvRows
+} from "./resourceLocationCsv";
 
 const fields: Array<keyof CampaignLocationPath> = [
   "country", "state", "district", "block", "panchayat", "village", "postalCode"
@@ -76,6 +86,11 @@ export function ResourceLocationManager({ campaign }: ResourceLocationManagerPro
   const [status, setStatus] = useState("Loading campaign locations…");
   const [error, setError] = useState("");
   const [pendingDeactivate, setPendingDeactivate] = useState<CampaignLocationRecord | null>(null);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importState, setImportState] = useState<"idle" | "parsing" | "validation errors" | "ready" | "importing" | "completed" | "failed">("idle");
+  const [importResult, setImportResult] = useState<CampaignLocationImport | null>(null);
+  const [importKey, setImportKey] = useState("");
+  const [importHash, setImportHash] = useState("");
 
   const refresh = async () => {
     setLoading(true);
@@ -156,6 +171,46 @@ export function ResourceLocationManager({ campaign }: ResourceLocationManagerPro
     }
   };
 
+  const validateImport = async () => {
+    if (!importFile) return;
+    setImportState("parsing");
+    setError("");
+    const parsed = parseResourceLocationCsv(await importFile.text(), importFile.size);
+    if (!parsed.ok) {
+      setImportState("failed");
+      setError(errorMessages[parsed.code] ?? "The CSV file could not be validated.");
+      return;
+    }
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(parsed.contentHashInput));
+    const hash = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    const key = idempotencyKey();
+    try {
+      const result = await validateCampaignLocationImport(scope, parsed.rows, key, hash);
+      setImportResult(result);
+      setImportKey(key);
+      setImportHash(hash);
+      setImportState(result.status === "ready" ? "ready" : "validation errors");
+    } catch (reason) {
+      setImportState("failed");
+      setError(messageFor(reason));
+    }
+  };
+
+  const commitImport = async () => {
+    if (!importResult || !importKey || !importHash) return;
+    setImportState("importing");
+    try {
+      const result = await commitCampaignLocationImport(scope, importResult.importId, importKey, importHash);
+      setConfigurationVersion(result.configurationVersion);
+      setImportState("completed");
+      setStatus("CSV import completed.");
+      await refresh();
+    } catch (reason) {
+      setImportState("failed");
+      setError(messageFor(reason));
+    }
+  };
+
   return (
     <section className="wide location-mode-panel">
       <div className="authority-intelligence-header">
@@ -179,6 +234,30 @@ export function ResourceLocationManager({ campaign }: ResourceLocationManagerPro
       </div>
       <p className="helper-text" aria-live="polite">{status}</p>
       {error && <p className="info-message warning" role="alert"><AlertCircle size={16} /> {error}</p>}
+
+      <div className="wide authority-picker-panel">
+        <div className="authority-intelligence-header">
+          <div><span className="eyebrow">Bulk import</span><h4>Campaign location CSV</h4><p className="helper-text">Validate before import. Existing active locations are not changed.</p></div>
+          <button className="secondary-button" type="button" onClick={() => downloadResourceLocationCsv("campaign-location-template-v1.csv", resourceLocationTemplateCsv())}>Download Template</button>
+        </div>
+        <div className="button-row">
+          <input aria-label="Campaign location CSV file" type="file" accept=".csv,text/csv" onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportResult(null); setImportState("idle"); }} />
+          <button className="secondary-button" type="button" disabled={!importFile || importState === "parsing"} onClick={() => void validateImport()}>
+            {importState === "parsing" ? "Validating…" : "Validate CSV"}
+          </button>
+          {importFile && <span className="helper-text">{importFile.name} · {(importFile.size / 1024).toFixed(1)} KB</span>}
+        </div>
+        {importResult && <>
+          <div className="metric-grid">
+            <div className="metric-card"><span>Rows</span><strong>{importResult.totalRows}</strong></div>
+            <div className="metric-card"><span>Ready</span><strong>{importResult.validRows}</strong></div>
+            <div className="metric-card"><span>Errors</span><strong>{importResult.invalidRows}</strong></div>
+          </div>
+          {importResult.invalidRows > 0 && <button className="secondary-button" type="button" onClick={() => downloadResourceLocationCsv("campaign-location-import-errors.csv", resourceLocationErrorsCsv(toResourceLocationErrorCsvRows(importResult.rows.filter((row) => row.errorCode))))}>Download Errors CSV</button>}
+          {importState === "ready" && <button className="primary-button" type="button" onClick={() => void commitImport()} disabled={submitting}>Confirm Import</button>}
+          <p className="helper-text" aria-live="polite">Import status: {importState}</p>
+        </>}
+      </div>
 
       <div className="form-grid">
         <form className="wide" onSubmit={submit}>

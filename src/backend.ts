@@ -1297,6 +1297,55 @@ export async function deactivateCampaignLocation(
   };
 }
 
+export interface CampaignLocationImportRow extends CampaignLocationPath {
+  rowNumber: number;
+  normalizedPath?: string;
+  leafLevel?: CampaignLocationLeafLevel;
+  classification: string;
+  errorCode?: string | null;
+}
+
+export interface CampaignLocationImport {
+  importId: string;
+  status: "validating" | "validation_failed" | "ready" | "importing" | "completed" | "failed";
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateInFileRows: number;
+  existingRows: number;
+  reactivationRows: number;
+  masterConflictRows: number;
+  configurationVersion?: number;
+  rows: CampaignLocationImportRow[];
+}
+
+export async function validateCampaignLocationImport(
+  scope: CampaignLocationScope,
+  rows: CampaignLocationPath[],
+  idempotencyKey: string,
+  contentHash: string
+): Promise<CampaignLocationImport> {
+  return await invokeCampaignLocationApi({
+    action: "validate_campaign_location_import", ...scope, rows, idempotencyKey, contentHash
+  }) as CampaignLocationImport;
+}
+
+export async function commitCampaignLocationImport(
+  scope: CampaignLocationScope, importId: string, idempotencyKey: string, contentHash: string
+): Promise<{ importId: string; configurationVersion: number }> {
+  return await invokeCampaignLocationApi({
+    action: "commit_campaign_location_import", ...scope, importId, idempotencyKey, contentHash
+  }) as { importId: string; configurationVersion: number };
+}
+
+export async function readCampaignLocationImport(
+  scope: CampaignLocationScope, importId: string
+): Promise<CampaignLocationImport> {
+  return await invokeCampaignLocationApi({
+    action: "read_campaign_location_import", ...scope, importId
+  }) as CampaignLocationImport;
+}
+
 export async function requestOtp(
   phone: string,
   purpose: "public-signing" | "onboarding",

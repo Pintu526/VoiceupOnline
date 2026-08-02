@@ -37,6 +37,21 @@ test("assignment_found: exact active assignment succeeds", () => {
   assert.ok(result.assignment);
 });
 
+test("assignment_found: resource slugs ignore case and surrounding whitespace", () => {
+  for (const [stored, expected] of [
+    ["gsaa", "GSAA"],
+    ["GSAA", "gsaa"],
+    ["  gsaa  ", " GSAA "]
+  ]) {
+    const result = evaluateWorkspaceResourceAssignment(
+      [assignmentRow({ resourceSlug: stored })],
+      false,
+      { ...expectedAssignment, resourceSlug: expected }
+    );
+    assert.equal(result.status, "assignment_found");
+  }
+});
+
 test("assignment_missing: no candidate rows for this user/application/resource", () => {
   const result = evaluateWorkspaceResourceAssignment([], false, expectedAssignment);
   assert.equal(result.status, "assignment_missing");

@@ -200,7 +200,7 @@ export function evaluateCampaignAdminLoginAccess(input: {
     input.assignment.resourceId !== input.resourceId ||
     (input.resourceSlug !== undefined &&
       input.assignment.resourceSlug !== undefined &&
-      input.assignment.resourceSlug !== input.resourceSlug)
+      input.assignment.resourceSlug.trim().toLowerCase() !== input.resourceSlug.trim().toLowerCase())
   ) {
     return denied("assignment_missing", CAMPAIGN_ADMIN_ACCESS_MESSAGES.assignmentMissing);
   }

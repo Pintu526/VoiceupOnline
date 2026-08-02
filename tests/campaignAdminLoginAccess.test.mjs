@@ -32,6 +32,22 @@ test("authorizes when assignment, membership, subscription and feature all check
   assert.equal(access.reason, "authorized");
 });
 
+test("authorizes resource slugs that differ only by case or surrounding whitespace", () => {
+  for (const [stored, expected] of [
+    ["gsaa", "GSAA"],
+    ["GSAA", "gsaa"],
+    ["  gsaa  ", " GSAA "]
+  ]) {
+    const access = evaluateCampaignAdminLoginAccess(
+      baseInput({
+        resourceSlug: expected,
+        assignment: { ...baseInput().assignment, resourceSlug: stored }
+      })
+    );
+    assert.equal(access.authorized, true);
+  }
+});
+
 test("denies when there is no assignment at all", () => {
   const access = evaluateCampaignAdminLoginAccess(baseInput({ assignment: null }));
   assert.equal(access.authorized, false);

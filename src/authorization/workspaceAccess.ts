@@ -88,8 +88,13 @@ export function evaluateWorkspaceResourceAssignment(
   const workspaceMatches = candidates.filter((row) => row.workspaceId === expected.workspaceId);
   if (workspaceMatches.length === 0) return { status: "assignment_wrong_workspace", assignment: null };
 
-  const slugMatches = expected.resourceSlug
-    ? workspaceMatches.filter((row) => !row.resourceSlug || row.resourceSlug === expected.resourceSlug)
+  const expectedResourceSlug = expected.resourceSlug?.trim().toLowerCase();
+  const slugMatches = expectedResourceSlug
+    ? workspaceMatches.filter(
+        (row) =>
+          !row.resourceSlug ||
+          row.resourceSlug.trim().toLowerCase() === expectedResourceSlug
+      )
     : workspaceMatches;
   if (slugMatches.length === 0) return { status: "assignment_wrong_resource", assignment: null };
 

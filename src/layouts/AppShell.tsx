@@ -626,6 +626,13 @@ export function AppShell({
   }, [campaignCreationBlockReason, canUseAiCopilot]);
 
   function requestTabChange(tab: Tab) {
+    if (isCampaignAdminRoute && (tab === "saas" || tab === "ideas")) {
+      setOperationNotice({
+        title: t("settings.shell.platformAccessRequired"),
+        description: t("settings.shell.platformAccessHelp")
+      });
+      return;
+    }
     if ((tab === "saas" || tab === "ideas") && !canAccessPlatformAdmin) {
       setOperationNotice({
           title: t("settings.shell.platformAccessRequired"),
@@ -664,6 +671,13 @@ export function AppShell({
   }, [activeTab, canAccessPlatformAdmin, organization.enabledFeatureKeys, organization.plan, setActiveTab]);
 
   function requestUpgradePlan() {
+    if (isCampaignAdminRoute) {
+      setOperationNotice({
+        title: t("settings.shell.platformAccessRequired"),
+        description: t("settings.shell.platformAccessHelp")
+      });
+      return;
+    }
     if (canAccessPlatformAdmin) {
       requestTabChange("saas");
       return;
@@ -677,6 +691,13 @@ export function AppShell({
   }
 
   function requestAiCampaignCreation() {
+    if (isCampaignAdminRoute) {
+      setOperationNotice({
+        title: t("settings.shell.platformAccessRequired"),
+        description: t("settings.shell.platformAccessHelp")
+      });
+      return;
+    }
     if (!canUseAiCopilot) {
       setOperationNotice({
         title: "Upgrade plan required",
@@ -693,6 +714,7 @@ export function AppShell({
   }
 
   function requestCreateCampaign() {
+    if (isCampaignAdminRoute) return;
     if (
       activeTab === "campaigns" &&
       hasUnsavedCampaignChanges &&
@@ -716,6 +738,7 @@ export function AppShell({
   }
 
   function selectCampaign(campaignId: string) {
+    if (isCampaignAdminRoute) return;
     const selectedCampaign = campaigns.find((campaign) => campaign.id === campaignId);
     if (!selectedCampaign) return;
     if (
@@ -744,6 +767,7 @@ export function AppShell({
   }
 
   function requestDuplicateCampaign() {
+    if (isCampaignAdminRoute) return;
     if (!campaignDraft) return;
     if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.duplicateUnsaved"))) {
       return;
@@ -753,6 +777,7 @@ export function AppShell({
   }
 
   function requestArchiveCampaign() {
+    if (isCampaignAdminRoute) return;
     if (campaignFormMode === "create" || !activeCampaign) return;
     if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.archiveUnsaved"))) {
       return;
@@ -763,6 +788,7 @@ export function AppShell({
   }
 
   function requestDeleteCampaign() {
+    if (isCampaignAdminRoute) return;
     if (campaignFormMode === "create" || !activeCampaign) return;
     if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.deleteUnsaved"))) {
       return;
@@ -1008,7 +1034,7 @@ export function AppShell({
               />
               <kbd>Esc</kbd>
             </div>
-            <div className="campaign-switcher-actions">
+            {!isCampaignAdminRoute && <div className="campaign-switcher-actions">
               {campaignFormMode === "create" && campaignDraft && (
                 <button
                   className="campaign-switcher-draft-card"
@@ -1047,7 +1073,7 @@ export function AppShell({
                   <BarChart3 size={16} /> {t("campaignAdmin.actions.openDashboard")}
                 </button>
               </div>
-            </div>
+            </div>}
             {shouldWindowCampaignList && (
               <div className="campaign-switcher-performance-note" role="status">
                 {t("campaignAdmin.selector.largeWorkspace")}
@@ -1240,13 +1266,6 @@ export function AppShell({
                   </div>
                 </dl>
                 <div className="button-row">
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={requestCreateCampaign}
-                  >
-                    <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
-                  </button>
                   <button
                     className="secondary-button"
                     type="button"

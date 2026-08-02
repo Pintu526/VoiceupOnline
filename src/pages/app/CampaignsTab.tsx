@@ -565,6 +565,7 @@ export function CampaignsTab({
   }
 
   function confirmArchiveCampaign() {
+    if (isCampaignAdminRoute) return;
     if (!campaignDraft) return;
     const campaignName = campaignDraft.title || t("campaignAdmin.common.thisCampaign");
     const confirmed = window.confirm(
@@ -580,6 +581,7 @@ export function CampaignsTab({
   }
 
   function applyTemplate(template: CampaignTemplate) {
+    if (isCampaignAdminRoute) return;
     if (!campaignDraft) return;
     const shouldCreateNewDraft = campaignFormMode === "edit";
     const productionBlueprint = template.productionBlueprint;
@@ -1248,6 +1250,7 @@ export function CampaignsTab({
                     {t("campaignAdmin.links.readyMessage")}
                   </p>
                 </div>
+                {!isCampaignAdminRoute && <>
                 <Field label={t("campaignAdmin.fields.adminEmail")}>
                   <input
                     type="email"
@@ -1305,6 +1308,7 @@ export function CampaignsTab({
                     </>
                   )}
                 </div>
+                </>}
 
                 <Field label={t("campaignAdmin.fields.qrLabel")}>
                   <input

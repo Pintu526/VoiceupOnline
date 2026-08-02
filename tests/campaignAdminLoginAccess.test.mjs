@@ -148,19 +148,19 @@ test("exact required user-facing messages are used for every denial reason", () 
   );
 });
 
-test("reloads persisted supporters only after Campaign Admin access is authorized", () => {
+test("Campaign Admin login writes route-scoped session state without loading workspace supporters", () => {
   const loginStart = appSource.indexOf("async function submitCampaignAdminLogin(event: FormEvent)");
   const loginEnd = appSource.indexOf("\n  async function logoutCampaignAdmin", loginStart);
   const loginSource = appSource.slice(loginStart, loginEnd);
   const authorizationGuard = loginSource.indexOf("if (!loginAccess.authorized)");
   const unauthorizedReturn = loginSource.indexOf("return;", authorizationGuard);
-  const supporterReload = loginSource.indexOf("const remoteState = await loadRemoteState();");
+  const sessionMarkerWrite = loginSource.indexOf("writeCampaignAdminSupabaseSession({");
+  const authenticatedSlugWrite = loginSource.indexOf("writeAuthenticatedAdminSlugs(nextAuth);");
 
   assert.ok(authorizationGuard >= 0);
   assert.ok(unauthorizedReturn > authorizationGuard);
-  assert.ok(supporterReload > unauthorizedReturn);
-  assert.match(
-    loginSource.slice(supporterReload, supporterReload + 180),
-    /setSigners\(remoteState\.signers \?\? \[\]\)/
-  );
+  assert.ok(sessionMarkerWrite > unauthorizedReturn);
+  assert.ok(authenticatedSlugWrite > sessionMarkerWrite);
+  assert.doesNotMatch(loginSource, /loadRemoteState\(\)/);
+  assert.doesNotMatch(loginSource, /setSigners\(/);
 });

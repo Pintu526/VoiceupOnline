@@ -445,7 +445,7 @@ const SAAS_ADMIN_AUTH_FAILURE_MESSAGE = "SaaS Admin email or password is incorre
 const SAAS_ADMIN_SESSION_DISCONNECTED_MESSAGE =
   "SaaS Admin session is not connected to Supabase. Sign out and sign in again.";
 
-type StartupMode = "pending" | "local-mvp" | "saas-workspace";
+type StartupMode = "pending" | "local-mvp" | "saas-workspace" | "campaign-admin";
 
 function App() {
   // ─── Persistent state ────────────────────────────────────────────────────
@@ -1015,8 +1015,12 @@ function App() {
     if (authContextLoading) return;
 
     const shouldUseSaasWorkspace =
-      isCustomerWorkspaceAuthenticated || isPlatformAdminAuthenticated;
-    const nextMode: StartupMode = shouldUseSaasWorkspace ? "saas-workspace" : "local-mvp";
+      !isCampaignAdminRoute && (isCustomerWorkspaceAuthenticated || isPlatformAdminAuthenticated);
+    const nextMode: StartupMode = isCampaignAdminRoute
+      ? "campaign-admin"
+      : shouldUseSaasWorkspace
+        ? "saas-workspace"
+        : "local-mvp";
 
     setStartupMode(nextMode);
 
@@ -1033,6 +1037,7 @@ function App() {
     }
   }, [
     authContextLoading,
+    isCampaignAdminRoute,
     isCustomerWorkspaceAuthenticated,
     isPlatformAdminAuthenticated,
     isPublicCampaignRoute
@@ -1098,7 +1103,7 @@ function App() {
           return;
         }
 
-        if (isCampaignAdminRoute && adminCampaignSlug && startupMode !== "saas-workspace") {
+        if (isCampaignAdminRoute && adminCampaignSlug) {
           const campaignForAdminRoute = await loadPublicCampaign(adminCampaignSlug);
           if (isCancelled) return;
           if (campaignForAdminRoute) {
@@ -1183,7 +1188,8 @@ function App() {
       !isBackendConfigured ||
       startupMode !== "saas-workspace" ||
       !remoteStateLoaded ||
-      isPublicCampaignRoute
+      isPublicCampaignRoute ||
+      isCampaignAdminRoute
     ) return;
     const timeoutId = window.setTimeout(() => {
       const state = createRemoteState({
@@ -1203,7 +1209,7 @@ function App() {
     }, 700);
     return () => window.clearTimeout(timeoutId);
   }, [
-    startupMode,
+    isCampaignAdminRoute, startupMode,
     activeCampaignId, authorities, auditLogs, campaigns, commercialPackages, integrations,
     locationDeletions, locationOverrides, organization, remoteStateLoaded, scanItems, signers
   ]);
@@ -1508,6 +1514,22 @@ function App() {
   function saveCampaign(event: FormEvent) {
     event.preventDefault();
     if (!campaignDraft) return;
+    const campaignAdminMarker = isCampaignAdminRoute && activeCampaign
+      ? readCampaignAdminSupabaseSession(activeCampaign.slug)
+      : null;
+    if (
+      isCampaignAdminRoute &&
+      (
+        campaignFormMode === "create" ||
+        !activeCampaign ||
+        campaignDraft.id !== activeCampaign.id ||
+        campaignAdminMarker?.resourceId !== activeCampaign.id ||
+        !publicCampaignSlugsMatch(campaignDraft.slug, adminCampaignSlug)
+      )
+    ) {
+      setBackendMessage("Campaign Admin access is limited to the assigned campaign.");
+      return;
+    }
     const draftWithSlugUrls = {
       ...campaignDraft,
       shareUrl: getCampaignPublicUrl(organization, campaignDraft),
@@ -1577,6 +1599,10 @@ function App() {
    * already-authenticated session's bearer token to the Edge Function via `functions.invoke`.
    */
   async function provisionCampaignAdminAccount(email: string, password: string) {
+    if (isCampaignAdminRoute) {
+      setCampaignAdminProvisioningMessage("Campaign Admins cannot provision Campaign Admin access.");
+      return;
+    }
     if (!campaignDraft) return;
 
     const isSavedCampaign = campaigns.some((campaign) => campaign.id === campaignDraft.id);
@@ -1656,6 +1682,10 @@ function App() {
 
 
   function createCampaign() {
+    if (isCampaignAdminRoute) {
+      setBackendMessage("Campaign Admins cannot create campaigns.");
+      return;
+    }
     const slug = `new-campaign-${Date.now()}`;
     const campaign: Campaign = applyLocationGovernanceToCampaign({
       id: createId("cmp"),
@@ -1727,6 +1757,10 @@ function App() {
   }
 
   function cloneCampaign() {
+    if (isCampaignAdminRoute) {
+      setBackendMessage("Campaign Admins cannot clone campaigns.");
+      return;
+    }
     if (!campaignDraft) return;
     const sourceSlug = campaignDraft.slug.trim() || `campaign-${Date.now()}`;
     const slug = `${sourceSlug}-copy-${Date.now()}`;
@@ -1749,6 +1783,10 @@ function App() {
   }
 
   function archiveCampaign() {
+    if (isCampaignAdminRoute) {
+      setBackendMessage("Campaign Admins cannot archive campaigns.");
+      return;
+    }
     if (!campaignDraft) return;
     const isExistingCampaign = campaigns.some((campaign) => campaign.id === campaignDraft.id);
     if (!isExistingCampaign || campaignFormMode === "create") {
@@ -1773,6 +1811,10 @@ function App() {
   }
 
   function deleteCampaign() {
+    if (isCampaignAdminRoute) {
+      setBackendMessage("Campaign Admins cannot delete campaigns.");
+      return;
+    }
     if (!activeCampaign || campaignFormMode === "create") return;
     const deletedCampaignId = activeCampaign.id;
     const deletedCampaignTitle = activeCampaign.title || "Untitled campaign";
@@ -3445,13 +3487,6 @@ function App() {
       writeAuthenticatedAdminSlugs(nextAuth);
       setAdminLogin(blankAdminLogin);
       setAdminLoginMessage("");
-
-      try {
-        const remoteState = await loadRemoteState();
-        if (remoteState) setSigners(remoteState.signers ?? []);
-      } catch {
-        // Campaign Admin access remains valid if supporter data cannot be refreshed here.
-      }
 
       // Secure field-upload access is a separate, additional concern from login itself --
       // evaluated here for the storage/upload UI, but never used to gate the login above.

@@ -138,7 +138,7 @@ export function DashboardTab({
   };
   const isTrialWorkspace = organization.plan === "Free Trial";
   const [quickStartDismissed, setQuickStartDismissed] = useState(false);
-  const showQuickStart = !quickStartDismissed && campaigns.length <= 2;
+  const showQuickStart = !isCampaignAdminRoute && !quickStartDismissed && campaigns.length <= 2;
   const campaignAdminStoryActions: Partial<Record<string, VoiceUpStoryAction>> = {
     publishStrengthen: {
       label: t("storyCarousel.campaignAdmin.slides.publishStrengthen.cta"),
@@ -263,7 +263,7 @@ export function DashboardTab({
           className="voiceup-story-carousel--dashboard"
         />
       )}
-      {isTrialWorkspace && (
+      {!isCampaignAdminRoute && isTrialWorkspace && (
         <Panel title={t("campaignAdmin.dashboard.freeze.trialFocus")} icon={<CheckCircle2 />}>
           <div className="quick-start-panel">
             <div className="quick-start-hero">
@@ -302,7 +302,7 @@ export function DashboardTab({
           </div>
         </Panel>
       )}
-      {!isTrialWorkspace && (
+      {!isCampaignAdminRoute && !isTrialWorkspace && (
       <div className="ai-entry-strip">
         <div>
           <span className="eyebrow">{t("campaignAdmin.dashboard.aiCopilot")}</span>
@@ -464,7 +464,7 @@ export function DashboardTab({
       </Panel>
       )}
 
-      {!activeCampaign && (
+      {!isCampaignAdminRoute && !activeCampaign && (
         <EmptyWorkspace
           organization={organization}
           onCreateCampaign={onCreateCampaign}

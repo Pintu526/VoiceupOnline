@@ -105,6 +105,7 @@ import {
   participationRequestFingerprint
 } from "../movementRequests";
 import "../publicSigningExperience.css";
+import type { PublicCampaignCustomLocation } from "../backend";
 
 interface PublicCampaignPageProps {
   campaign: Campaign;
@@ -126,6 +127,7 @@ interface PublicCampaignPageProps {
   onVerifyOtp: () => void | Promise<void>;
   locationOverrides: LocationOverrides;
   locationDeletions: LocationDeletions;
+  customLocations?: PublicCampaignCustomLocation[];
   onGrowthShare?: (share: GrowthShareContext) => void;
   onUploadSupporterPhoto?: (file: File) => Promise<void>;
   onSaveDraft?: () => void | Promise<void>;
@@ -643,6 +645,7 @@ export function PublicCampaignPage({
   onVerifyOtp,
   locationOverrides,
   locationDeletions,
+  customLocations = [],
   onGrowthShare,
   onUploadSupporterPhoto,
   onSaveDraft,
@@ -1049,12 +1052,12 @@ export function PublicCampaignPage({
   const locationFields = isGoudhanExperience ? (
     <IndiaLocationFields
       idPrefix="public-signer-location"
-      values={{ ...publicLocationForm, country: "India" }}
+      values={{ ...publicLocationForm, address: publicForm.address, country: "India" }}
       onChange={(values) =>
         setPublicForm(
           applySignerLocationRestriction(
             campaign,
-            { ...publicForm, ...values, country: "India" },
+            { ...publicForm, ...values, address: values.address ?? publicForm.address, country: "India" },
             organization
           )
         )
@@ -1067,6 +1070,7 @@ export function PublicCampaignPage({
       labelOverrides={copy.locationLabels}
       fixedCountry="India"
       verifiedSuggestionsOnly
+      customLocations={customLocations}
     />
   ) : isGlobalMode ? (
     <GlobalLocationFields
@@ -1083,9 +1087,9 @@ export function PublicCampaignPage({
   ) : (
     <IndiaLocationFields
       idPrefix="public-signer-location"
-      values={restrictedPublicForm}
+      values={{ ...restrictedPublicForm, address: publicForm.address }}
       onChange={(values) =>
-        setPublicForm(applySignerLocationRestriction(campaign, { ...publicForm, ...values }, organization))
+        setPublicForm(applySignerLocationRestriction(campaign, { ...publicForm, ...values, address: values.address ?? publicForm.address }, organization))
       }
       locationOverrides={locationOverrides}
       locationDeletions={locationDeletions}
@@ -1093,6 +1097,7 @@ export function PublicCampaignPage({
       hiddenLockedLevel={signerRestrictionLevel}
       requiredFields={requiredFields}
       labelOverrides={copy.locationLabels}
+      customLocations={customLocations}
     />
   );
 

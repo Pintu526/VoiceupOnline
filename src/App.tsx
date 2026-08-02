@@ -3765,6 +3765,7 @@ function App() {
       <div className="public-only-shell">
         <PublicCampaignPage
           campaign={activeCampaign}
+          customLocations={publicCampaignPayload?.customLocations ?? []}
           organization={organization}
           metrics={metrics}
           authority={authorityMatch?.authority}

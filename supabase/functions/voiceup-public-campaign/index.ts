@@ -30,13 +30,28 @@ Deno.serve(async (req) => {
     if (!resolved.ok || !resolved.row.campaign) {
       return jsonResponse({ campaign: null });
     }
+    const { data: customLocations, error: locationsError } = await admin
+      .from("vboss_resource_location_paths")
+      .select("country,state,district,block,panchayat,village,postal_code")
+      .eq("workspace_id", resolved.row.workspace_id)
+      .eq("application_key", "voiceup")
+      .eq("resource_type", "campaign")
+      .eq("resource_id", resolved.row.campaign_id)
+      .eq("active", true)
+      .order("normalized_path");
+    if (locationsError) throw locationsError;
 
     return jsonResponse({
       campaign: {
         campaign: resolved.row.campaign,
         organization: resolved.row.organization ?? undefined,
         authorities: resolved.row.authorities ?? [],
-        metrics: resolved.row.metrics
+        metrics: resolved.row.metrics,
+        customLocations: (customLocations ?? []).map((location) => ({
+          country: location.country, state: location.state ?? undefined, district: location.district ?? undefined,
+          block: location.block ?? undefined, panchayat: location.panchayat ?? undefined,
+          village: location.village ?? undefined, postalCode: location.postal_code ?? undefined
+        }))
       }
     });
   } catch (error) {

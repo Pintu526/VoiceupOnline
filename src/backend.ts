@@ -68,6 +68,7 @@ export interface VoiceupAccessContext {
 
 export interface PublicCampaignPayload {
   campaign: Campaign;
+  customLocations?: PublicCampaignCustomLocation[];
   organization?: Organization;
   authorities: AuthorityRule[];
   metrics: {
@@ -89,6 +90,16 @@ export interface PublicCampaignPayload {
       active: number;
     };
   };
+}
+
+export interface PublicCampaignCustomLocation {
+  country: string;
+  state?: string;
+  district?: string;
+  block?: string;
+  panchayat?: string;
+  village?: string;
+  postalCode?: string;
 }
 
 export interface PublicCampaignJourney {

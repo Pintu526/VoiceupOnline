@@ -17,6 +17,7 @@ import { Field } from "../ui/Field";
 import { InlineAddOption } from "./InlineAddOption";
 import { InlineDeleteOption } from "./InlineDeleteOption";
 import { getLocationLevelLabel, isLocationLevelAtLeast } from "../utils/campaign";
+import type { PublicCampaignCustomLocation } from "../backend";
 
 interface IndiaLocationFieldsProps {
   idPrefix: string;
@@ -35,6 +36,7 @@ interface IndiaLocationFieldsProps {
   verifiedSuggestionsOnly?: boolean;
   onAddLocation?: (values: LocationWithPin) => boolean | Promise<boolean>;
   onRemoveLocation?: (values: LocationWithPin, level: LocationDeletionLevel) => void;
+  customLocations?: PublicCampaignCustomLocation[];
 }
 
 function optionExists(options: string[], value: string): boolean {
@@ -58,7 +60,8 @@ export function IndiaLocationFields({
   fixedCountry,
   verifiedSuggestionsOnly = false,
   onAddLocation,
-  onRemoveLocation
+  onRemoveLocation,
+  customLocations = []
 }: IndiaLocationFieldsProps) {
   const [newDistrict, setNewDistrict] = useState("");
   const [newBlock, setNewBlock] = useState("");
@@ -74,33 +77,41 @@ export function IndiaLocationFields({
   const allowedDistrict = allowedLocation?.district ?? "";
   const allowedBlock = allowedLocation?.block ?? "";
   const allowedPanchayat = allowedLocation?.panchayat ?? "";
-  const stateOptions = allowedState ? [allowedState] : indianStatesAndUnionTerritories;
-  const districtOptions = getDistrictOptions(
+  const mergeOptions = (master: string[], additions: string[]) => [...master, ...additions.filter((value) => !master.some((option) => option.trim().toLowerCase() === value.trim().toLowerCase()))];
+  const stateOptions = allowedState ? [allowedState] : mergeOptions(indianStatesAndUnionTerritories, customLocations.map((location) => location.state ?? "").filter(Boolean));
+  const districtOptions = mergeOptions(getDistrictOptions(
     values.state,
     locationOverrides,
     locationDeletions,
     verifiedSuggestionsOnly
-  ).filter(
+  ), customLocations.filter((location) => location.state?.trim().toLowerCase() === values.state.trim().toLowerCase()).map((location) => location.district ?? "").filter(Boolean)).filter(
     (district) => !allowedDistrict || district === allowedDistrict
   );
-  const blockOptions = getBlockOptions(
+  const blockOptions = mergeOptions(getBlockOptions(
     values.state,
     values.district,
     locationOverrides,
     locationDeletions,
     verifiedSuggestionsOnly
-  ).filter(
+  ), customLocations.filter((location) => location.state?.trim().toLowerCase() === values.state.trim().toLowerCase() && location.district?.trim().toLowerCase() === values.district.trim().toLowerCase()).map((location) => location.block ?? "").filter(Boolean)).filter(
     (block) => !allowedBlock || block === allowedBlock
   );
-  const panchayatOptions = getPanchayatOptions(
+  const panchayatOptions = mergeOptions(getPanchayatOptions(
     values.state,
     values.district,
     values.block,
     locationOverrides,
     locationDeletions,
     verifiedSuggestionsOnly
-  ).filter((panchayat) => !allowedPanchayat || panchayat === allowedPanchayat);
-  const pinOptions = getPinOptions(values);
+  ), customLocations.filter((location) => location.state?.trim().toLowerCase() === values.state.trim().toLowerCase() && location.district?.trim().toLowerCase() === values.district.trim().toLowerCase() && location.block?.trim().toLowerCase() === values.block.trim().toLowerCase()).map((location) => location.panchayat ?? "").filter(Boolean)).filter((panchayat) => !allowedPanchayat || panchayat === allowedPanchayat);
+  const selectedCustomPath = (location: PublicCampaignCustomLocation) =>
+    location.country?.trim().toLowerCase() === (fixedCountry ?? values.country ?? "India").trim().toLowerCase()
+    && location.state?.trim().toLowerCase() === values.state.trim().toLowerCase()
+    && location.district?.trim().toLowerCase() === values.district.trim().toLowerCase()
+    && location.block?.trim().toLowerCase() === values.block.trim().toLowerCase()
+    && location.panchayat?.trim().toLowerCase() === values.panchayat.trim().toLowerCase();
+  const villageOptions = mergeOptions([], customLocations.filter(selectedCustomPath).map((location) => location.village ?? "").filter(Boolean));
+  const pinOptions = mergeOptions(getPinOptions(values), customLocations.filter(selectedCustomPath).map((location) => location.postalCode ?? "").filter(Boolean));
   const stateLocked = isLocationLevelAtLeast(lockedLevel, "state");
   const districtLocked = isLocationLevelAtLeast(lockedLevel, "district");
   const blockLocked = isLocationLevelAtLeast(lockedLevel, "block");
@@ -432,6 +443,18 @@ export function IndiaLocationFields({
           )}
         </Field>
       )}
+
+      <Field label={fieldLabel("Village / Locality", "address" as SignerRequiredField)}>
+        <input
+          list={`${idPrefix}-villages`}
+          placeholder="Enter village or locality"
+          value={values.address ?? ""}
+          onChange={(event) => onChange({ ...values, address: event.target.value })}
+        />
+        <datalist id={`${idPrefix}-villages`}>
+          {villageOptions.map((village) => <option key={village} value={village} />)}
+        </datalist>
+      </Field>
 
       <Field label={fieldLabel("PIN code", "postalCode")}>
         <input

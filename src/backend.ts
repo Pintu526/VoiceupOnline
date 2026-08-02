@@ -104,6 +104,47 @@ export interface PublicCampaignJourney {
   referralCount: number;
 }
 
+export type CampaignLocationLeafLevel =
+  | "country"
+  | "state"
+  | "district"
+  | "block"
+  | "panchayat"
+  | "village";
+
+export interface CampaignLocationPath {
+  country: string;
+  state?: string;
+  district?: string;
+  block?: string;
+  panchayat?: string;
+  village?: string;
+  postalCode?: string;
+}
+
+export interface CampaignLocationRecord extends CampaignLocationPath {
+  id: string;
+  leafLevel: CampaignLocationLeafLevel;
+  source: "campaign_manual" | "campaign_import";
+  active: boolean;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CampaignLocationScope {
+  workspaceId: string;
+  campaignId: string;
+  campaignSlug: string;
+}
+
+export class CampaignLocationApiError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = "CampaignLocationApiError";
+  }
+}
+
 export type PublicParticipationAction =
   | "save_draft"
   | "submit_support"
@@ -1182,6 +1223,77 @@ export async function loadPublicCampaignJourney(referralCode: string): Promise<P
   return {
     ...data.journey,
     publicCampaignUrl: getPublicCampaignUrl(data.journey.campaignSlug)
+  };
+}
+
+type CampaignLocationFunctionResponse = {
+  locations?: CampaignLocationRecord[];
+  location?: Pick<CampaignLocationRecord, "id" | "version">;
+  configurationVersion?: number;
+  result?: "created" | "reactivated" | "duplicate" | "deactivated";
+  error?: string;
+};
+
+async function invokeCampaignLocationApi(body: Record<string, unknown>): Promise<CampaignLocationFunctionResponse> {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke<CampaignLocationFunctionResponse>(
+    "voiceup-campaign-locations",
+    { body }
+  );
+  const code = data?.error;
+  if (error || code) throw new CampaignLocationApiError(code || "server_error");
+  return data ?? {};
+}
+
+export async function readCampaignLocations(
+  scope: CampaignLocationScope,
+  options: { active?: boolean; parentPath?: Partial<CampaignLocationPath> } = {}
+): Promise<{ locations: CampaignLocationRecord[]; configurationVersion: number }> {
+  const response = await invokeCampaignLocationApi({
+    action: "read_campaign_locations",
+    ...scope,
+    ...options
+  });
+  return {
+    locations: response.locations ?? [],
+    configurationVersion: response.configurationVersion ?? 0
+  };
+}
+
+export async function addCampaignLocation(
+  scope: CampaignLocationScope,
+  path: CampaignLocationPath,
+  idempotencyKey: string
+): Promise<{ location: Pick<CampaignLocationRecord, "id" | "version">; configurationVersion: number; result: string }> {
+  const response = await invokeCampaignLocationApi({
+    action: "add_campaign_location",
+    ...scope,
+    path,
+    idempotencyKey
+  });
+  if (!response.location || !response.result) throw new CampaignLocationApiError("server_error");
+  return {
+    location: response.location,
+    configurationVersion: response.configurationVersion ?? 0,
+    result: response.result
+  };
+}
+
+export async function deactivateCampaignLocation(
+  scope: CampaignLocationScope,
+  locationId: string,
+  expectedVersion: number
+): Promise<{ location: Pick<CampaignLocationRecord, "id" | "version">; configurationVersion: number }> {
+  const response = await invokeCampaignLocationApi({
+    action: "deactivate_campaign_location",
+    ...scope,
+    locationId,
+    expectedVersion
+  });
+  if (!response.location) throw new CampaignLocationApiError("server_error");
+  return {
+    location: response.location,
+    configurationVersion: response.configurationVersion ?? 0
   };
 }
 

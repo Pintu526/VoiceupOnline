@@ -46,6 +46,7 @@ import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { IndiaLocationFields } from "../../components/IndiaLocationFields";
 import { GlobalLocationFields } from "../../components/GlobalLocationFields";
+import { ResourceLocationManager } from "../../businessOs/masterData/ResourceLocationManager";
 import { PasswordField } from "../../ui/PasswordField";
 import { ReferralQrPreview } from "../../components/ReferralQrPreview";
 import { QrCodeGraphic } from "../../components/QrCodeGraphic";
@@ -1381,6 +1382,9 @@ export function CampaignsTab({
                     onAddLocation={onAddAdminLocationOption}
                     onRemoveLocation={onRemoveAdminLocationOption}
                   />
+                )}
+                {isCampaignAdminRoute && (
+                  <ResourceLocationManager campaign={effectiveCampaignDraft} />
                 )}
 
                 <div className="wide signer-restriction-panel">

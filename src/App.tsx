@@ -2149,7 +2149,7 @@ function App() {
           }
         : current
       );
-      setOtpMessage(result.message);
+      setOtpMessage("");
       if (isBackendConfigured && activeCampaign?.slug) {
         const resumed = await mutatePublicParticipation({
           slug: publicParticipationSlug,

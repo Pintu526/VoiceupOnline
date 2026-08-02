@@ -259,15 +259,20 @@ test("K1. invalid public phones are rejected before browser invocation and every
   assert.match(atomicMigrationSource, /\^\[0-9\]\{8,15\}\$/);
 });
 
-test("K2. Preview and Production cannot receive a development OTP", () => {
+test("K2. only GSAA returns an OTP when the server flag is enabled", () => {
   const requestOtpSource = backendSource.slice(
     backendSource.indexOf("export async function requestOtp("),
     backendSource.indexOf("export async function verifyOtp(")
   );
-  assert.doesNotMatch(otpFunctionSource, /\botp:\s*code\b/);
-  assert.doesNotMatch(requestOtpSource, /developmentOtp:\s*data\.otp/);
+  assert.match(otpFunctionSource, /const SHOW_GSAA_OTP = Deno\.env\.get\("VOICEUP_SHOW_OTP"\) === "true"/);
+  assert.match(
+    otpFunctionSource,
+    /purpose === "public-signing" && publicSlug === "GSAA" && SHOW_GSAA_OTP[\s\S]*\? \{ otp: code \}/
+  );
+  assert.match(requestOtpSource, /otp:\s*data\.otp/);
   assert.match(backendSource, /if \(!import\.meta\.env\.DEV\)[\s\S]*Verification service is temporarily unavailable/);
-  assert.match(appSource, /const developmentOtp = import\.meta\.env\.DEV \? result\.developmentOtp : undefined/);
+  assert.match(appSource, /const otp = result\.otp/);
+  assert.match(appSource, /\? `OTP: \$\{otp\}`/);
 });
 
 test("L. signing recovery stays in the tab and never restores OTP proof", () => {

@@ -15,6 +15,7 @@
   const OTP_MAX_SENDS = 4;
   const OTP_MAX_ATTEMPTS = 5;
   const DEV_MODE = Deno.env.get("DEV_MODE") === "true";
+  const SHOW_GSAA_OTP = Deno.env.get("VOICEUP_SHOW_OTP") === "true";
 
   function createOtpCode() {
     const bytes = new Uint8Array(4);
@@ -146,7 +147,10 @@
         return jsonResponse({
           challengeId: data.id,
           resendAfterSeconds: 30,
-          message: "Verification code sent."
+          message: "Verification code sent.",
+          ...(purpose === "public-signing" && publicSlug === "GSAA" && SHOW_GSAA_OTP
+            ? { otp: code }
+            : {})
         });
       }
 

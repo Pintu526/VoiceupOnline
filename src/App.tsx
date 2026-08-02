@@ -2093,9 +2093,9 @@ function App() {
         slug: publicParticipationSlug,
         campaignId: activeCampaign?.id ?? ""
       });
-      const developmentOtp = import.meta.env.DEV ? result.developmentOtp : undefined;
+      const otp = result.otp;
       setPublicOtpExpiresAt(Date.now() + 10 * 60 * 1000);
-      setOtpCode(developmentOtp ?? "");
+      setOtpCode(otp ?? "");
       setPublicForm((current) => current.phone.trim() === phone
         ? {
             ...current,
@@ -2106,8 +2106,8 @@ function App() {
         : current
       );
       setOtpMessage(
-        developmentOtp
-          ? `${result.message} OTP: ${developmentOtp}`
+        otp
+          ? `OTP: ${otp}`
           : result.message
       );
       return true;
@@ -3442,6 +3442,13 @@ function App() {
       writeAuthenticatedAdminSlugs(nextAuth);
       setAdminLogin(blankAdminLogin);
       setAdminLoginMessage("");
+
+      try {
+        const remoteState = await loadRemoteState();
+        if (remoteState) setSigners(remoteState.signers ?? []);
+      } catch {
+        // Campaign Admin access remains valid if supporter data cannot be refreshed here.
+      }
 
       // Secure field-upload access is a separate, additional concern from login itself --
       // evaluated here for the storage/upload UI, but never used to gate the login above.

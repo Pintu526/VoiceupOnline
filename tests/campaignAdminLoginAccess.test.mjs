@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 import { evaluateCampaignAdminLoginAccess } from "../src/secureFieldUploadAuth.ts";
+
+const appSource = fs.readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
 
 function baseInput(overrides = {}) {
   return {
@@ -126,5 +129,22 @@ test("exact required user-facing messages are used for every denial reason", () 
   assert.equal(
     evaluateCampaignAdminLoginAccess(baseInput({ hasCampaignAdminAccessFeature: false })).message,
     "Campaign Admin access is not included in the current plan."
+  );
+});
+
+test("reloads persisted supporters only after Campaign Admin access is authorized", () => {
+  const loginStart = appSource.indexOf("async function submitCampaignAdminLogin(event: FormEvent)");
+  const loginEnd = appSource.indexOf("\n  async function logoutCampaignAdmin", loginStart);
+  const loginSource = appSource.slice(loginStart, loginEnd);
+  const authorizationGuard = loginSource.indexOf("if (!loginAccess.authorized)");
+  const unauthorizedReturn = loginSource.indexOf("return;", authorizationGuard);
+  const supporterReload = loginSource.indexOf("const remoteState = await loadRemoteState();");
+
+  assert.ok(authorizationGuard >= 0);
+  assert.ok(unauthorizedReturn > authorizationGuard);
+  assert.ok(supporterReload > unauthorizedReturn);
+  assert.match(
+    loginSource.slice(supporterReload, supporterReload + 180),
+    /setSigners\(remoteState\.signers \?\? \[\]\)/
   );
 });

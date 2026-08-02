@@ -114,6 +114,7 @@ export interface OtpRequestResult {
   challengeId: string;
   resendAfterSeconds: number;
   message: string;
+  otp?: string;
   developmentOtp?: string;
 }
 
@@ -1169,6 +1170,7 @@ export async function requestOtp(
       challengeId?: string;
       resendAfterSeconds?: number;
       message?: string;
+      otp?: string;
       error?: string;
       code?: string;
     }>("voiceup-otp", {
@@ -1193,7 +1195,8 @@ export async function requestOtp(
     return {
       challengeId: data.challengeId,
       resendAfterSeconds: data.resendAfterSeconds ?? 30,
-      message: data.message ?? "Verification code sent."
+      message: data.message ?? "Verification code sent.",
+      otp: data.otp
     };
   }
   if (!import.meta.env.DEV) {

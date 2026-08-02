@@ -31,6 +31,8 @@ interface IndiaLocationFieldsProps {
   requiredFields?: SignerRequiredField[];
   showOptionalLabels?: boolean;
   labelOverrides?: Partial<Record<SignerRequiredField, string>>;
+  fixedCountry?: string;
+  verifiedSuggestionsOnly?: boolean;
   onAddLocation?: (values: LocationWithPin) => boolean | Promise<boolean>;
   onRemoveLocation?: (values: LocationWithPin, level: LocationDeletionLevel) => void;
 }
@@ -53,6 +55,8 @@ export function IndiaLocationFields({
   requiredFields = [],
   showOptionalLabels = false,
   labelOverrides,
+  fixedCountry,
+  verifiedSuggestionsOnly = false,
   onAddLocation,
   onRemoveLocation
 }: IndiaLocationFieldsProps) {
@@ -71,10 +75,21 @@ export function IndiaLocationFields({
   const allowedBlock = allowedLocation?.block ?? "";
   const allowedPanchayat = allowedLocation?.panchayat ?? "";
   const stateOptions = allowedState ? [allowedState] : indianStatesAndUnionTerritories;
-  const districtOptions = getDistrictOptions(values.state, locationOverrides, locationDeletions).filter(
+  const districtOptions = getDistrictOptions(
+    values.state,
+    locationOverrides,
+    locationDeletions,
+    verifiedSuggestionsOnly
+  ).filter(
     (district) => !allowedDistrict || district === allowedDistrict
   );
-  const blockOptions = getBlockOptions(values.state, values.district, locationOverrides, locationDeletions).filter(
+  const blockOptions = getBlockOptions(
+    values.state,
+    values.district,
+    locationOverrides,
+    locationDeletions,
+    verifiedSuggestionsOnly
+  ).filter(
     (block) => !allowedBlock || block === allowedBlock
   );
   const panchayatOptions = getPanchayatOptions(
@@ -82,7 +97,8 @@ export function IndiaLocationFields({
     values.district,
     values.block,
     locationOverrides,
-    locationDeletions
+    locationDeletions,
+    verifiedSuggestionsOnly
   ).filter((panchayat) => !allowedPanchayat || panchayat === allowedPanchayat);
   const pinOptions = getPinOptions(values);
   const stateLocked = isLocationLevelAtLeast(lockedLevel, "state");
@@ -116,15 +132,38 @@ export function IndiaLocationFields({
   }
 
   function selectState(state: string) {
-    updateLocation({ state, district: "", block: "", panchayat: "", postalCode: "" });
+    updateLocation(
+      verifiedSuggestionsOnly
+        ? {
+            ...values,
+            country: fixedCountry ?? values.country,
+            state,
+            district: "",
+            block: "",
+            panchayat: "",
+            postalCode: ""
+          }
+        : { state, district: "", block: "", panchayat: "", postalCode: "" }
+    );
   }
 
   function selectDistrict(district: string) {
-    updateLocation({ ...values, district, block: "", panchayat: "", postalCode: "" });
+    updateLocation({
+      ...values,
+      district,
+      block: "",
+      panchayat: "",
+      postalCode: ""
+    });
   }
 
   function selectBlock(block: string) {
-    updateLocation({ ...values, block, panchayat: "", postalCode: "" });
+    updateLocation({
+      ...values,
+      block,
+      panchayat: "",
+      postalCode: ""
+    });
   }
 
   function updatePin(postalCode: string) {
@@ -195,6 +234,11 @@ export function IndiaLocationFields({
 
   return (
     <>
+      {fixedCountry && (
+        <Field label={fieldLabel("Country", "country")}>
+          <input value={fixedCountry} readOnly />
+        </Field>
+      )}
       {pendingAdd && (
         <div className="modal-backdrop" role="presentation">
           <div className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby={`${idPrefix}-add-title`}>
@@ -260,7 +304,11 @@ export function IndiaLocationFields({
             placeholder={values.state ? "Search district or leave blank" : "Choose state first"}
             value={values.district}
             onChange={(event) => selectDistrict(event.target.value)}
-            disabled={districtLocked || !values.state || districtOptions.length === 0}
+            disabled={
+              districtLocked ||
+              !values.state ||
+              (!verifiedSuggestionsOnly && districtOptions.length === 0)
+            }
           />
           <datalist id={`${idPrefix}-districts`}>
             {districtOptions.map((district) => (
@@ -300,7 +348,11 @@ export function IndiaLocationFields({
             placeholder={values.district ? "Search block / ward group or leave blank" : "Choose district first"}
             value={values.block}
             onChange={(event) => selectBlock(event.target.value)}
-            disabled={blockLocked || !values.district || blockOptions.length === 0}
+            disabled={
+              blockLocked ||
+              !values.district ||
+              (!verifiedSuggestionsOnly && blockOptions.length === 0)
+            }
           />
           <datalist id={`${idPrefix}-blocks`}>
             {blockOptions.map((block) => (
@@ -340,7 +392,11 @@ export function IndiaLocationFields({
             placeholder={values.block ? "Search panchayat / ward or leave blank" : "Choose block first"}
             value={values.panchayat}
             onChange={(event) => updateLocation({ ...values, panchayat: event.target.value })}
-            disabled={panchayatLocked || !values.block || panchayatOptions.length === 0}
+            disabled={
+              panchayatLocked ||
+              !values.block ||
+              (!verifiedSuggestionsOnly && panchayatOptions.length === 0)
+            }
           />
           <datalist id={`${idPrefix}-panchayats`}>
             {panchayatOptions.map((panchayat) => (

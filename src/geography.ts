@@ -312,10 +312,11 @@ export const blankLocation: LocationValues = {
 export function getDistrictOptions(
   state: string,
   overrides: LocationOverrides = {},
-  deletions: LocationDeletions = emptyLocationDeletions
+  deletions: LocationDeletions = emptyLocationDeletions,
+  verifiedOnly = false
 ) {
   const sharedDistricts = getSharedChildNames(findSharedNode("state", state), "district");
-  const customDistricts = Object.keys(overrides[state] ?? {});
+  const customDistricts = verifiedOnly ? [] : Object.keys(overrides[state] ?? {});
   return uniqueOptions([...sharedDistricts, ...customDistricts]).filter(
     (district) => !isDistrictDeleted(deletions, state, district)
   );
@@ -325,17 +326,19 @@ export function getBlockOptions(
   state: string,
   district: string,
   overrides: LocationOverrides = {},
-  deletions: LocationDeletions = emptyLocationDeletions
+  deletions: LocationDeletions = emptyLocationDeletions,
+  verifiedOnly = false
 ) {
   const stateNode = findSharedNode("state", state);
   const districtNode = findSharedNode("district", district, stateNode?.id);
   const blocks = getSharedChildNames(districtNode, "block");
-  const customBlocks = Object.keys(overrides[state]?.[district] ?? {});
+  const customBlocks = verifiedOnly ? [] : Object.keys(overrides[state]?.[district] ?? {});
   if (blocks.length > 0) {
     return uniqueOptions([...blocks, ...customBlocks]).filter(
       (block) => !isBlockDeleted(deletions, state, district, block)
     );
   }
+  if (verifiedOnly) return [];
   if (!district) return [];
   return uniqueOptions([
     ...customBlocks,
@@ -351,18 +354,20 @@ export function getPanchayatOptions(
   district: string,
   block: string,
   overrides: LocationOverrides = {},
-  deletions: LocationDeletions = emptyLocationDeletions
+  deletions: LocationDeletions = emptyLocationDeletions,
+  verifiedOnly = false
 ) {
   const stateNode = findSharedNode("state", state);
   const districtNode = findSharedNode("district", district, stateNode?.id);
   const blockNode = findSharedNode("block", block, districtNode?.id);
   const panchayats = getSharedChildNames(blockNode, "local_body");
-  const customPanchayats = overrides[state]?.[district]?.[block] ?? [];
+  const customPanchayats = verifiedOnly ? [] : overrides[state]?.[district]?.[block] ?? [];
   if (panchayats.length > 0) {
     return uniqueOptions([...panchayats, ...customPanchayats]).filter(
       (panchayat) => !isPanchayatDeleted(deletions, state, district, block, panchayat)
     );
   }
+  if (verifiedOnly) return [];
   if (!block) return [];
   return uniqueOptions([
     ...customPanchayats,

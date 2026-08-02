@@ -1046,7 +1046,29 @@ export function PublicCampaignPage({
   };
   const nativeShareSupported =
     typeof navigator !== "undefined" && typeof navigator.share === "function";
-  const locationFields = isGlobalMode ? (
+  const locationFields = isGoudhanExperience ? (
+    <IndiaLocationFields
+      idPrefix="public-signer-location"
+      values={{ ...publicLocationForm, country: "India" }}
+      onChange={(values) =>
+        setPublicForm(
+          applySignerLocationRestriction(
+            campaign,
+            { ...publicForm, ...values, country: "India" },
+            organization
+          )
+        )
+      }
+      locationOverrides={locationOverrides}
+      locationDeletions={locationDeletions}
+      allowedLocation={lockedLocation}
+      hiddenLockedLevel={signerRestrictionLevel}
+      requiredFields={requiredFields}
+      labelOverrides={copy.locationLabels}
+      fixedCountry="India"
+      verifiedSuggestionsOnly
+    />
+  ) : isGlobalMode ? (
     <GlobalLocationFields
       idPrefix="public-signer-location"
       values={publicLocationForm}

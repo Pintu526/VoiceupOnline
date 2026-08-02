@@ -14,11 +14,19 @@ import {
 } from "../src/config/goudhanCampaignBlueprint.ts";
 import { initialCampaigns, initialOrganization } from "../src/data.ts";
 import { campaignTemplates } from "../src/campaignTemplates.ts";
+import { blankSigner } from "../src/constants/index.ts";
+import {
+  emptyLocationDeletions,
+  getBlockOptions,
+  getDistrictOptions,
+  getPanchayatOptions
+} from "../src/geography.ts";
 import { getPublicCampaignUrlForOrigin } from "../src/utils/links.ts";
 import { resolvePublicCampaignSlug } from "../src/utils/routing.ts";
 
 const readSource = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const publicCampaignSource = readSource("../src/pages/PublicCampaignPage.tsx");
+const indiaLocationSource = readSource("../src/components/IndiaLocationFields.tsx");
 const appShellSource = readSource("../src/layouts/AppShell.tsx");
 const commandCenterSource = readSource("../src/pages/app/CommandCenterTab.tsx");
 const supporterProfileSource = readSource("../src/growth/supporter/SupporterGrowthPortalPage.tsx");
@@ -258,8 +266,109 @@ test("unfinished modules are hidden only behind the Goudhan campaign gate", () =
 });
 
 test("production OTP fails closed when no SMS webhook is configured", () => {
+  const sendResponseStart = otpSource.indexOf("return jsonResponse({", otpSource.indexOf('if (action === "send")'));
+  const sendResponseEnd = otpSource.indexOf("\n        });", sendResponseStart);
+  const sendResponseSource = otpSource.slice(sendResponseStart, sendResponseEnd);
+
   assert.match(otpSource, /if \(!webhookUrl\) throw new Error\("OTP provider is not configured\."\)/);
   assert.doesNotMatch(otpSource, /if \(!webhookUrl\) return/);
-  assert.doesNotMatch(otpSource, /jsonResponse\(\{[^}]*\botp\b/s);
+  assert.match(otpSource, /const SHOW_GSAA_OTP = Deno\.env\.get\("VOICEUP_SHOW_OTP"\) === "true"/);
+  assert.match(
+    sendResponseSource,
+    /purpose === "public-signing" && publicSlug === "GSAA" && SHOW_GSAA_OTP\s*\? \{ otp: code \}\s*: \{\}/
+  );
+  assert.equal((otpSource.match(/\botp:\s*code\b/g) ?? []).length, 1);
   assert.match(otpSource, /error: "Verification service is temporarily unavailable\. Please retry\."/);
+});
+
+test("GSAA alone selects verified India hierarchy fields while global campaigns keep their existing component", () => {
+  const locationStart = publicCampaignSource.indexOf("const locationFields =");
+  const locationEnd = publicCampaignSource.indexOf("\n\n  useEffect(", locationStart);
+  const locationSource = publicCampaignSource.slice(locationStart, locationEnd);
+
+  assert.match(locationSource, /isGoudhanExperience \? \(\s*<IndiaLocationFields/);
+  assert.match(locationSource, /fixedCountry="India"/);
+  assert.match(locationSource, /verifiedSuggestionsOnly/);
+  assert.match(locationSource, /\) : isGlobalMode \? \(\s*<GlobalLocationFields/);
+  assert.equal(isGoudhanProductionCampaign({ slug: "GSAA", title: "Campaign" }), true);
+  assert.equal(isGoudhanProductionCampaign({ slug: "other", title: "Other campaign" }), false);
+});
+
+test("verified geography suggestions follow State, District and Block without synthetic or custom fallbacks", () => {
+  const overrides = {
+    Odisha: {
+      Khordha: {
+        "Invented Block": ["Invented Ward"]
+      }
+    }
+  };
+
+  assert.ok(getDistrictOptions("Bihar", {}, emptyLocationDeletions, true).includes("Patna"));
+  assert.ok(!getDistrictOptions("Odisha", {}, emptyLocationDeletions, true).includes("Patna"));
+  assert.deepEqual(
+    getBlockOptions("Bihar", "Patna", {}, emptyLocationDeletions, true),
+    ["Bihta", "Patna Sadar"]
+  );
+  assert.deepEqual(
+    getPanchayatOptions("Bihar", "Patna", "Bihta", {}, emptyLocationDeletions, true),
+    ["Bishunpura", "Katesar", "Painal"]
+  );
+  assert.deepEqual(getBlockOptions("Odisha", "Khordha", overrides, emptyLocationDeletions, true), []);
+  assert.deepEqual(
+    getPanchayatOptions("Odisha", "Khordha", "Invented Block", overrides, emptyLocationDeletions, true),
+    []
+  );
+  assert.ok(getBlockOptions("Odisha", "Khordha").includes("Khordha Sadar"));
+  assert.ok(getPanchayatOptions("Odisha", "Khordha", "Khordha Rural Block").includes("Khordha Rural Block Ward 1"));
+});
+
+test("GSAA manual fallback preserves editable lower levels, location strings and translated locality labels", () => {
+  assert.match(
+    indiaLocationSource,
+    /!verifiedSuggestionsOnly && districtOptions\.length === 0/
+  );
+  assert.match(
+    indiaLocationSource,
+    /!verifiedSuggestionsOnly && blockOptions\.length === 0/
+  );
+  assert.match(
+    indiaLocationSource,
+    /!verifiedSuggestionsOnly && panchayatOptions\.length === 0/
+  );
+  assert.match(indiaLocationSource, /<input value=\{fixedCountry\} readOnly/);
+  assert.match(indiaLocationSource, /value=\{values\.postalCode\}/);
+  assert.match(publicCampaignSource, /value=\{publicForm\.address\}/);
+
+  for (const field of ["country", "state", "district", "block", "panchayat", "address", "postalCode"]) {
+    assert.ok(Object.hasOwn(blankSigner, field), `existing signer field ${field} must remain supported`);
+  }
+  for (const language of ["en", "hi", "or"]) {
+    assert.ok(locales[language].goudhanCampaign.villageLabel.trim());
+    assert.ok(locales[language].goudhanCampaign.villagePlaceholder.trim());
+  }
+});
+
+test("GSAA location parent changes clear stale PIN and GPS remains optional and non-blocking", () => {
+  const selectStateSource = indiaLocationSource.slice(
+    indiaLocationSource.indexOf("function selectState"),
+    indiaLocationSource.indexOf("function selectDistrict")
+  );
+  const selectDistrictSource = indiaLocationSource.slice(
+    indiaLocationSource.indexOf("function selectDistrict"),
+    indiaLocationSource.indexOf("function selectBlock")
+  );
+  const selectBlockSource = indiaLocationSource.slice(
+    indiaLocationSource.indexOf("function selectBlock"),
+    indiaLocationSource.indexOf("function updatePin")
+  );
+
+  assert.match(selectStateSource, /district: "",\s*block: "",\s*panchayat: "",\s*postalCode: ""/);
+  assert.match(selectDistrictSource, /block: "",\s*panchayat: "",\s*postalCode: ""/);
+  assert.match(selectBlockSource, /panchayat: "",\s*postalCode: ""/);
+  assert.match(publicCampaignSource, /onClick=\{requestSmartLocation\}/);
+  assert.match(publicCampaignSource, /async function requestSmartLocation\(\)/);
+  assert.match(
+    publicCampaignSource,
+    /catch \{\s*setLocationAccuracy\(null\);\s*setLocationMessage\(experienceCopy\.locationUnavailable\);\s*\}/
+  );
 });

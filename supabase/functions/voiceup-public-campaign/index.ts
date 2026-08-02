@@ -11,6 +11,15 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const body = await parseJson(req);
+    if (body?.action === "read_campaign_journey") {
+      const admin = createAdminClient();
+      const { data, error } = await admin.rpc("voiceup_read_public_campaign_journey", {
+        p_referral_code: String(body?.referralCode ?? "")
+      });
+      if (error) throw error;
+      return jsonResponse({ journey: data ?? null });
+    }
+
     const slug = String(body?.slug ?? "").trim();
     if (!normalizePublicCampaignSlug(slug)) {
       return jsonResponse({ campaign: null }, 400);

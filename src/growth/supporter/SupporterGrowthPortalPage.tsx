@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { ReferralQrPreview } from "../../components/ReferralQrPreview";
 import { whatsAppLink, smsLink } from "../../utils/links";
+import type { PublicCampaignJourney } from "../../backend";
 import { simulateSupporterGrowth } from "../calculator";
 import type { SupporterGrowthPortalViewModel } from "./types";
 import {
@@ -96,6 +97,54 @@ export function SupporterGrowthPortalLoading() {
         <span />
         <span />
         <strong>{t("supporters.portal.loadingJourney")}</strong>
+      </section>
+    </main>
+  );
+}
+
+export function PublicCampaignJourneyPage({ journey }: { journey: PublicCampaignJourney }) {
+  const { t } = useTranslation();
+  const location = [journey.district, journey.state].filter(Boolean).join(", ");
+  return (
+    <main className="supporter-portal-shell">
+      <section className="supporter-portal-hero">
+        <div className="supporter-avatar" aria-hidden="true">{firstInitial(journey.displayName)}</div>
+        <div>
+          <span className="eyebrow">{t("supporters.portal.journey")}</span>
+          <h1>{journey.displayName}</h1>
+          <p>{journey.campaignTitle}</p>
+          <div className="supporter-status-row">
+            <span><BadgeCheck size={16} /> {journey.status === "verified" ? t("supporters.status.verified") : t("supporters.status.pendingVerification")}</span>
+            {journey.joinedDate && <span><CalendarClock size={16} /> {formatDate(journey.joinedDate)}</span>}
+          </div>
+        </div>
+      </section>
+      <section className="supporter-portal-grid">
+        <article className="supporter-portal-card wide">
+          <div className="supporter-card-heading">
+            <UserRound />
+            <div>
+              <span className="eyebrow">{t("supporters.portal.myProgress")}</span>
+              <h2>{journey.supporterCode}</h2>
+            </div>
+          </div>
+          <div className="supporter-metric-grid">
+            {location && metric(t("supporters.fields.location"), location)}
+            {metric("Referrals", journey.referralCount)}
+          </div>
+        </article>
+        <article className="supporter-portal-card">
+          <div className="supporter-card-heading">
+            <Share2 />
+            <div>
+              <span className="eyebrow">{t("referrals.myLink")}</span>
+              <h2>{t("public.share")}</h2>
+            </div>
+          </div>
+          <a className="primary-button" href={journey.publicCampaignUrl}>
+            {t("public.supportCampaign")}
+          </a>
+        </article>
       </section>
     </main>
   );

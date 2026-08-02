@@ -7,6 +7,7 @@ import {
   normalizePublicCampaignSlug,
   publicCampaignSlugsMatch
 } from "../supabase/functions/_shared/publicCampaignSlug";
+import { getPublicCampaignUrl } from "./utils/links";
 import type {
   AuditLogEntry,
   AuthorityRule,
@@ -88,6 +89,19 @@ export interface PublicCampaignPayload {
       active: number;
     };
   };
+}
+
+export interface PublicCampaignJourney {
+  supporterCode: string;
+  displayName: string;
+  campaignTitle: string;
+  campaignSlug: string;
+  publicCampaignUrl: string;
+  joinedDate: string | null;
+  state: string | null;
+  district: string | null;
+  status: "verified" | "pending";
+  referralCount: number;
 }
 
 export type PublicParticipationAction =
@@ -1154,6 +1168,21 @@ export async function loadPublicCampaign(slug: string): Promise<PublicCampaignPa
     throw new Error("Campaign could not be loaded.");
   }
   return data?.campaign ?? null;
+}
+
+export async function loadPublicCampaignJourney(referralCode: string): Promise<PublicCampaignJourney | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.functions.invoke<{
+    journey?: Omit<PublicCampaignJourney, "publicCampaignUrl"> | null;
+  }>("voiceup-public-campaign", {
+    body: { action: "read_campaign_journey", referralCode }
+  });
+  if (error) throw new Error("Campaign journey could not be loaded.");
+  if (!data?.journey) return null;
+  return {
+    ...data.journey,
+    publicCampaignUrl: getPublicCampaignUrl(data.journey.campaignSlug)
+  };
 }
 
 export async function requestOtp(

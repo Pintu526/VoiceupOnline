@@ -23,6 +23,7 @@ import {
   isSupabaseStorageAvailable,
   loadAuthoritativeFieldCollectionState,
   loadPublicCampaign,
+  loadPublicCampaignJourney,
   loadRemoteState,
   mutatePublicParticipation,
   readOwnParticipationRequests,
@@ -42,7 +43,7 @@ import {
   verifyOtp as verifyPublicOtp,
   verifySecureFieldUploadAccess
 } from "./backend";
-import type { PublicCampaignPayload } from "./backend";
+import type { PublicCampaignJourney, PublicCampaignPayload } from "./backend";
 import { ProvisionWorkspaceMemberError, PublicSignatureSubmissionError } from "./backend";
 import {
   applyCampaignAdminProvisioningFailure,
@@ -245,12 +246,10 @@ import {
 } from "./growth/lifecycle";
 import { GrowthEventPriority, GrowthEventType } from "./growth/events";
 import {
-  resolveSupporterGrowthPortal,
   SupporterGrowthPortalLoading,
-  SupporterGrowthPortalNotFound,
-  SupporterGrowthPortalPage
+  SupporterGrowthPortalNotFound
 } from "./growth/supporter";
-import { applyRewardRuntimeAction, type RewardRuntimeAction } from "./growth/rewards/rewardRuntimeService";
+import { PublicCampaignJourneyPage } from "./growth/supporter/SupporterGrowthPortalPage";
 import { publicCampaignSlugsMatch } from "../supabase/functions/_shared/publicCampaignSlug";
 import {
   clearPublicSigningJourney,
@@ -539,6 +538,10 @@ function App() {
   const publicSigningCampaignRef = useRef<PublicSigningCampaignScope | null>(null);
   const publicSigningSubmissionRef = useRef<PublicSigningSubmissionAttempt | null>(null);
   const [publicCampaignPayload, setPublicCampaignPayload] = useState<PublicCampaignPayload | null>(null);
+  const [publicCampaignJourney, setPublicCampaignJourney] = useState<PublicCampaignJourney | null>(null);
+  const [publicCampaignJourneyLoading, setPublicCampaignJourneyLoading] = useState(
+    isBackendConfigured && isSupporterPortalRoute
+  );
   const [onboardingOpen, setOnboardingOpen] = useState(isStartRoute);
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [copiedMessage, setCopiedMessage] = useState("");
@@ -740,28 +743,6 @@ function App() {
     () => (lastSignedSigner ? getSupporterGrowthPortal(growthRuntime, lastSignedSigner.id) : undefined),
     [growthRuntime, lastSignedSigner]
   );
-  const supporterPortalResult = useMemo(
-    () =>
-      supporterPortalCode
-        ? resolveSupporterGrowthPortal({
-            supporterCode: supporterPortalCode,
-            campaigns,
-            signers,
-            organization,
-            runtime: growthRuntime,
-            baseUrl: typeof window === "undefined" ? "https://voiceup.live" : window.location.origin
-          })
-        : undefined,
-    [campaigns, growthRuntime, organization, signers, supporterPortalCode]
-  );
-
-  function handleSupporterRewardAction(action: RewardRuntimeAction) {
-    setGrowthRuntime((current) => {
-      const campaign = campaigns.find((item) => item.id === action.campaignId);
-      if (!campaign) return current;
-      return applyRewardRuntimeAction({ runtime: current, campaign, action }).runtime;
-    });
-  }
   const canAccessPlatformAdmin = isPlatformAdminAuthenticated;
   const canAccessCustomerWorkspace = isCustomerWorkspaceAuthenticated || isPlatformAdminAuthenticated;
   const campaignCreationBlockReason = getCreateCampaignBlockReason(
@@ -1056,6 +1037,28 @@ function App() {
     isPlatformAdminAuthenticated,
     isPublicCampaignRoute
   ]);
+
+  useEffect(() => {
+    if (!supporterPortalCode) {
+      setPublicCampaignJourney(null);
+      setPublicCampaignJourneyLoading(false);
+      return;
+    }
+    if (!isSupporterPortalRoute) return;
+    let isCancelled = false;
+    async function loadJourney() {
+      try {
+        const journey = await loadPublicCampaignJourney(supporterPortalCode);
+        if (!isCancelled) setPublicCampaignJourney(journey);
+      } catch {
+        if (!isCancelled) setPublicCampaignJourney(null);
+      } finally {
+        if (!isCancelled) setPublicCampaignJourneyLoading(false);
+      }
+    }
+    void loadJourney();
+    return () => { isCancelled = true; };
+  }, [isSupporterPortalRoute, supporterPortalCode]);
 
   useEffect(() => {
     updateSeoMetadata(activeCampaign, legalPage, isPublicCampaignRoute);
@@ -3707,14 +3710,13 @@ function App() {
 
   // ─── Route rendering ──────────────────────────────────────────────────────
   if (isSupporterPortalRoute) {
-    if (backendLoading || (isBackendConfigured && !remoteStateLoaded)) {
+    if (publicCampaignJourneyLoading) {
       return <SupporterGrowthPortalLoading />;
     }
-    return supporterPortalResult?.status === "ready" && supporterPortalResult.portal ? (
-      <SupporterGrowthPortalPage portal={supporterPortalResult.portal} onRewardAction={handleSupporterRewardAction} />
+    return publicCampaignJourney ? (
+      <PublicCampaignJourneyPage journey={publicCampaignJourney} />
     ) : (
       <SupporterGrowthPortalNotFound
-        message={supporterPortalResult?.message}
         onRetry={() => window.location.reload()}
       />
     );

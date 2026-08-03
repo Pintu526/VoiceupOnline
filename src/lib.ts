@@ -8,6 +8,12 @@ export function getCampaignSigners(campaignId: string, signers: Signer[]) {
   return signers.filter((signer) => signer.campaignId === campaignId);
 }
 
+export function getValidSignedAt(signer: Pick<Signer, "signedAt">): string | null {
+  if (typeof signer.signedAt !== "string") return null;
+  const signedAt = signer.signedAt.trim();
+  return signedAt && !Number.isNaN(new Date(signedAt).getTime()) ? signedAt : null;
+}
+
 export function getCampaignMetrics(campaign: Campaign, signers: Signer[]) {
   const campaignSigners = getCampaignSigners(campaign.id, signers);
   const verified = campaignSigners.filter((signer) => signer.status === "verified").length;
@@ -31,7 +37,9 @@ export function getCampaignMetrics(campaign: Campaign, signers: Signer[]) {
 
 export function groupSignersByDay(signers: Signer[]) {
   return signers.reduce<Record<string, number>>((accumulator, signer) => {
-    const day = signer.signedAt.slice(0, 10);
+    const signedAt = getValidSignedAt(signer);
+    if (!signedAt) return accumulator;
+    const day = signedAt.slice(0, 10);
     accumulator[day] = (accumulator[day] ?? 0) + 1;
     return accumulator;
   }, {});

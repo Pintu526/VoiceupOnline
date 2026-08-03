@@ -1,7 +1,8 @@
 import {
-  GOUDHAN_CAMPAIGN_SLUG,
   isGaumataPublicHostname
 } from "../config/goudhanProduction.ts";
+
+const GAUMATA_ROOT_CAMPAIGN_SLUG = "GSAA";
 
 export interface PublicCampaignRouteLocation {
   pathname: string;
@@ -15,7 +16,7 @@ export function resolvePublicCampaignSlug({
   const directCampaignSlug = pathname.match(/^\/c\/([^/]+)\/?$/)?.[1] ?? "";
   if (directCampaignSlug) return directCampaignSlug;
   if ((pathname === "/" || pathname === "") && isGaumataPublicHostname(hostname)) {
-    return GOUDHAN_CAMPAIGN_SLUG;
+    return GAUMATA_ROOT_CAMPAIGN_SLUG;
   }
   return "";
 }

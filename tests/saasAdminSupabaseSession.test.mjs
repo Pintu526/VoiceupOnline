@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
 const backendSource = readFileSync(new URL("../src/backend.ts", import.meta.url), "utf8");
+const saasTabSource = readFileSync(new URL("../src/pages/app/SaasTab.tsx", import.meta.url), "utf8");
 
 function slice(source, startMarker, endMarker) {
   const start = source.indexOf(startMarker);
@@ -79,6 +80,13 @@ test("getCurrentAuthSession requires session, user id, and access token all pres
   // Never returns or logs the raw token -- only a minimal { userId } shape is returned.
   assert.match(fnSource, /return \{ userId: session\.user\.id \};/);
   assert.doesNotMatch(fnSource, /console\.(log|warn|error|debug)/);
+});
+
+test("SaaS invoice display reference tolerates a missing legacy organization id without persisting one", () => {
+  assert.match(saasTabSource, /typeof organization\.id === "string" && organization\.id\.trim\(\)/);
+  assert.match(saasTabSource, /\? organization\.id\.trim\(\)\.toUpperCase\(\)\s*:\s*"ORG"/);
+  assert.match(saasTabSource, /\$\{organizationReference\}-\$\{new Date\(\)\.toISOString\(\)\.slice\(0, 7\)\}/);
+  assert.doesNotMatch(saasTabSource, /organization\.id\s*=(?!=)/);
 });
 
 // ── 5: SaaS Admin logout clears the Supabase session ────────────────────────

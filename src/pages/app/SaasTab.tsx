@@ -189,9 +189,13 @@ export function SaasTab({
   const enabledFeatureKeys = new Set(organization.enabledFeatureKeys ?? []);
   const walletCapacity = getSignatureWalletCapacity(organization);
   const activeMonthlySigners = getMonthlySignerCount(signers);
+  const organizationReference =
+    typeof organization.id === "string" && organization.id.trim()
+      ? organization.id.trim().toUpperCase()
+      : "ORG";
   const invoiceReference =
     organization.paymentReference ||
-    `${organization.id.toUpperCase()}-${new Date().toISOString().slice(0, 7)}`;
+    `${organizationReference}-${new Date().toISOString().slice(0, 7)}`;
 
   function updateLocationGovernance(values: LocationWithPin) {
     setOrganization({

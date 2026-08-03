@@ -113,6 +113,31 @@ test("coverage statistics reuse the authoritative locations state without anothe
   assert.doesNotMatch(coverage, /readCampaignLocations|addCampaignLocation|deactivateCampaignLocation|validateCampaignLocationImport|commitCampaignLocationImport/);
 });
 
+test("manager organizes existing content into accessible local tabs", () => {
+  assert.match(manager, /useState<"overview" \| "manual" \| "import" \| "active" \| "inactive">\("overview"\)/);
+  assert.match(manager, /role="tablist"/);
+  for (const tab of ["Overview", "Manual Add", "Bulk Import", "Active Locations", "Inactive Locations"]) {
+    assert.match(manager, new RegExp(`\\["[^"]+", "${tab}"\\]`));
+  }
+  assert.match(manager, /activeTab === "overview"/);
+  assert.match(manager, /activeTab === "manual"/);
+  assert.match(manager, /activeTab === "import"/);
+  assert.match(manager, /activeTab === "active" \|\| activeTab === "inactive"/);
+  assert.match(manager, /role="tabpanel"/);
+});
+
+test("tabs reuse existing overview, form, import, list, and refresh handlers", () => {
+  const overview = manager.slice(manager.indexOf('activeTab === "overview"'), manager.indexOf('activeTab === "import"'));
+  const manual = manager.slice(manager.indexOf('activeTab === "manual"'), manager.indexOf('activeTab === "active" || activeTab === "inactive"'));
+  const bulkImport = manager.slice(manager.indexOf('activeTab === "import"'), manager.indexOf('activeTab === "manual"'));
+  const lists = manager.slice(manager.indexOf('activeTab === "active" || activeTab === "inactive"'), manager.indexOf("{pendingDeactivate"));
+  assert.match(overview, /Campaign Locations|configurationVersion|void refresh\(\)/);
+  assert.match(manual, /onSubmit=\{submit\}|Add custom location/);
+  assert.match(bulkImport, /validateImport|commitImport|Download Template|Download Errors CSV/);
+  assert.match(lists, /visibleLocations\.map|setPendingDeactivate\(location\)/);
+  assert.match(manager, /if \(tab === "active" \|\| tab === "inactive"\) setFilter\(tab\)/);
+});
+
 test("Gate 4 leaves public geography source contracts untouched", () => {
   for (const source of publicGeography) assert.ok(source.length > 0);
   assert.doesNotMatch(campaigns, /PublicCampaignPage/);

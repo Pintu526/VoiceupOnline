@@ -67,6 +67,18 @@ function isIndiaPinValid(path: CampaignLocationPath) {
   return path.country.trim().toLowerCase() !== "india" || !path.postalCode || /^\d{6}$/.test(path.postalCode);
 }
 
+function countUniqueActiveLocationValues(
+  locations: CampaignLocationRecord[],
+  field: keyof CampaignLocationPath
+) {
+  return new Set(
+    locations
+      .filter((location) => location.active)
+      .map((location) => location[field]?.trim().toLowerCase())
+      .filter(Boolean)
+  ).size;
+}
+
 interface ResourceLocationManagerProps {
   campaign: Campaign;
   onLocationsChange?: (locations: PublicCampaignCustomLocation[]) => void;
@@ -138,6 +150,14 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
   const activeCount = locations.filter((location) => location.active).length;
   const inactiveCount = locations.filter((location) => !location.active).length;
   const levels = new Set(locations.map((location) => location.leafLevel)).size;
+  const locationCoverage = useMemo(() => ({
+    states: countUniqueActiveLocationValues(locations, "state"),
+    districts: countUniqueActiveLocationValues(locations, "district"),
+    blocks: countUniqueActiveLocationValues(locations, "block"),
+    panchayats: countUniqueActiveLocationValues(locations, "panchayat"),
+    villages: countUniqueActiveLocationValues(locations, "village"),
+    pins: countUniqueActiveLocationValues(locations, "postalCode")
+  }), [locations]);
 
   const update = (field: keyof CampaignLocationPath, value: string) => {
     setForm((current) => ({ ...current, [field]: value.slice(0, 120) }));
@@ -251,6 +271,17 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
         <div className="metric-card"><span>Inactive custom</span><strong>{inactiveCount}</strong></div>
         <div className="metric-card"><span>Levels represented</span><strong>{levels}</strong></div>
       </div>
+      <section className="wide authority-picker-panel" aria-label="Campaign Locations">
+        <span className="eyebrow">Campaign Locations</span>
+        <div className="metric-grid">
+          <div className="metric-card"><span>States</span><strong>{locationCoverage.states}</strong></div>
+          <div className="metric-card"><span>Districts</span><strong>{locationCoverage.districts}</strong></div>
+          <div className="metric-card"><span>Blocks</span><strong>{locationCoverage.blocks}</strong></div>
+          <div className="metric-card"><span>Panchayats</span><strong>{locationCoverage.panchayats}</strong></div>
+          <div className="metric-card"><span>Villages</span><strong>{locationCoverage.villages}</strong></div>
+          <div className="metric-card"><span>PINs</span><strong>{locationCoverage.pins}</strong></div>
+        </div>
+      </section>
       <p className="helper-text" aria-live="polite">{status}</p>
       {error && <p className="info-message warning" role="alert"><AlertCircle size={16} /> {error}</p>}
 

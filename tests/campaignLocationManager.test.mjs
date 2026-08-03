@@ -74,6 +74,21 @@ test("manager renders safe location states and stable API errors", () => {
   assert.doesNotMatch(manager, /error\.message/);
 });
 
+test("campaign location coverage counts active trimmed values case-insensitively", () => {
+  const statistics = manager.slice(
+    manager.indexOf("function countUniqueActiveLocationValues"),
+    manager.indexOf("interface ResourceLocationManagerProps")
+  );
+  assert.match(statistics, /\.filter\(\(location\) => location\.active\)/);
+  assert.match(statistics, /location\[field\]\?\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(statistics, /\.filter\(Boolean\)/);
+  assert.match(statistics, /new Set\(/);
+  assert.match(manager, /Campaign Locations/);
+  for (const field of ["states", "districts", "blocks", "panchayats", "villages", "pins"]) {
+    assert.match(manager, new RegExp(`locationCoverage\\.${field}`));
+  }
+});
+
 test("deactivation requires confirmation and sends versioned exact location data", () => {
   assert.match(manager, /setPendingDeactivate\(location\)/);
   assert.match(manager, /Deactivate custom location\?/);
@@ -87,6 +102,15 @@ test("add and CSV import refresh the shared hierarchy data", () => {
   const commitImport = manager.slice(manager.indexOf("const commitImport"), manager.indexOf("return ("));
   assert.match(submit, /await refresh\(\);/);
   assert.match(commitImport, /await refresh\(\);/);
+});
+
+test("coverage statistics reuse the authoritative locations state without another request", () => {
+  const coverage = manager.slice(
+    manager.indexOf("const locationCoverage"),
+    manager.indexOf("const update")
+  );
+  assert.match(coverage, /countUniqueActiveLocationValues\(locations,/);
+  assert.doesNotMatch(coverage, /readCampaignLocations|addCampaignLocation|deactivateCampaignLocation|validateCampaignLocationImport|commitCampaignLocationImport/);
 });
 
 test("Gate 4 leaves public geography source contracts untouched", () => {

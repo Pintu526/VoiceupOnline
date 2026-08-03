@@ -20,11 +20,31 @@ const publicGeography = [
 ].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
 
 test("location manager is mounted only for the assigned Campaign Admin draft", () => {
-  assert.match(campaigns, /isCampaignAdminRoute && \(\s*<ResourceLocationManager campaign=\{effectiveCampaignDraft\} \/>/);
+  assert.match(campaigns, /isCampaignAdminRoute && \(\s*<ResourceLocationManager[\s\S]*campaign=\{effectiveCampaignDraft\}[\s\S]*onLocationsChange=\{setCampaignCustomLocations\}/);
   assert.match(manager, /campaignId: campaign\.id/);
   assert.match(manager, /campaignSlug: campaign\.slug/);
   assert.match(manager, /workspaceId: getCurrentWorkspaceId\(\)/);
   assert.doesNotMatch(manager, /campaigns\.map|select[^>]*campaign/i);
+});
+
+test("authoritative refresh emits only active safe hierarchy paths", () => {
+  assert.match(manager, /onLocationsChange\?: \(locations: PublicCampaignCustomLocation\[\]\) => void/);
+  assert.match(manager, /\.filter\(\(location\) => location\.active\)\s*\.map\(toPublicCampaignCustomLocation\)/);
+  const mapper = manager.slice(
+    manager.indexOf("function toPublicCampaignCustomLocation"),
+    manager.indexOf("export function ResourceLocationManager")
+  );
+  for (const field of ["country", "state", "district", "block", "panchayat", "village", "postalCode"]) {
+    assert.match(mapper, new RegExp(`${field}: location\\.${field}`));
+  }
+  assert.doesNotMatch(mapper, /\bid\b|\bversion\b|audit|createdAt|updatedAt/);
+});
+
+test("Campaign Step 4 shares refreshed campaign paths and clears them by campaign", () => {
+  assert.match(campaigns, /const \[campaignCustomLocations, setCampaignCustomLocations\] = useState<PublicCampaignCustomLocation\[\]>\(\[\]\)/);
+  assert.match(campaigns, /useEffect\(\(\) => \{\s*setCampaignCustomLocations\(\[\]\);\s*\}, \[effectiveCampaignDraft\?\.id\]\)/);
+  assert.match(campaigns, /customLocations=\{campaignCustomLocations\}/);
+  assert.doesNotMatch(campaigns, /GSAA|saveRemoteState|loadRemoteState/);
 });
 
 test("typed location wrappers call only the campaign-location Edge Function", () => {
@@ -59,6 +79,14 @@ test("deactivation requires confirmation and sends versioned exact location data
   assert.match(manager, /Deactivate custom location\?/);
   assert.match(manager, /deactivateCampaignLocation\(scope, pendingDeactivate\.id, pendingDeactivate\.version\)/);
   assert.match(manager, /Existing supporter records are unchanged/);
+  assert.match(manager, /await refresh\(\);/);
+});
+
+test("add and CSV import refresh the shared hierarchy data", () => {
+  const submit = manager.slice(manager.indexOf("const submit"), manager.indexOf("const confirmDeactivate"));
+  const commitImport = manager.slice(manager.indexOf("const commitImport"), manager.indexOf("return ("));
+  assert.match(submit, /await refresh\(\);/);
+  assert.match(commitImport, /await refresh\(\);/);
 });
 
 test("Gate 4 leaves public geography source contracts untouched", () => {

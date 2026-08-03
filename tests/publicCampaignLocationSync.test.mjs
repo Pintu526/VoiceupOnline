@@ -43,6 +43,16 @@ test("Block suggestions retain master order and require the exact country, state
   assert.match(india, /!verifiedSuggestionsOnly && blockOptions\.length === 0/);
 });
 
+test("custom lower hierarchy options require their exact selected parents", () => {
+  const panchayatOptions = options.slice(options.indexOf("const panchayatOptions"), options.indexOf("const selectedCustomPath"));
+  const selectedCustomPath = options.slice(options.indexOf("const selectedCustomPath"), options.indexOf("return {"));
+  assert.match(panchayatOptions, /location\.block\?\.trim\(\)\.toLowerCase\(\) === values\.block\.trim\(\)\.toLowerCase\(\)/);
+  for (const field of ["country", "state", "district", "block", "panchayat"]) {
+    assert.match(selectedCustomPath, new RegExp(`location\\.${field}\\?\\.trim\\(\\)\\.toLowerCase\\(\\) ===`));
+  }
+  assert.match(selectedCustomPath, /values\.panchayat\.trim\(\)\.toLowerCase\(\)/);
+});
+
 test("public custom locations support village and PIN suggestions without changing manual fallback", () => {
   assert.match(page, /customLocations=\{customLocations\}/);
   assert.match(options, /location\.village/);

@@ -12,7 +12,8 @@ import {
   type CampaignLocationImport,
   type CampaignLocationPath,
   type CampaignLocationRecord,
-  type CampaignLocationScope
+  type CampaignLocationScope,
+  type PublicCampaignCustomLocation
 } from "../../backend";
 import { Field } from "../../ui/Field";
 import {
@@ -68,9 +69,22 @@ function isIndiaPinValid(path: CampaignLocationPath) {
 
 interface ResourceLocationManagerProps {
   campaign: Campaign;
+  onLocationsChange?: (locations: PublicCampaignCustomLocation[]) => void;
 }
 
-export function ResourceLocationManager({ campaign }: ResourceLocationManagerProps) {
+function toPublicCampaignCustomLocation(location: CampaignLocationRecord): PublicCampaignCustomLocation {
+  return {
+    country: location.country,
+    state: location.state,
+    district: location.district,
+    block: location.block,
+    panchayat: location.panchayat,
+    village: location.village,
+    postalCode: location.postalCode
+  };
+}
+
+export function ResourceLocationManager({ campaign, onLocationsChange }: ResourceLocationManagerProps) {
   const scope = useMemo<CampaignLocationScope>(() => ({
     workspaceId: getCurrentWorkspaceId(),
     campaignId: campaign.id,
@@ -98,6 +112,11 @@ export function ResourceLocationManager({ campaign }: ResourceLocationManagerPro
     try {
       const result = await readCampaignLocations(scope, { active: filter === "all" ? undefined : filter === "active" });
       setLocations(result.locations);
+      onLocationsChange?.(
+        result.locations
+          .filter((location) => location.active)
+          .map(toPublicCampaignCustomLocation)
+      );
       setConfigurationVersion(result.configurationVersion);
       setStatus(`Updated configuration version ${result.configurationVersion}.`);
     } catch (reason) {

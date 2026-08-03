@@ -35,6 +35,7 @@ import type {
 } from "../../types";
 import type { CampaignTemplate } from "../../campaignTemplates";
 import type { AuthorityDirectoryEntry } from "../../authorityDirectory";
+import type { PublicCampaignCustomLocation } from "../../backend";
 import type {
   LocationDeletionLevel,
   LocationDeletions,
@@ -296,6 +297,7 @@ export function CampaignsTab({
   const [copiedCampaignLink, setCopiedCampaignLink] = useState("");
   const canUseCampaignCreationTools = campaignFormMode === "create" && !isCampaignAdminRoute;
   const [campaignLinkMessage, setCampaignLinkMessage] = useState("");
+  const [campaignCustomLocations, setCampaignCustomLocations] = useState<PublicCampaignCustomLocation[]>([]);
   const [creationMode, setCreationMode] = useState<"manual" | "template" | "ai">("manual");
   const savedSnapshot = campaignFormMode === "edit" ? campaignSnapshot(activeCampaign) : "";
   const draftSnapshot = campaignSnapshot(campaignDraft);
@@ -372,6 +374,9 @@ export function CampaignsTab({
   const effectiveCampaignDraft = campaignDraft
     ? { ...campaignDraft, ...governedLocationValues }
     : null;
+  useEffect(() => {
+    setCampaignCustomLocations([]);
+  }, [effectiveCampaignDraft?.id]);
   const campaignGeographyMode = getCampaignGeographyMode(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
   const isGlobalMode = campaignGeographyMode === "global";
   const locationLabels = getCampaignLocationLabels(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
@@ -1381,10 +1386,14 @@ export function CampaignsTab({
                     allowInlineAdd
                     onAddLocation={onAddAdminLocationOption}
                     onRemoveLocation={onRemoveAdminLocationOption}
+                    customLocations={campaignCustomLocations}
                   />
                 )}
                 {isCampaignAdminRoute && (
-                  <ResourceLocationManager campaign={effectiveCampaignDraft} />
+                  <ResourceLocationManager
+                    campaign={effectiveCampaignDraft}
+                    onLocationsChange={setCampaignCustomLocations}
+                  />
                 )}
 
                 <div className="wide signer-restriction-panel">

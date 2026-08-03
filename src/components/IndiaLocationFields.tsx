@@ -77,6 +77,7 @@ export function IndiaLocationFields({
   const allowedDistrict = allowedLocation?.district ?? "";
   const allowedBlock = allowedLocation?.block ?? "";
   const allowedPanchayat = allowedLocation?.panchayat ?? "";
+  const selectedCountry = (fixedCountry ?? values.country ?? "India").trim().toLowerCase();
   const mergeOptions = (master: string[], additions: string[]) => [...master, ...additions.filter((value) => !master.some((option) => option.trim().toLowerCase() === value.trim().toLowerCase()))];
   const stateOptions = allowedState ? [allowedState] : mergeOptions(indianStatesAndUnionTerritories, customLocations.map((location) => location.state ?? "").filter(Boolean));
   const districtOptions = mergeOptions(getDistrictOptions(
@@ -93,7 +94,7 @@ export function IndiaLocationFields({
     locationOverrides,
     locationDeletions,
     verifiedSuggestionsOnly
-  ), customLocations.filter((location) => location.state?.trim().toLowerCase() === values.state.trim().toLowerCase() && location.district?.trim().toLowerCase() === values.district.trim().toLowerCase()).map((location) => location.block ?? "").filter(Boolean)).filter(
+  ), customLocations.filter((location) => location.country?.trim().toLowerCase() === selectedCountry && location.state?.trim().toLowerCase() === values.state.trim().toLowerCase() && location.district?.trim().toLowerCase() === values.district.trim().toLowerCase()).map((location) => location.block ?? "").filter(Boolean)).filter(
     (block) => !allowedBlock || block === allowedBlock
   );
   const panchayatOptions = mergeOptions(getPanchayatOptions(
@@ -449,6 +450,7 @@ export function IndiaLocationFields({
           list={`${idPrefix}-villages`}
           placeholder="Enter village or locality"
           value={values.address ?? ""}
+          required={requiredFields.includes("address" as SignerRequiredField)}
           onChange={(event) => onChange({ ...values, address: event.target.value })}
         />
         <datalist id={`${idPrefix}-villages`}>

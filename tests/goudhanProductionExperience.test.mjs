@@ -68,11 +68,11 @@ test("gaumata.cloud root resolves only to the existing Gau Samman public campaig
   assert.equal(isGaumataPublicHostname("www.gaumata.cloud."), true);
   assert.equal(
     resolvePublicCampaignSlug({ pathname: "/", hostname: "gaumata.cloud" }),
-    GOUDHAN_CAMPAIGN_SLUG
+    "GSAA"
   );
   assert.equal(
     resolvePublicCampaignSlug({ pathname: "/", hostname: "www.gaumata.cloud" }),
-    GOUDHAN_CAMPAIGN_SLUG
+    "GSAA"
   );
 
   for (const hostname of [

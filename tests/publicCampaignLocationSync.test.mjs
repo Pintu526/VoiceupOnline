@@ -6,6 +6,7 @@ const edge = readFileSync(new URL("../supabase/functions/voiceup-public-campaign
 const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
 const page = readFileSync(new URL("../src/pages/PublicCampaignPage.tsx", import.meta.url), "utf8");
 const india = readFileSync(new URL("../src/components/IndiaLocationFields.tsx", import.meta.url), "utf8");
+const options = readFileSync(new URL("../src/components/indiaLocationOptions.ts", import.meta.url), "utf8");
 const manager = readFileSync(new URL("../src/businessOs/masterData/ResourceLocationManager.tsx", import.meta.url), "utf8");
 
 test("public response reads only active paths from the exact published campaign scope", () => {
@@ -25,16 +26,17 @@ test("public location transport remains render-only", () => {
 });
 
 test("master options remain primary while custom hierarchy values deduplicate by parent", () => {
-  assert.match(india, /mergeOptions\(indianStatesAndUnionTerritories/);
-  assert.match(india, /option\.trim\(\)\.toLowerCase\(\) === value\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(india, /location\.state\?\.trim\(\)\.toLowerCase\(\) === values\.state\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(india, /location\.district\?\.trim\(\)\.toLowerCase\(\) === values\.district\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(india, /location\.block\?\.trim\(\)\.toLowerCase\(\) === values\.block\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(india, /getIndiaLocationOptions\(/);
+  assert.match(options, /mergeIndiaLocationOptions\(\s*indianStatesAndUnionTerritories/);
+  assert.match(options, /option\.trim\(\)\.toLowerCase\(\) === value\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(options, /location\.state\?\.trim\(\)\.toLowerCase\(\) === values\.state\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(options, /location\.district\?\.trim\(\)\.toLowerCase\(\) === values\.district\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(options, /location\.block\?\.trim\(\)\.toLowerCase\(\) === values\.block\.trim\(\)\.toLowerCase\(\)/);
 });
 
 test("Block suggestions retain master order and require the exact country, state, and district", () => {
-  const blockOptions = india.slice(india.indexOf("const blockOptions"), india.indexOf("const panchayatOptions"));
-  assert.match(blockOptions, /mergeOptions\(getBlockOptions/);
+  const blockOptions = options.slice(options.indexOf("const blockOptions"), options.indexOf("const panchayatOptions"));
+  assert.match(blockOptions, /mergeIndiaLocationOptions\(\s*getBlockOptions/);
   assert.match(blockOptions, /location\.country\?\.trim\(\)\.toLowerCase\(\) === selectedCountry/);
   assert.match(blockOptions, /location\.state\?\.trim\(\)\.toLowerCase\(\) === values\.state\.trim\(\)\.toLowerCase\(\)/);
   assert.match(blockOptions, /location\.district\?\.trim\(\)\.toLowerCase\(\) === values\.district\.trim\(\)\.toLowerCase\(\)/);
@@ -43,8 +45,8 @@ test("Block suggestions retain master order and require the exact country, state
 
 test("public custom locations support village and PIN suggestions without changing manual fallback", () => {
   assert.match(page, /customLocations=\{customLocations\}/);
-  assert.match(india, /location\.village/);
-  assert.match(india, /location\.postalCode/);
+  assert.match(options, /location\.village/);
+  assert.match(options, /location\.postalCode/);
   assert.match(india, /allowInlineAdd = false/);
 });
 
@@ -59,9 +61,10 @@ test("Campaign Admin uses canonical hierarchy fields and public India renders on
   for (const field of ["country", "state", "district", "block", "panchayat", "village", "postalCode"]) {
     assert.match(manager, new RegExp(`update\\("${field}"`));
   }
-  assert.match(manager, /State \/ Union Territory/);
-  assert.match(manager, /Block \/ Tehsil \/ Taluk \/ ULB/);
-  assert.match(manager, /Gram Panchayat \/ Ward/);
+  assert.match(manager, /<Field label="State">/);
+  assert.match(manager, /Block \/ ULB/);
+  assert.match(manager, /Panchayat \/ Ward/);
   assert.equal((page.match(/addressLabel/g) ?? []).length > 0, true);
-  assert.match(page, /\{isGlobalMode && <Field label=\{isRequired\("address"\)/);
+  assert.match(page, /values=\{\{ \.\.\.publicLocationForm, address: publicForm\.address, country: "India" \}\}/);
+  assert.match(page, /address: values\.address \?\? publicForm\.address/);
 });

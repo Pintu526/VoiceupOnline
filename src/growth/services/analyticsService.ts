@@ -1,4 +1,5 @@
 import type { Signer } from "../../types";
+import { getValidSignedAt } from "../../lib";
 import type {
   GrowthAnalyticsDomainModel,
   GrowthChannel,
@@ -36,7 +37,7 @@ function buildTrends(signers: Signer[]): GrowthTrendPoint[] {
     const date = new Date(today);
     date.setDate(today.getDate() - (13 - index));
     const dayKey = date.toISOString().slice(0, 10);
-    const daySigners = signers.filter((signer) => signer.signedAt.slice(0, 10) === dayKey);
+    const daySigners = signers.filter((signer) => getValidSignedAt(signer)?.slice(0, 10) === dayKey);
     return {
       label: getTrendLabel(date),
       signatures: daySigners.length,
@@ -74,7 +75,10 @@ export function buildGrowthAnalytics(
 ): GrowthAnalyticsDomainModel {
   const verifiedSupporters = signers.filter((signer) => signer.status === "verified" || signer.otpVerified).length;
   const conversionRate = signers.length ? Math.round((verifiedSupporters / signers.length) * 100) : 0;
-  const newSupporters7d = signers.filter((signer) => daysAgo(signer.signedAt) <= 7).length;
+  const newSupporters7d = signers.filter((signer) => {
+    const signedAt = getValidSignedAt(signer);
+    return signedAt ? daysAgo(signedAt) <= 7 : false;
+  }).length;
   const growthScore = Math.min(
     100,
     Math.round(

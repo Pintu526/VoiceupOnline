@@ -1,4 +1,5 @@
 import { subscriptionPlans } from "../data.ts";
+import { getValidSignedAt } from "../lib.ts";
 import { startOfToday } from "./campaign.ts";
 import type {
   BillingCadence,
@@ -156,7 +157,7 @@ export function getActiveCampaignCount(campaigns: Campaign[]): number {
 
 export function getMonthlySignerCount(signers: Signer[]): number {
   const monthKey = new Date().toISOString().slice(0, 7);
-  return signers.filter((signer) => signer.signedAt.slice(0, 7) === monthKey).length;
+  return signers.filter((signer) => getValidSignedAt(signer)?.slice(0, 7) === monthKey).length;
 }
 
 export function getMonthlyScanCount(scanItems: ScanReviewItem[]): number {

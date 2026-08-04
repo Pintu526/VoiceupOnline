@@ -59,7 +59,6 @@ import {
   isGaumataPublicHostname,
   isGoudhanProductionCampaign
 } from "../config/goudhanProduction";
-import { goudhanCampaignBlueprint } from "../config/goudhanCampaignBlueprint";
 import { LanguageSwitcher, useTranslation, type Language } from "../i18n";
 import {
   getAppealAuthority,
@@ -666,6 +665,7 @@ export function PublicCampaignPage({
     typeof window !== "undefined" &&
     isGaumataPublicHostname(window.location.hostname);
   const isGaumataCampaignExperience = isGoudhanExperience && isGaumataHost;
+  const campaignHeroImage = campaign.heroImage.trim();
   const displayCampaign: Campaign = isGoudhanExperience
     ? {
         ...campaign,
@@ -676,9 +676,9 @@ export function PublicCampaignPage({
         thankYouMessage: t("goudhanCampaign.thankYou"),
         qrLabel: t("goudhanCampaign.qrLabel"),
         consentText: t("goudhanCampaign.consent"),
-        heroImage: campaign.heroImage || goudhanCampaignBlueprint.branding.heroBannerUrl
+        heroImage: campaignHeroImage
       }
-    : campaign;
+    : { ...campaign, heroImage: campaignHeroImage };
   const configuredAuthorityOptions = getAuthorityOptionsForCampaign(campaign, authorities);
   const publicAuthorityOptions = isGaumataCampaignExperience
     ? configuredAuthorityOptions
@@ -1456,7 +1456,6 @@ export function PublicCampaignPage({
             <div className="public-hero-content">
               {isGoudhanExperience && (
                 <div className="goudhan-public-brand" aria-label={t("goudhanCampaign.brandName")}>
-                  <img src={goudhanCampaignBlueprint.branding.logoUrl} alt={t("goudhanCampaign.brandName")} />
                   <span>{t("goudhanCampaign.tagline")}</span>
                   {isGaumataCampaignExperience && (
                     <small className="goudhan-powered-by">{t("goudhanCampaign.poweredByVoiceUp")}</small>

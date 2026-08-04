@@ -1106,3 +1106,120 @@
     width: 100%;
   }
 }
+
+/* Public Campaign V2 — Phase 1: compact hero presentation */
+.public-campaign-v2.public-layout .public-story-column {
+  gap: 16px;
+}
+
+.public-campaign-v2 .public-campaign-v2-hero {
+  gap: 16px;
+  min-height: auto;
+  padding: clamp(16px, 2.4vw, 28px);
+}
+
+.public-campaign-v2 .public-campaign-v2-hero-surface {
+  gap: 14px;
+}
+
+.public-campaign-v2 .public-campaign-v2-hero-main {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 901px) {
+  .public-campaign-v2 .public-campaign-v2-hero-main {
+    align-items: start;
+    gap: 16px 20px;
+    grid-template-columns: minmax(0, 1.15fr) minmax(220px, 0.55fr);
+  }
+}
+
+.public-campaign-v2 .public-campaign-v2-hero h1 {
+  font-size: clamp(1.65rem, 3vw, 2.65rem);
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  margin: 6px 0 10px;
+}
+
+.public-campaign-v2 .public-summary {
+  font-size: clamp(0.94rem, 1.15vw, 1.06rem);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.public-campaign-v2 .public-hero-content {
+  max-width: none;
+}
+
+.public-campaign-v2 .public-hero-kicker {
+  gap: 8px;
+}
+
+.public-campaign-v2 .public-hero-actions {
+  margin-top: 12px;
+}
+
+.public-campaign-v2 .public-hero-actions .primary-button,
+.public-campaign-v2 .public-hero-actions .secondary-button {
+  min-height: 44px;
+}
+
+.public-campaign-v2 .public-progress-premium {
+  max-width: none;
+  padding: 14px 16px;
+}
+
+.public-campaign-v2 .public-progress-bar {
+  height: 10px;
+}
+
+.public-campaign-v2 .supporter-counter {
+  gap: 10px;
+}
+
+.public-campaign-v2 .supporter-counter div {
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+
+.public-campaign-v2 .supporter-counter strong {
+  font-size: clamp(1.1rem, 1.8vw, 1.45rem);
+  margin-top: 4px;
+}
+
+.public-campaign-v2 .public-trust-strip {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  gap: 8px 14px;
+}
+
+.public-campaign-v2 .public-trust-strip span {
+  align-items: center;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.public-campaign-v2 .goudhan-public-brand {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 900px) {
+  .public-campaign-v2 .public-campaign-v2-hero {
+    padding: 16px;
+  }
+
+  .public-campaign-v2 .public-campaign-v2-hero h1 {
+    font-size: clamp(1.45rem, 5.8vw, 1.95rem);
+    margin: 4px 0 8px;
+  }
+
+  .public-campaign-v2 .public-summary {
+    font-size: 0.92rem;
+  }
+
+  .public-campaign-v2 .supporter-counter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

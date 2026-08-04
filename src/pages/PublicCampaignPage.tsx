@@ -1436,14 +1436,14 @@ export function PublicCampaignPage({
 
   return (
     <section
-      className="public-layout public-campaign-modern"
+      className="public-layout public-campaign-modern public-campaign-v2"
       data-wizard-step={wizardStep}
       data-goudhan-experience={isGoudhanExperience ? "true" : undefined}
       data-gaumata-host={isGaumataCampaignExperience ? "true" : undefined}
     >
       <div className="public-story-column">
         <article
-          className={displayCampaign.heroImage ? "campaign-page campaign-page-with-media" : "campaign-page"}
+          className={`public-campaign-v2-hero ${displayCampaign.heroImage ? "campaign-page campaign-page-with-media" : "campaign-page"}`}
           style={{
             backgroundImage: displayCampaign.heroImage
               ? `linear-gradient(135deg, rgba(4, 13, 31, 0.82), rgba(4, 13, 31, 0.46)), url(${displayCampaign.heroImage})`
@@ -1452,7 +1452,8 @@ export function PublicCampaignPage({
             backgroundSize: `${campaign.heroImageZoom}%`
           }}
         >
-          <div className="public-hero-surface">
+          <div className="public-hero-surface public-campaign-v2-hero-surface">
+            <div className="public-campaign-v2-hero-main">
             <div className="public-hero-content">
               {isGoudhanExperience && (
                 <div className="goudhan-public-brand" aria-label={t("goudhanCampaign.brandName")}>
@@ -1505,6 +1506,7 @@ export function PublicCampaignPage({
                 </div>
               </div>
             )}
+            </div>
 
             <div className="supporter-counter" aria-label={t("public.supporterCount")}>
               <div>

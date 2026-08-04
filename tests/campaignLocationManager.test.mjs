@@ -99,7 +99,10 @@ test("deactivation requires confirmation and sends versioned exact location data
 
 test("add and CSV import refresh the shared hierarchy data", () => {
   const submit = manager.slice(manager.indexOf("const submit"), manager.indexOf("const confirmDeactivate"));
-  const commitImport = manager.slice(manager.indexOf("const commitImport"), manager.indexOf("return ("));
+  const commitImport = manager.slice(
+    manager.indexOf("const commitImport"),
+    manager.indexOf("return (\n    <section")
+  );
   assert.match(submit, /await refresh\(\);/);
   assert.match(commitImport, /await refresh\(\);/);
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AlertCircle, MapPin, Plus, RefreshCw, Search, ShieldCheck, Trash2 } from "lucide-react";
 import type { Campaign } from "../../types";
 import {
@@ -118,30 +118,53 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
   const [importKey, setImportKey] = useState("");
   const [importHash, setImportHash] = useState("");
   const [activeTab, setActiveTab] = useState<"overview" | "manual" | "import" | "active" | "inactive">("overview");
+  const requestSequence = useRef(0);
 
   const refresh = async () => {
+    const sequence = ++requestSequence.current;
     setLoading(true);
     setError("");
+    setStatus("Loading campaign locations…");
+    const accumulated = new Map<string, CampaignLocationRecord>();
+    let offset = 0;
     try {
-      const result = await readCampaignLocations(scope, { active: filter === "all" ? undefined : filter === "active" });
-      setLocations(result.locations);
-      onLocationsChange?.(
-        result.locations
-          .filter((location) => location.active)
-          .map(toPublicCampaignCustomLocation)
-      );
-      setConfigurationVersion(result.configurationVersion);
-      setStatus(`Updated configuration version ${result.configurationVersion}.`);
+      while (true) {
+        const result = await readCampaignLocations(scope, {
+          active: filter === "all" ? undefined : filter === "active",
+          limit: 500,
+          offset
+        });
+        if (sequence !== requestSequence.current) return;
+        for (const location of result.locations) accumulated.set(location.id, location);
+        const loaded = [...accumulated.values()];
+        setLocations(loaded);
+        onLocationsChange?.(
+          loaded
+            .filter((location) => location.active)
+            .map(toPublicCampaignCustomLocation)
+        );
+        setConfigurationVersion(result.configurationVersion);
+        setStatus(`Loaded ${loaded.length} of ${result.total} locations`);
+        if (!result.hasMore) break;
+        if (result.nextOffset === null || result.nextOffset <= offset) {
+          throw new CampaignLocationApiError("server_error");
+        }
+        offset = result.nextOffset;
+      }
     } catch (reason) {
+      if (sequence !== requestSequence.current) return;
       setError(messageFor(reason));
-      setStatus("Location refresh failed.");
+      setStatus(`Location refresh paused after ${accumulated.size} loaded rows. Retry refresh to continue.`);
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     void refresh();
+    return () => {
+      requestSequence.current += 1;
+    };
   }, [scope.workspaceId, scope.campaignId, scope.campaignSlug, filter]);
 
   const visibleLocations = useMemo(() => {

@@ -1239,6 +1239,11 @@ export async function loadPublicCampaignJourney(referralCode: string): Promise<P
 
 type CampaignLocationFunctionResponse = {
   locations?: CampaignLocationRecord[];
+  total?: number;
+  limit?: number;
+  offset?: number;
+  hasMore?: boolean;
+  nextOffset?: number | null;
   location?: Pick<CampaignLocationRecord, "id" | "version">;
   configurationVersion?: number;
   result?: "created" | "reactivated" | "duplicate" | "deactivated";
@@ -1258,8 +1263,16 @@ async function invokeCampaignLocationApi(body: Record<string, unknown>): Promise
 
 export async function readCampaignLocations(
   scope: CampaignLocationScope,
-  options: { active?: boolean; parentPath?: Partial<CampaignLocationPath> } = {}
-): Promise<{ locations: CampaignLocationRecord[]; configurationVersion: number }> {
+  options: { active?: boolean; parentPath?: Partial<CampaignLocationPath>; limit?: number; offset?: number } = {}
+): Promise<{
+  locations: CampaignLocationRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+  configurationVersion: number;
+}> {
   const response = await invokeCampaignLocationApi({
     action: "read_campaign_locations",
     ...scope,
@@ -1267,6 +1280,11 @@ export async function readCampaignLocations(
   });
   return {
     locations: response.locations ?? [],
+    total: response.total ?? 0,
+    limit: response.limit ?? 500,
+    offset: response.offset ?? 0,
+    hasMore: response.hasMore ?? false,
+    nextOffset: response.nextOffset ?? null,
     configurationVersion: response.configurationVersion ?? 0
   };
 }

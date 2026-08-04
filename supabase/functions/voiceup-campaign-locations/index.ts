@@ -119,6 +119,11 @@ async function rpc(admin: ReturnType<typeof createAdminClient>, name: string, pa
   return (data ?? { code: "server_error" }) as Record<string, unknown>;
 }
 
+function pagination(value: unknown, fallback: number): number | null {
+  if (value === undefined) return fallback;
+  return Number.isInteger(value) && Number(value) >= 0 ? Number(value) : null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return error("validation_failed");
@@ -142,15 +147,59 @@ Deno.serve(async (req) => {
 
     if (request.action === "read_campaign_locations") {
       const active = typeof request.active === "boolean" ? request.active : true;
+      const requestedLimit = pagination(request.limit, 500);
+      const offset = pagination(request.offset, 0);
       const parent = request.parentPath && typeof request.parentPath === "object"
         ? parsePath({ country: "India", ...(request.parentPath as Record<string, unknown>) })?.normalizedPath ?? null
         : null;
-      if (request.parentPath && !parent) return error("validation_failed");
-      const result = await rpc(admin, "read_resource_locations", {
-        ...base, p_active: active, p_parent_path: parent
+      if (request.parentPath && !parent || requestedLimit === null || requestedLimit < 1 || offset === null) {
+        return error("validation_failed");
+      }
+      const limit = Math.min(requestedLimit, 1000);
+      const { data: authorization, error: authorizationError } = await admin.rpc(
+        "vboss_resource_location_authorization",
+        base
+      );
+      if (authorizationError) return error("server_error");
+      if (authorization !== "authorized") return error(String(authorization ?? "server_error"));
+
+      let locationsQuery = admin
+        .from("vboss_resource_location_paths")
+        .select(
+          "id,country,state,district,block,panchayat,village,postalCode:postal_code,leafLevel:leaf_level,source,active,version,createdAt:created_at,updatedAt:updated_at",
+          { count: "exact" }
+        )
+        .eq("workspace_id", scope.workspaceId)
+        .eq("application_key", applicationKey)
+        .eq("resource_type", resourceType)
+        .eq("resource_id", scope.campaignId)
+        .eq("active", active);
+      if (parent) locationsQuery = locationsQuery.like("normalized_path", `${parent}|%`);
+      const { data: locations, count: total, error: locationsError } = await locationsQuery
+        .order("normalized_path")
+        .order("id")
+        .range(offset, offset + limit - 1);
+      if (locationsError || total === null) return error("server_error");
+      const { data: configuration, error: configurationError } = await admin
+        .from("vboss_resource_location_configurations")
+        .select("configuration_version")
+        .eq("workspace_id", scope.workspaceId)
+        .eq("application_key", applicationKey)
+        .eq("resource_type", resourceType)
+        .eq("resource_id", scope.campaignId)
+        .maybeSingle();
+      if (configurationError) return error("server_error");
+      const page = locations ?? [];
+      const hasMore = offset + page.length < total;
+      return jsonResponse({
+        locations: page,
+        total,
+        limit,
+        offset,
+        hasMore,
+        nextOffset: hasMore ? offset + page.length : null,
+        configurationVersion: configuration?.configuration_version ?? 0
       });
-      if (result.code !== "ok") return error(String(result.code));
-      return jsonResponse({ locations: result.locations ?? [], configurationVersion: result.configurationVersion ?? 0 });
     }
 
     if (request.action === "add_campaign_location") {

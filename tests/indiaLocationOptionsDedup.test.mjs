@@ -92,6 +92,11 @@ test("canonical India-master label is preferred", () => {
   assert.deepEqual(merged, ["Bargarh"]);
 });
 
+test("master case variants collapse into one option", () => {
+  const merged = mergeIndiaLocationOptions(["Bargarh", "BARGARH"], []);
+  assert.deepEqual(merged, ["Bargarh"]);
+});
+
 test("child filtering remains parent-scoped", () => {
   const customLocations = [
     customLocation({ district: "Bargarh", block: "Barpali", panchayat: "Gaisima", village: "Alpha" }),

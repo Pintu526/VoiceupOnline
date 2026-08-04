@@ -37,8 +37,24 @@ function cleanIndiaLocationOptionLabel(value: string): string {
 // Parent scope filters still compare with option.trim().toLowerCase() === value.trim().toLowerCase().
 
 export function mergeIndiaLocationOptions(master: string[], additions: string[]): string[] {
-  const merged = [...master];
-  const seen = new Set(master.map(normalizeIndiaLocationOptionKey));
+  const merged: string[] = [];
+  const seen = new Set<string>();
+
+  const canonicalLabel = (key: string, fallback: string) => {
+    const masterMatch = master.find((option) => normalizeIndiaLocationOptionKey(option) === key);
+    return cleanIndiaLocationOptionLabel(masterMatch ?? fallback);
+  };
+
+  for (const option of master) {
+    const cleaned = cleanIndiaLocationOptionLabel(option);
+    if (!cleaned) continue;
+
+    const key = normalizeIndiaLocationOptionKey(cleaned);
+    if (seen.has(key)) continue;
+
+    merged.push(canonicalLabel(key, cleaned));
+    seen.add(key);
+  }
 
   for (const addition of additions) {
     const cleaned = cleanIndiaLocationOptionLabel(addition);
@@ -47,8 +63,7 @@ export function mergeIndiaLocationOptions(master: string[], additions: string[])
     const key = normalizeIndiaLocationOptionKey(cleaned);
     if (seen.has(key)) continue;
 
-    const masterMatch = master.find((option) => normalizeIndiaLocationOptionKey(option) === key);
-    merged.push(masterMatch ?? cleaned);
+    merged.push(canonicalLabel(key, cleaned));
     seen.add(key);
   }
 

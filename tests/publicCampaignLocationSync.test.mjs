@@ -67,6 +67,15 @@ test("existing parent clearing and signing location payload remain intact", () =
   assert.match(page, /postalCode/);
 });
 
+test("datalist-backed hierarchy inputs disable browser autocomplete", () => {
+  for (const listId of ["states", "districts", "blocks", "panchayats", "villages", "pins"]) {
+    assert.match(
+      india,
+      new RegExp(`<input[\\s\\S]*?list=\\{\`\\$\\{idPrefix\\}-${listId}\`\\}[\\s\\S]*?autoComplete="off"`)
+    );
+  }
+});
+
 test("Campaign Admin uses canonical hierarchy fields and public India renders one address-backed village field", () => {
   for (const field of ["country", "state", "district", "block", "panchayat", "village", "postalCode"]) {
     assert.match(manager, new RegExp(`update\\("${field}"`));

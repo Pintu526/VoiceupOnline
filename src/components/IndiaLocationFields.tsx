@@ -272,6 +272,7 @@ export function IndiaLocationFields({
         <Field label={fieldLabel("State / Union Territory", "state")}>
           <input
             list={`${idPrefix}-states`}
+            autoComplete="off"
             placeholder="Search state or leave blank"
             value={values.state}
             onChange={(event) => selectState(event.target.value)}
@@ -292,6 +293,7 @@ export function IndiaLocationFields({
         <Field label={fieldLabel("District", "district")}>
           <input
             list={`${idPrefix}-districts`}
+            autoComplete="off"
             placeholder={values.state ? "Search district or leave blank" : "Choose state first"}
             value={values.district}
             onChange={(event) => selectDistrict(event.target.value)}
@@ -336,6 +338,7 @@ export function IndiaLocationFields({
         <Field label={fieldLabel("Block / Tehsil / Taluk", "block")}>
           <input
             list={`${idPrefix}-blocks`}
+            autoComplete="off"
             placeholder={values.district ? "Search block / ward group or leave blank" : "Choose district first"}
             value={values.block}
             onChange={(event) => selectBlock(event.target.value)}
@@ -380,6 +383,7 @@ export function IndiaLocationFields({
         <Field label={fieldLabel("Gram Panchayat / Ward", "panchayat")}>
           <input
             list={`${idPrefix}-panchayats`}
+            autoComplete="off"
             placeholder={values.block ? "Search panchayat / ward or leave blank" : "Choose block first"}
             value={values.panchayat}
             onChange={(event) => updateLocation({ ...values, panchayat: event.target.value })}
@@ -427,6 +431,7 @@ export function IndiaLocationFields({
       <Field label={fieldLabel("Village / Locality", "address" as SignerRequiredField)}>
         <input
           list={`${idPrefix}-villages`}
+          autoComplete="off"
           placeholder="Enter village or locality"
           value={values.address ?? ""}
           required={requiredFields.includes("address" as SignerRequiredField)}
@@ -441,6 +446,7 @@ export function IndiaLocationFields({
         <input
           inputMode="numeric"
           list={`${idPrefix}-pins`}
+          autoComplete="off"
           maxLength={6}
           placeholder="Auto-filled or enter 6-digit PIN"
           value={values.postalCode}

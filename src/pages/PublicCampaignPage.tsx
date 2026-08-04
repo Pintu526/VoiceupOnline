@@ -679,6 +679,7 @@ export function PublicCampaignPage({
         heroImage: campaignHeroImage
       }
     : { ...campaign, heroImage: campaignHeroImage };
+  const publicOrganizationLabel = organization?.name?.trim() ?? "";
   const configuredAuthorityOptions = getAuthorityOptionsForCampaign(campaign, authorities);
   const publicAuthorityOptions = isGaumataCampaignExperience
     ? configuredAuthorityOptions
@@ -1414,7 +1415,7 @@ export function PublicCampaignPage({
     trackShareClick("qr");
     downloadQrPosterSvg({
       campaign: displayCampaign,
-      organizationName: isGoudhanExperience ? t("goudhanCampaign.brandName") : organization?.name ?? "VoiceUp",
+      organizationName: publicOrganizationLabel || "VoiceUp",
       url: personalReferralUrl,
       referralCode: personalReferralCode
     });
@@ -1456,7 +1457,11 @@ export function PublicCampaignPage({
             <div className="public-campaign-v2-hero-main">
             <div className="public-hero-content">
               {isGoudhanExperience && (
-                <div className="goudhan-public-brand" aria-label={t("goudhanCampaign.brandName")}>
+                <div
+                  className="goudhan-public-brand"
+                  aria-label={publicOrganizationLabel || undefined}
+                >
+                  {publicOrganizationLabel && <strong>{publicOrganizationLabel}</strong>}
                   <span>{t("goudhanCampaign.tagline")}</span>
                   {isGaumataCampaignExperience && (
                     <small className="goudhan-powered-by">{t("goudhanCampaign.poweredByVoiceUp")}</small>
@@ -1485,40 +1490,37 @@ export function PublicCampaignPage({
                 )}
               </div>
             </div>
+            </div>
 
-            {(!isGoudhanExperience || configuredCampaignGoal !== null) && (
-              <div className="public-progress public-progress-premium" aria-label={t("public.campaignProgress")}>
-                <div className="progress-header">
+            <div className="public-campaign-v2-metrics" aria-label={t("public.supporterCount")}>
+              <div className="public-campaign-v2-metric">
+                <Users size={16} />
+                <span>{t("public.totalSupporters")}</span>
+                <strong>{metrics.total.toLocaleString()}</strong>
+              </div>
+              <div className="public-campaign-v2-metric">
+                <BadgeCheck size={16} />
+                <span>{t("public.verifiedSupporters")}</span>
+                <strong>{metrics.verified.toLocaleString()}</strong>
+              </div>
+              {(!isGoudhanExperience || configuredCampaignGoal !== null) && (
+                <div
+                  className="public-campaign-v2-metric public-campaign-v2-metric-progress"
+                  aria-label={t("public.campaignProgress")}
+                >
                   <span>{t("public.liveProgress")}</span>
                   <strong>{metrics.progress}%</strong>
-                </div>
-                <div className="progress public-progress-bar">
-                  <div style={{ width: `${metrics.progress}%` }} />
-                </div>
-                <div>
-                  <strong>{metrics.verified.toLocaleString()}</strong>
-                  <span>
+                  <div className="progress public-progress-bar">
+                    <div style={{ width: `${metrics.progress}%` }} />
+                  </div>
+                  <span className="public-campaign-v2-metric-goal">
                     {t("public.verifiedGoal").replace(
                       "{goal}",
                       (isGoudhanExperience ? configuredCampaignGoal ?? 0 : campaignGoal).toLocaleString()
                     )}
                   </span>
                 </div>
-              </div>
-            )}
-            </div>
-
-            <div className="supporter-counter" aria-label={t("public.supporterCount")}>
-              <div>
-                <Users size={18} />
-                <span>{t("public.totalSupporters")}</span>
-                <strong>{metrics.total.toLocaleString()}</strong>
-              </div>
-              <div>
-                <BadgeCheck size={18} />
-                <span>{t("public.verifiedSupporters")}</span>
-                <strong>{metrics.verified.toLocaleString()}</strong>
-              </div>
+              )}
             </div>
 
             <div className="public-trust-strip" aria-label={t("public.trustIndicators")}>
@@ -1539,18 +1541,21 @@ export function PublicCampaignPage({
           </div>
         </article>
 
-        <VoiceUpStoryCarousel
-          experience="publicCampaign"
-          className="voiceup-story-carousel--compact"
-          slideIds={["objective", "evidence", "progress", "afterSigning", "share"]}
-          mediaBySlide={displayCampaign.heroImage ? { objective: { imageUrl: displayCampaign.heroImage } } : undefined}
-          lazyLoadImages
-        />
+        <details className="public-campaign-v2-guide">
+          <summary className="public-campaign-v2-guide-summary">Campaign Guide</summary>
+          <VoiceUpStoryCarousel
+            experience="publicCampaign"
+            className="voiceup-story-carousel--compact"
+            slideIds={["objective", "evidence", "progress", "afterSigning", "share"]}
+            mediaBySlide={displayCampaign.heroImage ? { objective: { imageUrl: displayCampaign.heroImage } } : undefined}
+            lazyLoadImages
+          />
+        </details>
 
         {isGoudhanExperience && (
           <section className="public-section movement-matters" aria-labelledby="movement-matters-heading">
             <div className="public-section-heading">
-              <span className="eyebrow">{t("goudhanCampaign.brandName")}</span>
+              {publicOrganizationLabel && <span className="eyebrow">{publicOrganizationLabel}</span>}
               <h2 id="movement-matters-heading">{t("public.movement.whyTitle")}</h2>
               <p>{t("public.movement.whyHelp")}</p>
             </div>
@@ -1642,7 +1647,7 @@ export function PublicCampaignPage({
         {isGoudhanExperience && (
           <section className="public-section movement-media" aria-labelledby="campaign-media-heading">
             <div className="public-section-heading">
-              <span className="eyebrow">{t("goudhanCampaign.brandName")}</span>
+              {publicOrganizationLabel && <span className="eyebrow">{publicOrganizationLabel}</span>}
               <h2 id="campaign-media-heading">{t("public.movement.mediaTitle")}</h2>
               <p>{t("public.movement.mediaHelp")}</p>
             </div>
@@ -1693,7 +1698,7 @@ export function PublicCampaignPage({
         {isGoudhanExperience && (
           <section className="public-section goudhan-latest-update" aria-labelledby="latest-updates-heading">
             <div className="public-section-heading">
-              <span className="eyebrow">{t("goudhanCampaign.brandName")}</span>
+              {publicOrganizationLabel && <span className="eyebrow">{publicOrganizationLabel}</span>}
               <h2 id="latest-updates-heading">{t("public.movement.updatesTitle")}</h2>
               <p>{t("public.movement.updatesHelp")}</p>
             </div>
@@ -1788,6 +1793,7 @@ export function PublicCampaignPage({
         )}
       </div>
 
+      <div className="public-campaign-v2-signing-panel">
       <Panel title={hasSignedCampaign ? copy.panelTitleComplete : copy.panelTitleSign} icon={<ClipboardList />}>
         <div className="public-mobile-campaign-summary">
           <span className="eyebrow">{experienceCopy.campaignAtGlance}</span>
@@ -2967,6 +2973,7 @@ export function PublicCampaignPage({
           </div>
         )}
       </Panel>
+      </div>
 
       {!hasSignedCampaign && (
         <a className="sticky-support-button" href="#public-sign-form">

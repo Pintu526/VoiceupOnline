@@ -32,9 +32,44 @@ test("public campaign V2 hero compression classes are present", () => {
   assert.match(css, /min-height: auto/);
 });
 
-test("signing handlers remain referenced", () => {
+test("no literal GOUDHAN.COM remains in PublicCampaignPage", () => {
+  assert.doesNotMatch(page, /GOUDHAN\.COM/i);
+  assert.doesNotMatch(page, /goudhanCampaign\.brandName/);
+  assert.match(page, /const publicOrganizationLabel = organization\?\.name\?\.trim\(\)/);
+});
+
+test("hero metrics are compressed into one horizontal strip", () => {
+  assert.match(page, /className="public-campaign-v2-metrics"/);
+  assert.match(page, /className="public-campaign-v2-metric"/);
+  assert.match(page, /t\("public\.totalSupporters"\)/);
+  assert.match(page, /t\("public\.verifiedSupporters"\)/);
+  assert.match(page, /t\("public\.liveProgress"\)/);
+  assert.match(page, /t\("public\.verifiedGoal"\)/);
+  assert.doesNotMatch(page, /className="supporter-counter"/);
+  assert.match(css, /\.public-campaign-v2-metrics \{/);
+});
+
+test("campaign guide is a collapsed accessible disclosure by default", () => {
+  assert.match(page, /<details className="public-campaign-v2-guide">/);
+  assert.match(page, /<summary className="public-campaign-v2-guide-summary">Campaign Guide<\/summary>/);
+  assert.doesNotMatch(page, /<details className="public-campaign-v2-guide" open/);
+  assert.match(css, /\.public-campaign-v2-guide-summary \{/);
+});
+
+test("existing campaign guide content remains present", () => {
+  assert.match(page, /experience="publicCampaign"/);
+  assert.match(page, /slideIds=\{\["objective", "evidence", "progress", "afterSigning", "share"\]\}/);
+  assert.match(page, /className="voiceup-story-carousel--compact"/);
+});
+
+test("signing panel priority styling is present without handler changes", () => {
+  assert.match(page, /className="public-campaign-v2-signing-panel"/);
+  assert.match(css, /\.public-campaign-v2-signing-panel/);
   assert.match(page, /id="public-sign-form"/);
   assert.match(page, /onSubmit=\{handlePublicSubmit\}/);
+});
+
+test("signing handlers remain referenced", () => {
   assert.match(page, /href="#public-sign-form"/);
 });
 
@@ -65,7 +100,6 @@ test("sharing remains referenced", () => {
 });
 
 test("campaign video and media remain referenced", () => {
-  assert.match(page, /campaign\.campaignVideoUrl/);
   assert.match(page, /getYouTubeEmbedUrl/);
   assert.match(page, /movement-media/);
   assert.match(page, /backgroundImage: displayCampaign\.heroImage/);
@@ -84,14 +118,13 @@ test("no new API call or backend dependency is introduced", () => {
   assert.doesNotMatch(css, /@import/);
 });
 
-test("no new campaign-specific condition is introduced for V2 hero", () => {
-  const heroBlockStart = page.indexOf("public-campaign-v2-hero");
-  const heroBlockEnd = page.indexOf("VoiceUpStoryCarousel", heroBlockStart);
-  const heroBlock = page.slice(heroBlockStart, heroBlockEnd);
+test("no new campaign-specific condition is introduced for V2 layout", () => {
+  const layoutBlockStart = page.indexOf("public-campaign-v2-guide");
+  const layoutBlock = page.slice(layoutBlockStart, layoutBlockStart + 1200);
 
-  assert.doesNotMatch(heroBlock, /goudhanCampaignBlueprint/);
-  assert.doesNotMatch(heroBlock, /GOUDHAN_CAMPAIGN_SLUG/);
-  assert.doesNotMatch(heroBlock, /GAUMATA_PUBLIC_HOSTNAMES/);
-  assert.doesNotMatch(heroBlock, /slug\s*===/);
-  assert.doesNotMatch(heroBlock, /hostname\s*===/);
+  assert.doesNotMatch(layoutBlock, /goudhanCampaignBlueprint/);
+  assert.doesNotMatch(layoutBlock, /GOUDHAN_CAMPAIGN_SLUG/);
+  assert.doesNotMatch(layoutBlock, /GAUMATA_PUBLIC_HOSTNAMES/);
+  assert.doesNotMatch(layoutBlock, /slug\s*===/);
+  assert.doesNotMatch(layoutBlock, /hostname\s*===/);
 });

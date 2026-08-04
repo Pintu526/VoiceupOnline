@@ -1130,8 +1130,8 @@
 @media (min-width: 901px) {
   .public-campaign-v2 .public-campaign-v2-hero-main {
     align-items: start;
-    gap: 16px 20px;
-    grid-template-columns: minmax(0, 1.15fr) minmax(220px, 0.55fr);
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -1172,6 +1172,71 @@
 
 .public-campaign-v2 .public-progress-bar {
   height: 10px;
+}
+
+.public-campaign-v2 .public-campaign-v2-metrics {
+  align-items: stretch;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.public-campaign-v2 .public-campaign-v2-metric {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: grid;
+  gap: 4px 8px;
+  grid-template-columns: auto 1fr;
+  padding: 10px 12px;
+}
+
+.public-campaign-v2 .public-campaign-v2-metric svg {
+  color: var(--primary);
+  grid-row: span 2;
+}
+
+.public-campaign-v2 .public-campaign-v2-metric span {
+  color: var(--text-soft);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.public-campaign-v2 .public-campaign-v2-metric strong {
+  font-size: clamp(1rem, 1.6vw, 1.25rem);
+  grid-column: 2;
+  line-height: 1.1;
+}
+
+.public-campaign-v2 .public-campaign-v2-metric-progress {
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr auto;
+}
+
+.public-campaign-v2 .public-campaign-v2-metric-progress .public-progress-bar {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
+.public-campaign-v2 .public-campaign-v2-metric-goal {
+  font-size: 0.78rem;
+  font-weight: 650;
+  grid-column: 1 / -1;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.campaign-page-with-media .public-campaign-v2-metric {
+  background: rgba(15, 23, 42, 0.68);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.campaign-page-with-media .public-campaign-v2-metric span,
+.campaign-page-with-media .public-campaign-v2-metric-goal {
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .public-campaign-v2 .supporter-counter {
@@ -1219,7 +1284,88 @@
     font-size: 0.92rem;
   }
 
-  .public-campaign-v2 .supporter-counter {
+  .public-campaign-v2 .public-campaign-v2-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .public-campaign-v2 .public-campaign-v2-metric-progress {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Public Campaign V2 — Phase 2: action-first layout */
+.public-campaign-v2-guide {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.public-campaign-v2-guide-summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.98rem;
+  font-weight: 800;
+  gap: 10px;
+  justify-content: space-between;
+  list-style: none;
+  padding: 14px 16px;
+}
+
+.public-campaign-v2-guide-summary::-webkit-details-marker {
+  display: none;
+}
+
+.public-campaign-v2-guide-summary::after {
+  color: var(--primary);
+  content: "+";
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.public-campaign-v2-guide[open] .public-campaign-v2-guide-summary::after {
+  content: "−";
+}
+
+.public-campaign-v2-guide .voiceup-story-carousel {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+}
+
+.public-campaign-v2-guide .voiceup-story-header {
+  display: none;
+}
+
+.public-campaign-v2-signing-panel {
+  min-width: 0;
+}
+
+.public-campaign-v2 > .public-campaign-v2-signing-panel > .panel {
+  border: 2px solid rgba(37, 99, 235, 0.18);
+  box-shadow:
+    0 28px 90px rgba(15, 23, 42, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.8) inset;
+}
+
+@media (min-width: 901px) {
+  .public-campaign-v2 > .public-campaign-v2-signing-panel {
+    position: sticky;
+    top: 16px;
+  }
+
+  .public-campaign-v2 > .public-campaign-v2-signing-panel > .panel {
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 1100px) {
+  .public-campaign-v2 > .public-campaign-v2-signing-panel {
+    order: -1;
   }
 }

@@ -18,6 +18,14 @@ test("generic public branding has no Goudhan asset fallback or logo", () => {
   assert.doesNotMatch(page, /goudhanCampaignBlueprint/);
   assert.doesNotMatch(page, /heroBannerUrl|logoUrl/);
   assert.doesNotMatch(page, /campaign\.heroImage\s*\|\|/);
+  assert.doesNotMatch(page, /GOUDHAN\.COM/i);
+  assert.doesNotMatch(page, /goudhanCampaign\.brandName/);
+});
+
+test("public branding uses organization metadata when available", () => {
+  assert.match(page, /const publicOrganizationLabel = organization\?\.name\?\.trim\(\)/);
+  assert.match(page, /publicOrganizationLabel && <span className="eyebrow">\{publicOrganizationLabel\}<\/span>/);
+  assert.match(page, /organizationName: publicOrganizationLabel \|\| "VoiceUp"/);
 });
 
 test("hero presentation and public flows retain their existing sources", () => {

@@ -24,6 +24,19 @@ import {
   toResourceLocationErrorCsvRows
 } from "./resourceLocationCsv";
 
+type ShadowImportDiagnostic =
+  | { status: "shadow_failed" }
+  | {
+      status: "match" | "mismatch";
+      totalRows: number;
+      matchedRows: number;
+      mismatchedRows: number;
+      missingLegacyRows: number;
+      missingBusinessOsRows: number;
+      notComparedFields: string[];
+      mismatchPreview: Array<{ rowNumber: number; mismatchFields: string[] }>;
+    };
+
 const fields: Array<keyof CampaignLocationPath> = [
   "country", "state", "district", "block", "panchayat", "village", "postalCode"
 ];
@@ -117,6 +130,7 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
   const [importResult, setImportResult] = useState<CampaignLocationImport | null>(null);
   const [importKey, setImportKey] = useState("");
   const [importHash, setImportHash] = useState("");
+  const [shadowDiagnostic, setShadowDiagnostic] = useState<ShadowImportDiagnostic | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "manual" | "import" | "active" | "inactive">("overview");
 
   const refresh = async () => {
@@ -226,6 +240,15 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
     const key = idempotencyKey();
     try {
       const result = await validateCampaignLocationImport(scope, parsed.rows, key, hash);
+      try {
+        const shadowModule = await import(
+          new URL(["..", "bulkImport", "bridges", "campaignLocationShadow", "index.ts"].join("/"), import.meta.url).href
+        );
+        const shadowResult = await shadowModule.runCampaignLocationShadow(parsed.rows, result.rows);
+        setShadowDiagnostic(shadowModule.summarizeCampaignLocationShadow(shadowResult));
+      } catch {
+        setShadowDiagnostic(null);
+      }
       setImportResult(result);
       setImportKey(key);
       setImportHash(hash);
@@ -327,7 +350,7 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
               <button className="secondary-button" type="button" onClick={() => downloadResourceLocationCsv("campaign-location-template-v1.csv", resourceLocationTemplateCsv())}>Download Template</button>
             </div>
             <div className="button-row">
-              <input aria-label="Campaign location CSV file" type="file" accept=".csv,text/csv" onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportResult(null); setImportState("idle"); }} />
+              <input aria-label="Campaign location CSV file" type="file" accept=".csv,text/csv" onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportResult(null); setShadowDiagnostic(null); setImportState("idle"); }} />
               <button className="secondary-button" type="button" disabled={!importFile || importState === "parsing"} onClick={() => void validateImport()}>
                 {importState === "parsing" ? "Validating…" : "Validate CSV"}
               </button>
@@ -341,6 +364,32 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
               </div>
               {importResult.invalidRows > 0 && <button className="secondary-button" type="button" onClick={() => downloadResourceLocationCsv("campaign-location-import-errors.csv", resourceLocationErrorsCsv(toResourceLocationErrorCsvRows(importResult.rows.filter((row) => row.errorCode))))}>Download Errors CSV</button>}
               {importState === "ready" && <button className="primary-button" type="button" onClick={() => void commitImport()} disabled={submitting}>Confirm Import</button>}
+              {import.meta.env.DEV && shadowDiagnostic && (
+                shadowDiagnostic.status === "shadow_failed" ? (
+                  <details className="helper-text">
+                    <summary>Shadow import comparison (dev only): unavailable</summary>
+                    <p>Shadow comparison failed open. Legacy validation remains authoritative.</p>
+                  </details>
+                ) : (
+                  <details className="helper-text">
+                    <summary>Shadow import comparison (dev only): {shadowDiagnostic.status}</summary>
+                    <p>
+                      Total {shadowDiagnostic.totalRows} · Matched {shadowDiagnostic.matchedRows} · Mismatched {shadowDiagnostic.mismatchedRows}
+                      · Missing legacy {shadowDiagnostic.missingLegacyRows} · Missing Business OS {shadowDiagnostic.missingBusinessOsRows}
+                    </p>
+                    <p>Not compared: {shadowDiagnostic.notComparedFields.join(", ")}</p>
+                    {shadowDiagnostic.mismatchPreview.length > 0 && (
+                      <ul>
+                        {shadowDiagnostic.mismatchPreview.map((entry) => (
+                          <li key={entry.rowNumber}>
+                            Row {entry.rowNumber}: {entry.mismatchFields.join(", ")}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </details>
+                )
+              )}
               <p className="helper-text" aria-live="polite">Import status: {importState}</p>
             </>}
           </div>

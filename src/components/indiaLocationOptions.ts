@@ -7,7 +7,7 @@ import {
   type LocationDeletions,
   type LocationOverrides,
   type LocationWithPin
-} from "../geography";
+} from "../geography.ts";
 import type { PublicCampaignCustomLocation } from "../backend";
 
 export interface IndiaLocationOptions {
@@ -19,15 +19,40 @@ export interface IndiaLocationOptions {
   pinOptions: string[];
 }
 
+export function normalizeIndiaLocationOptionKey(value: string): string {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/gu, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function cleanIndiaLocationOptionLabel(value: string): string {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+// Parent scope filters still compare with option.trim().toLowerCase() === value.trim().toLowerCase().
+
 export function mergeIndiaLocationOptions(master: string[], additions: string[]): string[] {
-  return [
-    ...master,
-    ...additions.filter(
-      (value) => !master.some(
-        (option) => option.trim().toLowerCase() === value.trim().toLowerCase()
-      )
-    )
-  ];
+  const merged = [...master];
+  const seen = new Set(master.map(normalizeIndiaLocationOptionKey));
+
+  for (const addition of additions) {
+    const cleaned = cleanIndiaLocationOptionLabel(addition);
+    if (!cleaned) continue;
+
+    const key = normalizeIndiaLocationOptionKey(cleaned);
+    if (seen.has(key)) continue;
+
+    const masterMatch = master.find((option) => normalizeIndiaLocationOptionKey(option) === key);
+    merged.push(masterMatch ?? cleaned);
+    seen.add(key);
+  }
+
+  return merged;
 }
 
 export function getIndiaLocationOptions({

@@ -32,3 +32,13 @@ test("server import remains scoped, validates first, and commits atomically", ()
   assert.match(migration, /master_conflict/);
   assert.doesNotMatch(migration.slice(migration.indexOf("validate_resource_location_import"), migration.indexOf("commit_resource_location_import")), /insert into public\.vboss_resource_location_paths/);
 });
+
+test("large import adds chunked session support without replacing legacy route", () => {
+  const largeMigration = readFileSync(new URL("../supabase/migrations/20260804090000_resource_location_large_import.sql", import.meta.url), "utf8");
+  assert.match(largeMigration, /begin_resource_location_large_import/);
+  assert.match(largeMigration, /validate_resource_location_import_chunk/);
+  assert.match(largeMigration, /commit_resource_location_import_chunk/);
+  assert.match(edge, /begin_campaign_location_large_import/);
+  assert.match(edge, /validate_campaign_location_import_chunk/);
+  assert.match(edge, /commit_campaign_location_import_chunk/);
+});

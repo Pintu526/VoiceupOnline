@@ -1357,6 +1357,117 @@ export async function readCampaignLocationImport(
   }) as CampaignLocationImport;
 }
 
+export interface CampaignLocationLargeImportSession {
+  importId: string;
+  status: "validating" | "validation_failed" | "ready" | "importing" | "completed" | "failed" | "partial";
+  importMode: "chunked";
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateInFileRows: number;
+  existingRows: number;
+  reactivationRows: number;
+  masterConflictRows: number;
+  importedRows: number;
+  skippedRows: number;
+  failedRows: number;
+  chunkSize: number;
+  totalChunks: number;
+  completedChunks: number;
+  configurationVersion?: number;
+  chunks: Array<{
+    chunkIndex: number;
+    status: string;
+    validRows: number;
+    invalidRows: number;
+    skippedRows: number;
+    chunkRowCount: number;
+  }>;
+}
+
+export interface CampaignLocationImportErrorRow extends CampaignLocationPath {
+  rowNumber: number;
+  classification: string;
+  errorCode?: string | null;
+}
+
+export async function beginCampaignLocationLargeImport(
+  scope: CampaignLocationScope,
+  idempotencyKey: string,
+  contentHash: string,
+  totalRows: number,
+  chunkSize: number,
+  totalChunks: number
+): Promise<Pick<CampaignLocationLargeImportSession, "importId" | "status" | "totalRows" | "totalChunks" | "completedChunks">> {
+  return await invokeCampaignLocationApi({
+    action: "begin_campaign_location_large_import",
+    ...scope,
+    idempotencyKey,
+    contentHash,
+    totalRows,
+    chunkSize,
+    totalChunks
+  }) as Pick<CampaignLocationLargeImportSession, "importId" | "status" | "totalRows" | "totalChunks" | "completedChunks">;
+}
+
+export async function validateCampaignLocationImportChunk(
+  scope: CampaignLocationScope,
+  importId: string,
+  chunkIndex: number,
+  idempotencyKey: string,
+  contentHash: string,
+  rows: Array<CampaignLocationPath & { rowNumber: number }>
+): Promise<Record<string, unknown>> {
+  return await invokeCampaignLocationApi({
+    action: "validate_campaign_location_import_chunk",
+    ...scope,
+    importId,
+    chunkIndex,
+    idempotencyKey,
+    contentHash,
+    rows
+  }) as Record<string, unknown>;
+}
+
+export async function commitCampaignLocationImportChunk(
+  scope: CampaignLocationScope,
+  importId: string,
+  chunkIndex: number,
+  idempotencyKey: string,
+  contentHash: string
+): Promise<{ importId: string; chunkIndex: number; configurationVersion: number; importedRows: number; importStatus: string; completedChunks: number; totalChunks: number }> {
+  return await invokeCampaignLocationApi({
+    action: "commit_campaign_location_import_chunk",
+    ...scope,
+    importId,
+    chunkIndex,
+    idempotencyKey,
+    contentHash
+  }) as { importId: string; chunkIndex: number; configurationVersion: number; importedRows: number; importStatus: string; completedChunks: number; totalChunks: number };
+}
+
+export async function readCampaignLocationLargeImport(
+  scope: CampaignLocationScope,
+  importId: string
+): Promise<CampaignLocationLargeImportSession> {
+  return await invokeCampaignLocationApi({
+    action: "read_campaign_location_large_import",
+    ...scope,
+    importId
+  }) as CampaignLocationLargeImportSession;
+}
+
+export async function readCampaignLocationImportErrors(
+  scope: CampaignLocationScope,
+  importId: string
+): Promise<{ rows: CampaignLocationImportErrorRow[] }> {
+  return await invokeCampaignLocationApi({
+    action: "read_campaign_location_import_errors",
+    ...scope,
+    importId
+  }) as { rows: CampaignLocationImportErrorRow[] };
+}
+
 export async function requestOtp(
   phone: string,
   purpose: "public-signing" | "onboarding",

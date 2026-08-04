@@ -191,7 +191,7 @@ test("existing location importer behavior remains unchanged", () => {
 
   assert.match(manager, /validateCampaignLocationImport\(scope, parsed\.rows, key, hash\)/);
   assert.match(manager, /commitCampaignLocationImport\(scope, importResult\.importId, importKey, importHash\)/);
-  assert.match(manager, /parseResourceLocationCsv/);
+  assert.match(manager, /parseResourceLocationCsvAuto|parseResourceLocationCsv/);
   assert.match(csv, /maximumRows = 2000/);
   assert.match(csv, /maximumBytes = 2 \* 1024 \* 1024/);
 });

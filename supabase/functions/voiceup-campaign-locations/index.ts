@@ -235,6 +235,84 @@ Deno.serve(async (req) => {
       return jsonResponse(result);
     }
 
+    if (request.action === "begin_campaign_location_large_import") {
+      const idempotencyKey = String(request.idempotencyKey ?? "");
+      const contentHash = String(request.contentHash ?? "");
+      const totalRows = Number(request.totalRows);
+      const chunkSize = Number(request.chunkSize ?? 500);
+      const totalChunks = Number(request.totalChunks);
+      if (!/^[A-Za-z0-9._:-]{8,160}$/.test(idempotencyKey) || !/^[a-f0-9]{64}$/.test(contentHash) || !Number.isInteger(totalRows) || totalRows < 1 || totalRows > 50000 || !Number.isInteger(chunkSize) || chunkSize < 1 || chunkSize > 500 || !Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > 200) {
+        return error("validation_failed");
+      }
+      const result = await rpc(admin, "begin_resource_location_large_import", {
+        ...base, p_idempotency_key: idempotencyKey, p_content_hash: contentHash, p_total_rows: totalRows, p_chunk_size: chunkSize, p_total_chunks: totalChunks
+      });
+      if (result.code !== "ok") return error(String(result.code));
+      return jsonResponse(result);
+    }
+
+    if (request.action === "validate_campaign_location_import_chunk") {
+      const importId = requiredString(request.importId);
+      const chunkIndex = Number(request.chunkIndex);
+      const idempotencyKey = String(request.idempotencyKey ?? "");
+      const contentHash = String(request.contentHash ?? "");
+      const rows = request.rows;
+      if (!importId || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(importId) || !Number.isInteger(chunkIndex) || chunkIndex < 0 || !/^[A-Za-z0-9._:-]{8,160}$/.test(idempotencyKey) || !/^[a-f0-9]{64}$/.test(contentHash) || !Array.isArray(rows) || rows.length > 500) {
+        return error("validation_failed");
+      }
+      const master = await masterPaths();
+      if (!master) return error("master_catalog_unavailable");
+      const seen = new Set<string>();
+      const normalizedRows = rows.map((row) => {
+        const rowNumber = Number((row as Record<string, unknown>).rowNumber);
+        const parsed = parsePath(row);
+        if (!parsed || !Number.isInteger(rowNumber) || rowNumber < 1) return { rowNumber, classification: "invalid", errorCode: "validation_failed" };
+        if (master.has(parsed.normalizedPath)) return { rowNumber, ...parsed.path, normalizedPath: parsed.normalizedPath, leafLevel: parsed.leafLevel, classification: "master_conflict", errorCode: "master_value_protected" };
+        if (seen.has(parsed.normalizedPath)) return { rowNumber, ...parsed.path, normalizedPath: parsed.normalizedPath, leafLevel: parsed.leafLevel, classification: "duplicate_in_file", errorCode: "duplicate" };
+        seen.add(parsed.normalizedPath);
+        return { rowNumber, ...parsed.path, normalizedPath: parsed.normalizedPath, leafLevel: parsed.leafLevel, classification: "valid", errorCode: null };
+      });
+      const result = await rpc(admin, "validate_resource_location_import_chunk", {
+        ...base, p_import_id: importId, p_chunk_index: chunkIndex, p_idempotency_key: idempotencyKey, p_content_hash: contentHash, p_rows: normalizedRows
+      });
+      if (result.code !== "ok") return error(String(result.code));
+      return jsonResponse(result);
+    }
+
+    if (request.action === "commit_campaign_location_import_chunk") {
+      const importId = requiredString(request.importId);
+      const chunkIndex = Number(request.chunkIndex);
+      const idempotencyKey = String(request.idempotencyKey ?? "");
+      const contentHash = String(request.contentHash ?? "");
+      if (!importId || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(importId) || !Number.isInteger(chunkIndex) || chunkIndex < 0 || !/^[A-Za-z0-9._:-]{8,160}$/.test(idempotencyKey) || !/^[a-f0-9]{64}$/.test(contentHash)) {
+        return error("validation_failed");
+      }
+      const master = await masterPaths();
+      if (!master) return error("master_catalog_unavailable");
+      const result = await rpc(admin, "commit_resource_location_import_chunk", {
+        ...base, p_import_id: importId, p_chunk_index: chunkIndex, p_idempotency_key: idempotencyKey, p_content_hash: contentHash
+      });
+      if (result.code === "persistence_failed") return error("server_error");
+      if (result.code !== "completed") return error(String(result.code));
+      return jsonResponse(result);
+    }
+
+    if (request.action === "read_campaign_location_large_import") {
+      const importId = requiredString(request.importId);
+      if (!importId || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(importId)) return error("validation_failed");
+      const result = await rpc(admin, "read_resource_location_large_import", { ...base, p_import_id: importId });
+      if (result.code !== "ok") return error(String(result.code));
+      return jsonResponse(result);
+    }
+
+    if (request.action === "read_campaign_location_import_errors") {
+      const importId = requiredString(request.importId);
+      if (!importId || !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(importId)) return error("validation_failed");
+      const result = await rpc(admin, "read_resource_location_import_errors", { ...base, p_import_id: importId });
+      if (result.code !== "ok") return error(String(result.code));
+      return jsonResponse(result);
+    }
+
     if (request.action === "deactivate_campaign_location") {
       const locationId = requiredString(request.locationId);
       const expectedVersion = request.expectedVersion;

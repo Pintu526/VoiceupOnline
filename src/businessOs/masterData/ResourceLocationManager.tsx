@@ -3,12 +3,16 @@ import { AlertCircle, MapPin, Plus, RefreshCw, Search, ShieldCheck, Trash2 } fro
 import type { Campaign } from "../../types";
 import {
   addCampaignLocation,
+  beginCampaignLocationLargeImport,
   CampaignLocationApiError,
   commitCampaignLocationImport,
+  commitCampaignLocationImportChunk,
   deactivateCampaignLocation,
   getCurrentWorkspaceId,
+  readCampaignLocationImportErrors,
   readCampaignLocations,
   validateCampaignLocationImport,
+  validateCampaignLocationImportChunk,
   type CampaignLocationImport,
   type CampaignLocationPath,
   type CampaignLocationRecord,
@@ -18,11 +22,33 @@ import {
 import { Field } from "../../ui/Field";
 import {
   downloadResourceLocationCsv,
-  parseResourceLocationCsv,
+  isLegacyImportLimits,
+  parseResourceLocationCsvAuto,
   resourceLocationErrorsCsv,
+  resourceLocationLargeImportErrorsCsv,
   resourceLocationTemplateCsv,
-  toResourceLocationErrorCsvRows
+  toResourceLocationErrorCsvRows,
+  type ResourceLocationCsvRow
 } from "./resourceLocationCsv";
+
+type LargeImportView = {
+  totalRows: number;
+  totalChunks: number;
+  chunkSize: number;
+  importableRows: number;
+  skippedDuplicateRows: number;
+  skippedProtectedRows: number;
+  validationFailedRows: number;
+  currentChunk: number;
+  processed: number;
+  remaining: number;
+  imported: number;
+  skipped: number;
+  failed: number;
+  issueRows: Array<ResourceLocationCsvRow & { rowNumber: number; outcome: string; errorCode?: string; reason?: string; chunkIndex: number }>;
+};
+
+type ImportMode = "legacy" | "large";
 
 type ShadowImportDiagnostic =
   | { status: "shadow_failed" }
@@ -36,6 +62,18 @@ type ShadowImportDiagnostic =
       notComparedFields: string[];
       mismatchPreview: Array<{ rowNumber: number; mismatchFields: string[] }>;
     };
+
+function createLargeImportApi(scope: CampaignLocationScope) {
+  return {
+    beginLargeImport: (input: { idempotencyKey: string; contentHash: string; totalRows: number; chunkSize: number; totalChunks: number }) =>
+      beginCampaignLocationLargeImport(scope, input.idempotencyKey, input.contentHash, input.totalRows, input.chunkSize, input.totalChunks),
+    validateImportChunk: (input: { importId: string; chunkIndex: number; idempotencyKey: string; contentHash: string; rows: Array<ResourceLocationCsvRow & { rowNumber: number }> }) =>
+      validateCampaignLocationImportChunk(scope, input.importId, input.chunkIndex, input.idempotencyKey, input.contentHash, input.rows),
+    commitImportChunk: (input: { importId: string; chunkIndex: number; idempotencyKey: string; contentHash: string }) =>
+      commitCampaignLocationImportChunk(scope, input.importId, input.chunkIndex, input.idempotencyKey, input.contentHash),
+    readImportErrors: (input: { importId: string }) => readCampaignLocationImportErrors(scope, input.importId)
+  };
+}
 
 const fields: Array<keyof CampaignLocationPath> = [
   "country", "state", "district", "block", "panchayat", "village", "postalCode"
@@ -130,6 +168,9 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
   const [importResult, setImportResult] = useState<CampaignLocationImport | null>(null);
   const [importKey, setImportKey] = useState("");
   const [importHash, setImportHash] = useState("");
+  const [importMode, setImportMode] = useState<ImportMode>("legacy");
+  const [largeImportView, setLargeImportView] = useState<LargeImportView | null>(null);
+  const [largeImportSessionId, setLargeImportSessionId] = useState("");
   const [shadowDiagnostic, setShadowDiagnostic] = useState<ShadowImportDiagnostic | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "manual" | "import" | "active" | "inactive">("overview");
 
@@ -229,7 +270,10 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
     if (!importFile) return;
     setImportState("parsing");
     setError("");
-    const parsed = parseResourceLocationCsv(await importFile.text(), importFile.size);
+    setLargeImportView(null);
+    setLargeImportSessionId("");
+    const csvText = await importFile.text();
+    const parsed = parseResourceLocationCsvAuto(csvText, importFile.size);
     if (!parsed.ok) {
       setImportState("failed");
       setError(errorMessages[parsed.code] ?? "The CSV file could not be validated.");
@@ -238,6 +282,75 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(parsed.contentHashInput));
     const hash = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
     const key = idempotencyKey();
+    const useLegacy = isLegacyImportLimits(parsed.rows.length, importFile.size);
+    setImportMode(useLegacy ? "legacy" : "large");
+
+    if (!useLegacy) {
+      try {
+        const largeImportModule = await import(
+          new URL(["..", "bulkImport", "bridges", "campaignLocationLargeImport", "index.ts"].join("/"), import.meta.url).href
+        );
+        const session = await largeImportModule.validateLargeCampaignLocationImport(
+          parsed.rows,
+          createLargeImportApi(scope),
+          key,
+          hash,
+          (progress: { currentChunk: number; totalChunks: number; processed: number; remaining: number; imported: number; skipped: number; failed: number }) => {
+            setLargeImportView((current) => ({
+              totalRows: parsed.rows.length,
+              totalChunks: progress.totalChunks,
+              chunkSize: largeImportModule.campaignLocationLargeImportChunkSize,
+              importableRows: current?.importableRows ?? 0,
+              skippedDuplicateRows: current?.skippedDuplicateRows ?? 0,
+              skippedProtectedRows: current?.skippedProtectedRows ?? 0,
+              validationFailedRows: current?.validationFailedRows ?? 0,
+              currentChunk: progress.currentChunk,
+              processed: progress.processed,
+              remaining: progress.remaining,
+              imported: progress.imported,
+              skipped: progress.skipped,
+              failed: progress.failed,
+              issueRows: current?.issueRows ?? []
+            }));
+          }
+        );
+        setLargeImportSessionId(session.importId);
+        setImportKey(key);
+        setImportHash(hash);
+        setLargeImportView({
+          totalRows: session.summary.totalRows,
+          totalChunks: session.summary.totalChunks,
+          chunkSize: session.summary.chunkSize,
+          importableRows: session.summary.importableRows,
+          skippedDuplicateRows: session.summary.skippedDuplicateRows,
+          skippedProtectedRows: session.summary.skippedProtectedRows,
+          validationFailedRows: session.summary.validationFailedRows,
+          currentChunk: session.summary.totalChunks,
+          processed: session.progress.processed,
+          remaining: session.progress.remaining,
+          imported: session.progress.imported,
+          skipped: session.progress.skipped,
+          failed: session.progress.failed,
+          issueRows: session.issueRows
+        });
+        setImportResult(null);
+        setImportState(session.summary.ready ? "ready" : "validation errors");
+        try {
+          const shadowModule = await import(
+            new URL(["..", "bulkImport", "bridges", "campaignLocationShadow", "index.ts"].join("/"), import.meta.url).href
+          );
+          const shadowResult = await shadowModule.runCampaignLocationShadow(parsed.rows);
+          setShadowDiagnostic(shadowModule.summarizeCampaignLocationShadow(shadowResult));
+        } catch {
+          setShadowDiagnostic(null);
+        }
+      } catch (reason) {
+        setImportState("failed");
+        setError(messageFor(reason));
+      }
+      return;
+    }
+
     try {
       const result = await validateCampaignLocationImport(scope, parsed.rows, key, hash);
       try {
@@ -260,7 +373,70 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
   };
 
   const commitImport = async () => {
-    if (!importResult || !importKey || !importHash) return;
+    if (!importKey || !importHash) return;
+    if (importMode === "large") {
+      if (!importFile || !largeImportSessionId) return;
+      setImportState("importing");
+      try {
+        const parsed = parseResourceLocationCsvAuto(await importFile.text(), importFile.size);
+        if (!parsed.ok) throw new CampaignLocationApiError("validation_failed");
+        const largeImportModule = await import(
+          new URL(["..", "bulkImport", "bridges", "campaignLocationLargeImport", "index.ts"].join("/"), import.meta.url).href
+        );
+        const result = await largeImportModule.commitLargeCampaignLocationImport(
+          parsed.rows,
+          {
+            importId: largeImportSessionId,
+            contentHash: importHash,
+            idempotencyKey: importKey,
+            summary: {
+              totalRows: largeImportView?.totalRows ?? parsed.rows.length,
+              totalChunks: largeImportView?.totalChunks ?? 0,
+              chunkSize: largeImportView?.chunkSize ?? largeImportModule.campaignLocationLargeImportChunkSize,
+              importableRows: largeImportView?.importableRows ?? 0,
+              skippedDuplicateRows: largeImportView?.skippedDuplicateRows ?? 0,
+              skippedProtectedRows: largeImportView?.skippedProtectedRows ?? 0,
+              validationFailedRows: largeImportView?.validationFailedRows ?? 0,
+              persistenceFailedRows: 0,
+              ready: importState === "ready",
+              blockingFailure: false
+            },
+            progress: {
+              total: parsed.rows.length,
+              validated: parsed.rows.length,
+              processed: 0,
+              imported: 0,
+              skipped: largeImportView?.skipped ?? 0,
+              failed: largeImportView?.failed ?? 0,
+              remaining: parsed.rows.length
+            },
+            issueRows: largeImportView?.issueRows ?? []
+          },
+          createLargeImportApi(scope),
+          (progress: { currentChunk: number; totalChunks: number; processed: number; remaining: number; imported: number; skipped: number; failed: number }) => {
+            setLargeImportView((current) => current ? {
+              ...current,
+              currentChunk: progress.currentChunk,
+              processed: progress.processed,
+              remaining: progress.remaining,
+              imported: progress.imported,
+              skipped: progress.skipped,
+              failed: progress.failed
+            } : current);
+          }
+        );
+        setConfigurationVersion(result.configurationVersion);
+        setLargeImportView((current) => current ? { ...current, issueRows: result.issueRows, imported: current.importableRows } : current);
+        setImportState("completed");
+        setStatus("CSV import completed.");
+        await refresh();
+      } catch (reason) {
+        setImportState("failed");
+        setError(messageFor(reason));
+      }
+      return;
+    }
+    if (!importResult) return;
     setImportState("importing");
     try {
       const result = await commitCampaignLocationImport(scope, importResult.importId, importKey, importHash);
@@ -350,19 +526,37 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
               <button className="secondary-button" type="button" onClick={() => downloadResourceLocationCsv("campaign-location-template-v1.csv", resourceLocationTemplateCsv())}>Download Template</button>
             </div>
             <div className="button-row">
-              <input aria-label="Campaign location CSV file" type="file" accept=".csv,text/csv" onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportResult(null); setShadowDiagnostic(null); setImportState("idle"); }} />
+              <input aria-label="Campaign location CSV file" type="file" accept=".csv,text/csv" onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportResult(null); setLargeImportView(null); setLargeImportSessionId(""); setImportMode("legacy"); setShadowDiagnostic(null); setImportState("idle"); }} />
               <button className="secondary-button" type="button" disabled={!importFile || importState === "parsing"} onClick={() => void validateImport()}>
                 {importState === "parsing" ? "Validating…" : "Validate CSV"}
               </button>
               {importFile && <span className="helper-text">{importFile.name} · {(importFile.size / 1024).toFixed(1)} KB</span>}
             </div>
-            {importResult && <>
+            {(importResult || largeImportView) && <>
               <div className="metric-grid">
-                <div className="metric-card"><span>Rows</span><strong>{importResult.totalRows}</strong></div>
-                <div className="metric-card"><span>Ready</span><strong>{importResult.validRows}</strong></div>
-                <div className="metric-card"><span>Errors</span><strong>{importResult.invalidRows}</strong></div>
+                {importMode === "large" && largeImportView ? <>
+                  <div className="metric-card"><span>Rows</span><strong>{largeImportView.totalRows}</strong></div>
+                  <div className="metric-card"><span>Ready</span><strong>{largeImportView.importableRows}</strong></div>
+                  <div className="metric-card"><span>Skipped</span><strong>{largeImportView.skippedDuplicateRows + largeImportView.skippedProtectedRows}</strong></div>
+                  <div className="metric-card"><span>Errors</span><strong>{largeImportView.validationFailedRows}</strong></div>
+                  <div className="metric-card"><span>Chunk</span><strong>{largeImportView.currentChunk}/{largeImportView.totalChunks}</strong></div>
+                </> : importResult ? <>
+                  <div className="metric-card"><span>Rows</span><strong>{importResult.totalRows}</strong></div>
+                  <div className="metric-card"><span>Ready</span><strong>{importResult.validRows}</strong></div>
+                  <div className="metric-card"><span>Errors</span><strong>{importResult.invalidRows}</strong></div>
+                </> : null}
               </div>
-              {importResult.invalidRows > 0 && <button className="secondary-button" type="button" onClick={() => downloadResourceLocationCsv("campaign-location-import-errors.csv", resourceLocationErrorsCsv(toResourceLocationErrorCsvRows(importResult.rows.filter((row) => row.errorCode))))}>Download Errors CSV</button>}
+              {importMode === "large" && largeImportView && (
+                <p className="helper-text">
+                  Processed {largeImportView.processed} · Remaining {largeImportView.remaining} · Imported {largeImportView.imported} · Failed {largeImportView.failed}
+                </p>
+              )}
+              {importMode === "legacy" && importResult && importResult.invalidRows > 0 && (
+                <button className="secondary-button" type="button" onClick={() => downloadResourceLocationCsv("campaign-location-import-errors.csv", resourceLocationErrorsCsv(toResourceLocationErrorCsvRows(importResult.rows.filter((row) => row.errorCode))))}>Download Errors CSV</button>
+              )}
+              {importMode === "large" && largeImportView && largeImportView.issueRows.length > 0 && (
+                <button className="secondary-button" type="button" onClick={() => downloadResourceLocationCsv("campaign-location-import-errors.csv", resourceLocationLargeImportErrorsCsv(largeImportView.issueRows))}>Download Errors CSV</button>
+              )}
               {importState === "ready" && <button className="primary-button" type="button" onClick={() => void commitImport()} disabled={submitting}>Confirm Import</button>}
               {import.meta.env.DEV && shadowDiagnostic && (
                 shadowDiagnostic.status === "shadow_failed" ? (

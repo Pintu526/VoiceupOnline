@@ -231,6 +231,89 @@ test("existing India state district block records remain selectable", () => {
   assert.ok(options.stateOptions.includes("Odisha"));
 });
 
+test("custom district ANUGUL replaces master Angul when campaign locations exist", () => {
+  const options = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: { Odisha: { Angul: {} } },
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [customLocation({ district: "ANUGUL", block: "Block A", panchayat: "GP A", village: "V1" })],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.deepEqual(options.districtOptions, ["ANUGUL"]);
+  assert.ok(!options.districtOptions.includes("Angul"));
+});
+
+test("custom district BALESHWAR replaces master Balasore when campaign locations exist", () => {
+  const options = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [customLocation({ district: "BALESHWAR", block: "Block B", panchayat: "GP B", village: "V2" })],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.deepEqual(options.districtOptions, ["BALESHWAR"]);
+  assert.ok(!options.districtOptions.includes("Balasore"));
+});
+
+test("when custom districts exist unrelated master districts are excluded", () => {
+  const options = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [
+      customLocation({ district: "ANUGUL", block: "Block A", panchayat: "GP A", village: "V1" }),
+      customLocation({ district: "ANUGUL", block: "Block B", panchayat: "GP B", village: "V2" })
+    ],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.deepEqual(options.districtOptions, ["ANUGUL"]);
+  assert.ok(!options.districtOptions.includes("Balasore"));
+  assert.ok(!options.districtOptions.includes("Cuttack"));
+});
+
+test("blocks use custom options when present and master fallback otherwise", () => {
+  const withCustom = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "Khordha", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [customLocation({ district: "Khordha", block: "CUSTOM BLOCK", panchayat: "GP C", village: "V3" })],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+  const withoutCustom = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "Khordha", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.deepEqual(withCustom.blockOptions, ["CUSTOM BLOCK"]);
+  assert.ok(withoutCustom.blockOptions.length > 0);
+});
+
 test("no campaign other than GSAA is affected by cleanup scope definition", () => {
   assert.equal(normalizeIndiaLocationOptionKey("  Bargarh "), "bargarh");
   assert.notEqual(normalizeIndiaLocationOptionKey("Khordha"), normalizeIndiaLocationOptionKey("Bargarh"));

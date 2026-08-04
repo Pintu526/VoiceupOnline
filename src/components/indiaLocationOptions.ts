@@ -36,7 +36,18 @@ function cleanIndiaLocationOptionLabel(value: string): string {
 
 // Parent scope filters still compare with option.trim().toLowerCase() === value.trim().toLowerCase().
 
-export function mergeIndiaLocationOptions(master: string[], additions: string[]): string[] {
+export function mergeIndiaLocationOptions(
+  master: string[],
+  additions: string[],
+  customAuthoritative = false
+): string[] {
+  if (customAuthoritative) {
+    const customOptions = dedupeCustomLocationOptions(additions);
+    if (customOptions.length > 0) {
+      return customOptions;
+    }
+  }
+
   const merged: string[] = [];
   const seen = new Set<string>();
 
@@ -56,6 +67,10 @@ export function mergeIndiaLocationOptions(master: string[], additions: string[])
     seen.add(key);
   }
 
+  if (customAuthoritative) {
+    return merged;
+  }
+
   for (const addition of additions) {
     const cleaned = cleanIndiaLocationOptionLabel(addition);
     if (!cleaned) continue;
@@ -68,6 +83,24 @@ export function mergeIndiaLocationOptions(master: string[], additions: string[])
   }
 
   return merged;
+}
+
+function dedupeCustomLocationOptions(values: string[]): string[] {
+  const options: string[] = [];
+  const seen = new Set<string>();
+
+  for (const value of values) {
+    const cleaned = cleanIndiaLocationOptionLabel(value);
+    if (!cleaned) continue;
+
+    const key = normalizeIndiaLocationOptionKey(cleaned);
+    if (seen.has(key)) continue;
+
+    options.push(cleaned);
+    seen.add(key);
+  }
+
+  return options;
 }
 
 export function getIndiaLocationOptions({
@@ -112,7 +145,8 @@ export function getIndiaLocationOptions({
         (location) => location.state?.trim().toLowerCase() === values.state.trim().toLowerCase()
       )
       .map((location) => location.district ?? "")
-      .filter(Boolean)
+      .filter(Boolean),
+    true
   ).filter((district) => !allowedDistrict || district === allowedDistrict);
   const blockOptions = mergeIndiaLocationOptions(
     getBlockOptions(
@@ -130,7 +164,8 @@ export function getIndiaLocationOptions({
           && location.district?.trim().toLowerCase() === values.district.trim().toLowerCase()
       )
       .map((location) => location.block ?? "")
-      .filter(Boolean)
+      .filter(Boolean),
+    true
   ).filter((block) => !allowedBlock || block === allowedBlock);
   const panchayatOptions = mergeIndiaLocationOptions(
     getPanchayatOptions(
@@ -149,7 +184,8 @@ export function getIndiaLocationOptions({
           && location.block?.trim().toLowerCase() === values.block.trim().toLowerCase()
       )
       .map((location) => location.panchayat ?? "")
-      .filter(Boolean)
+      .filter(Boolean),
+    true
   ).filter((panchayat) => !allowedPanchayat || panchayat === allowedPanchayat);
   const selectedCustomPath = (location: PublicCampaignCustomLocation) =>
     location.country?.trim().toLowerCase() === selectedCountry
@@ -165,7 +201,8 @@ export function getIndiaLocationOptions({
     panchayatOptions,
     villageOptions: mergeIndiaLocationOptions(
       [],
-      customLocations.filter(selectedCustomPath).map((location) => location.village ?? "").filter(Boolean)
+      customLocations.filter(selectedCustomPath).map((location) => location.village ?? "").filter(Boolean),
+      true
     ),
     pinOptions: mergeIndiaLocationOptions(
       getPinOptions(values),

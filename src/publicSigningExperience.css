@@ -1136,16 +1136,73 @@
 }
 
 .public-campaign-v2 .public-campaign-v2-hero h1 {
+  color: #0f172a;
   font-size: clamp(1.65rem, 3vw, 2.65rem);
+  font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.08;
   margin: 6px 0 10px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .public-campaign-v2 .public-summary {
+  color: #1e293b;
   font-size: clamp(0.94rem, 1.15vw, 1.06rem);
+  font-weight: 550;
   line-height: 1.45;
   margin: 0;
+}
+
+.public-campaign-v2 .public-hero-kicker .eyebrow {
+  color: #334155;
+  font-weight: 800;
+}
+
+.public-campaign-v2 .public-hero-kicker .status-pill {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+  font-weight: 800;
+}
+
+.public-campaign-v2 .public-hero-actions .secondary-button {
+  border-color: rgba(15, 23, 42, 0.16);
+  color: #0f172a;
+  font-weight: 750;
+}
+
+.public-campaign-v2 .public-campaign-v2-metric strong,
+.public-campaign-v2 .public-campaign-v2-metric-goal {
+  color: #0f172a;
+}
+
+.public-campaign-v2 .public-trust-strip {
+  color: #334155;
+  font-weight: 650;
+}
+
+.public-campaign-v2-hero-readable-media .public-campaign-v2-hero h1,
+.public-campaign-v2 .public-campaign-v2-hero.campaign-page-with-media h1 {
+  color: #ffffff;
+  text-shadow: 0 2px 16px rgba(3, 7, 18, 0.78);
+}
+
+.public-campaign-v2-hero-readable-media .public-campaign-v2-hero .public-summary,
+.public-campaign-v2 .public-campaign-v2-hero.campaign-page-with-media .public-summary {
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow: 0 1px 10px rgba(3, 7, 18, 0.55);
+}
+
+.public-campaign-v2-hero-readable-media .public-campaign-v2-hero .public-hero-kicker .eyebrow,
+.public-campaign-v2 .public-campaign-v2-hero.campaign-page-with-media .public-hero-kicker .eyebrow {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.public-campaign-v2-hero-readable-media .public-campaign-v2-hero .public-trust-strip,
+.public-campaign-v2 .public-campaign-v2-hero.campaign-page-with-media .public-trust-strip {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.campaign-page-with-media .public-campaign-v2-metric strong {
+  color: #ffffff;
 }
 
 .public-campaign-v2 .public-hero-content {
@@ -1337,8 +1394,47 @@
   margin: 0;
 }
 
-.public-campaign-v2-guide .voiceup-story-header {
-  display: none;
+.public-campaign-v2-guide[open] .voiceup-story-header {
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  justify-content: space-between;
+  margin: 0;
+  padding: 12px 16px 14px;
+}
+
+.public-campaign-v2-guide[open] .voiceup-story-header h2 {
+  color: #0f172a;
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+  line-height: 1.15;
+}
+
+.public-campaign-v2-guide[open] .voiceup-story-header p,
+.public-campaign-v2-guide[open] .voiceup-story-header .eyebrow {
+  color: #475569;
+}
+
+.public-campaign-v2-guide[open] .voiceup-story-guided-start,
+.public-campaign-v2-guide[open] .voiceup-story-controls,
+.public-campaign-v2-guide[open] .voiceup-story-guided-controls,
+.public-campaign-v2-guide[open] .voiceup-story-subtitles,
+.public-campaign-v2-guide[open] .voiceup-story-media {
+  display: revert;
+}
+
+.public-campaign-v2-guide[open] .voiceup-story-guided-start {
+  min-height: 44px;
+}
+
+.public-campaign-v2-guide[open] .voiceup-story-stage,
+.public-campaign-v2-guide[open] .voiceup-story-controls {
+  padding-inline: 16px;
+}
+
+.public-campaign-v2-guide[open] .voiceup-story-subtitles p {
+  color: #1e293b;
 }
 
 .public-campaign-v2-signing-panel {

@@ -10,6 +10,13 @@ const css = readFileSync(
   new URL("../src/publicSigningExperience.css", import.meta.url),
   "utf8"
 );
+const carousel = readFileSync(
+  new URL("../src/components/VoiceUpStoryCarousel.tsx", import.meta.url),
+  "utf8"
+);
+const locales = JSON.parse(
+  readFileSync(new URL("../src/i18n/locales/en.json", import.meta.url), "utf8")
+);
 
 const sectionMarkers = [
   "VoiceUpStoryCarousel",
@@ -56,10 +63,39 @@ test("campaign guide is a collapsed accessible disclosure by default", () => {
   assert.match(css, /\.public-campaign-v2-guide-summary \{/);
 });
 
+test("voiceup story carousel header is no longer hidden by V2 guide CSS", () => {
+  assert.doesNotMatch(
+    css,
+    /\.public-campaign-v2-guide \.voiceup-story-header\s*\{[^}]*display:\s*none/
+  );
+  assert.match(css, /\.public-campaign-v2-guide\[open\] \.voiceup-story-header \{/);
+});
+
+test("play guided explanation entry point and guide controls remain available", () => {
+  assert.equal(locales.storyCarousel.publicCampaign.playLabel, "Play 45-second explanation");
+  assert.match(carousel, /className="voiceup-story-guided-start"/);
+  assert.match(carousel, /voiceup-story-guided-controls/);
+  assert.match(carousel, /voiceup-story-controls/);
+  assert.match(carousel, /voiceup-story-subtitles/);
+  assert.match(css, /\.public-campaign-v2-guide\[open\] \.voiceup-story-guided-start/);
+  assert.match(css, /\.public-campaign-v2-guide\[open\] \.voiceup-story-controls/);
+  assert.match(css, /\.public-campaign-v2-guide\[open\] \.voiceup-story-guided-controls/);
+  assert.match(css, /\.public-campaign-v2-guide\[open\] \.voiceup-story-subtitles/);
+});
+
 test("existing campaign guide content remains present", () => {
   assert.match(page, /experience="publicCampaign"/);
   assert.match(page, /slideIds=\{\["objective", "evidence", "progress", "afterSigning", "share"\]\}/);
   assert.match(page, /className="voiceup-story-carousel--compact"/);
+});
+
+test("hero readability contrast rules are present", () => {
+  assert.match(css, /public-campaign-v2-hero-readable-media/);
+  assert.match(css, /\.public-campaign-v2 \.public-campaign-v2-hero h1[\s\S]*color:/);
+  assert.match(css, /\.public-campaign-v2 \.public-summary[\s\S]*color:/);
+  assert.match(css, /\.public-campaign-v2 \.public-hero-kicker \.eyebrow[\s\S]*color:/);
+  assert.match(css, /\.public-campaign-v2 \.public-campaign-v2-metric strong[\s\S]*color:/);
+  assert.match(css, /\.public-campaign-v2 \.public-trust-strip[\s\S]*color:/);
 });
 
 test("signing panel priority styling is present without handler changes", () => {
@@ -118,7 +154,16 @@ test("no new API call or backend dependency is introduced", () => {
   assert.doesNotMatch(css, /@import/);
 });
 
-test("no new campaign-specific condition is introduced for V2 layout", () => {
+test("no campaign-specific condition is introduced for V2 guide and readability CSS", () => {
+  const guideCssStart = css.indexOf("Public Campaign V2 — Phase 2: action-first layout");
+  const guideCss = css.slice(guideCssStart);
+
+  assert.doesNotMatch(guideCss, /goudhan|gaumata|GSAA|slug|hostname|blueprint/i);
+  assert.doesNotMatch(guideCss, /data-goudhan-experience/);
+  assert.doesNotMatch(guideCss, /data-gaumata-host/);
+});
+
+test("no new campaign-specific condition is introduced for V2 layout markup", () => {
   const layoutBlockStart = page.indexOf("public-campaign-v2-guide");
   const layoutBlock = page.slice(layoutBlockStart, layoutBlockStart + 1200);
 

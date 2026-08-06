@@ -148,7 +148,9 @@
           challengeId: data.id,
           resendAfterSeconds: 30,
           message: "Verification code sent.",
-          ...(purpose === "public-signing" && publicSlug === "GSAA" && SHOW_GSAA_OTP
+          ...(purpose === "public-signing" &&
+            (publicSlug === "GSAA" || publicSlug === "gau-samman-ahvaan-abhiyan") &&
+            SHOW_GSAA_OTP
             ? { otp: code }
             : {})
         });

@@ -17,7 +17,7 @@ export const PUBLIC_PARTICIPATION_ACTIONS = [
 export type PublicParticipationAction = (typeof PUBLIC_PARTICIPATION_ACTIONS)[number];
 
 export const PUBLIC_PROFILE_FIELDS = new Set([
-  "name", "email", "whatsappNumber", "telegramHandle",
+  "name", "phone", "email", "whatsappNumber", "telegramHandle",
   "selectedAuthorityId", "selectedAuthorityName",
   "countryId", "country", "stateId", "state", "districtId", "district",
   "blockId", "block", "panchayatId", "panchayat", "wardId", "ward",

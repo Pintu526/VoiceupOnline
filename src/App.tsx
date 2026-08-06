@@ -2152,7 +2152,7 @@ function App() {
       );
       setOtpMessage(
         result.developmentOtp
-          ? `${result.message ?? "Verification code sent."} Development code: ${result.developmentOtp}`
+          ? `OTP: ${result.developmentOtp}`
           : result.message
       );
       return true;

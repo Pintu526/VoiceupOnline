@@ -1415,7 +1415,8 @@ export async function requestOtp(
       challengeId: data.challengeId,
       resendAfterSeconds: data.resendAfterSeconds ?? 30,
       message: data.message ?? "Verification code sent.",
-      otp: data.otp
+      otp: data.otp,
+      developmentOtp: data.otp
     };
   }
   if (!import.meta.env.DEV) {

@@ -9,7 +9,9 @@ import {
   buildCanonicalSubmitSupportConsents,
   CONSENT_REQUIRED_CODE,
   hasBase64Image,
+  hasUnsupportedSignerFields,
   isPublicParticipationAction,
+  profileFromSigner,
   validateProfileFields
 } from "./logic.ts";
 import { fetchCanonicalPublishedCampaignBySlug } from "../_shared/publicCampaignIndex.ts";
@@ -89,26 +91,6 @@ async function parseBoundedJson(req: Request) {
   } catch {
     throw new Response("invalid_payload", { status: 400 });
   }
-}
-
-function profileFromSigner(signer: Record<string, unknown>) {
-  const profile: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(signer)) {
-    if (validateProfileFields({ [key]: value })) profile[key] = value;
-  }
-  return profile;
-}
-
-function hasUnsupportedSignerFields(signer: Record<string, unknown>) {
-  const transportFields = new Set([
-    "phone", "otpVerified", "otpChallengeId", "otpVerificationToken"
-  ]);
-  // PUBLIC_PROFILE_FIELDS is intentionally enforced through the exported
-  // validator; these are the only non-profile fields accepted from the legacy
-  // submit envelope.
-  return Object.keys(signer).some((key) =>
-    !transportFields.has(key) && !validateProfileFields({ [key]: signer[key] })
-  );
 }
 
 function hasValidActionEnvelope(body: Record<string, any>, action: string) {

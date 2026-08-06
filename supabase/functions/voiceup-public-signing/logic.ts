@@ -17,7 +17,7 @@ export const PUBLIC_PARTICIPATION_ACTIONS = [
 export type PublicParticipationAction = (typeof PUBLIC_PARTICIPATION_ACTIONS)[number];
 
 export const PUBLIC_PROFILE_FIELDS = new Set([
-  "name", "phone", "email", "whatsappNumber", "telegramHandle",
+  "name", "email", "whatsappNumber", "telegramHandle",
   "selectedAuthorityId", "selectedAuthorityName",
   "countryId", "country", "stateId", "state", "districtId", "district",
   "blockId", "block", "panchayatId", "panchayat", "wardId", "ward",
@@ -25,6 +25,10 @@ export const PUBLIC_PROFILE_FIELDS = new Set([
   "communicationPreference", "volunteerInterest", "coordinatorInterest",
   "profilePhotoPath", "profilePhotoUpdatedAt", "profileCompletion",
   "referredBy", "referredByPhoneOrCode", "referralSource", "referralCode"
+]);
+
+export const PUBLIC_SIGNER_TRANSPORT_FIELDS = new Set([
+  "phone", "otpVerified", "otpChallengeId", "otpVerificationToken"
 ]);
 
 export function isPublicParticipationAction(value: string): value is PublicParticipationAction {
@@ -43,6 +47,22 @@ export function validateProfileFields(profile: unknown): boolean {
   if (profile === undefined) return true;
   if (!profile || typeof profile !== "object" || Array.isArray(profile)) return false;
   return Object.keys(profile as Record<string, unknown>).every((key) => PUBLIC_PROFILE_FIELDS.has(key));
+}
+
+export function profileFromSigner(signer: Record<string, unknown>) {
+  const profile: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(signer)) {
+    if (!PUBLIC_SIGNER_TRANSPORT_FIELDS.has(key) && validateProfileFields({ [key]: value })) {
+      profile[key] = value;
+    }
+  }
+  return profile;
+}
+
+export function hasUnsupportedSignerFields(signer: Record<string, unknown>) {
+  return Object.keys(signer).some((key) =>
+    !PUBLIC_SIGNER_TRANSPORT_FIELDS.has(key) && !validateProfileFields({ [key]: signer[key] })
+  );
 }
 
 export interface ValidatedPublicSigningConsent {

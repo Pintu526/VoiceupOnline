@@ -19,6 +19,22 @@ test("public response reads only active paths from the exact published campaign 
   assert.doesNotMatch(edge, /id: location\.id|version: location\.version|actor_user_id|audit/);
 });
 
+test("public location loading retrieves every bounded page in stable order", () => {
+  assert.match(edge, /const PUBLIC_LOCATION_PAGE_SIZE = 1_000/);
+  assert.match(edge, /\.select\("id", \{ count: "exact", head: true \}\)/);
+  assert.match(edge, /for \(let offset = 0; offset < count; offset \+= PUBLIC_LOCATION_PAGE_SIZE\)/);
+  assert.match(edge, /\.order\("normalized_path"\)\s*\.order\("id"\)\s*\.range\(offset, offset \+ PUBLIC_LOCATION_PAGE_SIZE - 1\)/);
+});
+
+test("public location loading rejects partial or duplicate page results", () => {
+  assert.match(edge, /MAX_PUBLIC_CAMPAIGN_LOCATIONS = 60_000/);
+  assert.match(edge, /Campaign location set exceeds the public response safety limit/);
+  assert.match(edge, /locationIds\.has\(location\.id\)/);
+  assert.match(edge, /Campaign location pagination returned a duplicate row/);
+  assert.match(edge, /if \(locations\.length !== count\)/);
+  assert.match(edge, /Campaign location pagination did not return the complete location set/);
+});
+
 test("public location transport remains render-only", () => {
   assert.match(app, /customLocations=\{publicCampaignPayload\?\.customLocations \?\? \[\]\}/);
   assert.doesNotMatch(app, /setPublicCampaignPayload[\s\S]{0,150}customLocations/);

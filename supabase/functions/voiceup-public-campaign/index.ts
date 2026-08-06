@@ -7,6 +7,50 @@ import {
 import { fetchCanonicalPublishedCampaignBySlug } from "../_shared/publicCampaignIndex.ts";
 import { normalizePublicCampaignSlug } from "../_shared/publicCampaignSlug.ts";
 
+const PUBLIC_LOCATION_PAGE_SIZE = 1_000;
+const MAX_PUBLIC_CAMPAIGN_LOCATIONS = 60_000;
+
+function publicCampaignLocationsQuery(admin: any, resolved: any) {
+  return admin
+    .from("vboss_resource_location_paths")
+    .eq("workspace_id", resolved.row.workspace_id)
+    .eq("application_key", "voiceup")
+    .eq("resource_type", "campaign")
+    .eq("resource_id", resolved.row.campaign_id)
+    .eq("active", true);
+}
+
+async function loadPublicCampaignLocations(admin: any, resolved: any) {
+  const { count, error: countError } = await publicCampaignLocationsQuery(admin, resolved)
+    .select("id", { count: "exact", head: true });
+  if (countError || count === null) throw new Error("Unable to count campaign locations.");
+  if (count > MAX_PUBLIC_CAMPAIGN_LOCATIONS) {
+    throw new Error("Campaign location set exceeds the public response safety limit.");
+  }
+
+  const locations: Array<Record<string, string | null>> = [];
+  const locationIds = new Set<string>();
+  for (let offset = 0; offset < count; offset += PUBLIC_LOCATION_PAGE_SIZE) {
+    const { data, error } = await publicCampaignLocationsQuery(admin, resolved)
+      .select("id,country,state,district,block,panchayat,village,postal_code")
+      .order("normalized_path")
+      .order("id")
+      .range(offset, offset + PUBLIC_LOCATION_PAGE_SIZE - 1);
+    if (error) throw error;
+    for (const location of data ?? []) {
+      if (locationIds.has(location.id)) {
+        throw new Error("Campaign location pagination returned a duplicate row.");
+      }
+      locationIds.add(location.id);
+      locations.push(location);
+    }
+  }
+  if (locations.length !== count) {
+    throw new Error("Campaign location pagination did not return the complete location set.");
+  }
+  return locations;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -30,16 +74,7 @@ Deno.serve(async (req) => {
     if (!resolved.ok || !resolved.row.campaign) {
       return jsonResponse({ campaign: null });
     }
-    const { data: customLocations, error: locationsError } = await admin
-      .from("vboss_resource_location_paths")
-      .select("country,state,district,block,panchayat,village,postal_code")
-      .eq("workspace_id", resolved.row.workspace_id)
-      .eq("application_key", "voiceup")
-      .eq("resource_type", "campaign")
-      .eq("resource_id", resolved.row.campaign_id)
-      .eq("active", true)
-      .order("normalized_path");
-    if (locationsError) throw locationsError;
+    const customLocations = await loadPublicCampaignLocations(admin, resolved);
 
     return jsonResponse({
       campaign: {

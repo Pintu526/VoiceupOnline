@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   PUBLIC_PARTICIPATION_ACTIONS,
   hasBase64Image,
+  hasUnsupportedSignerFields,
+  profileFromSigner,
   validateProfileFields
 } from "../supabase/functions/voiceup-public-signing/logic.ts";
 
@@ -330,6 +332,31 @@ test("unsupported patch fields and authority fields are rejected", () => {
   assert.equal(validateProfileFields({ approvalStatus: "Approved" }), false);
   assert.match(migration, /unsupported_profile_field/);
   assert.match(migration, /coordinator_authority_protected/);
+});
+
+test("the complete public signer envelope separates transport fields from its accepted profile", () => {
+  const publicProfile = {
+    name: "Asha", email: "asha@example.org",
+    whatsappNumber: "", telegramHandle: "", selectedAuthorityId: "", selectedAuthorityName: "",
+    country: "India", state: "Odisha", district: "Khordha", block: "", panchayat: "",
+    address: "", postalCode: "", comment: "", referralCode: "", referredBy: "",
+    referredByPhoneOrCode: "", referralSource: "manual"
+  };
+  const signer = {
+    ...publicProfile,
+    phone: "9876543210",
+    otpVerified: true,
+    otpChallengeId: "challenge-1",
+    otpVerificationToken: "verification-token"
+  };
+  assert.equal(validateProfileFields(publicProfile), true);
+  assert.equal(validateProfileFields({ phone: signer.phone }), false);
+  assert.equal(validateProfileFields({ ...publicProfile, unknownSignerField: "no" }), false);
+  assert.equal(hasUnsupportedSignerFields(signer), false);
+  assert.equal(hasUnsupportedSignerFields({ ...signer, unknownSignerField: "no" }), true);
+  assert.deepEqual(profileFromSigner(signer), publicProfile);
+  assert.match(edge, /const profile = body\.payload\?\.profile \?\? \(Object\.keys\(signer\)\.length \? profileFromSigner\(signer\) : \{\}\)/);
+  assert.match(app, /const signerPayload = \{\s*\.\.\.restrictedPublicForm,/);
 });
 
 test("whole-workspace JSON cannot be supplied or overwritten by the public client", () => {

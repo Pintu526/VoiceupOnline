@@ -465,7 +465,7 @@ interface PublicExperienceCopy {
 const publicExperienceCopyEn: PublicExperienceCopy = {
   signNow: "SIGN NOW",
   campaignAtGlance: "Campaign at a glance",
-  locationTitle: "📍 Speed up registration?",
+  locationTitle: "Location (Optional)",
   locationHelp: "Location is optional. Coordinates are never stored, logged, or shown publicly.",
   useMyLocation: "Use My Location",
   enterManually: "Enter Manually",
@@ -521,7 +521,7 @@ const publicExperienceCopy: Record<Language, PublicExperienceCopy> = {
   hi: {
     signNow: "अभी हस्ताक्षर करें",
     campaignAtGlance: "अभियान एक नज़र में",
-    locationTitle: "📍 पंजीकरण तेज़ करें?",
+  locationTitle: "स्थान (वैकल्पिक)",
     locationHelp: "स्थान वैकल्पिक है। निर्देशांक कभी संग्रहीत, लॉग या सार्वजनिक नहीं किए जाते।",
     useMyLocation: "मेरा स्थान उपयोग करें",
     enterManually: "मैन्युअल दर्ज करें",
@@ -574,7 +574,7 @@ const publicExperienceCopy: Record<Language, PublicExperienceCopy> = {
   or: {
     signNow: "ଏବେ ସହି କରନ୍ତୁ",
     campaignAtGlance: "ଅଭିଯାନ ଏକ ନଜରରେ",
-    locationTitle: "📍 ପଞ୍ଜୀକରଣ ଶୀଘ୍ର କରିବେ?",
+  locationTitle: "ସ୍ଥାନ (ବୈକଳ୍ପିକ)",
     locationHelp: "ସ୍ଥାନ ବୈକଳ୍ପିକ। ସମନ୍ୱୟ କେବେ ସଂରକ୍ଷିତ, ଲଗ୍ କିମ୍ବା ସାର୍ବଜନୀନ ହୁଏ ନାହିଁ।",
     useMyLocation: "ମୋ ସ୍ଥାନ ବ୍ୟବହାର କରନ୍ତୁ",
     enterManually: "ନିଜେ ଲେଖନ୍ତୁ",
@@ -1461,6 +1461,7 @@ export function PublicCampaignPage({
                   className="goudhan-public-brand"
                   aria-label={publicOrganizationLabel || undefined}
                 >
+                  <img src="/brands/goudhan/logo.svg" alt="" />
                   {publicOrganizationLabel && <strong>{publicOrganizationLabel}</strong>}
                   <span>{t("goudhanCampaign.tagline")}</span>
                   {isGaumataCampaignExperience && (
@@ -2117,7 +2118,7 @@ export function PublicCampaignPage({
               <details className="optional-details">
                 <summary>{copy.optionalDetails}</summary>
                 {!isRequired("email") && (
-                  <Field label={copy.emailLabel}>
+                  <Field label={`${copy.emailLabel} (${t("public.optional")})`}>
                     <input
                       aria-label={copy.emailLabel}
                       placeholder={copy.emailPlaceholder}

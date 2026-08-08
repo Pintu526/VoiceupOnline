@@ -14,12 +14,11 @@ test("generic public branding uses only a trimmed configured campaign hero", () 
   assert.match(page, /:\s*undefined/);
 });
 
-test("generic public branding has no Goudhan asset fallback or logo", () => {
+test("Goudhan presentation uses the supplied brand asset without a generic fallback", () => {
   assert.doesNotMatch(page, /goudhanCampaignBlueprint/);
-  assert.doesNotMatch(page, /heroBannerUrl|logoUrl/);
   assert.doesNotMatch(page, /campaign\.heroImage\s*\|\|/);
-  assert.doesNotMatch(page, /GOUDHAN\.COM/i);
-  assert.doesNotMatch(page, /goudhanCampaign\.brandName/);
+  assert.match(page, /isGoudhanExperience && \(/);
+  assert.match(page, /src="\/brands\/goudhan\/logo\.svg"/);
 });
 
 test("public branding uses organization metadata when available", () => {

@@ -116,6 +116,15 @@ test("OTP flow remains referenced", () => {
   assert.match(page, /className="otp-box"/);
 });
 
+test("signup retains required name and mobile with optional email and location", () => {
+  assert.match(page, /required=\{isRequired\("name"\)\}/);
+  assert.match(page, /inputMode="tel"/);
+  assert.match(page, /locationTitle: "Location \(Optional\)"/);
+  assert.match(page, /Use My Location/);
+  assert.match(page, /Enter Manually/);
+  assert.match(page, /label=\{`\$\{copy\.emailLabel\} \(\$\{t\("public\.optional"\)\}\)`\}/);
+});
+
 test("location hierarchy remains referenced", () => {
   assert.match(page, /<IndiaLocationFields/);
   assert.match(page, /fixedCountry="India"/);

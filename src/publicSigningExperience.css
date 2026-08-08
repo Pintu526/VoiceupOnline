@@ -1441,6 +1441,31 @@
   min-width: 0;
 }
 
+.public-campaign-v2 {
+  background: #fff8ed;
+}
+
+.public-campaign-v2 .public-campaign-v2-signing-panel > .panel {
+  background: #fffdfa;
+  border-color: rgba(125, 30, 43, 0.2);
+  box-shadow: 0 20px 56px rgba(90, 25, 34, 0.14);
+}
+
+.public-campaign-v2 .primary-button {
+  background: #7d1e2b;
+  border-color: #7d1e2b;
+}
+
+.public-campaign-v2 .primary-button:hover {
+  background: #641722;
+  border-color: #641722;
+}
+
+.public-campaign-v2 .public-smart-location {
+  background: linear-gradient(135deg, #fff7e6, #fffdf8);
+  border-color: rgba(194, 132, 35, 0.25);
+}
+
 .public-campaign-v2 > .public-campaign-v2-signing-panel > .panel {
   border: 2px solid rgba(37, 99, 235, 0.18);
   box-shadow:

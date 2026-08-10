@@ -19,8 +19,8 @@ const publicGeography = [
   "../src/pages/PublicCampaignPage.tsx"
 ].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
 
-test("location manager is mounted only for the assigned Campaign Admin draft", () => {
-  assert.match(campaigns, /isCampaignAdminRoute && \(\s*<ResourceLocationManager[\s\S]*campaign=\{effectiveCampaignDraft\}[\s\S]*onLocationsChange=\{setCampaignCustomLocations\}/);
+test("location manager is mounted for saved Campaign Admin and workspace Plan drafts", () => {
+  assert.match(campaigns, /campaignFormMode === "edit" && \(\s*<ResourceLocationManager[\s\S]*campaign=\{effectiveCampaignDraft\}[\s\S]*onLocationsChange=\{setCampaignCustomLocations\}/);
   assert.match(manager, /campaignId: campaign\.id/);
   assert.match(manager, /campaignSlug: campaign\.slug/);
   assert.match(manager, /workspaceId: getCurrentWorkspaceId\(\)/);

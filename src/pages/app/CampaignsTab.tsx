@@ -1389,7 +1389,7 @@ export function CampaignsTab({
                     customLocations={campaignCustomLocations}
                   />
                 )}
-                {isCampaignAdminRoute && (
+                {campaignFormMode === "edit" && (
                   <ResourceLocationManager
                     campaign={effectiveCampaignDraft}
                     onLocationsChange={setCampaignCustomLocations}

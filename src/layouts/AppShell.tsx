@@ -59,7 +59,6 @@ import type { GrowthRuntimeState, GrowthShareContext, GrowthSupporterSnapshot } 
 import type { SupporterGrowthPortalModel } from "../growth/tree";
 import { useTranslation } from "../i18n";
 import { isGoudhanProductionCampaign } from "../config/goudhanProduction";
-import { goudhanCampaignBlueprint } from "../config/goudhanCampaignBlueprint";
 
 const MovementCrmTab = lazy(() =>
   import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
@@ -821,7 +820,7 @@ export function AppShell({
           <span>
             <strong>{campaign.title || t("campaignAdmin.selector.untitled")}</strong>
             <small>
-              {campaign.slug ? `/${campaign.slug}` : t("campaignAdmin.selector.noSlug")} · {authorityText}
+              {campaign.slug ? `/${campaign.slug}` : t("campaignAdmin.selector.noSlug")} Â· {authorityText}
             </small>
           </span>
           <span className="status-pill" data-status={getCampaignSelectorStatusData(campaign)}>
@@ -1102,24 +1101,14 @@ export function AppShell({
       <div className="app-shell">
         <aside className="sidebar">
           <div className="brand">
-            {isGoudhanExperience ? (
-              <img
-                className="goudhan-sidebar-logo"
-                src={goudhanCampaignBlueprint.branding.logoUrl}
-                alt={t("goudhanCampaign.brandName")}
-              />
-            ) : (
-              <>
-                <div className="brand-mark">
-                  <Megaphone size={24} />
-                </div>
-                <div>
-                  <strong>Voiceup Global</strong>
-                  <span>{t("campaignAdmin.shell.tagline")}</span>
-                </div>
-              </>
-            )}
-          </div>
+  <div className="brand-mark">
+    <Megaphone size={24} />
+  </div>
+  <div>
+    <strong>VoiceUp Global</strong>
+    <span>{t("campaignAdmin.shell.tagline")}</span>
+  </div>
+</div>
           <nav className="nav">
             <span className="nav-section-label">{t("framework.nav.section")}</span>
             <NavButton icon={<Crosshair />} label={t("framework.nav.commandCenter")} tab="command" activeTab={activeTab} onClick={requestTabChange} />

@@ -259,7 +259,7 @@ test("K1. invalid public phones are rejected before browser invocation and every
   assert.match(atomicMigrationSource, /\^\[0-9\]\{8,15\}\$/);
 });
 
-test("K2. only GSAA returns an OTP when the server flag is enabled", () => {
+test("K2. only the Gau Samman alias or canonical slug returns an OTP when the server flag is enabled", () => {
   const requestOtpSource = backendSource.slice(
     backendSource.indexOf("export async function requestOtp("),
     backendSource.indexOf("export async function verifyOtp(")
@@ -267,12 +267,12 @@ test("K2. only GSAA returns an OTP when the server flag is enabled", () => {
   assert.match(otpFunctionSource, /const SHOW_GSAA_OTP = Deno\.env\.get\("VOICEUP_SHOW_OTP"\) === "true"/);
   assert.match(
     otpFunctionSource,
-    /purpose === "public-signing" && publicSlug === "GSAA" && SHOW_GSAA_OTP[\s\S]*\? \{ otp: code \}/
+    /purpose === "public-signing" &&[\s\S]*\(publicSlug === "GSAA" \|\| publicSlug === "gau-samman-ahvaan-abhiyan"\) &&[\s\S]*SHOW_GSAA_OTP[\s\S]*\? \{ otp: code \}/
   );
   assert.match(requestOtpSource, /otp:\s*data\.otp/);
   assert.match(backendSource, /if \(!import\.meta\.env\.DEV\)[\s\S]*Verification service is temporarily unavailable/);
   assert.match(appSource, /const otp = result\.otp/);
-  assert.match(appSource, /\? `OTP: \$\{otp\}`/);
+  assert.match(appSource, /result\.developmentOtp\s*\?\s*`OTP: \$\{result\.developmentOtp\}`/);
 });
 
 test("L. signing recovery stays in the tab and never restores OTP proof", () => {
@@ -302,7 +302,7 @@ test("N. post-sign photo processing uses private signed upload without base64", 
 });
 
 test("O. responsive public signing keeps the route and puts the mobile phone action first", () => {
-  assert.match(publicPageSource, /className="public-layout public-campaign-modern"/);
+  assert.match(publicPageSource, /className="public-layout public-campaign-modern public-campaign-v2"/);
   assert.match(publicPageSource, /className="public-mobile-campaign-summary"/);
   assert.match(publicPageSource, /className="public-sign-share-tools"/);
   assert.match(publicPageSource, /const sent = await onSendOtp\(\);[\s\S]*if \(sent === false\) return;[\s\S]*setWizardStep\("otp"\)/);
@@ -465,7 +465,7 @@ test("O2b. phone and OTP failures remain visible and inputs expose accessible va
 
   assert.match(phoneSource, /\{otpMessage && \(/);
   assert.match(phoneSource, /role=\{otpMessageIsError \? "alert" : "status"\}/);
-  assert.match(phoneSource, /aria-invalid=\{Boolean\(publicForm\.phone\.trim\(\)\) && !phoneReady\}/);
+  assert.match(phoneSource, /aria-invalid=\{showPhoneError\}/);
   assert.match(phoneSource, /disabled=\{sendingOtp \|\| !phoneReady\}/);
   assert.match(otpSource, /pattern="\[0-9\]\{6\}"/);
   assert.match(otpSource, /replace\(\/\\D\/g, ""\)\.slice\(0, 6\)/);

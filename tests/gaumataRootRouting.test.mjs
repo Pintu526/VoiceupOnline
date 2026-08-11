@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolvePublicCampaignSlug } from "../src/utils/routing.ts";
 
-test("Gaumata root resolves the published GSAA campaign", () => {
-  assert.equal(resolvePublicCampaignSlug({ hostname: "gaumata.cloud", pathname: "/" }), "GSAA");
-  assert.equal(resolvePublicCampaignSlug({ hostname: "www.gaumata.cloud", pathname: "/" }), "GSAA");
-  assert.equal(resolvePublicCampaignSlug({ hostname: "gaumata.cloud", pathname: "" }), "GSAA");
+test("Gaumata root resolves the canonical Gau Samman campaign", () => {
+  const canonicalSlug = "gau-samman-ahvaan-abhiyan";
+  assert.equal(resolvePublicCampaignSlug({ hostname: "gaumata.cloud", pathname: "/" }), canonicalSlug);
+  assert.equal(resolvePublicCampaignSlug({ hostname: "www.gaumata.cloud", pathname: "/" }), canonicalSlug);
+  assert.equal(resolvePublicCampaignSlug({ hostname: "gaumata.cloud", pathname: "" }), canonicalSlug);
 });
 
 test("direct campaigns and admin routes retain their existing precedence", () => {

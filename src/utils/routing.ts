@@ -1,8 +1,9 @@
 import {
+  GOUDHAN_CAMPAIGN_SLUG,
   isGaumataPublicHostname
 } from "../config/goudhanProduction.ts";
 
-const GAUMATA_ROOT_CAMPAIGN_SLUG = "GSAA";
+const GAUMATA_ROOT_CAMPAIGN_SLUG = GOUDHAN_CAMPAIGN_SLUG;
 
 export interface PublicCampaignRouteLocation {
   pathname: string;

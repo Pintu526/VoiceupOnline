@@ -68,11 +68,11 @@ test("gaumata.cloud root resolves only to the existing Gau Samman public campaig
   assert.equal(isGaumataPublicHostname("www.gaumata.cloud."), true);
   assert.equal(
     resolvePublicCampaignSlug({ pathname: "/", hostname: "gaumata.cloud" }),
-    "GSAA"
+    GOUDHAN_CAMPAIGN_SLUG
   );
   assert.equal(
     resolvePublicCampaignSlug({ pathname: "/", hostname: "www.gaumata.cloud" }),
-    "GSAA"
+    GOUDHAN_CAMPAIGN_SLUG
   );
 
   for (const hostname of [
@@ -275,7 +275,7 @@ test("production OTP fails closed when no SMS webhook is configured", () => {
   assert.match(otpSource, /const SHOW_GSAA_OTP = Deno\.env\.get\("VOICEUP_SHOW_OTP"\) === "true"/);
   assert.match(
     sendResponseSource,
-    /purpose === "public-signing" && publicSlug === "GSAA" && SHOW_GSAA_OTP\s*\? \{ otp: code \}\s*: \{\}/
+    /purpose === "public-signing" &&\s*\(publicSlug === "GSAA" \|\| publicSlug === "gau-samman-ahvaan-abhiyan"\) &&\s*SHOW_GSAA_OTP\s*\? \{ otp: code \}\s*: \{\}/
   );
   assert.equal((otpSource.match(/\botp:\s*code\b/g) ?? []).length, 1);
   assert.match(otpSource, /error: "Verification service is temporarily unavailable\. Please retry\."/);

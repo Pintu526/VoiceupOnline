@@ -59,6 +59,13 @@ import {
   isGaumataPublicHostname,
   isGoudhanProductionCampaign
 } from "../config/goudhanProduction";
+import {
+  INDIAN_MOBILE_INPUT_MAX_LENGTH,
+  getPublicCampaignPresentation,
+  getPublicCampaignPresentationCopy,
+  getSafeOtpDisplayMessage,
+  normalizeIndianMobileInput
+} from "../config/publicCampaignPresentation";
 import { LanguageSwitcher, useTranslation, type Language } from "../i18n";
 import {
   getAppealAuthority,
@@ -660,12 +667,25 @@ export function PublicCampaignPage({
   onSubmit
 }: PublicCampaignPageProps) {
   const { language, t } = useTranslation();
-  const isGoudhanExperience = isGoudhanProductionCampaign(campaign, organization);
+  const premiumPresentation = getPublicCampaignPresentation(campaign.slug);
+  const presentationCopy = premiumPresentation
+    ? getPublicCampaignPresentationCopy(premiumPresentation, language)
+    : null;
+  const isGoudhanExperience =
+    Boolean(premiumPresentation) &&
+    isGoudhanProductionCampaign(campaign, organization);
   const isGaumataHost =
     typeof window !== "undefined" &&
     isGaumataPublicHostname(window.location.hostname);
   const isGaumataCampaignExperience = isGoudhanExperience && isGaumataHost;
   const campaignHeroImage = campaign.heroImage.trim();
+  const campaignSupportingArtwork =
+    premiumPresentation &&
+    campaignHeroImage === premiumPresentation.placeholderHeroAsset
+      ? ""
+      : campaignHeroImage;
+  const campaignHeroArtwork =
+    premiumPresentation?.heroAsset.trim() || campaignSupportingArtwork;
   const displayCampaign: Campaign = isGoudhanExperience
     ? {
         ...campaign,
@@ -739,7 +759,13 @@ export function PublicCampaignPage({
     publicMessage === "consent_required" ? t("public.consentRequiredInline") : publicMessage;
   const publicMessageIsError =
     publicMessage === "consent_required" || isPublicFailureMessage(displayPublicMessage);
-  const otpMessageIsError = isPublicFailureMessage(otpMessage);
+  const safeOtpMessage = getSafeOtpDisplayMessage(otpMessage, {
+    hostname: typeof window === "undefined" ? "" : window.location.hostname,
+    isDevelopment: import.meta.env.DEV,
+    explicitTestDisplayEnabled: import.meta.env.VITE_VOICEUP_SHOW_OTP === "true",
+    neutralMessage: copy.otpHelp
+  });
+  const otpMessageIsError = isPublicFailureMessage(safeOtpMessage);
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
     requiredFields.includes(field) ? `${label} *` : label;
   const publicUrl = getCampaignPublicUrl(organization, campaign);
@@ -852,11 +878,20 @@ export function PublicCampaignPage({
     (step) => step.id !== "address" || detailsRequired || hasOptionalDetails || wizardStep === "address"
   );
   const activeStepIndex = Math.max(0, activeSigningSteps.findIndex((step) => step.id === wizardStep));
+  const indianMobile = normalizeIndianMobileInput(publicForm.phone);
   const phoneDigits = publicForm.phone.replace(/\D/g, "");
+  const phoneNumberReady =
+    premiumPresentation
+      ? indianMobile.valid
+      : /^[0-9+()\s-]+$/.test(publicForm.phone.trim()) &&
+        phoneDigits.length >= 8 &&
+        phoneDigits.length <= 15;
   const phoneReady =
-    /^[0-9+()\s-]+$/.test(publicForm.phone.trim()) &&
-    phoneDigits.length >= 8 &&
-    phoneDigits.length <= 15;
+    phoneNumberReady &&
+    (!premiumPresentation || Boolean(publicForm.name.trim()));
+  const showPhoneError = premiumPresentation
+    ? indianMobile.complete && !indianMobile.valid
+    : Boolean(publicForm.phone.trim()) && !phoneNumberReady;
   const otpReady = /^\d{6}$/.test(otpInput.trim());
   const emailReady = publicForm.email.trim()
     ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(publicForm.email.trim())
@@ -894,7 +929,10 @@ export function PublicCampaignPage({
       ]
     : [];
   const youtubeEmbedUrl = getYouTubeEmbedUrl(campaign.campaignVideoUrl);
-  const hasCampaignMedia = Boolean(displayCampaign.heroImage || campaign.campaignVideoUrl.trim());
+  const configuredCampaignMedia = Boolean(displayCampaign.heroImage || campaign.campaignVideoUrl.trim());
+  const hasCampaignMedia = premiumPresentation
+    ? Boolean(campaignSupportingArtwork || campaign.campaignVideoUrl.trim())
+    : configuredCampaignMedia;
   const authorityCards = (
     showNeutralAuthority
       ? []
@@ -921,28 +959,48 @@ export function PublicCampaignPage({
       body: [campaign.startDate, campaign.endDate].filter(Boolean).join(` ${t("public.to")} `)
     }
   ].filter((item) => item.body.trim());
-  const movementMatterCards = [
-    {
-      icon: <ClipboardList size={20} />,
-      title: t("public.movement.problem"),
-      body: displayCampaign.description
-    },
-    {
-      icon: <HeartHandshake size={20} />,
-      title: t("public.movement.whyItMatters"),
-      body: displayCampaign.appealContent
-    },
-    {
-      icon: <Landmark size={20} />,
-      title: t("public.movement.desiredChange"),
-      body: displayCampaign.appealContent
-    },
-    {
-      icon: <Users size={20} />,
-      title: t("public.movement.supporterHelp"),
-      body: displayCampaign.socialShareText || displayCampaign.appealContent
-    }
-  ].filter((item) => item.body.trim());
+  const movementMatterCards = (
+    presentationCopy
+      ? [
+          {
+            icon: <HeartHandshake size={20} />,
+            title: presentationCopy.pillars[0],
+            body: displayCampaign.description
+          },
+          {
+            icon: <ShieldCheck size={20} />,
+            title: presentationCopy.pillars[1],
+            body: displayCampaign.appealContent
+          },
+          {
+            icon: <Users size={20} />,
+            title: presentationCopy.pillars[2],
+            body: displayCampaign.socialShareText || displayCampaign.appealContent
+          }
+        ]
+      : [
+          {
+            icon: <ClipboardList size={20} />,
+            title: t("public.movement.problem"),
+            body: displayCampaign.description
+          },
+          {
+            icon: <HeartHandshake size={20} />,
+            title: t("public.movement.whyItMatters"),
+            body: displayCampaign.appealContent
+          },
+          {
+            icon: <Landmark size={20} />,
+            title: t("public.movement.desiredChange"),
+            body: displayCampaign.appealContent
+          },
+          {
+            icon: <Users size={20} />,
+            title: t("public.movement.supporterHelp"),
+            body: displayCampaign.socialShareText || displayCampaign.appealContent
+          }
+        ]
+  ).filter((item) => item.body.trim());
   const movementTrustItems = [
     campaign.status === "Published"
       ? {
@@ -1293,10 +1351,7 @@ export function PublicCampaignPage({
   }
 
   async function handleSendOtpWizard() {
-    if (sendingOtp || !publicForm.phone.trim()) {
-      if (!publicForm.phone.trim()) await onSendOtp();
-      return;
-    }
+    if (sendingOtp || !phoneReady) return;
     setSendingOtp(true);
     try {
       const sent = await onSendOtp();
@@ -1441,13 +1496,16 @@ export function PublicCampaignPage({
       data-wizard-step={wizardStep}
       data-goudhan-experience={isGoudhanExperience ? "true" : undefined}
       data-gaumata-host={isGaumataCampaignExperience ? "true" : undefined}
+      data-premium-presentation={premiumPresentation?.kind}
     >
       <div className="public-story-column">
         <article
-          className={`public-campaign-v2-hero ${displayCampaign.heroImage ? "campaign-page campaign-page-with-media" : "campaign-page"}`}
+          className={`public-campaign-v2-hero ${campaignHeroArtwork ? "campaign-page campaign-page-with-media" : "campaign-page"}`}
           style={{
             backgroundImage: displayCampaign.heroImage
-              ? `linear-gradient(135deg, rgba(4, 13, 31, 0.82), rgba(4, 13, 31, 0.46)), url(${displayCampaign.heroImage})`
+              ? !premiumPresentation
+                ? `linear-gradient(135deg, rgba(4, 13, 31, 0.82), rgba(4, 13, 31, 0.46)), url(${campaignHeroArtwork})`
+                : undefined
               : undefined,
             backgroundPosition: campaign.heroImagePosition,
             backgroundSize: `${campaign.heroImageZoom}%`
@@ -1458,14 +1516,16 @@ export function PublicCampaignPage({
             <div className="public-hero-content">
               {isGoudhanExperience && (
                 <div
-                  className="goudhan-public-brand"
+                  className="goudhan-public-brand public-premium-brand"
                   aria-label={publicOrganizationLabel || undefined}
                 >
-                  <img src="/brands/goudhan/logo.svg" alt="" />
-                  {publicOrganizationLabel && <strong>{publicOrganizationLabel}</strong>}
-                  <span>{t("goudhanCampaign.tagline")}</span>
+                  <img
+                    src={premiumPresentation?.logoAsset}
+                    alt={`${displayCampaign.title} logo`}
+                  />
+                  <span>{presentationCopy?.identityLine ?? t("goudhanCampaign.tagline")}</span>
                   {isGaumataCampaignExperience && (
-                    <small className="goudhan-powered-by">{t("goudhanCampaign.poweredByVoiceUp")}</small>
+                    <small className="goudhan-powered-by public-premium-attribution">{t("goudhanCampaign.poweredByVoiceUp")}</small>
                   )}
                 </div>
               )}
@@ -1482,15 +1542,46 @@ export function PublicCampaignPage({
               <p className="public-summary">{heroSummary}</p>
               <div className="public-hero-actions">
                 <a className="primary-button" href="#public-sign-form">
-                  {isGoudhanExperience ? t("goudhanCampaign.joinMovement") : t("public.signInMinutes")} <ArrowRight size={18} />
+                  {presentationCopy?.primaryAction ?? (isGoudhanExperience ? t("goudhanCampaign.joinMovement") : t("public.signInMinutes"))} <ArrowRight size={18} />
                 </a>
-                {!isGoudhanExperience && nativeShareSupported && (
+                {presentationCopy ? (
+                  <a
+                    className="secondary-link-button public-hero-whatsapp"
+                    href={shareLinks.whatsapp}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => trackShareClick("whatsapp")}
+                  >
+                    <MessageCircle size={18} /> {presentationCopy.secondaryAction}
+                  </a>
+                ) : !isGoudhanExperience && nativeShareSupported && (
                   <button className="secondary-button" type="button" onClick={shareNatively}>
                     <Share2 size={18} /> {t("public.shareCampaign")}
                   </button>
                 )}
               </div>
             </div>
+            {premiumPresentation && (
+              <div
+                className={`public-national-hero-art ${campaignHeroArtwork ? "has-artwork" : "is-awaiting-artwork"}`}
+                aria-label={campaignHeroArtwork ? displayCampaign.title : presentationCopy?.heroFallbackLabel}
+                role="img"
+              >
+                {campaignHeroArtwork ? (
+                  <img
+                    src={campaignHeroArtwork}
+                    alt=""
+                    fetchPriority="high"
+                    decoding="async"
+                  />
+                ) : (
+                  <div className="public-national-hero-fallback" aria-hidden="true">
+                    <span className="public-national-hero-halo" />
+                    <img src={premiumPresentation.logoAsset} alt="" />
+                  </div>
+                )}
+              </div>
+            )}
             </div>
 
             <div className="public-campaign-v2-metrics" aria-label={t("public.supporterCount")}>
@@ -1504,6 +1595,20 @@ export function PublicCampaignPage({
                 <span>{t("public.verifiedSupporters")}</span>
                 <strong>{metrics.verified.toLocaleString()}</strong>
               </div>
+              {metrics.online > 0 && (
+                <div className="public-campaign-v2-metric">
+                  <Smartphone size={16} />
+                  <span>{t("reports.collection.online")}</span>
+                  <strong>{metrics.online.toLocaleString()}</strong>
+                </div>
+              )}
+              {metrics.scanned > 0 && (
+                <div className="public-campaign-v2-metric">
+                  <ClipboardList size={16} />
+                  <span>{t("reports.collection.paper")}</span>
+                  <strong>{metrics.scanned.toLocaleString()}</strong>
+                </div>
+              )}
               {(!isGoudhanExperience || configuredCampaignGoal !== null) && (
                 <div
                   className="public-campaign-v2-metric public-campaign-v2-metric-progress"
@@ -1525,18 +1630,18 @@ export function PublicCampaignPage({
             </div>
 
             <div className="public-trust-strip" aria-label={t("public.trustIndicators")}>
-              <span><ShieldCheck size={16} /> {t("public.privacyRespected")}</span>
+              <span><ShieldCheck size={16} /> {presentationCopy?.privacyRespect ?? t("public.privacyRespected")}</span>
               <span>
                 <LockKeyhole size={16} />{" "}
-                {isGoudhanExperience ? t("public.movement.otpProtected") : t("public.otpVerified")}
+                {presentationCopy?.verifiedParticipation ?? (isGoudhanExperience ? t("public.movement.otpProtected") : t("public.otpVerified"))}
               </span>
               <span>
                 {showNeutralAuthority ? <Landmark size={16} /> : <CheckCircle2 size={16} />}
-                {showNeutralAuthority
+                {presentationCopy?.transparentCampaign ?? (showNeutralAuthority
                   ? t("public.authorityNotConfigured")
                   : isGoudhanExperience
                     ? t("public.movement.authorityConfigured")
-                    : t("public.routedToAuthority")}
+                    : t("public.routedToAuthority"))}
               </span>
             </div>
           </div>
@@ -1548,7 +1653,7 @@ export function PublicCampaignPage({
             experience="publicCampaign"
             className="voiceup-story-carousel--compact"
             slideIds={["objective", "evidence", "progress", "afterSigning", "share"]}
-            mediaBySlide={displayCampaign.heroImage ? { objective: { imageUrl: displayCampaign.heroImage } } : undefined}
+            mediaBySlide={campaignSupportingArtwork ? { objective: { imageUrl: campaignSupportingArtwork } } : undefined}
             lazyLoadImages
           />
         </details>
@@ -1557,12 +1662,12 @@ export function PublicCampaignPage({
           <section className="public-section movement-matters" aria-labelledby="movement-matters-heading">
             <div className="public-section-heading">
               {publicOrganizationLabel && <span className="eyebrow">{publicOrganizationLabel}</span>}
-              <h2 id="movement-matters-heading">{t("public.movement.whyTitle")}</h2>
-              <p>{t("public.movement.whyHelp")}</p>
+              <h2 id="movement-matters-heading">{presentationCopy?.storyTitle ?? t("public.movement.whyTitle")}</h2>
+              <p>{presentationCopy?.storyHelp ?? t("public.movement.whyHelp")}</p>
             </div>
             <div className="movement-matters-grid">
-              {movementMatterCards.map((item) => (
-                <article className="movement-matter-card" key={item.title}>
+              {movementMatterCards.map((item, index) => (
+                <article className={index === 0 ? "movement-matter-card is-featured" : "movement-matter-card"} key={item.title}>
                   {item.icon}
                   <h3>{item.title}</h3>
                   <p>{item.body}</p>
@@ -1654,10 +1759,10 @@ export function PublicCampaignPage({
             </div>
             {hasCampaignMedia ? (
               <div className="movement-media-grid">
-                {displayCampaign.heroImage && (
+                {campaignSupportingArtwork && (
                   <figure className="movement-media-card">
                     <img
-                      src={displayCampaign.heroImage}
+                      src={campaignSupportingArtwork}
                       alt={t("public.movement.bannerAlt").replace(
                         "{campaign}",
                         displayCampaign.title
@@ -1795,7 +1900,7 @@ export function PublicCampaignPage({
       </div>
 
       <div className="public-campaign-v2-signing-panel">
-      <Panel title={hasSignedCampaign ? copy.panelTitleComplete : copy.panelTitleSign} icon={<ClipboardList />}>
+      <Panel title={hasSignedCampaign ? copy.panelTitleComplete : presentationCopy?.participationTitle ?? copy.panelTitleSign} icon={<ClipboardList />}>
         <div className="public-mobile-campaign-summary">
           <span className="eyebrow">{experienceCopy.campaignAtGlance}</span>
           <strong>{displayCampaign.title}</strong>
@@ -1810,7 +1915,8 @@ export function PublicCampaignPage({
         </div>
         <div className="wizard-header">
           <span className="eyebrow">{copy.secureSigning}</span>
-          <h2>{hasSignedCampaign ? copy.headerComplete : copy.headerActive}</h2>
+          <h2>{hasSignedCampaign ? copy.headerComplete : presentationCopy?.participationTitle ?? copy.headerActive}</h2>
+          {presentationCopy && !hasSignedCampaign && <strong>{presentationCopy.participationTime}</strong>}
           <p>{copy.headerHelp}</p>
           {!hasSignedCampaign && (
             <p className="public-step-progress" aria-live="polite">{stepProgressLabel}</p>
@@ -1875,34 +1981,59 @@ export function PublicCampaignPage({
                 <h3 ref={stepHeadingRef} tabIndex={-1}>{copy.phoneTitle}</h3>
                 <p id="public-phone-help">{copy.phoneHelp}</p>
               </div>
-              <Field label={signerFieldLabel(t("public.phone"), "phone")}>
-                <input
-                  aria-label={t("public.phone")}
+              {premiumPresentation && (
+                <Field label={`${t("public.name")} *`}>
+                  <input
+                    aria-label={t("public.name")}
+                    autoComplete="name"
+                    placeholder={t("public.name")}
+                    value={publicForm.name}
+                    required
+                    onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
+                  />
+                </Field>
+              )}
+              <Field label={premiumPresentation ? `${presentationCopy?.phoneLabel ?? t("public.phone")} *` : signerFieldLabel(t("public.phone"), "phone")}>
+                <div className={premiumPresentation ? "public-india-phone-input" : undefined}>
+                  {premiumPresentation && <span aria-hidden="true">+91</span>}
+                  <input
+                  aria-label={presentationCopy?.phoneLabel ?? t("public.phone")}
                   aria-describedby="public-phone-help public-phone-validation"
-                  aria-invalid={Boolean(publicForm.phone.trim()) && !phoneReady}
-                  placeholder={t("public.phone")}
-                  value={publicForm.phone}
+                  aria-invalid={showPhoneError}
+                  placeholder={premiumPresentation ? "98765 43210" : t("public.phone")}
+                  value={premiumPresentation ? indianMobile.display : publicForm.phone}
                   inputMode="tel"
                   autoComplete="tel"
+                  maxLength={premiumPresentation ? INDIAN_MOBILE_INPUT_MAX_LENGTH : undefined}
                   required
                   onChange={(event) => {
-                    const phone = event.target.value;
+                    const phone = premiumPresentation
+                      ? normalizeIndianMobileInput(event.target.value).canonical
+                      : event.target.value;
                     handleStartNewJourney();
                     setPublicForm({
                       ...blankSigner,
+                      name: publicForm.name,
                       phone,
                       referredByPhoneOrCode: publicForm.referredByPhoneOrCode,
                       referralSource: publicForm.referralSource
                     });
                   }}
                 />
+                </div>
               </Field>
               <p
                 id="public-phone-validation"
-                className={publicForm.phone.trim() && !phoneReady ? "public-validation-hint is-error" : "public-validation-hint"}
-                role={publicForm.phone.trim() && !phoneReady ? "alert" : undefined}
+                className={showPhoneError ? "public-validation-hint is-error" : "public-validation-hint"}
+                role={showPhoneError ? "alert" : undefined}
               >
-                {t("public.phoneValidation")}
+                {presentationCopy
+                  ? showPhoneError
+                    ? presentationCopy.phoneInvalid
+                    : indianMobile.complete
+                      ? presentationCopy.phoneHint
+                      : presentationCopy.phoneIncomplete
+                  : t("public.phoneValidation")}
               </p>
               <button className="primary-button" type="button" disabled={sendingOtp || !phoneReady} aria-busy={sendingOtp} onClick={() => void handleSendOtpWizard()}>
                 {sendingOtp ? experienceCopy.otpSending : t("public.sendOtp")} <ArrowRight size={18} />
@@ -1913,7 +2044,7 @@ export function PublicCampaignPage({
                   role={otpMessageIsError ? "alert" : "status"}
                   aria-live={otpMessageIsError ? "assertive" : "polite"}
                 >
-                  {otpMessage}
+                  {safeOtpMessage}
                 </p>
               )}
             </div>
@@ -1971,7 +2102,7 @@ export function PublicCampaignPage({
                     role={otpMessageIsError ? "alert" : "status"}
                     aria-live={otpMessageIsError ? "assertive" : "polite"}
                   >
-                    {otpMessage}
+                    {safeOtpMessage}
                   </p>
                 )}
               </div>
@@ -2177,7 +2308,16 @@ export function PublicCampaignPage({
               </div>
               <div className="review-card">
                 <span>{t("public.name")} <strong>{publicForm.name || copy.notEntered}</strong></span>
-                <span>{t("public.phone")} <strong>{publicForm.phone || copy.notEntered}</strong></span>
+                <span>
+                  {t("public.phone")}{" "}
+                  <strong>
+                    {publicForm.phone
+                      ? premiumPresentation
+                        ? `+91 ${indianMobile.display}`
+                        : publicForm.phone
+                      : copy.notEntered}
+                  </strong>
+                </span>
                 <span>
                   {copy.reviewAuthority}{" "}
                   <strong>
@@ -2950,6 +3090,22 @@ export function PublicCampaignPage({
             </p>
           )}
         </form>
+        {premiumPresentation && !hasSignedCampaign && (
+          <div className="public-mobile-trust-progress">
+            <div className="public-mobile-trust-row">
+              <span><LockKeyhole size={16} /> {presentationCopy?.verifiedParticipation}</span>
+              <span><ShieldCheck size={16} /> {presentationCopy?.privacyRespect}</span>
+            </div>
+            {configuredCampaignGoal !== null && (
+              <div className="public-mobile-progress">
+                <progress max={100} value={metrics.progress}>{metrics.progress}%</progress>
+                <span>
+                  {metrics.verified.toLocaleString()} {t("public.verifiedSupporters")} · {metrics.progress}%
+                </span>
+              </div>
+            )}
+          </div>
+        )}
         {!hasSignedCampaign && (
           <div className="public-sign-share-tools" aria-label={t("public.shareThisCampaign")}>
             <ReferralQrPreview value={personalReferralUrl} label={t("public.campaignQr")} caption={displayCampaign.qrLabel} compact />

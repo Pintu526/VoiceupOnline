@@ -1490,3 +1490,425 @@
     order: -1;
   }
 }
+
+/* Premium national campaign presentation: scoped to configured campaigns only. */
+.public-campaign-v2[data-premium-presentation="premium-national"] {
+  background:
+    radial-gradient(circle at 8% 3%, rgba(196, 139, 45, 0.14), transparent 25%),
+    linear-gradient(180deg, #fffaf0 0%, #fffdf8 48%, #f7f3e8 100%);
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero {
+  background:
+    radial-gradient(circle at 82% 18%, rgba(194, 132, 35, 0.17), transparent 26%),
+    linear-gradient(145deg, #fffaf0 0%, #fffdf8 55%, #f3ead6 100%);
+  border: 1px solid rgba(112, 30, 37, 0.18);
+  box-shadow: 0 24px 70px rgba(74, 34, 20, 0.13);
+  color: #361418;
+  min-height: auto;
+  overflow: hidden;
+  padding: clamp(18px, 2.7vw, 34px);
+  position: relative;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero::before {
+  border: 1px solid rgba(194, 132, 35, 0.22);
+  border-radius: 999px;
+  content: "";
+  height: 280px;
+  pointer-events: none;
+  position: absolute;
+  right: -120px;
+  top: -130px;
+  width: 280px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero-main {
+  align-items: center;
+  display: grid;
+  gap: clamp(18px, 3vw, 34px);
+  grid-template-columns: minmax(0, 1.08fr) minmax(220px, 0.92fr);
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand {
+  align-items: center;
+  display: grid;
+  gap: 7px 14px;
+  grid-template-columns: auto 1fr;
+  margin-bottom: 14px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand img {
+  border: 1px solid rgba(112, 30, 37, 0.12);
+  border-radius: 50%;
+  box-shadow: 0 8px 24px rgba(74, 34, 20, 0.08);
+  grid-row: span 2;
+  height: clamp(76px, 7.5vw, 108px);
+  object-fit: contain;
+  width: clamp(76px, 7.5vw, 108px);
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand span {
+  color: #7d1e2b;
+  font-family: Georgia, "Noto Serif Devanagari", "Noto Serif", serif;
+  font-size: clamp(0.86rem, 1.3vw, 1.05rem);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-attribution {
+  color: #76635b;
+  font-size: 0.68rem;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-hero-kicker .eyebrow {
+  color: #1f5b35;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero h1 {
+  color: #681824;
+  font-family: Georgia, "Noto Serif Devanagari", "Noto Serif", serif;
+  font-size: clamp(2rem, 4vw, 3.7rem);
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  margin: 10px 0 14px;
+  max-width: 12ch;
+  text-wrap: balance;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-summary {
+  color: #4e3934;
+  font-size: clamp(1rem, 1.45vw, 1.14rem);
+  line-height: 1.7;
+  max-width: 60ch;
+}
+
+.public-national-hero-art {
+  aspect-ratio: 4 / 3;
+  border: 1px solid rgba(194, 132, 35, 0.3);
+  border-radius: clamp(20px, 3vw, 34px);
+  box-shadow: 0 24px 54px rgba(82, 40, 18, 0.16);
+  min-height: 220px;
+  overflow: hidden;
+  position: relative;
+}
+
+.public-national-hero-art.has-artwork img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.public-national-hero-fallback {
+  align-items: center;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 246, 191, 0.95), transparent 25%),
+    linear-gradient(160deg, #f6d690 0%, #d99a51 45%, #235a38 46%, #153d27 100%);
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  min-height: 220px;
+  overflow: hidden;
+  padding: 24px;
+  position: relative;
+}
+
+.public-national-hero-fallback::before,
+.public-national-hero-fallback::after {
+  border: 1px solid rgba(255, 250, 240, 0.36);
+  border-radius: 50%;
+  content: "";
+  height: 210px;
+  position: absolute;
+  width: 210px;
+}
+
+.public-national-hero-fallback::before {
+  left: -90px;
+  top: -80px;
+}
+
+.public-national-hero-fallback::after {
+  bottom: -120px;
+  right: -70px;
+}
+
+.public-national-hero-fallback img {
+  border-radius: 18px;
+  box-shadow: 0 18px 42px rgba(42, 24, 10, 0.25);
+  height: auto;
+  max-width: min(78%, 250px);
+  position: relative;
+  width: auto;
+  z-index: 2;
+}
+
+.public-national-hero-halo {
+  background: rgba(255, 244, 206, 0.5);
+  border-radius: 50%;
+  filter: blur(1px);
+  height: 220px;
+  position: absolute;
+  width: 220px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-hero-actions {
+  align-items: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-hero-actions > * {
+  justify-content: center;
+  min-height: 50px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-hero-whatsapp {
+  background: #f5fff8;
+  border-color: rgba(31, 91, 53, 0.35);
+  color: #174529;
+  font-weight: 800;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-metrics {
+  margin-top: 20px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-metric {
+  background: rgba(255, 253, 248, 0.9);
+  border-color: rgba(112, 30, 37, 0.13);
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-trust-strip {
+  color: #594941;
+  margin-top: 14px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .movement-matters {
+  background:
+    linear-gradient(135deg, rgba(255, 250, 240, 0.98), rgba(246, 250, 244, 0.96));
+  border-color: rgba(112, 30, 37, 0.14);
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .movement-matters-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .movement-matter-card {
+  border-top: 4px solid #1f5b35;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .movement-matter-card.is-featured {
+  border-top-color: #b68126;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-signing-panel > .panel {
+  background: rgba(255, 253, 248, 0.98);
+  border: 1px solid rgba(112, 30, 37, 0.22);
+  box-shadow:
+    0 26px 80px rgba(86, 28, 34, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.82) inset;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .wizard-header h2 {
+  color: #681824;
+  font-family: Georgia, "Noto Serif Devanagari", "Noto Serif", serif;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .wizard-header > strong {
+  color: #1f5b35;
+  font-size: 0.92rem;
+}
+
+.public-india-phone-input {
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 48px;
+  overflow: hidden;
+}
+
+.public-india-phone-input:focus-within {
+  border-color: #7d1e2b;
+  box-shadow: 0 0 0 3px rgba(125, 30, 43, 0.12);
+}
+
+.public-india-phone-input > span {
+  border-right: 1px solid var(--border);
+  color: #334155;
+  font-weight: 800;
+  padding: 0 12px;
+}
+
+.public-india-phone-input input {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none !important;
+  min-width: 0;
+}
+
+.public-mobile-trust-progress {
+  display: none;
+}
+
+@media (min-width: 1101px) {
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] {
+    height: auto;
+    overflow: visible;
+  }
+
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] .public-story-column {
+    height: auto;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] > .public-campaign-v2-signing-panel > .panel {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 1100px) {
+  .public-campaign-v2[data-premium-presentation="premium-national"] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] > .public-story-column {
+    display: contents;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero {
+    order: 1;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] > .public-campaign-v2-signing-panel {
+    order: 2;
+    position: static;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] > .public-story-column > :not(.public-campaign-v2-hero) {
+    order: 3;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-mobile-campaign-summary {
+    display: none;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero-main {
+    grid-template-columns: minmax(0, 1fr) minmax(190px, 0.7fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .public-only-shell:has(.public-campaign-v2[data-premium-presentation="premium-national"]) {
+    padding: 10px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] {
+    gap: 14px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero {
+    border-radius: 24px;
+    padding: 16px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero-main {
+    grid-template-columns: 1fr;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand {
+    grid-template-columns: 1fr;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand img {
+    grid-row: auto;
+    height: 68px;
+    width: 68px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero h1 {
+    font-size: clamp(1.8rem, 9vw, 2.65rem);
+    max-width: 13ch;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-summary {
+    font-size: 0.93rem;
+    line-height: 1.58;
+  }
+
+  .public-national-hero-art {
+    aspect-ratio: 16 / 8.4;
+    min-height: 150px;
+  }
+
+  .public-national-hero-fallback {
+    min-height: 150px;
+  }
+
+  .public-national-hero-fallback img {
+    max-width: min(62%, 210px);
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-hero-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-metrics,
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero > .public-hero-surface > .public-trust-strip {
+    display: none;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .movement-matters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-signing-panel > .panel {
+    border-radius: 24px;
+  }
+
+  .public-mobile-trust-progress {
+    background: #f8fbf7;
+    border: 1px solid rgba(31, 91, 53, 0.16);
+    border-radius: 16px;
+    display: grid;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 14px;
+  }
+
+  .public-mobile-trust-row {
+    display: grid;
+    gap: 8px;
+  }
+
+  .public-mobile-trust-row span {
+    align-items: center;
+    color: #355343;
+    display: flex;
+    font-size: 0.82rem;
+    font-weight: 750;
+    gap: 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-campaign-v2[data-premium-presentation="premium-national"] *,
+  .public-campaign-v2[data-premium-presentation="premium-national"] *::before,
+  .public-campaign-v2[data-premium-presentation="premium-national"] *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

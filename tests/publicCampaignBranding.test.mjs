@@ -10,15 +10,18 @@ const page = readFileSync(
 test("generic public branding uses only a trimmed configured campaign hero", () => {
   assert.match(page, /const campaignHeroImage = campaign\.heroImage\.trim\(\)/);
   assert.match(page, /heroImage: campaignHeroImage/);
-  assert.match(page, /displayCampaign\.heroImage\s*\?\s*`linear-gradient/);
+  assert.match(
+    page,
+    /displayCampaign\.heroImage\s*\?\s*!premiumPresentation\s*\?\s*`linear-gradient/
+  );
   assert.match(page, /:\s*undefined/);
 });
 
-test("Goudhan presentation uses the supplied brand asset without a generic fallback", () => {
+test("premium Gau Samman presentation uses its configured campaign asset without a generic fallback", () => {
   assert.doesNotMatch(page, /goudhanCampaignBlueprint/);
   assert.doesNotMatch(page, /campaign\.heroImage\s*\|\|/);
   assert.match(page, /isGoudhanExperience && \(/);
-  assert.match(page, /src="\/brands\/goudhan\/logo\.svg"/);
+  assert.match(page, /src=\{premiumPresentation\?\.logoAsset\}/);
 });
 
 test("public branding uses organization metadata when available", () => {

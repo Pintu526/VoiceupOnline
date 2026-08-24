@@ -901,9 +901,7 @@ export function PublicCampaignPage({
       : /^[0-9+()\s-]+$/.test(publicForm.phone.trim()) &&
         phoneDigits.length >= 8 &&
         phoneDigits.length <= 15;
-  const phoneReady =
-    phoneNumberReady &&
-    (!premiumPresentation || Boolean(publicForm.name.trim()));
+  const phoneReady = phoneNumberReady;
   const showPhoneError = premiumPresentation
     ? indianMobile.complete && !indianMobile.valid
     : Boolean(publicForm.phone.trim()) && !phoneNumberReady;
@@ -2085,21 +2083,11 @@ export function PublicCampaignPage({
                 <h3 ref={stepHeadingRef} tabIndex={-1}>{copy.phoneTitle}</h3>
                 <p id="public-phone-help">{copy.phoneHelp}</p>
               </div>
-              {premiumPresentation && (
-                <Field label={`${t("public.name")} *`}>
-                  <input
-                    aria-label={t("public.name")}
-                    autoComplete="name"
-                    placeholder={t("public.name")}
-                    value={publicForm.name}
-                    required
-                    onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
-                  />
-                </Field>
-              )}
               <Field label={premiumPresentation ? `${presentationCopy?.phoneLabel ?? t("public.phone")} *` : signerFieldLabel(t("public.phone"), "phone")}>
                 <div className={premiumPresentation ? "public-india-phone-input" : undefined}>
-                  {premiumPresentation && <span aria-hidden="true">+91</span>}
+                  {premiumPresentation && (
+                    <span aria-hidden="true">+91</span>
+                  )}
                   <input
                   aria-label={presentationCopy?.phoneLabel ?? t("public.phone")}
                   aria-describedby="public-phone-help public-phone-validation"

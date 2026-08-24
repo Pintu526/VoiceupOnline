@@ -13,7 +13,12 @@ import { InlineAddOption } from "./InlineAddOption";
 import { InlineDeleteOption } from "./InlineDeleteOption";
 import { getLocationLevelLabel, isLocationLevelAtLeast } from "../utils/campaign";
 import type { PublicCampaignCustomLocation } from "../backend";
-import { getIndiaLocationOptions } from "./indiaLocationOptions";
+import {
+  allowsStaticIndiaLocationFallback,
+  getIndiaLocationOptions,
+  type IndiaLocationCatalogStatus
+} from "./indiaLocationOptions";
+import { useCampaignLocationCatalog } from "./useCampaignLocationCatalog";
 
 interface IndiaLocationFieldsProps {
   idPrefix: string;
@@ -33,6 +38,8 @@ interface IndiaLocationFieldsProps {
   onAddLocation?: (values: LocationWithPin) => boolean | Promise<boolean>;
   onRemoveLocation?: (values: LocationWithPin, level: LocationDeletionLevel) => void;
   customLocations?: PublicCampaignCustomLocation[];
+  catalogStatus?: IndiaLocationCatalogStatus;
+  campaign?: { id: string; slug: string } | null;
 }
 
 function optionExists(options: string[], value: string): boolean {
@@ -57,8 +64,18 @@ export function IndiaLocationFields({
   verifiedSuggestionsOnly = false,
   onAddLocation,
   onRemoveLocation,
-  customLocations = []
+  customLocations,
+  catalogStatus,
+  campaign
 }: IndiaLocationFieldsProps) {
+  const loadedCatalog = useCampaignLocationCatalog(customLocations === undefined ? campaign ?? null : null);
+  const resolvedCustomLocations = customLocations ?? loadedCatalog.locations;
+  const resolvedCatalogStatus = catalogStatus ?? (customLocations === undefined ? loadedCatalog.status : undefined);
+  const catalogUnavailable = resolvedCatalogStatus === "loading" || resolvedCatalogStatus === "error";
+  const allowStaticLocationFallback = allowsStaticIndiaLocationFallback(
+    resolvedCatalogStatus,
+    resolvedCustomLocations.length
+  );
   const [newDistrict, setNewDistrict] = useState("");
   const [newBlock, setNewBlock] = useState("");
   const [newPanchayat, setNewPanchayat] = useState("");
@@ -85,12 +102,13 @@ export function IndiaLocationFields({
     locationOverrides,
     locationDeletions,
     verifiedSuggestionsOnly,
-    customLocations,
+    customLocations: resolvedCustomLocations,
     allowedState,
     allowedDistrict,
     allowedBlock,
     allowedPanchayat,
-    fixedCountry
+    fixedCountry,
+    catalogStatus: resolvedCatalogStatus
   });
   const stateLocked = isLocationLevelAtLeast(lockedLevel, "state");
   const districtLocked = isLocationLevelAtLeast(lockedLevel, "district");
@@ -118,7 +136,7 @@ export function IndiaLocationFields({
   }
 
   function updateLocation(nextValues: LocationWithPin) {
-    const matchedPin = findPinCode(nextValues);
+    const matchedPin = allowStaticLocationFallback ? findPinCode(nextValues) : undefined;
     onChange({ ...nextValues, postalCode: matchedPin ?? nextValues.postalCode });
   }
 
@@ -159,7 +177,7 @@ export function IndiaLocationFields({
 
   function updatePin(postalCode: string) {
     const normalizedPin = postalCode.replace(/\D/g, "").slice(0, 6);
-    const matchedLocation = findLocationByPin(normalizedPin);
+    const matchedLocation = allowStaticLocationFallback ? findLocationByPin(normalizedPin) : undefined;
     onChange(matchedLocation ? { ...matchedLocation } : { ...values, postalCode: normalizedPin });
   }
 
@@ -268,6 +286,13 @@ export function IndiaLocationFields({
           </div>
         </div>
       )}
+      {catalogUnavailable && (
+        <p className={resolvedCatalogStatus === "error" ? "error-message" : "helper-text"} role={resolvedCatalogStatus === "error" ? "alert" : "status"}>
+          {resolvedCatalogStatus === "error"
+            ? "Location data is unavailable."
+            : "Loading campaign locations…"}
+        </p>
+      )}
       {!hideState && (
         <Field label={fieldLabel("State / Union Territory", "state")}>
           <input
@@ -276,7 +301,7 @@ export function IndiaLocationFields({
             placeholder="Search state or leave blank"
             value={values.state}
             onChange={(event) => selectState(event.target.value)}
-            disabled={stateLocked}
+            disabled={stateLocked || catalogUnavailable}
           />
           <datalist id={`${idPrefix}-states`}>
             {stateOptions.map((state) => (
@@ -299,6 +324,7 @@ export function IndiaLocationFields({
             onChange={(event) => selectDistrict(event.target.value)}
             disabled={
               districtLocked ||
+              catalogUnavailable ||
               !values.state ||
               (!verifiedSuggestionsOnly && districtOptions.length === 0)
             }
@@ -319,6 +345,7 @@ export function IndiaLocationFields({
                 onChange={setNewDistrict}
                 onAdd={addDistrict}
                 disabled={
+                  catalogUnavailable ||
                   !values.state || !newDistrict.trim() || optionExists(districtOptions, newDistrict)
                 }
                 duplicate={Boolean(newDistrict.trim() && optionExists(districtOptions, newDistrict))}
@@ -344,6 +371,7 @@ export function IndiaLocationFields({
             onChange={(event) => selectBlock(event.target.value)}
             disabled={
               blockLocked ||
+              catalogUnavailable ||
               !values.district ||
               (!verifiedSuggestionsOnly && blockOptions.length === 0)
             }
@@ -364,6 +392,7 @@ export function IndiaLocationFields({
                 onChange={setNewBlock}
                 onAdd={addBlock}
                 disabled={
+                  catalogUnavailable ||
                   !values.district || !newBlock.trim() || optionExists(blockOptions, newBlock)
                 }
                 duplicate={Boolean(newBlock.trim() && optionExists(blockOptions, newBlock))}
@@ -389,6 +418,7 @@ export function IndiaLocationFields({
             onChange={(event) => updateLocation({ ...values, panchayat: event.target.value })}
             disabled={
               panchayatLocked ||
+              catalogUnavailable ||
               !values.block ||
               (!verifiedSuggestionsOnly && panchayatOptions.length === 0)
             }
@@ -409,6 +439,7 @@ export function IndiaLocationFields({
                 onChange={setNewPanchayat}
                 onAdd={addPanchayat}
                 disabled={
+                  catalogUnavailable ||
                   !values.block ||
                   !newPanchayat.trim() ||
                   optionExists(panchayatOptions, newPanchayat)
@@ -435,6 +466,7 @@ export function IndiaLocationFields({
           placeholder="Enter village or locality"
           value={values.address ?? ""}
           required={requiredFields.includes("address" as SignerRequiredField)}
+          disabled={catalogUnavailable}
           onChange={(event) => onChange({ ...values, address: event.target.value })}
         />
         <datalist id={`${idPrefix}-villages`}>
@@ -450,6 +482,7 @@ export function IndiaLocationFields({
           maxLength={6}
           placeholder="Auto-filled or enter 6-digit PIN"
           value={values.postalCode}
+          disabled={catalogUnavailable}
           onChange={(event) => updatePin(event.target.value)}
         />
         <datalist id={`${idPrefix}-pins`}>

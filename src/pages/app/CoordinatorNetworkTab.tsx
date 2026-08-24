@@ -62,6 +62,7 @@ import { Panel } from "../../ui/Panel";
 
 interface CoordinatorNetworkTabProps {
   campaigns: Campaign[];
+  activeCampaign?: Campaign;
   locationOverrides: LocationOverrides;
   locationDeletions: LocationDeletions;
 }
@@ -229,6 +230,7 @@ function CoordinatorTreeBranch({
 
 export function CoordinatorNetworkTab({
   campaigns,
+  activeCampaign,
   locationOverrides,
   locationDeletions
 }: CoordinatorNetworkTabProps) {
@@ -763,6 +765,7 @@ export function CoordinatorNetworkTab({
               locationOverrides={locationOverrides}
               locationDeletions={locationDeletions}
               showOptionalLabels
+              campaign={activeCampaign ?? campaigns[0] ?? null}
             />
             {(draft.role === "ward_coordinator" || draft.role === "field_coordinator") && (
               <Field label="Ward *">

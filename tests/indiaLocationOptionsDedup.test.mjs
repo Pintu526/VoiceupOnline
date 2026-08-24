@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  allowsStaticIndiaLocationFallback,
   getIndiaLocationOptions,
   mergeIndiaLocationOptions,
   normalizeIndiaLocationOptionKey
@@ -214,6 +215,77 @@ test("existing manual location management is unchanged", () => {
   assert.equal(typeof getIndiaLocationOptions, "function");
 });
 
+test("VBOSS catalog states are not replaced by campaign state-only rows", () => {
+  const options = getIndiaLocationOptions({
+    values: { state: "", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [
+      { country: "India" },
+      { country: "India", state: "Odisha" },
+      { country: "India", state: "ODISHA", district: "KHORDHA", block: "BALIANTA", panchayat: "BAINCHUA", village: "Village A" },
+      { country: "India", state: "WEST BENGAL", district: "KOLKATA", block: "KOLKATA", panchayat: "WARD 1", village: "Village B" },
+      { country: "India", state: "MAHARASHTRA", district: "PUNE", block: "HAVELI", panchayat: "GP C", village: "Village C" }
+    ],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.ok(options.stateOptions.length >= 3);
+  assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "odisha"));
+  assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "west bengal"));
+  assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "maharashtra"));
+});
+
+test("selected Odisha state still parent-filters districts from the VBOSS catalog", () => {
+  const options = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [
+      { country: "India" },
+      { country: "India", state: "Odisha" },
+      { country: "India", state: "ODISHA", district: "ANUGUL", block: "ANUGUL", panchayat: "GP A", village: "Village A" },
+      { country: "India", state: "ODISHA", district: "KHORDHA", block: "BHUBANESWAR", panchayat: "GP B", village: "Village B" },
+      { country: "India", state: "UTTAR PRADESH", district: "LUCKNOW", block: "LUCKNOW", panchayat: "GP C", village: "Village C" }
+    ],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "odisha"));
+  assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "uttar pradesh"));
+  assert.ok(options.districtOptions.includes("ANUGUL"));
+  assert.ok(options.districtOptions.includes("KHORDHA"));
+  assert.ok(!options.districtOptions.includes("LUCKNOW"));
+  assert.ok(!options.districtOptions.includes("Balasore"));
+  assert.ok(!options.districtOptions.includes("Cuttack"));
+});
+
+test("empty campaign catalog keeps India master states", () => {
+  const options = getIndiaLocationOptions({
+    values: { state: "", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.ok(options.stateOptions.includes("Odisha"));
+  assert.ok(options.stateOptions.includes("Maharashtra"));
+  assert.ok(options.stateOptions.length > 2);
+});
+
 test("existing India state district block records remain selectable", () => {
   const options = getIndiaLocationOptions({
     values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
@@ -317,4 +389,273 @@ test("blocks use custom options when present and master fallback otherwise", () 
 test("no campaign other than GSAA is affected by cleanup scope definition", () => {
   assert.equal(normalizeIndiaLocationOptionKey("  Bargarh "), "bargarh");
   assert.notEqual(normalizeIndiaLocationOptionKey("Khordha"), normalizeIndiaLocationOptionKey("Bargarh"));
+});
+
+test("child options stay empty until every required parent is selected", () => {
+  const customLocations = [
+    customLocation({ state: "Odisha", district: "KHORDHA", block: "BALIANTA", panchayat: "BAINCHUA" }),
+    customLocation({ state: "WEST BENGAL", district: "KOLKATA", block: "KOLKATA", panchayat: "WARD 1" })
+  ];
+  const noState = getIndiaLocationOptions({
+    values: { state: "", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations,
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+  const noDistrict = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations,
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.deepEqual(noState.districtOptions, []);
+  assert.deepEqual(noState.blockOptions, []);
+  assert.deepEqual(noDistrict.blockOptions, []);
+  assert.deepEqual(noDistrict.panchayatOptions, []);
+});
+
+test("blocks from another state do not appear under the selected state and district", () => {
+  const options = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "KHORDHA", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [
+      customLocation({ state: "Odisha", district: "KHORDHA", block: "BALIANTA", panchayat: "BAINCHUA" }),
+      customLocation({ state: "WEST BENGAL", district: "KHORDHA", block: "ALIEN BLOCK", panchayat: "ALIEN GP" }),
+      customLocation({ state: "MAHARASHTRA", district: "PUNE", block: "HAVELI", panchayat: "GP C" })
+    ],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.deepEqual(options.blockOptions, ["BALIANTA"]);
+  assert.ok(!options.blockOptions.includes("ALIEN BLOCK"));
+  assert.ok(!options.blockOptions.includes("HAVELI"));
+});
+
+test("changing state replaces child options with the new state's cascade", () => {
+  const catalog = [
+    customLocation({ state: "Odisha", district: "KHORDHA", block: "BALIANTA", panchayat: "BAINCHUA" }),
+    customLocation({ state: "WEST BENGAL", district: "KOLKATA", block: "KOLKATA", panchayat: "WARD 1" })
+  ];
+  const odisha = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "KHORDHA", block: "BALIANTA", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: catalog,
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+  const westBengal = getIndiaLocationOptions({
+    values: { state: "WEST BENGAL", district: "KOLKATA", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: catalog,
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.deepEqual(odisha.panchayatOptions, ["BAINCHUA"]);
+  assert.deepEqual(westBengal.districtOptions, ["KOLKATA"]);
+  assert.deepEqual(westBengal.blockOptions, ["KOLKATA"]);
+  assert.ok(!westBengal.districtOptions.includes("KHORDHA"));
+  assert.ok(!westBengal.blockOptions.includes("BALIANTA"));
+});
+
+test("explicit public signing location restriction still limits the state dropdown", () => {
+  const options = getIndiaLocationOptions({
+    values: { state: "", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [
+      customLocation({ state: "Odisha", district: "KHORDHA" }),
+      customLocation({ state: "WEST BENGAL", district: "KOLKATA" })
+    ],
+    allowedState: "Odisha",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.deepEqual(options.stateOptions, ["Odisha"]);
+});
+
+test("PIN options come only from catalog values and are not invented", () => {
+  const options = getIndiaLocationOptions({
+    values: { state: "Odisha", district: "KHORDHA", block: "BALIANTA", panchayat: "BAINCHUA", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [
+      customLocation({ district: "KHORDHA", block: "BALIANTA", panchayat: "BAINCHUA", village: "V1", postalCode: "" }),
+      customLocation({ district: "KHORDHA", block: "BALIANTA", panchayat: "BAINCHUA", village: "V2", postalCode: "752100" })
+    ],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+
+  assert.deepEqual(options.pinOptions, ["752100"]);
+});
+
+function resolverOptions(overrides = {}) {
+  return getIndiaLocationOptions({
+    values: { state: "", district: "", block: "", panchayat: "", postalCode: "" },
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [],
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: "",
+    ...overrides
+  });
+}
+
+test("loaded catalog dropdowns use catalog states only", () => {
+  const options = resolverOptions({
+    catalogStatus: "ready",
+    customLocations: [
+      customLocation({ state: "WEST BENGAL", district: "KOLKATA", block: "KOLKATA" }),
+      customLocation({ state: "MAHARASHTRA", district: "PUNE", block: "HAVELI" }),
+      customLocation({ state: "ODISHA", district: "KHORDHA", block: "BALIANTA" })
+    ]
+  });
+
+  assert.deepEqual(
+    options.stateOptions.map((state) => normalizeIndiaLocationOptionKey(state)).sort(),
+    ["maharashtra", "odisha", "west bengal"]
+  );
+  assert.ok(!options.stateOptions.includes("Tamil Nadu"));
+});
+
+test("loading catalog does not use static geography fallback", () => {
+  const options = resolverOptions({
+    catalogStatus: "loading",
+    customLocations: [],
+    values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" }
+  });
+
+  assert.deepEqual(options.stateOptions, []);
+  assert.deepEqual(options.districtOptions, []);
+  assert.deepEqual(options.pinOptions, []);
+});
+
+test("error catalog does not use static geography fallback", () => {
+  const options = resolverOptions({
+    catalogStatus: "error",
+    customLocations: [],
+    values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" }
+  });
+
+  assert.deepEqual(options.stateOptions, []);
+  assert.deepEqual(options.districtOptions, []);
+  assert.deepEqual(options.pinOptions, []);
+});
+
+test("ready catalog with empty postal codes does not use the static PIN directory", () => {
+  const options = resolverOptions({
+    catalogStatus: "ready",
+    values: {
+      state: "Bihar",
+      district: "Patna",
+      block: "Patna Sadar",
+      panchayat: "Bankipur Ward",
+      postalCode: ""
+    },
+    customLocations: [
+      {
+        country: "India",
+        state: "Bihar",
+        district: "Patna",
+        block: "Patna Sadar",
+        panchayat: "Bankipur Ward",
+        village: "Sample",
+        postalCode: ""
+      }
+    ]
+  });
+
+  assert.deepEqual(options.pinOptions, []);
+});
+
+test("West Bengal cannot expose Odisha KHORDHA or BALIANTA children", () => {
+  const customLocations = [
+    customLocation({ state: "ODISHA", district: "KHORDHA", block: "BALIANTA", panchayat: "BAINCHUA", village: "ARINGOL" }),
+    customLocation({ state: "WEST BENGAL", district: "24 PARAGANAS NORTH", block: "AMDANGA", panchayat: "GP W", village: "Village W" }),
+    customLocation({ state: "MAHARASHTRA", district: "AHMEDNAGAR", block: "AKOLE", panchayat: "GP M", village: "Village M" })
+  ];
+  const westBengal = resolverOptions({
+    catalogStatus: "ready",
+    customLocations,
+    values: { state: "WEST BENGAL", district: "24 PARAGANAS NORTH", block: "", panchayat: "", postalCode: "" }
+  });
+  const maharashtra = resolverOptions({
+    catalogStatus: "ready",
+    customLocations,
+    values: { state: "MAHARASHTRA", district: "AHMEDNAGAR", block: "", panchayat: "", postalCode: "" }
+  });
+
+  assert.deepEqual(westBengal.districtOptions, ["24 PARAGANAS NORTH"]);
+  assert.ok(!westBengal.districtOptions.includes("KHORDHA"));
+  assert.deepEqual(westBengal.blockOptions, ["AMDANGA"]);
+  assert.ok(!westBengal.blockOptions.includes("BALIANTA"));
+  assert.ok(!maharashtra.districtOptions.includes("KHORDHA"));
+  assert.ok(!maharashtra.blockOptions.includes("BALIANTA"));
+  assert.deepEqual(maharashtra.blockOptions, ["AKOLE"]);
+});
+
+test("a complete catalog is not reduced to an Odisha-only state list", () => {
+  const catalogStates = Array.from({ length: 35 }, (_, index) => `Catalog State ${String(index + 1).padStart(2, "0")}`);
+  catalogStates[0] = "ODISHA";
+  catalogStates[1] = "WEST BENGAL";
+  catalogStates[2] = "MAHARASHTRA";
+  const options = resolverOptions({
+    catalogStatus: "ready",
+    customLocations: catalogStates.map((state) => customLocation({
+      state,
+      district: `${state} DISTRICT`,
+      block: `${state} BLOCK`,
+      panchayat: `${state} GP`,
+      village: `${state} VILLAGE`
+    }))
+  });
+
+  assert.equal(options.stateOptions.length, 35);
+  assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "odisha"));
+  assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "west bengal"));
+  assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "maharashtra"));
+  assert.equal(options.stateOptions.filter((state) => normalizeIndiaLocationOptionKey(state) === "odisha").length, 1);
+});
+
+test("ready empty catalog does not silently present the static India master", () => {
+  const options = resolverOptions({ catalogStatus: "ready", customLocations: [] });
+  assert.deepEqual(options.stateOptions, []);
+  assert.equal(allowsStaticIndiaLocationFallback("ready", 0), false);
+  assert.equal(allowsStaticIndiaLocationFallback("loading", 0), false);
+  assert.equal(allowsStaticIndiaLocationFallback("error", 0), false);
+  assert.equal(allowsStaticIndiaLocationFallback("idle", 0), true);
 });

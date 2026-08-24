@@ -218,8 +218,15 @@ test("the first Goudhan campaign instance is published through existing initial 
   assert.equal(goudhanGauSammanCampaign.country, "India");
   assert.deepEqual(
     goudhanGauSammanCampaign.requiredFields,
-    ["phone", "name", "state", "district", "block", "panchayat"]
+    ["phone", "name", "state", "district", "block"]
   );
+  assert.deepEqual(
+    goudhanCampaignBlueprint.joinFlow.requiredFields,
+    ["phone", "name", "state", "district", "block"]
+  );
+  assert.ok(!goudhanGauSammanCampaign.requiredFields.includes("panchayat"));
+  assert.ok(!goudhanGauSammanCampaign.requiredFields.includes("address"));
+  assert.ok(!goudhanGauSammanCampaign.requiredFields.includes("postalCode"));
   assert.equal(initialCampaigns[0]?.id, goudhanGauSammanCampaign.id);
   assert.equal(initialOrganization.id, goudhanProductionOrganization.id);
   assert.equal(
@@ -229,6 +236,46 @@ test("the first Goudhan campaign instance is published through existing initial 
     ),
     true
   );
+});
+
+test("signer required location contract excludes panchayat, village, and PIN", () => {
+  const required = goudhanGauSammanCampaign.requiredFields;
+  assert.ok(required.includes("state"));
+  assert.ok(required.includes("district"));
+  assert.ok(required.includes("block"));
+  assert.ok(!required.includes("panchayat"));
+  assert.ok(!required.includes("address"));
+  assert.ok(!required.includes("postalCode"));
+
+  const signerValues = {
+    phone: "9876543210",
+    name: "Test Signer",
+    country: "",
+    state: "Odisha",
+    district: "Khordha",
+    block: "Balianta",
+    panchayat: "",
+    postalCode: "",
+    address: ""
+  };
+  const detailsReady = required
+    .filter((field) =>
+      ["country", "state", "district", "block", "panchayat", "postalCode", "address"].includes(field)
+    )
+    .every((field) => Boolean(signerValues[field]?.trim()));
+  assert.equal(detailsReady, true);
+
+  const missingRequiredField = required.find((field) => !signerValues[field]?.trim());
+  assert.equal(missingRequiredField, undefined);
+
+  const incompleteWithoutBlock = required.find(
+    (field) => !{ ...signerValues, block: "" }[field]?.trim()
+  );
+  assert.equal(incompleteWithoutBlock, "block");
+
+  assert.match(publicCampaignSource, /const detailsReady = requiredFields/);
+  assert.match(appSource, /const requiredFields = activeCampaign\.requiredFields \?\? \[\]/);
+  assert.match(appSource, /missingRequiredField = requiredFields\.find/);
 });
 
 test("Goudhan presentation reuses the existing signing, referral, QR, profile and coordinator paths", () => {

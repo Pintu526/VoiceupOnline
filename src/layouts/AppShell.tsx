@@ -1439,33 +1439,35 @@ export function AppShell({
           {activeTab === "public" &&
             hasWorkspaceFeature("public_signing") &&
             (activeCampaign ? (
-              <PublicCampaignPage
-                campaign={activeCampaign}
-                organization={organization}
-                metrics={metrics}
-                authority={authorityMatch?.authority}
-                authorities={authorities}
-                campaignSigners={campaignSigners}
-                publicForm={publicForm}
-                setPublicForm={setPublicForm}
-                publicMessage={publicMessage}
-                lastSignedSigner={lastSignedSigner}
-                growthSnapshot={growthSnapshot}
-                growthPortal={growthPortal}
-                otpInput={otpInput}
-                setOtpInput={setOtpInput}
-                otpMessage={otpMessage}
-                onStartNewJourney={onStartPublicSigningJourney}
-                onSendOtp={onSendOtp}
-                onVerifyOtp={onVerifyOtp}
-                onSaveDraft={onSavePublicDraft}
-                onCommunicationConsentChange={onPublicCommunicationConsentChange}
-                onSubmitCoordinatorApplication={onSubmitPublicCoordinatorApplication}
-                onGrowthShare={onGrowthShare}
-                locationOverrides={locationOverrides}
-                locationDeletions={locationDeletions}
-                onSubmit={onSubmitPublicSignature}
-              />
+              <div className="public-only-shell">
+                <PublicCampaignPage
+                  campaign={activeCampaign}
+                  organization={organization}
+                  metrics={metrics}
+                  authority={authorityMatch?.authority}
+                  authorities={authorities}
+                  campaignSigners={campaignSigners}
+                  publicForm={publicForm}
+                  setPublicForm={setPublicForm}
+                  publicMessage={publicMessage}
+                  lastSignedSigner={lastSignedSigner}
+                  growthSnapshot={growthSnapshot}
+                  growthPortal={growthPortal}
+                  otpInput={otpInput}
+                  setOtpInput={setOtpInput}
+                  otpMessage={otpMessage}
+                  onStartNewJourney={onStartPublicSigningJourney}
+                  onSendOtp={onSendOtp}
+                  onVerifyOtp={onVerifyOtp}
+                  onSaveDraft={onSavePublicDraft}
+                  onCommunicationConsentChange={onPublicCommunicationConsentChange}
+                  onSubmitCoordinatorApplication={onSubmitPublicCoordinatorApplication}
+                  onGrowthShare={onGrowthShare}
+                  locationOverrides={locationOverrides}
+                  locationDeletions={locationDeletions}
+                  onSubmit={onSubmitPublicSignature}
+                />
+              </div>
             ) : (
               <div className="empty-state compact-empty">
                 <span className="eyebrow">{t("campaignAdmin.empty.noData")}</span>
@@ -1502,7 +1504,7 @@ export function AppShell({
                 ]}
               />}
               <Suspense fallback={<ModuleSkeleton label="Loading Coordinator Network" />}>
-                <CoordinatorNetworkTab campaigns={campaigns} locationOverrides={locationOverrides} locationDeletions={locationDeletions} />
+                <CoordinatorNetworkTab campaigns={campaigns} activeCampaign={activeCampaign} locationOverrides={locationOverrides} locationDeletions={locationDeletions} />
               </Suspense>
             </>
           )}
@@ -1616,6 +1618,7 @@ export function AppShell({
               organization={organization}
               setOrganization={setOrganization}
               campaigns={campaigns}
+              activeCampaign={activeCampaign}
               signers={signers}
               scanItems={scanItems}
               commercialPackages={commercialPackages}

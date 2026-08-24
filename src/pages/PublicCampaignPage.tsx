@@ -43,9 +43,11 @@ import { Panel } from "../ui/Panel";
 import { Field } from "../ui/Field";
 import { DonationCard } from "../components/DonationCard";
 import { IndiaLocationFields } from "../components/IndiaLocationFields";
+import { resolveIndiaLocationCatalog } from "../components/indiaLocationOptions";
 import { GlobalLocationFields } from "../components/GlobalLocationFields";
 import { ReferralQrPreview } from "../components/ReferralQrPreview";
 import { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";
+import { GauSammanApprovedContent } from "../components/GauSammanApprovedContent";
 import {
   BrowserGPSAdapter,
   type GPSAdapter
@@ -64,7 +66,9 @@ import {
   getPublicCampaignPresentation,
   getPublicCampaignPresentationCopy,
   getSafeOtpDisplayMessage,
-  normalizeIndianMobileInput
+  getVisiblePublicMetrics,
+  normalizeIndianMobileInput,
+  sanitizePublicCampaignMediaUrl
 } from "../config/publicCampaignPresentation";
 import { LanguageSwitcher, useTranslation, type Language } from "../i18n";
 import {
@@ -92,7 +96,7 @@ import {
   findReferrer,
   getCampaignReferralUrl,
   getSafeReferrerLabel,
-  getSupporterReferralCode,
+  getPersistedSupporterReferralCode,
   normalizeReferralCode
 } from "../utils/referrals";
 import {
@@ -285,11 +289,11 @@ const publicSigningCopyEn = {
   doneBody: "Your voice has been recorded. Share this campaign to help it reach the next supporter.",
   locationLabels: {
     country: "Country",
-    state: "State",
+    state: "State / Union Territory",
     district: "District",
     block: "Block / Tehsil / Taluk",
     panchayat: "Gram Panchayat / Ward",
-    postalCode: "PIN / Postal code"
+    postalCode: "PIN / Postal Code"
   }
 };
 
@@ -355,7 +359,7 @@ const publicSigningCopy: Record<Language, typeof publicSigningCopyEn> = {
     doneBody: "आपकी आवाज दर्ज हो गई है। अगले समर्थक तक पहुंचने के लिए अभियान साझा करें।",
     locationLabels: {
       country: "देश",
-      state: "राज्य",
+      state: "राज्य / केंद्र शासित प्रदेश",
       district: "जिला",
       block: "ब्लॉक / तहसील / तालुक",
       panchayat: "ग्राम पंचायत / वार्ड",
@@ -422,7 +426,7 @@ const publicSigningCopy: Record<Language, typeof publicSigningCopyEn> = {
     doneBody: "ଆପଣଙ୍କ ଆବାଜ ରେକର୍ଡ ହୋଇଛି। ପରବର୍ତ୍ତୀ ସମର୍ଥକଙ୍କୁ ପହଞ୍ଚିବା ପାଇଁ ଅଭିଯାନ ସେୟାର କରନ୍ତୁ।",
     locationLabels: {
       country: "ଦେଶ",
-      state: "ରାଜ୍ୟ",
+      state: "ରାଜ୍ୟ / କେନ୍ଦ୍ରଶାସିତ ଅଞ୍ଚଳ",
       district: "ଜିଲ୍ଲା",
       block: "ବ୍ଲକ / ତହସିଲ / ତାଲୁକ",
       panchayat: "ଗ୍ରାମ ପଞ୍ଚାୟତ / ୱାର୍ଡ",
@@ -678,14 +682,15 @@ export function PublicCampaignPage({
     typeof window !== "undefined" &&
     isGaumataPublicHostname(window.location.hostname);
   const isGaumataCampaignExperience = isGoudhanExperience && isGaumataHost;
-  const campaignHeroImage = campaign.heroImage.trim();
+  const campaignHeroImage = sanitizePublicCampaignMediaUrl(campaign.heroImage);
   const campaignSupportingArtwork =
     premiumPresentation &&
     campaignHeroImage === premiumPresentation.placeholderHeroAsset
       ? ""
       : campaignHeroImage;
-  const campaignHeroArtwork =
-    premiumPresentation?.heroAsset.trim() || campaignSupportingArtwork;
+  const campaignHeroArtwork = sanitizePublicCampaignMediaUrl(
+    premiumPresentation?.heroAsset.trim() || campaignSupportingArtwork
+  );
   const displayCampaign: Campaign = isGoudhanExperience
     ? {
         ...campaign,
@@ -727,13 +732,22 @@ export function PublicCampaignPage({
     ...getLockedLocationValues(campaign, signerRestrictionLevel)
   };
   const lockedLocationParts = formatLocationForCampaign(campaign, lockedLocation).split(", ").filter(Boolean);
+  const publicIndiaAllowedLocation = lockedLocation.state?.trim() ? lockedLocation : undefined;
+  const signerLocationCatalog = resolveIndiaLocationCatalog(
+    customLocations,
+    (campaign as Campaign & { customLocations?: unknown }).customLocations
+  );
   const requiredFields = campaign.requiredFields ?? [];
   const copy = publicSigningCopy[language];
   const experienceCopy = publicExperienceCopy[language];
-  const addressLabel = isGoudhanExperience ? t("goudhanCampaign.villageLabel") : copy.addressLabel;
-  const addressPlaceholder = isGoudhanExperience
-    ? t("goudhanCampaign.villagePlaceholder")
-    : copy.addressPlaceholder;
+  const addressLabel = copy.addressLabel;
+  const addressPlaceholder = copy.addressPlaceholder;
+  const locationSectionTitle = isGoudhanExperience
+    ? t("goudhanCampaign.locationTitle")
+    : experienceCopy.locationTitle;
+  const locationSectionHelp = isGoudhanExperience
+    ? t("goudhanCampaign.locationHelp")
+    : experienceCopy.locationHelp;
   const structuredLocationPath = useMemo(() => {
     const country = publicLocationForm.country || campaign.country || (isGlobalMode ? "" : "India");
     if (country && !["india", "in"].includes(country.trim().toLowerCase())) return [];
@@ -765,7 +779,8 @@ export function PublicCampaignPage({
     explicitTestDisplayEnabled: import.meta.env.VITE_VOICEUP_SHOW_OTP === "true",
     neutralMessage: copy.otpHelp
   });
-  const otpMessageIsError = isPublicFailureMessage(safeOtpMessage);
+  const otpMessageIsError =
+    safeOtpMessage.trim() !== copy.otpHelp.trim() && isPublicFailureMessage(safeOtpMessage);
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
     requiredFields.includes(field) ? `${label} *` : label;
   const publicUrl = getCampaignPublicUrl(organization, campaign);
@@ -775,7 +790,7 @@ export function PublicCampaignPage({
   }, [campaign.id]);
   const incomingReferrer = findReferrer(campaignSigners, campaign.id, incomingReferralCode);
   const personalReferralCode =
-    lastSignedSigner?.campaignId === campaign.id ? getSupporterReferralCode(lastSignedSigner) : "";
+    lastSignedSigner?.campaignId === campaign.id ? getPersistedSupporterReferralCode(lastSignedSigner) : "";
   const personalReferralUrl = personalReferralCode
     ? getCampaignReferralUrl(organization, campaign, personalReferralCode)
     : publicUrl;
@@ -913,6 +928,11 @@ export function PublicCampaignPage({
   const heroSummary =
     displayCampaign.description.trim() ||
     t("public.defaultCampaignSummary").replace("{campaign}", displayCampaign.title);
+  const signedAtValues = campaignSigners
+    .map((signer) => signer.signedAt?.trim())
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const latestSignatureAt = signedAtValues.length > 0 ? signedAtValues[signedAtValues.length - 1] : undefined;
   const localizedGoudhanUpdate = renderCampaignMessage(t("goudhanCampaign.latestUpdate"),
     { ...displayCampaign, shareUrl: publicUrl },
     metrics
@@ -933,6 +953,27 @@ export function PublicCampaignPage({
   const hasCampaignMedia = premiumPresentation
     ? Boolean(campaignSupportingArtwork || campaign.campaignVideoUrl.trim())
     : configuredCampaignMedia;
+  const premiumVisibleMetrics = premiumPresentation && presentationCopy
+    ? getVisiblePublicMetrics([
+        { key: "online", label: presentationCopy.statOnline, value: metrics.online },
+        { key: "verified", label: presentationCopy.statVerified, value: metrics.verified },
+        {
+          key: "paper",
+          label: presentationCopy.statHardcopy,
+          value: metrics.scanned
+        },
+        {
+          key: "goal",
+          label: t("campaignAdmin.fields.targetSignatures"),
+          value: configuredCampaignGoal
+        },
+        {
+          key: "total",
+          label: presentationCopy.statTotal,
+          value: metrics.total
+        }
+      ])
+    : [];
   const authorityCards = (
     showNeutralAuthority
       ? []
@@ -1123,13 +1164,12 @@ export function PublicCampaignPage({
       }
       locationOverrides={locationOverrides}
       locationDeletions={locationDeletions}
-      allowedLocation={lockedLocation}
+      allowedLocation={publicIndiaAllowedLocation}
       hiddenLockedLevel={signerRestrictionLevel}
       requiredFields={requiredFields}
       labelOverrides={copy.locationLabels}
       fixedCountry="India"
-      verifiedSuggestionsOnly
-      customLocations={customLocations}
+      customLocations={signerLocationCatalog}
     />
   ) : isGlobalMode ? (
     <GlobalLocationFields
@@ -1152,11 +1192,11 @@ export function PublicCampaignPage({
       }
       locationOverrides={locationOverrides}
       locationDeletions={locationDeletions}
-      allowedLocation={lockedLocation}
+      allowedLocation={publicIndiaAllowedLocation}
       hiddenLockedLevel={signerRestrictionLevel}
       requiredFields={requiredFields}
       labelOverrides={copy.locationLabels}
-      customLocations={customLocations}
+      customLocations={signerLocationCatalog}
     />
   );
 
@@ -1514,76 +1554,73 @@ export function PublicCampaignPage({
           <div className="public-hero-surface public-campaign-v2-hero-surface">
             <div className="public-campaign-v2-hero-main">
             <div className="public-hero-content">
-              {isGoudhanExperience && (
+              {premiumPresentation ? (
+                <div className="public-premium-brand" aria-label={publicOrganizationLabel || undefined}>
+                  <img
+                    src={premiumPresentation.logoAsset}
+                    alt={`${displayCampaign.title} logo`}
+                  />
+                  {isGaumataCampaignExperience && (
+                    <small className="public-premium-attribution">{t("goudhanCampaign.poweredByVoiceUp")}</small>
+                  )}
+                </div>
+              ) : isGoudhanExperience ? (
                 <div
                   className="goudhan-public-brand public-premium-brand"
                   aria-label={publicOrganizationLabel || undefined}
                 >
                   <img
-                    src={premiumPresentation?.logoAsset}
+                    src="/brands/goudhan/logo.svg"
                     alt={`${displayCampaign.title} logo`}
                   />
-                  <span>{presentationCopy?.identityLine ?? t("goudhanCampaign.tagline")}</span>
+                  <span>{t("goudhanCampaign.tagline")}</span>
                   {isGaumataCampaignExperience && (
                     <small className="goudhan-powered-by public-premium-attribution">{t("goudhanCampaign.poweredByVoiceUp")}</small>
                   )}
                 </div>
+              ) : null}
+              {!premiumPresentation && (
+                <div className="public-hero-kicker">
+                  <span className="eyebrow">
+                    {isGoudhanExperience
+                      ? t("public.movement.publicCampaign")
+                      : t("public.verifiedCampaign")}
+                  </span>
+                  <span className="status-pill" data-status={campaign.status}>{t(`campaignAdmin.status.${campaign.status.toLowerCase()}`)}</span>
+                </div>
               )}
-              <div className="public-hero-kicker">
-                <span className="eyebrow">
-                  {isGoudhanExperience
-                    ? t("public.movement.publicCampaign")
-                    : t("public.verifiedCampaign")}
-                </span>
-                <span className="status-pill" data-status={campaign.status}>{t(`campaignAdmin.status.${campaign.status.toLowerCase()}`)}</span>
-              </div>
               <h1>{displayCampaign.title}</h1>
+              {presentationCopy && (
+                <p className="public-premium-identity" aria-label={presentationCopy.identityLine}>
+                  <span aria-hidden="true" className="public-premium-ornament" />
+                  <strong>{presentationCopy.identityLine}</strong>
+                  <span aria-hidden="true" className="public-premium-ornament" />
+                </p>
+              )}
+              {presentationCopy && (
+                <>
+                  <p className="public-premium-subtitle">{presentationCopy.subtitle}</p>
+                  <p className="public-premium-invocation">{presentationCopy.invocation}</p>
+                </>
+              )}
               {!isGoudhanExperience && language !== "en" && <span className="original-language-notice">{t("public.originalLanguageNotice")}</span>}
-              <p className="public-summary">{heroSummary}</p>
+              {!presentationCopy && <p className="public-summary">{heroSummary}</p>}
+              {!premiumPresentation && (
               <div className="public-hero-actions">
                 <a className="primary-button" href="#public-sign-form">
-                  {presentationCopy?.primaryAction ?? (isGoudhanExperience ? t("goudhanCampaign.joinMovement") : t("public.signInMinutes"))} <ArrowRight size={18} />
+                  {isGoudhanExperience ? t("goudhanCampaign.joinMovement") : t("public.signInMinutes")} <ArrowRight size={18} />
                 </a>
-                {presentationCopy ? (
-                  <a
-                    className="secondary-link-button public-hero-whatsapp"
-                    href={shareLinks.whatsapp}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => trackShareClick("whatsapp")}
-                  >
-                    <MessageCircle size={18} /> {presentationCopy.secondaryAction}
-                  </a>
-                ) : !isGoudhanExperience && nativeShareSupported && (
+                {!isGoudhanExperience && nativeShareSupported && (
                   <button className="secondary-button" type="button" onClick={shareNatively}>
                     <Share2 size={18} /> {t("public.shareCampaign")}
                   </button>
                 )}
               </div>
+              )}
             </div>
-            {premiumPresentation && (
-              <div
-                className={`public-national-hero-art ${campaignHeroArtwork ? "has-artwork" : "is-awaiting-artwork"}`}
-                aria-label={campaignHeroArtwork ? displayCampaign.title : presentationCopy?.heroFallbackLabel}
-                role="img"
-              >
-                {campaignHeroArtwork ? (
-                  <img
-                    src={campaignHeroArtwork}
-                    alt=""
-                    fetchPriority="high"
-                    decoding="async"
-                  />
-                ) : (
-                  <div className="public-national-hero-fallback" aria-hidden="true">
-                    <span className="public-national-hero-halo" />
-                    <img src={premiumPresentation.logoAsset} alt="" />
-                  </div>
-                )}
-              </div>
-            )}
             </div>
-
+            {premiumPresentation ? null : (
+              <>
             <div className="public-campaign-v2-metrics" aria-label={t("public.supporterCount")}>
               <div className="public-campaign-v2-metric">
                 <Users size={16} />
@@ -1644,9 +1681,42 @@ export function PublicCampaignPage({
                     : t("public.routedToAuthority"))}
               </span>
             </div>
+              </>
+            )}
           </div>
         </article>
 
+        {premiumPresentation && (
+          <div
+            className={`public-national-hero-art ${campaignHeroArtwork ? "has-artwork" : "is-awaiting-artwork"}`}
+            aria-label={campaignHeroArtwork ? displayCampaign.title : presentationCopy?.heroFallbackLabel}
+            role="img"
+          >
+            {campaignHeroArtwork ? (
+              <img
+                src={campaignHeroArtwork}
+                alt=""
+                fetchPriority="high"
+                decoding="async"
+              />
+            ) : (
+              <div className="public-national-hero-fallback" aria-hidden="true">
+                <span className="public-national-hero-halo" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {presentationCopy && (
+          <GauSammanApprovedContent
+            copy={presentationCopy}
+            language={language}
+            metrics={metrics}
+            variant="cards"
+          />
+        )}
+
+        {!premiumPresentation && (
         <details className="public-campaign-v2-guide">
           <summary className="public-campaign-v2-guide-summary">Campaign Guide</summary>
           <VoiceUpStoryCarousel
@@ -1657,8 +1727,9 @@ export function PublicCampaignPage({
             lazyLoadImages
           />
         </details>
+        )}
 
-        {isGoudhanExperience && (
+        {isGoudhanExperience && !premiumPresentation && (
           <section className="public-section movement-matters" aria-labelledby="movement-matters-heading">
             <div className="public-section-heading">
               {publicOrganizationLabel && <span className="eyebrow">{publicOrganizationLabel}</span>}
@@ -1674,10 +1745,23 @@ export function PublicCampaignPage({
                 </article>
               ))}
             </div>
+            {presentationCopy && (
+              <div className="public-premium-journey" aria-labelledby="premium-journey-heading">
+                <h3 id="premium-journey-heading">{presentationCopy.journeyTitle}</h3>
+                <ol>
+                  {presentationCopy.journeySteps.map((step, index) => (
+                    <li key={step}>
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <strong>{step}</strong>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
           </section>
         )}
 
-        {!hasSignedCampaign && (
+        {!premiumPresentation && !hasSignedCampaign && (
           <section className="public-section public-share-panel" aria-labelledby="share-campaign-heading">
             <div className="public-section-heading">
               <span className="eyebrow">{t("public.shareThisCampaign")}</span>
@@ -1707,6 +1791,7 @@ export function PublicCampaignPage({
           </section>
         )}
 
+        {!premiumPresentation && (
         <section className="public-section" aria-labelledby="authority-heading">
           <div className="public-section-heading">
             <span className="eyebrow">{t("public.authorityPath")}</span>
@@ -1731,6 +1816,7 @@ export function PublicCampaignPage({
             )}
           </div>
         </section>
+        )}
 
         {!isGoudhanExperience && (
           <section className="public-section" aria-labelledby="story-heading">
@@ -1750,7 +1836,7 @@ export function PublicCampaignPage({
           </section>
         )}
 
-        {isGoudhanExperience && (
+        {isGoudhanExperience && !premiumPresentation && (
           <section className="public-section movement-media" aria-labelledby="campaign-media-heading">
             <div className="public-section-heading">
               {publicOrganizationLabel && <span className="eyebrow">{publicOrganizationLabel}</span>}
@@ -1801,7 +1887,7 @@ export function PublicCampaignPage({
           </section>
         )}
 
-        {isGoudhanExperience && (
+        {isGoudhanExperience && !premiumPresentation && (
           <section className="public-section goudhan-latest-update" aria-labelledby="latest-updates-heading">
             <div className="public-section-heading">
               {publicOrganizationLabel && <span className="eyebrow">{publicOrganizationLabel}</span>}
@@ -1822,6 +1908,7 @@ export function PublicCampaignPage({
           </section>
         )}
 
+        {!premiumPresentation && (
         <section className="public-section" aria-labelledby="faq-heading">
           <div className="public-section-heading">
             <span className="eyebrow">{t("public.faq")}</span>
@@ -1853,8 +1940,9 @@ export function PublicCampaignPage({
             )}
           </div>
         </section>
+        )}
 
-        {isGoudhanExperience && (
+        {isGoudhanExperience && !premiumPresentation && (
           <section className="public-section movement-volunteer" aria-labelledby="movement-volunteer-heading">
             <div className="public-section-heading">
               <span className="eyebrow">{t("public.movement.faqVolunteer")}</span>
@@ -1873,7 +1961,7 @@ export function PublicCampaignPage({
           </section>
         )}
 
-        {isGoudhanExperience && movementTrustItems.length > 0 && (
+        {isGoudhanExperience && !premiumPresentation && movementTrustItems.length > 0 && (
           <section className="public-section movement-trust" aria-labelledby="movement-trust-heading">
             <div className="public-section-heading">
               <span className="eyebrow">{t("public.trustIndicators")}</span>
@@ -1896,6 +1984,22 @@ export function PublicCampaignPage({
           <a className="video-link" href={campaign.campaignVideoUrl} target="_blank" rel="noreferrer">
             {t("public.watchCampaignVideo")}
           </a>
+        )}
+
+        {presentationCopy && (
+          <GauSammanApprovedContent
+            copy={presentationCopy}
+            language={language}
+            metrics={metrics}
+            variant="closing"
+            shareLinks={shareLinks}
+            onShareClick={trackShareClick}
+            lastUpdatedLabel={
+              latestSignatureAt
+                ? new Date(latestSignatureAt).toLocaleString(requestDateLocale)
+                : undefined
+            }
+          />
         )}
       </div>
 
@@ -2038,6 +2142,13 @@ export function PublicCampaignPage({
               <button className="primary-button" type="button" disabled={sendingOtp || !phoneReady} aria-busy={sendingOtp} onClick={() => void handleSendOtpWizard()}>
                 {sendingOtp ? experienceCopy.otpSending : t("public.sendOtp")} <ArrowRight size={18} />
               </button>
+              <aside className="referral-invite-note" aria-label={t("public.alreadySigned")}>
+                <BadgeCheck size={18} />
+                <div>
+                  <strong>{t("public.alreadySigned")}</strong>
+                  <span>{t("public.alreadySignedHelp")}</span>
+                </div>
+              </aside>
               {otpMessage && (
                 <p
                   className={otpMessageIsError ? "error-message" : "info-message"}
@@ -2178,8 +2289,8 @@ export function PublicCampaignPage({
               </div>
               <div className="public-smart-location">
                 <div>
-                  <strong>{experienceCopy.locationTitle}</strong>
-                  <span>{experienceCopy.locationHelp}</span>
+                  <strong>{locationSectionTitle}</strong>
+                  <span>{locationSectionHelp}</span>
                 </div>
                 <div className="button-row">
                   <button className="secondary-button" type="button" disabled={locationRequested} onClick={requestSmartLocation}>
@@ -2237,15 +2348,17 @@ export function PublicCampaignPage({
               )}
               {(restrictionMessage || locationRequired) && locationFields}
               {!restrictionMessage && !locationRequired && locationFields}
-              <Field label={isRequired("address") ? signerFieldLabel(addressLabel, "address") : addressLabel}>
-                <input
-                  aria-label={addressLabel}
-                  placeholder={addressPlaceholder}
-                  value={publicForm.address}
-                  required={isRequired("address")}
-                  onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
-                />
-              </Field>
+              {isGlobalMode && !isGoudhanExperience && (
+                <Field label={isRequired("address") ? signerFieldLabel(addressLabel, "address") : addressLabel}>
+                  <input
+                    aria-label={addressLabel}
+                    placeholder={addressPlaceholder}
+                    value={publicForm.address}
+                    required={isRequired("address")}
+                    onChange={(event) => setPublicForm({ ...publicForm, address: event.target.value })}
+                  />
+                </Field>
+              )}
               <details className="optional-details">
                 <summary>{copy.optionalDetails}</summary>
                 {!isRequired("email") && (
@@ -2391,15 +2504,20 @@ export function PublicCampaignPage({
                     <div className="public-success-mark" aria-hidden="true">
                       <CheckCircle2 size={32} />
                     </div>
-                    <span className="eyebrow">{t("public.success.participationComplete")}</span>
+                    <span className="eyebrow">{t("public.success.supportVerified")}</span>
                     <h3
                       id="public-premium-success-heading"
                       ref={stepHeadingRef}
                       tabIndex={-1}
                     >
-                      {t("public.thankYou")}
+                      {lastSignedSigner?.name
+                        ? `${t("public.thankYou")}, ${lastSignedSigner.name}`
+                        : t("public.thankYou")}
                     </h3>
                     <p>{t("public.success.recorded")}</p>
+                    <p>
+                      {t("public.success.verifiedSupporterOf")} {displayCampaign.title}.
+                    </p>
                     <strong>{t("public.success.partOfMovement")}</strong>
                     <dl className="public-success-facts">
                       {lastSignedSigner?.name && (
@@ -2443,14 +2561,44 @@ export function PublicCampaignPage({
               ) : (
                 <>
                   <CheckCircle2 size={28} />
-                  <h3 ref={stepHeadingRef} tabIndex={-1}>{t("public.thankYou")}</h3>
+                  <h3 ref={stepHeadingRef} tabIndex={-1}>
+                    {lastSignedSigner?.name
+                      ? `${t("public.thankYou")}, ${lastSignedSigner.name}`
+                      : t("public.thankYou")}
+                  </h3>
                   <p>{copy.doneBody}</p>
+                  <p>
+                    {t("public.success.verifiedSupporterOf")} {displayCampaign.title}.
+                  </p>
                 </>
               )}
 
+              <section className="public-post-sign-next" aria-labelledby="public-campaign-journey-heading">
+                <div className="public-section-heading">
+                  <span className="eyebrow">{t("public.success.journeyReadyTitle")}</span>
+                  <h4 id="public-campaign-journey-heading">{t("public.success.journeyReadyHelp")}</h4>
+                </div>
+                {personalReferralCode ? (
+                  <>
+                    <a
+                      className="primary-link-button"
+                      href={`/r/${encodeURIComponent(personalReferralCode)}`}
+                    >
+                      <ArrowRight size={18} /> {t("public.success.viewJourney")}
+                    </a>
+                    <p>
+                      {t("public.success.supporterCode")}
+                      <br />
+                      <code>{personalReferralCode}</code>
+                    </p>
+                  </>
+                ) : null}
+                <p>{t("public.success.returnLater")}</p>
+              </section>
+
               <section className="public-post-sign-sharing" aria-label={t("public.shareThisCampaign")}>
                 <div className="public-section-heading">
-                  <span className="eyebrow">{t("public.success.shareMovement")}</span>
+                  <span className="eyebrow">{t("public.success.shareMySupport")}</span>
                   <h4>{t("public.success.inviteOthers")}</h4>
                   <p>{t("public.success.personalLinkHelp")}</p>
                 </div>
@@ -2765,6 +2913,7 @@ export function PublicCampaignPage({
                           locationDeletions={locationDeletions}
                           requiredFields={coordinatorRequiredFields}
                           labelOverrides={copy.locationLabels}
+                          customLocations={signerLocationCatalog}
                         />
                         {coordinatorLevel === "ward" && (
                           <Field label={`${t("public.requests.villageWard")} *`}>
@@ -2942,7 +3091,7 @@ export function PublicCampaignPage({
               {isGoudhanExperience && (
                 <section className="public-movement-dashboard-entry">
                   <button
-                    className="primary-button"
+                    className="secondary-button"
                     type="button"
                     aria-expanded={showMovementDashboard}
                     aria-controls="public-movement-dashboard"
@@ -3095,16 +3244,25 @@ export function PublicCampaignPage({
             <div className="public-mobile-trust-row">
               <span><LockKeyhole size={16} /> {presentationCopy?.verifiedParticipation}</span>
               <span><ShieldCheck size={16} /> {presentationCopy?.privacyRespect}</span>
+              <span><BadgeCheck size={16} /> {presentationCopy?.transparentCampaign}</span>
+              <span><Users size={16} /> {presentationCopy?.publicCollaboration}</span>
             </div>
-            {configuredCampaignGoal !== null && (
-              <div className="public-mobile-progress">
-                <progress max={100} value={metrics.progress}>{metrics.progress}%</progress>
-                <span>
-                  {metrics.verified.toLocaleString()} {t("public.verifiedSupporters")} · {metrics.progress}%
-                </span>
+            {premiumVisibleMetrics.length > 0 && (
+              <div className="public-campaign-v2-metrics" aria-label={t("public.supporterCount")}>
+                {premiumVisibleMetrics.map((metric) => (
+                  <div className="public-campaign-v2-metric" key={`mobile-${metric.key}`}>
+                    <span>{metric.label}</span>
+                    <strong>{metric.value.toLocaleString()}</strong>
+                  </div>
+                ))}
               </div>
             )}
           </div>
+        )}
+        {presentationCopy && (
+          <p className="public-premium-privacy-footer">
+            <LockKeyhole size={14} /> {presentationCopy.privacyFooter}
+          </p>
         )}
         {!hasSignedCampaign && (
           <div className="public-sign-share-tools" aria-label={t("public.shareThisCampaign")}>

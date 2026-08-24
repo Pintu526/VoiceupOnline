@@ -47,6 +47,8 @@ import { Field } from "../../ui/Field";
 import { NoCampaignPanel } from "../../ui/NoCampaignPanel";
 import { IndiaLocationFields } from "../../components/IndiaLocationFields";
 import { GlobalLocationFields } from "../../components/GlobalLocationFields";
+import { getIndiaLocationOptions } from "../../components/indiaLocationOptions";
+import { useCampaignLocationCatalog } from "../../components/useCampaignLocationCatalog";
 import { ResourceLocationManager } from "../../businessOs/masterData/ResourceLocationManager";
 import { PasswordField } from "../../ui/PasswordField";
 import { ReferralQrPreview } from "../../components/ReferralQrPreview";
@@ -298,6 +300,13 @@ export function CampaignsTab({
   const canUseCampaignCreationTools = campaignFormMode === "create" && !isCampaignAdminRoute;
   const [campaignLinkMessage, setCampaignLinkMessage] = useState("");
   const [campaignCustomLocations, setCampaignCustomLocations] = useState<PublicCampaignCustomLocation[]>([]);
+  const loadedCampaignLocations = useCampaignLocationCatalog(
+    campaignFormMode === "edit" ? activeCampaign ?? null : null
+  );
+  const campaignLocationCatalog =
+    campaignCustomLocations.length > 0 ? campaignCustomLocations : loadedCampaignLocations.locations;
+  const campaignLocationCatalogStatus =
+    campaignCustomLocations.length > 0 ? "ready" as const : loadedCampaignLocations.status;
   const [creationMode, setCreationMode] = useState<"manual" | "template" | "ai">("manual");
   const savedSnapshot = campaignFormMode === "edit" ? campaignSnapshot(activeCampaign) : "";
   const draftSnapshot = campaignSnapshot(campaignDraft);
@@ -380,6 +389,26 @@ export function CampaignsTab({
   const campaignGeographyMode = getCampaignGeographyMode(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
   const isGlobalMode = campaignGeographyMode === "global";
   const locationLabels = getCampaignLocationLabels(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
+  const authorityLocationOptions = getIndiaLocationOptions({
+    values: {
+      country: "India",
+      state: authorityStateFilter,
+      district: authorityDistrictFilter,
+      block: "",
+      panchayat: "",
+      postalCode: ""
+    },
+    locationOverrides,
+    locationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: campaignLocationCatalog,
+    catalogStatus: campaignLocationCatalogStatus,
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: "",
+    fixedCountry: "India"
+  });
   const campaignScope = getCampaignScope(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
   const signerRestrictionOptions: [LocationGovernanceLevel, string][] = isGlobalMode
     ? [
@@ -864,29 +893,62 @@ export function CampaignsTab({
                       />
                     </Field>
                     <div className="form-grid">
-                      <Field label={locationLabels.state}>
-                        <input
-                          value={campaignDraft?.state ?? ""}
-                          onChange={(e) => setCampaignDraft({ ...campaignDraft!, state: e.target.value })}
-                          placeholder={locationLabels.state}
+                      {isGlobalMode ? (
+                        <>
+                          <Field label={locationLabels.state}>
+                            <input
+                              value={campaignDraft?.state ?? ""}
+                              onChange={(e) => setCampaignDraft({ ...campaignDraft!, state: e.target.value })}
+                              placeholder={locationLabels.state}
+                            />
+                          </Field>
+                          <Field label={locationLabels.district}>
+                            <input
+                              value={campaignDraft?.district ?? ""}
+                              onChange={(e) => setCampaignDraft({ ...campaignDraft!, district: e.target.value })}
+                              placeholder={locationLabels.district}
+                            />
+                          </Field>
+                          <Field label={locationLabels.panchayat}>
+                            <input
+                              value={campaignDraft?.panchayat ?? ""}
+                              onChange={(e) => setCampaignDraft({ ...campaignDraft!, panchayat: e.target.value })}
+                              placeholder={locationLabels.panchayat}
+                            />
+                          </Field>
+                        </>
+                      ) : (
+                        <IndiaLocationFields
+                          idPrefix="campaign-create-location"
+                          values={{
+                            country: "India",
+                            state: campaignDraft?.state ?? "",
+                            district: campaignDraft?.district ?? "",
+                            block: campaignDraft?.block ?? "",
+                            panchayat: campaignDraft?.panchayat ?? "",
+                            postalCode: campaignDraft?.postalCode ?? "",
+                            address: campaignDraft?.location ?? ""
+                          }}
+                          onChange={(values) =>
+                            setCampaignDraft({
+                              ...campaignDraft!,
+                              country: "India",
+                              state: values.state,
+                              district: values.district,
+                              block: values.block,
+                              panchayat: values.panchayat,
+                              postalCode: values.postalCode,
+                              location: values.address ?? campaignDraft?.location ?? ""
+                            })
+                          }
+                          locationOverrides={locationOverrides}
+                          locationDeletions={locationDeletions}
+                          customLocations={campaignLocationCatalog}
+                          catalogStatus={campaignLocationCatalogStatus}
+                          fixedCountry="India"
                         />
-                      </Field>
-                      <Field label={locationLabels.district}>
-                        <input
-                          value={campaignDraft?.district ?? ""}
-                          onChange={(e) => setCampaignDraft({ ...campaignDraft!, district: e.target.value })}
-                          placeholder={locationLabels.district}
-                        />
-                      </Field>
-                      {isGlobalMode && (
-                        <Field label={locationLabels.panchayat}>
-                          <input
-                            value={campaignDraft?.panchayat ?? ""}
-                            onChange={(e) => setCampaignDraft({ ...campaignDraft!, panchayat: e.target.value })}
-                            placeholder={locationLabels.panchayat}
-                          />
-                        </Field>
                       )}
+                    </div>
                       <Field label={t("campaignAdmin.fields.authority")}>
                         <select
                           value={campaignDraft?.selectedAuthorityId ?? ""}
@@ -900,7 +962,6 @@ export function CampaignsTab({
                           ))}
                         </select>
                       </Field>
-                    </div>
                   </div>
                 ) : creationMode === "template" ? (
                   <>
@@ -1386,7 +1447,8 @@ export function CampaignsTab({
                     allowInlineAdd
                     onAddLocation={onAddAdminLocationOption}
                     onRemoveLocation={onRemoveAdminLocationOption}
-                    customLocations={campaignCustomLocations}
+                    customLocations={campaignLocationCatalog}
+                    catalogStatus={campaignLocationCatalogStatus}
                   />
                 )}
                 {campaignFormMode === "edit" && (
@@ -1530,17 +1592,31 @@ export function CampaignsTab({
                     </Field>
                     <Field label={locationLabels.state}>
                       <input
+                        list="authority-filter-states"
+                        autoComplete="off"
                         value={authorityStateFilter}
                         onChange={(e) => setAuthorityStateFilter(e.target.value)}
                         placeholder={effectiveCampaignDraft.state || `Any ${locationLabels.state.toLowerCase()}`}
                       />
+                      <datalist id="authority-filter-states">
+                        {authorityLocationOptions.stateOptions.map((state) => (
+                          <option key={state} value={state} />
+                        ))}
+                      </datalist>
                     </Field>
                     <Field label={locationLabels.district}>
                       <input
+                        list="authority-filter-districts"
+                        autoComplete="off"
                         value={authorityDistrictFilter}
                         onChange={(e) => setAuthorityDistrictFilter(e.target.value)}
                         placeholder={effectiveCampaignDraft.district || `Any ${locationLabels.district.toLowerCase()}`}
                       />
+                      <datalist id="authority-filter-districts">
+                        {authorityLocationOptions.districtOptions.map((district) => (
+                          <option key={district} value={district} />
+                        ))}
+                      </datalist>
                     </Field>
                   </div>
 

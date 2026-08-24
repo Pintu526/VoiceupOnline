@@ -32,6 +32,15 @@ export function getSupporterReferralCode(signer: Signer): string {
   );
 }
 
+const PERSISTED_OWNER_REFERRAL_CODE = /^VU-[A-Z0-9]{6,64}$/;
+
+export function getPersistedSupporterReferralCode(
+  signer: Pick<Signer, "referralCode"> | null | undefined
+): string {
+  const code = normalizeReferralCode(signer?.referralCode);
+  return PERSISTED_OWNER_REFERRAL_CODE.test(code) ? code : "";
+}
+
 export function getCampaignReferralUrl(
   organization: Organization | undefined,
   campaign: Pick<Campaign, "slug">,

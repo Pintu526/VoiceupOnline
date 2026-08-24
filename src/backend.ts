@@ -336,6 +336,42 @@ function isValidPublicPhone(value: string) {
   return /^[0-9]{8,15}$/.test(normalizePhone(value).replace(/\D/g, ""));
 }
 
+function asInvokeRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
+}
+
+function extractReturnedOtp(payload: unknown): string | undefined {
+  const records: Array<Record<string, unknown> | null> = [asInvokeRecord(payload)];
+  const root = asInvokeRecord(payload);
+  if (root?.data) records.push(asInvokeRecord(root.data));
+  if (typeof payload === "string") {
+    try {
+      records.push(asInvokeRecord(JSON.parse(payload)));
+    } catch {
+      /* ignore malformed invoke body */
+    }
+  }
+  for (const record of records) {
+    if (!record) continue;
+    for (const key of ["otp", "developmentOtp"]) {
+      const digits = String(record[key] ?? "").replace(/\D/g, "");
+      if (/^\d{4,8}$/.test(digits)) return digits;
+    }
+  }
+  return undefined;
+}
+
+async function readClonedInvokeJson(
+  response: { clone?: () => { json?: () => Promise<unknown> } } | undefined
+) {
+  try {
+    return await response?.clone?.()?.json?.();
+  } catch {
+    return undefined;
+  }
+}
+
 function trustedPublicError(
   error: { message: string; code?: string } | null,
   fallbackMessage: string
@@ -1411,12 +1447,14 @@ export async function requestOtp(
         publicError.code
       );
     }
+    const invokeBody = await readClonedInvokeJson(response);
+    const returnedOtp = extractReturnedOtp(invokeBody) ?? extractReturnedOtp(data);
     return {
       challengeId: data.challengeId,
       resendAfterSeconds: data.resendAfterSeconds ?? 30,
       message: data.message ?? "Verification code sent.",
-      otp: data.otp,
-      developmentOtp: data.otp
+      otp: returnedOtp,
+      developmentOtp: returnedOtp
     };
   }
   if (!import.meta.env.DEV) {

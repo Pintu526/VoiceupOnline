@@ -79,7 +79,7 @@ export const goudhanCampaignBlueprint: ProductionCampaignBlueprint = {
     qrLabel: "गौ सम्मान आह्वान अभियान का समर्थन करने के लिए स्कैन करें"
   },
   joinFlow: {
-    requiredFields: ["phone", "name", "state", "district", "block", "panchayat"],
+    requiredFields: ["phone", "name", "state", "district", "block"],
     optionalFields: ["photo", "village", "address", "postalCode"],
     otpMode: "production",
     photoTiming: "post_sign_private",

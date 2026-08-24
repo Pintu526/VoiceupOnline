@@ -68,6 +68,7 @@ interface SaasTabProps {
   organization: Organization;
   setOrganization: React.Dispatch<React.SetStateAction<Organization>>;
   campaigns: Campaign[];
+  activeCampaign?: Campaign;
   signers: Signer[];
   scanItems: ScanReviewItem[];
   commercialPackages: CommercialPackage[];
@@ -140,6 +141,7 @@ export function SaasTab({
   organization,
   setOrganization,
   campaigns,
+  activeCampaign,
   signers,
   scanItems,
   commercialPackages,
@@ -398,6 +400,7 @@ export function SaasTab({
               onChange={updateLocationGovernance}
               locationOverrides={locationOverrides}
               locationDeletions={locationDeletions}
+              campaign={activeCampaign ?? campaigns[0] ?? null}
             />
             <Field label={t("organization.lockLevel")}>
               <select

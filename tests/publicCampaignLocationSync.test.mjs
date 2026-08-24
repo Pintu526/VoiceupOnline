@@ -8,6 +8,7 @@ const page = readFileSync(new URL("../src/pages/PublicCampaignPage.tsx", import.
 const india = readFileSync(new URL("../src/components/IndiaLocationFields.tsx", import.meta.url), "utf8");
 const options = readFileSync(new URL("../src/components/indiaLocationOptions.ts", import.meta.url), "utf8");
 const manager = readFileSync(new URL("../src/businessOs/masterData/ResourceLocationManager.tsx", import.meta.url), "utf8");
+const hook = readFileSync(new URL("../src/components/useCampaignLocationCatalog.ts", import.meta.url), "utf8");
 
 test("public response reads only active paths from the exact published campaign scope", () => {
   assert.match(edge, /\.eq\("workspace_id", resolved\.row\.workspace_id\)/);
@@ -43,34 +44,41 @@ test("public location transport remains render-only", () => {
 
 test("master options remain primary while custom hierarchy values deduplicate by parent", () => {
   assert.match(india, /getIndiaLocationOptions\(/);
-  assert.match(options, /mergeIndiaLocationOptions\(\s*indianStatesAndUnionTerritories/);
-  assert.match(options, /option\.trim\(\)\.toLowerCase\(\) === value\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(options, /location\.state\?\.trim\(\)\.toLowerCase\(\) === values\.state\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(options, /location\.district\?\.trim\(\)\.toLowerCase\(\) === values\.district\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(options, /location\.block\?\.trim\(\)\.toLowerCase\(\) === values\.block\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(options, /indianStatesAndUnionTerritories/);
+  assert.match(options, /normalizeIndiaLocationOptionKey/);
+  assert.match(options, /locationMatchesSelectedParent/);
+  assert.match(options, /customStates/);
+  assert.match(options, /catalogMatchesSelectedParents/);
+  assert.doesNotMatch(options, /campaignStateFilter/);
 });
 
-test("Block suggestions retain master order and require the exact country, state, and district", () => {
+test("Block suggestions retain catalog-only options when the VBOSS catalog is in play", () => {
   const blockOptions = options.slice(options.indexOf("const blockOptions"), options.indexOf("const panchayatOptions"));
-  assert.match(blockOptions, /mergeIndiaLocationOptions\(\s*getBlockOptions/);
-  assert.match(blockOptions, /location\.country\?\.trim\(\)\.toLowerCase\(\) === selectedCountry/);
-  assert.match(blockOptions, /location\.state\?\.trim\(\)\.toLowerCase\(\) === values\.state\.trim\(\)\.toLowerCase\(\)/);
-  assert.match(blockOptions, /location\.district\?\.trim\(\)\.toLowerCase\(\) === values\.district\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(blockOptions, /useCatalogOnly/);
+  assert.match(blockOptions, /getBlockOptions/);
+  assert.match(blockOptions, /catalogMatchesSelectedParents\(location, selectedCountry, values, \["state", "district"\]\)/);
   assert.match(india, /!verifiedSuggestionsOnly && blockOptions\.length === 0/);
 });
 
 test("custom lower hierarchy options require their exact selected parents", () => {
   const panchayatOptions = options.slice(options.indexOf("const panchayatOptions"), options.indexOf("const selectedCustomPath"));
   const selectedCustomPath = options.slice(options.indexOf("const selectedCustomPath"), options.indexOf("return {"));
-  assert.match(panchayatOptions, /location\.block\?\.trim\(\)\.toLowerCase\(\) === values\.block\.trim\(\)\.toLowerCase\(\)/);
-  for (const field of ["country", "state", "district", "block", "panchayat"]) {
-    assert.match(selectedCustomPath, new RegExp(`location\\.${field}\\?\\.trim\\(\\)\\.toLowerCase\\(\\) ===`));
-  }
-  assert.match(selectedCustomPath, /values\.panchayat\.trim\(\)\.toLowerCase\(\)/);
+  assert.match(panchayatOptions, /catalogMatchesSelectedParents\(location, selectedCountry, values, \["state", "district", "block"\]\)/);
+  assert.match(selectedCustomPath, /catalogMatchesSelectedParents\(location, selectedCountry, values, \["state", "district", "block", "panchayat"\]\)/);
+});
+
+test("static geography and PIN directory cannot bypass a VBOSS catalog state", () => {
+  assert.match(options, /allowsStaticIndiaLocationFallback/);
+  assert.match(options, /useCatalogOnly/);
+  assert.match(india, /allowStaticLocationFallback \? findPinCode/);
+  assert.match(india, /allowStaticLocationFallback \? findLocationByPin/);
+  assert.match(hook, /status: "loading"/);
+  assert.match(hook, /status: "error"/);
+  assert.match(hook, /status: "ready"/);
 });
 
 test("public custom locations support village and PIN suggestions without changing manual fallback", () => {
-  assert.match(page, /customLocations=\{customLocations\}/);
+  assert.match(page, /customLocations=\{signerLocationCatalog\}/);
   assert.match(options, /location\.village/);
   assert.match(options, /location\.postalCode/);
   assert.match(india, /allowInlineAdd = false/);

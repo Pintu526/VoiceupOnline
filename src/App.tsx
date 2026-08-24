@@ -261,6 +261,7 @@ import {
   type PublicSigningSubmissionAttempt
 } from "./publicSigningJourney";
 import {
+  GOUDHAN_CAMPAIGN_SLUG,
   isGaumataPublicHostname,
   isGoudhanProductionCampaign
 } from "./config/goudhanProduction";
@@ -2135,7 +2136,9 @@ function App() {
     setOtpMessage("Requesting verification code...");
     try {
       const result = await requestPublicOtp(phone, "public-signing", {
-        slug: publicParticipationSlug,
+        slug: isGoudhanProductionCampaign(activeCampaign, organization)
+          ? GOUDHAN_CAMPAIGN_SLUG
+          : publicParticipationSlug,
         campaignId: activeCampaign?.id ?? ""
       });
       const otp = result.otp;
@@ -2294,7 +2297,9 @@ function App() {
             referredBy: publicForm.referredBy,
             referredByPhoneOrCode: publicForm.referredByPhoneOrCode,
             referralSource: publicForm.referralSource,
-            referralCode: publicForm.referralCode
+            ...(normalizeReferralCode(publicForm.referralCode)
+              ? { referralCode: normalizeReferralCode(publicForm.referralCode) }
+              : {})
           },
           baseUpdatedAt: lastSignedSigner?.profileUpdatedAt ?? lastSignedSigner?.draftUpdatedAt
         }

@@ -170,7 +170,7 @@ test("production hosts can never display an OTP value", () => {
   }
 });
 
-test("development OTP display requires development mode and an explicit flag", () => {
+test("development OTP display matches Preview: explicit flag plus localhost or vercel.app", () => {
   assert.equal(
     canDisplayDevelopmentOtp({
       hostname: "localhost",
@@ -179,12 +179,38 @@ test("development OTP display requires development mode and an explicit flag", (
     }),
     true
   );
-  for (const input of [
-    { hostname: "localhost", isDevelopment: false, explicitTestDisplayEnabled: true },
-    { hostname: "localhost", isDevelopment: true, explicitTestDisplayEnabled: false }
-  ]) {
-    assert.equal(canDisplayDevelopmentOtp(input), false);
-  }
+  assert.equal(
+    canDisplayDevelopmentOtp({
+      hostname: "localhost",
+      isDevelopment: false,
+      explicitTestDisplayEnabled: true
+    }),
+    true
+  );
+  assert.equal(
+    canDisplayDevelopmentOtp({
+      hostname: "preview.vercel.app",
+      isDevelopment: false,
+      explicitTestDisplayEnabled: true
+    }),
+    true
+  );
+  assert.equal(
+    canDisplayDevelopmentOtp({
+      hostname: "localhost",
+      isDevelopment: true,
+      explicitTestDisplayEnabled: false
+    }),
+    false
+  );
+  assert.equal(
+    canDisplayDevelopmentOtp({
+      hostname: "preview.vercel.app",
+      isDevelopment: false,
+      explicitTestDisplayEnabled: false
+    }),
+    false
+  );
 });
 
 test("gaumata host resolution continues to use the existing routing utility", () => {

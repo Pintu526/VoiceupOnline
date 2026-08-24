@@ -11,19 +11,24 @@ const PUBLIC_LOCATION_PAGE_SIZE = 1_000;
 const MAX_PUBLIC_CAMPAIGN_LOCATIONS = 60_000;
 
 function publicCampaignLocationsQuery(admin: any, resolved: any) {
-  return admin
-    .from("vboss_resource_location_paths")
-    .eq("workspace_id", resolved.row.workspace_id)
-    .eq("application_key", "voiceup")
-    .eq("resource_type", "campaign")
-    .eq("resource_id", resolved.row.campaign_id)
-    .eq("active", true);
+  return {
+    select(columns: string, options?: Record<string, unknown>) {
+      return admin
+        .from("vboss_resource_location_paths")
+        .select(columns, options)
+        .eq("workspace_id", resolved.row.workspace_id)
+        .eq("application_key", "voiceup")
+        .eq("resource_type", "campaign")
+        .eq("resource_id", resolved.row.campaign_id)
+        .eq("active", true);
+    }
+  };
 }
 
 async function loadPublicCampaignLocations(admin: any, resolved: any) {
   const { count, error: countError } = await publicCampaignLocationsQuery(admin, resolved)
     .select("id", { count: "exact", head: true });
-  if (countError || count === null) throw new Error("Unable to count campaign locations.");
+  if (countError || count === null) return [];
   if (count > MAX_PUBLIC_CAMPAIGN_LOCATIONS) {
     throw new Error("Campaign location set exceeds the public response safety limit.");
   }

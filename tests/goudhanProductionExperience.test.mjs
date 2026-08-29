@@ -146,6 +146,7 @@ test("production blueprint contains the reusable campaign capabilities and appro
   assert.equal(goudhanProductionOrganization.customDomain, "gaumata.cloud");
   assert.equal(goudhanCampaignBlueprint.campaign.slug, GOUDHAN_CAMPAIGN_SLUG);
   assert.equal(goudhanCampaignBlueprint.joinFlow.otpMode, "production");
+  assert.equal(goudhanCampaignBlueprint.joinFlow.verificationMethod, "phone_otp");
   assert.equal(goudhanCampaignBlueprint.joinFlow.duplicatePolicy, "one_supporter_per_campaign_phone");
   assert.deepEqual(
     goudhanCampaignBlueprint.capabilities.reports,

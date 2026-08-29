@@ -9,6 +9,7 @@ import { normalizePublicCampaignSlug } from "../_shared/publicCampaignSlug.ts";
 
 const PUBLIC_LOCATION_PAGE_SIZE = 1_000;
 const MAX_PUBLIC_CAMPAIGN_LOCATIONS = 60_000;
+const PUBLIC_LOCATION_PAGE_CONCURRENCY = 6;
 
 function publicCampaignLocationsQuery(admin: any, resolved: any) {
   return {
@@ -33,21 +34,35 @@ async function loadPublicCampaignLocations(admin: any, resolved: any) {
     throw new Error("Campaign location set exceeds the public response safety limit.");
   }
 
+  const pageOffsets: number[] = [];
+  for (let offset = 0; offset < count; offset += PUBLIC_LOCATION_PAGE_SIZE) {
+    pageOffsets.push(offset);
+  }
+
   const locations: Array<Record<string, string | null>> = [];
   const locationIds = new Set<string>();
-  for (let offset = 0; offset < count; offset += PUBLIC_LOCATION_PAGE_SIZE) {
-    const { data, error } = await publicCampaignLocationsQuery(admin, resolved)
-      .select("id,country,state,district,block,panchayat,village,postal_code")
-      .order("normalized_path")
-      .order("id")
-      .range(offset, offset + PUBLIC_LOCATION_PAGE_SIZE - 1);
-    if (error) throw error;
-    for (const location of data ?? []) {
-      if (locationIds.has(location.id)) {
-        throw new Error("Campaign location pagination returned a duplicate row.");
+  for (let pageStart = 0; pageStart < pageOffsets.length; pageStart += PUBLIC_LOCATION_PAGE_CONCURRENCY) {
+    const pageLocations = await Promise.all(
+      pageOffsets
+        .slice(pageStart, pageStart + PUBLIC_LOCATION_PAGE_CONCURRENCY)
+        .map(async (offset) => {
+          const { data, error } = await publicCampaignLocationsQuery(admin, resolved)
+            .select("id,country,state,district,block,panchayat,village,postal_code")
+            .order("normalized_path")
+            .order("id")
+            .range(offset, offset + PUBLIC_LOCATION_PAGE_SIZE - 1);
+          if (error) throw error;
+          return data ?? [];
+        })
+    );
+    for (const page of pageLocations) {
+      for (const location of page) {
+        if (locationIds.has(location.id)) {
+          throw new Error("Campaign location pagination returned a duplicate row.");
+        }
+        locationIds.add(location.id);
+        locations.push(location);
       }
-      locationIds.add(location.id);
-      locations.push(location);
     }
   }
   if (locations.length !== count) {

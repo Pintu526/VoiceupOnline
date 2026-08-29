@@ -637,6 +637,21 @@ const publicExperienceCopy: Record<Language, PublicExperienceCopy> = {
   }
 };
 
+function isContinuingSamePublicPhoneIdentity(previousPhone: string, nextPhone: string): boolean {
+  if (!previousPhone || !nextPhone) return false;
+  return previousPhone.startsWith(nextPhone) || nextPhone.startsWith(previousPhone);
+}
+
+function shouldStartNewJourneyForPhoneInput(
+  previousPhone: string,
+  nextPhone: string,
+  form: Pick<typeof blankSigner, "otpVerified" | "otpChallengeId" | "otpVerificationToken">
+): boolean {
+  if (previousPhone === nextPhone) return false;
+  if (form.otpVerified || form.otpChallengeId || form.otpVerificationToken) return true;
+  return !isContinuingSamePublicPhoneIdentity(previousPhone, nextPhone);
+}
+
 export function PublicCampaignPage({
   campaign,
   organization,
@@ -733,9 +748,10 @@ export function PublicCampaignPage({
   };
   const lockedLocationParts = formatLocationForCampaign(campaign, lockedLocation).split(", ").filter(Boolean);
   const publicIndiaAllowedLocation = lockedLocation.state?.trim() ? lockedLocation : undefined;
-  const signerLocationCatalog = resolveIndiaLocationCatalog(
-    customLocations,
-    (campaign as Campaign & { customLocations?: unknown }).customLocations
+  const campaignCustomLocations = (campaign as Campaign & { customLocations?: unknown }).customLocations;
+  const signerLocationCatalog = useMemo(
+    () => resolveIndiaLocationCatalog(customLocations, campaignCustomLocations),
+    [campaignCustomLocations, customLocations]
   );
   const requiredFields = campaign.requiredFields ?? [];
   const copy = publicSigningCopy[language];
@@ -2102,6 +2118,11 @@ export function PublicCampaignPage({
                     const phone = premiumPresentation
                       ? normalizeIndianMobileInput(event.target.value).canonical
                       : event.target.value;
+                    if (publicForm.phone === phone) return;
+                    if (!shouldStartNewJourneyForPhoneInput(publicForm.phone, phone, publicForm)) {
+                      setPublicForm({ ...publicForm, phone });
+                      return;
+                    }
                     handleStartNewJourney();
                     setPublicForm({
                       ...blankSigner,

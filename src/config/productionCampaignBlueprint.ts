@@ -10,6 +10,20 @@ import {
   getPublicCampaignUrl
 } from "../utils/links.ts";
 
+export const PUBLIC_SIGNUP_VERIFICATION_METHODS = ["phone_otp", "email_otp", "screen_otp"] as const;
+
+export type PublicSignupVerificationMethod = (typeof PUBLIC_SIGNUP_VERIFICATION_METHODS)[number];
+
+export const DEFAULT_PUBLIC_SIGNUP_VERIFICATION_METHOD: PublicSignupVerificationMethod = "phone_otp";
+
+export function resolvePublicSignupVerificationMethod(
+  value: string | null | undefined
+): PublicSignupVerificationMethod {
+  return PUBLIC_SIGNUP_VERIFICATION_METHODS.includes(value as PublicSignupVerificationMethod)
+    ? (value as PublicSignupVerificationMethod)
+    : DEFAULT_PUBLIC_SIGNUP_VERIFICATION_METHOD;
+}
+
 export interface ProductionCampaignBlueprint {
   id: string;
   branding: {
@@ -44,6 +58,7 @@ export interface ProductionCampaignBlueprint {
     requiredFields: SignerRequiredField[];
     optionalFields: Array<SignerRequiredField | "photo" | "village">;
     otpMode: "production";
+    verificationMethod: PublicSignupVerificationMethod;
     photoTiming: "post_sign_private";
     duplicatePolicy: "one_supporter_per_campaign_phone";
   };

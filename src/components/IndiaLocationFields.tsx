@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   findLocationByPin,
   findPinCode,
@@ -15,6 +15,7 @@ import { getLocationLevelLabel, isLocationLevelAtLeast } from "../utils/campaign
 import type { PublicCampaignCustomLocation } from "../backend";
 import {
   allowsStaticIndiaLocationFallback,
+  buildIndiaLocationCatalogIndex,
   getIndiaLocationOptions,
   type IndiaLocationCatalogStatus
 } from "./indiaLocationOptions";
@@ -90,6 +91,10 @@ export function IndiaLocationFields({
   const allowedDistrict = allowedLocation?.district ?? "";
   const allowedBlock = allowedLocation?.block ?? "";
   const allowedPanchayat = allowedLocation?.panchayat ?? "";
+  const catalogIndex = useMemo(
+    () => buildIndiaLocationCatalogIndex(resolvedCustomLocations),
+    [resolvedCustomLocations]
+  );
   const {
     stateOptions,
     districtOptions,
@@ -108,7 +113,8 @@ export function IndiaLocationFields({
     allowedBlock,
     allowedPanchayat,
     fixedCountry,
-    catalogStatus: resolvedCatalogStatus
+    catalogStatus: resolvedCatalogStatus,
+    catalogIndex
   });
   const stateLocked = isLocationLevelAtLeast(lockedLevel, "state");
   const districtLocked = isLocationLevelAtLeast(lockedLevel, "district");

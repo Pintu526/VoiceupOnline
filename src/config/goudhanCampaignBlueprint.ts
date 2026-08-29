@@ -82,6 +82,7 @@ export const goudhanCampaignBlueprint: ProductionCampaignBlueprint = {
     requiredFields: ["phone", "name", "state", "district", "block"],
     optionalFields: ["photo", "village", "address", "postalCode"],
     otpMode: "production",
+    verificationMethod: "phone_otp",
     photoTiming: "post_sign_private",
     duplicatePolicy: "one_supporter_per_campaign_phone"
   },

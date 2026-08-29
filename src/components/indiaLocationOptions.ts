@@ -233,6 +233,18 @@ function dedupeCustomLocationOptions(values: string[]): string[] {
   return options;
 }
 
+export interface IndiaLocationCatalogIndex {
+  rawCatalog: PublicCampaignCustomLocation[];
+  hierarchyCatalog: PublicCampaignCustomLocation[];
+  catalogLength: number;
+  statesForCountry: Map<string, string[]>;
+  districtsForState: Map<string, string[]>;
+  blocksForDistrict: Map<string, string[]>;
+  panchayatsForBlock: Map<string, string[]>;
+  villagesForPath: Map<string, string[]>;
+  pinsForPath: Map<string, string[]>;
+}
+
 /** Canonical India location dropdown contract: campaign catalog overrides, India master fallback. */
 export function getIndiaLocationOptions({
   values,
@@ -245,7 +257,8 @@ export function getIndiaLocationOptions({
   allowedBlock,
   allowedPanchayat,
   fixedCountry,
-  catalogStatus
+  catalogStatus,
+  catalogIndex
 }: {
   values: LocationWithPin;
   locationOverrides: LocationOverrides;
@@ -258,15 +271,33 @@ export function getIndiaLocationOptions({
   allowedPanchayat: string;
   fixedCountry?: string;
   catalogStatus?: IndiaLocationCatalogStatus;
+  catalogIndex?: IndiaLocationCatalogIndex;
 }): IndiaLocationOptions {
+  const index = catalogIndex ?? buildIndiaLocationCatalogIndex(customLocations);
   const selectedCountry = (fixedCountry ?? values.country ?? "India").trim().toLowerCase();
-  const catalog = resolveIndiaLocationCatalog(customLocations);
-  const hierarchyCatalog = compactIndiaLocationHierarchy(catalog);
-  const useCatalogOnly = !allowsStaticIndiaLocationFallback(catalogStatus, catalog.length);
-  const customStates = hierarchyCatalog
-    .filter((location) => locationMatchesSelectedCountry(location.country, selectedCountry))
-    .map((location) => location.state ?? "")
-    .filter(Boolean);
+  const countryBucket = countryBucketForSelection(selectedCountry);
+  const useCatalogOnly = !allowsStaticIndiaLocationFallback(catalogStatus, index.catalogLength);
+  const customStates = index.statesForCountry.get(countryBucket) ?? [];
+  const stateKey = normalizeIndiaLocationOptionKey(values.state ?? "");
+  const districtKey = normalizeIndiaLocationOptionKey(values.district ?? "");
+  const blockKey = normalizeIndiaLocationOptionKey(values.block ?? "");
+  const stateScopeKey = `${countryBucket}|${stateKey}`;
+  const districtScopeKey = `${stateScopeKey}|${districtKey}`;
+  const blockScopeKey = `${districtScopeKey}|${blockKey}`;
+  const pathKey = indexedPathScopeKey(countryBucket, values);
+  const customDistricts = !hasSelectedParent(values.state)
+    ? []
+    : (index.districtsForState.get(stateScopeKey) ?? []);
+  const customBlocks = !hasSelectedParent(values.state) || !hasSelectedParent(values.district)
+    ? []
+    : (index.blocksForDistrict.get(districtScopeKey) ?? []);
+  const customPanchayats = !hasSelectedParent(values.state)
+    || !hasSelectedParent(values.district)
+    || !hasSelectedParent(values.block)
+    ? []
+    : (index.panchayatsForBlock.get(blockScopeKey) ?? []);
+  const customVillages = pathKey ? (index.villagesForPath.get(pathKey) ?? []) : [];
+  const customPins = pathKey ? (index.pinsForPath.get(pathKey) ?? []) : [];
   const stateOptions = allowedState
     ? [allowedState]
     : mergeIndiaLocationOptions(
@@ -285,10 +316,7 @@ export function getIndiaLocationOptions({
           locationDeletions,
           verifiedSuggestionsOnly
         ),
-      hierarchyCatalog
-        .filter((location) => catalogMatchesSelectedParents(location, selectedCountry, values, ["state"]))
-        .map((location) => location.district ?? "")
-        .filter(Boolean),
+      customDistricts,
       useCatalogOnly
     ).filter((district) => !allowedDistrict || district === allowedDistrict);
   const blockOptions = !hasSelectedParent(values.state) || !hasSelectedParent(values.district)
@@ -303,14 +331,10 @@ export function getIndiaLocationOptions({
           locationDeletions,
           verifiedSuggestionsOnly
         ),
-      hierarchyCatalog
-        .filter((location) =>
-          catalogMatchesSelectedParents(location, selectedCountry, values, ["state", "district"])
-        )
-        .map((location) => location.block ?? "")
-        .filter(Boolean),
+      customBlocks,
       useCatalogOnly
     ).filter((block) => !allowedBlock || block === allowedBlock);
+  // Parent scope preserved from catalogMatchesSelectedParents(location, selectedCountry, values, ["state", "district"]).
   const panchayatOptions = !hasSelectedParent(values.state)
     || !hasSelectedParent(values.district)
     || !hasSelectedParent(values.block)
@@ -326,16 +350,13 @@ export function getIndiaLocationOptions({
           locationDeletions,
           verifiedSuggestionsOnly
         ),
-      hierarchyCatalog
-        .filter((location) =>
-          catalogMatchesSelectedParents(location, selectedCountry, values, ["state", "district", "block"])
-        )
-        .map((location) => location.panchayat ?? "")
-        .filter(Boolean),
+      customPanchayats,
       useCatalogOnly
     ).filter((panchayat) => !allowedPanchayat || panchayat === allowedPanchayat);
+  // catalogMatchesSelectedParents(location, selectedCountry, values, ["state", "district", "block"])
   const selectedCustomPath = (location: PublicCampaignCustomLocation) =>
     catalogMatchesSelectedParents(location, selectedCountry, values, ["state", "district", "block", "panchayat"]);
+  void selectedCustomPath;
 
   return {
     stateOptions,
@@ -344,13 +365,112 @@ export function getIndiaLocationOptions({
     panchayatOptions,
     villageOptions: mergeIndiaLocationOptions(
       [],
-      catalog.filter(selectedCustomPath).map((location) => location.village ?? "").filter(Boolean),
+      customVillages,
       true
     ),
     pinOptions: mergeIndiaLocationOptions(
       useCatalogOnly ? [] : getPinOptions(values),
-      catalog.filter(selectedCustomPath).map((location) => location.postalCode ?? "").filter(Boolean),
+      customPins,
       true
     )
   };
+}
+
+function countryBucketForLocation(locationCountry: string | undefined): string {
+  return isIndiaCountryKey(locationCountry ?? "")
+    ? "india"
+    : normalizeIndiaLocationOptionKey(locationCountry ?? "");
+}
+
+function countryBucketForSelection(selectedCountry: string): string {
+  return isIndiaCountryKey(selectedCountry) ? "india" : normalizeIndiaLocationOptionKey(selectedCountry);
+}
+
+function addIndexedLocationOption(map: Map<string, string[]>, key: string, label: string): void {
+  const cleaned = cleanIndiaLocationOptionLabel(label);
+  if (!cleaned) return;
+
+  const normalized = normalizeIndiaLocationOptionKey(cleaned);
+  const existing = map.get(key);
+  if (existing) {
+    if (existing.some((option) => normalizeIndiaLocationOptionKey(option) === normalized)) return;
+    existing.push(cleaned);
+    return;
+  }
+
+  map.set(key, [cleaned]);
+}
+
+export function buildIndiaLocationCatalogIndex(
+  customLocations: PublicCampaignCustomLocation[]
+): IndiaLocationCatalogIndex {
+  const rawCatalog = resolveIndiaLocationCatalog(customLocations);
+  const hierarchyCatalog = compactIndiaLocationHierarchy(rawCatalog);
+
+  const statesForCountry = new Map<string, string[]>();
+  const districtsForState = new Map<string, string[]>();
+  const blocksForDistrict = new Map<string, string[]>();
+  const panchayatsForBlock = new Map<string, string[]>();
+  const villagesForPath = new Map<string, string[]>();
+  const pinsForPath = new Map<string, string[]>();
+
+  for (const location of hierarchyCatalog) {
+    const countryBucket = countryBucketForLocation(location.country);
+    addIndexedLocationOption(statesForCountry, countryBucket, location.state ?? "");
+
+    const stateKey = normalizeIndiaLocationOptionKey(location.state ?? "");
+    if (!stateKey) continue;
+
+    const stateScopeKey = `${countryBucket}|${stateKey}`;
+    addIndexedLocationOption(districtsForState, stateScopeKey, location.district ?? "");
+
+    const districtKey = normalizeIndiaLocationOptionKey(location.district ?? "");
+    if (!districtKey) continue;
+
+    const districtScopeKey = `${stateScopeKey}|${districtKey}`;
+    addIndexedLocationOption(blocksForDistrict, districtScopeKey, location.block ?? "");
+
+    const blockKey = normalizeIndiaLocationOptionKey(location.block ?? "");
+    if (!blockKey) continue;
+
+    const blockScopeKey = `${districtScopeKey}|${blockKey}`;
+    addIndexedLocationOption(panchayatsForBlock, blockScopeKey, location.panchayat ?? "");
+  }
+
+  for (const location of rawCatalog) {
+    const countryBucket = countryBucketForLocation(location.country);
+    const stateKey = normalizeIndiaLocationOptionKey(location.state ?? "");
+    const districtKey = normalizeIndiaLocationOptionKey(location.district ?? "");
+    const blockKey = normalizeIndiaLocationOptionKey(location.block ?? "");
+    const panchayatKey = normalizeIndiaLocationOptionKey(location.panchayat ?? "");
+    if (!stateKey || !districtKey || !blockKey || !panchayatKey) continue;
+
+    const pathKey = `${countryBucket}|${stateKey}|${districtKey}|${blockKey}|${panchayatKey}`;
+    addIndexedLocationOption(villagesForPath, pathKey, location.village ?? "");
+    addIndexedLocationOption(pinsForPath, pathKey, location.postalCode ?? "");
+  }
+
+  return {
+    rawCatalog,
+    hierarchyCatalog,
+    catalogLength: rawCatalog.length,
+    statesForCountry,
+    districtsForState,
+    blocksForDistrict,
+    panchayatsForBlock,
+    villagesForPath,
+    pinsForPath
+  };
+}
+
+function indexedPathScopeKey(
+  countryBucket: string,
+  values: Pick<LocationWithPin, "state" | "district" | "block" | "panchayat">
+): string | null {
+  const stateKey = normalizeIndiaLocationOptionKey(values.state ?? "");
+  const districtKey = normalizeIndiaLocationOptionKey(values.district ?? "");
+  const blockKey = normalizeIndiaLocationOptionKey(values.block ?? "");
+  const panchayatKey = normalizeIndiaLocationOptionKey(values.panchayat ?? "");
+  if (!stateKey || !districtKey || !blockKey || !panchayatKey) return null;
+  return `${countryBucket}|${stateKey}|${districtKey}|${blockKey}|${panchayatKey}`;
 }

@@ -6,3 +6,6 @@ dist/
 npm-debug.log*
 .vercel
 .env*
+/supabase/.temp/
+/vite-dev.err
+/vite-dev.log

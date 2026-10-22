@@ -11,6 +11,9 @@ const publicParticipationSignerFields = new Set([
   "phone",
   "canonicalPhone",
   "otpVerified",
+  "verificationMethod",
+  "phoneOwnershipVerified",
+  "emailOwnershipVerified",
   "source",
   "status",
   "createdAt",
@@ -63,6 +66,7 @@ const publicParticipationSignerFields = new Set([
   "consentHistory",
   "participationSources",
   "coordinatorApplication"
+  ,"locationReference"
 ]);
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -112,6 +116,82 @@ function fieldsEqual(left: JsonRecord, right: JsonRecord, key: string): boolean 
 function assignField(target: JsonRecord, source: JsonRecord, key: string) {
   if (hasOwn(source, key)) target[key] = source[key];
   else delete target[key];
+}
+
+function isVerifiedLocationReference(value: unknown): boolean {
+  return isRecord(value)
+    && value.schemaVersion === "voiceup.location-reference/v1"
+    && value.verificationState === "canonical_verified"
+    && typeof value.canonicalNodeId === "string";
+}
+
+function preserveOmittedVerifiedReference(
+  serverOwner: JsonRecord,
+  requestedOwner: JsonRecord,
+  mergedOwner: JsonRecord,
+  legacyFields: readonly string[],
+  field = "locationReference"
+): JsonRecord {
+  if (!hasOwn(requestedOwner, field) && isVerifiedLocationReference(serverOwner[field])) {
+    const protectedOwner = { ...mergedOwner, [field]: serverOwner[field] };
+    for (const legacyField of legacyFields) {
+      if (hasOwn(serverOwner, legacyField)) protectedOwner[legacyField] = serverOwner[legacyField];
+    }
+    return protectedOwner;
+  }
+  return mergedOwner;
+}
+
+function protectWorkspaceLocationReferences(
+  serverState: JsonRecord,
+  requestedState: JsonRecord,
+  state: JsonRecord
+): void {
+  const serverCampaigns = new Map(
+    asRecordArray(serverState.campaigns).map((campaign) => [String(campaign.id ?? ""), campaign])
+  );
+  const requestedCampaigns = new Map(
+    asRecordArray(requestedState.campaigns).map((campaign) => [String(campaign.id ?? ""), campaign])
+  );
+  if (Array.isArray(state.campaigns)) {
+    state.campaigns = asRecordArray(state.campaigns).map((campaign) => {
+      const id = String(campaign.id ?? "");
+      return preserveOmittedVerifiedReference(
+        serverCampaigns.get(id) ?? {},
+        requestedCampaigns.get(id) ?? {},
+        campaign,
+        ["country", "state", "district", "block", "panchayat", "location", "postalCode"]
+      );
+    });
+  }
+
+  const serverOrganization = asRecord(serverState.organization);
+  const requestedOrganization = asRecord(requestedState.organization);
+  const mergedOrganization = asRecord(state.organization);
+  const serverGovernance = asRecord(serverOrganization.locationGovernance);
+  const requestedGovernance = asRecord(requestedOrganization.locationGovernance);
+  const mergedGovernance = asRecord(mergedOrganization.locationGovernance);
+  if (!hasOwn(requestedOrganization, "locationGovernance") && isVerifiedLocationReference(serverGovernance.locationReference)) {
+    state.organization = {
+      ...mergedOrganization,
+      locationGovernance: serverGovernance
+    };
+  } else if (isRecord(mergedOrganization.locationGovernance)) {
+    state.organization = {
+      ...mergedOrganization,
+      locationGovernance: preserveOmittedVerifiedReference(
+        serverGovernance,
+        requestedGovernance,
+        mergedGovernance,
+        ["state", "district", "block", "panchayat"]
+      )
+    };
+  }
+
+  if (!hasOwn(requestedState, "locationOverrideReferences")
+    && isRecord(serverState.locationOverrideReferences)) {
+    state.locationOverrideReferences = serverState.locationOverrideReferences;
+  }
 }
 
 function signerId(signer: JsonRecord): string {
@@ -189,7 +269,12 @@ function mergeSigner(
     }
   }
 
-  return merged;
+  return preserveOmittedVerifiedReference(
+    serverSigner,
+    requestedSigner,
+    merged,
+    ["country", "state", "district", "block", "panchayat", "ward", "postalCode"]
+  );
 }
 
 function mergeSigners(
@@ -327,6 +412,8 @@ export function mergeWorkspaceStateForSave(
   if (hasOwn(serverState, "publicParticipationIdempotency")) {
     state.publicParticipationIdempotency = serverState.publicParticipationIdempotency;
   }
+
+  protectWorkspaceLocationReferences(serverState, requestedState, state);
 
   return { state, conflicts: [...new Set(conflicts)].sort() };
 }

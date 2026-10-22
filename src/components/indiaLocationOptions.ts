@@ -3,7 +3,10 @@ import {
   getDistrictOptions,
   getPanchayatOptions,
   getPinOptions,
+  getUrbanLocalBodyOptions,
+  getWardOptions,
   indianStatesAndUnionTerritories,
+  isUrbanLocalBodySelection,
   type LocationDeletions,
   type LocationOverrides,
   type LocationWithPin
@@ -245,7 +248,51 @@ export interface IndiaLocationCatalogIndex {
   pinsForPath: Map<string, string[]>;
 }
 
-/** Canonical India location dropdown contract: campaign catalog overrides, India master fallback. */
+type IndiaLocationHierarchyLevel = "state" | "district" | "block" | "panchayat";
+
+/**
+ * A campaign catalog is policy, not a geography source: it may narrow a
+ * canonical option, but it can never introduce a location outside the shared
+ * GeographyNode hierarchy. An omitted level scopes the whole canonical
+ * subtree below it.
+ */
+function policyAllowsCanonicalOption(
+  policy: PublicCampaignCustomLocation[],
+  selectedCountry: string,
+  values: Pick<LocationWithPin, "state" | "district" | "block" | "panchayat">,
+  level: IndiaLocationHierarchyLevel,
+  candidate: string
+): boolean {
+  if (policy.length === 0) return true;
+
+  const levels: IndiaLocationHierarchyLevel[] = ["state", "district", "block", "panchayat"];
+  const targetIndex = levels.indexOf(level);
+
+  return policy.some((location) => {
+    if (!locationMatchesSelectedCountry(location.country, selectedCountry)) return false;
+
+    for (let index = 0; index < targetIndex; index += 1) {
+      const parentLevel = levels[index];
+      const selectedValue = values[parentLevel] ?? "";
+      const policyValue = location[parentLevel] ?? "";
+      if (hasSelectedParent(policyValue)
+        && hasSelectedParent(selectedValue)
+        && !locationMatchesSelectedParent(policyValue, selectedValue)) {
+        return false;
+      }
+    }
+
+    const policyValue = location[level] ?? "";
+    return !hasSelectedParent(policyValue)
+      || locationMatchesSelectedParent(policyValue, candidate);
+  });
+}
+
+/**
+ * Canonical India choices remain the authority. Campaign catalog entries are
+ * an unverified policy/custom overlay and can add or narrow choices, but a
+ * ready empty overlay branch must never erase canonical children.
+ */
 export function getIndiaLocationOptions({
   values,
   locationOverrides,
@@ -258,7 +305,8 @@ export function getIndiaLocationOptions({
   allowedPanchayat,
   fixedCountry,
   catalogStatus,
-  catalogIndex
+  catalogIndex,
+  campaignLocationPolicy
 }: {
   values: LocationWithPin;
   locationOverrides: LocationOverrides;
@@ -272,19 +320,28 @@ export function getIndiaLocationOptions({
   fixedCountry?: string;
   catalogStatus?: IndiaLocationCatalogStatus;
   catalogIndex?: IndiaLocationCatalogIndex;
+  campaignLocationPolicy?: PublicCampaignCustomLocation[];
 }): IndiaLocationOptions {
   const index = catalogIndex ?? buildIndiaLocationCatalogIndex(customLocations);
+  const policy = resolveIndiaLocationCatalog(campaignLocationPolicy);
+  const policyIndex = buildIndiaLocationCatalogIndex(policy);
   const selectedCountry = (fixedCountry ?? values.country ?? "India").trim().toLowerCase();
   const countryBucket = countryBucketForSelection(selectedCountry);
-  const useCatalogOnly = !allowsStaticIndiaLocationFallback(catalogStatus, index.catalogLength);
   const customStates = index.statesForCountry.get(countryBucket) ?? [];
   const stateKey = normalizeIndiaLocationOptionKey(values.state ?? "");
+  const canonicalHierarchyAvailable = catalogStatus !== "loading" && catalogStatus !== "error";
+  const allowStaticPinDirectory = allowsStaticIndiaLocationFallback(catalogStatus, index.catalogLength);
   const districtKey = normalizeIndiaLocationOptionKey(values.district ?? "");
   const blockKey = normalizeIndiaLocationOptionKey(values.block ?? "");
   const stateScopeKey = `${countryBucket}|${stateKey}`;
   const districtScopeKey = `${stateScopeKey}|${districtKey}`;
   const blockScopeKey = `${districtScopeKey}|${blockKey}`;
   const pathKey = indexedPathScopeKey(countryBucket, values);
+  const selectedUrbanLocalBody = isUrbanLocalBodySelection(
+    values.state,
+    values.district,
+    values.block
+  );
   const customDistricts = !hasSelectedParent(values.state)
     ? []
     : (index.districtsForState.get(stateScopeKey) ?? []);
@@ -298,61 +355,69 @@ export function getIndiaLocationOptions({
     : (index.panchayatsForBlock.get(blockScopeKey) ?? []);
   const customVillages = pathKey ? (index.villagesForPath.get(pathKey) ?? []) : [];
   const customPins = pathKey ? (index.pinsForPath.get(pathKey) ?? []) : [];
-  const stateOptions = allowedState
+  const stateOptions = (allowedState
     ? [allowedState]
     : mergeIndiaLocationOptions(
-      useCatalogOnly ? [] : indianStatesAndUnionTerritories,
+      canonicalHierarchyAvailable ? indianStatesAndUnionTerritories : [],
       customStates,
-      useCatalogOnly
-    );
-  const districtOptions = !hasSelectedParent(values.state)
+      false
+    )).filter((state) => policyAllowsCanonicalOption(policy, selectedCountry, values, "state", state));
+  const districtOptions = (!hasSelectedParent(values.state)
     ? []
     : mergeIndiaLocationOptions(
-      useCatalogOnly
-        ? []
-        : getDistrictOptions(
+      canonicalHierarchyAvailable
+        ? getDistrictOptions(
           values.state,
           locationOverrides,
           locationDeletions,
           verifiedSuggestionsOnly
-        ),
+        )
+        : [],
       customDistricts,
-      useCatalogOnly
-    ).filter((district) => !allowedDistrict || district === allowedDistrict);
-  const blockOptions = !hasSelectedParent(values.state) || !hasSelectedParent(values.district)
+      false
+    ).filter((district) => !allowedDistrict || district === allowedDistrict)
+  ).filter((district) => policyAllowsCanonicalOption(policy, selectedCountry, values, "district", district));
+  const blockOptions = (!hasSelectedParent(values.state) || !hasSelectedParent(values.district)
     ? []
     : mergeIndiaLocationOptions(
-      useCatalogOnly
-        ? []
-        : getBlockOptions(
-          values.state,
-          values.district,
-          locationOverrides,
-          locationDeletions,
-          verifiedSuggestionsOnly
-        ),
+      [
+        ...(canonicalHierarchyAvailable
+          ? getBlockOptions(
+            values.state,
+            values.district,
+            locationOverrides,
+            locationDeletions,
+            verifiedSuggestionsOnly
+          )
+          : []),
+        ...(canonicalHierarchyAvailable ? getUrbanLocalBodyOptions(values.state, values.district) : [])
+      ],
       customBlocks,
-      useCatalogOnly
-    ).filter((block) => !allowedBlock || block === allowedBlock);
+      false
+    ).filter((block) => !allowedBlock || block === allowedBlock)
+  ).filter((block) => policyAllowsCanonicalOption(policy, selectedCountry, values, "block", block));
   // Parent scope preserved from catalogMatchesSelectedParents(location, selectedCountry, values, ["state", "district"]).
-  const panchayatOptions = !hasSelectedParent(values.state)
+  const panchayatOptions = (!hasSelectedParent(values.state)
     || !hasSelectedParent(values.district)
     || !hasSelectedParent(values.block)
     ? []
-    : mergeIndiaLocationOptions(
-      useCatalogOnly
-        ? []
-        : getPanchayatOptions(
-          values.state,
-          values.district,
-          values.block,
-          locationOverrides,
-          locationDeletions,
-          verifiedSuggestionsOnly
-        ),
-      customPanchayats,
-      useCatalogOnly
-    ).filter((panchayat) => !allowedPanchayat || panchayat === allowedPanchayat);
+    : selectedUrbanLocalBody
+      ? (canonicalHierarchyAvailable ? getWardOptions(values.state, values.district, values.block) : [])
+      : mergeIndiaLocationOptions(
+        canonicalHierarchyAvailable
+          ? getPanchayatOptions(
+            values.state,
+            values.district,
+            values.block,
+            locationOverrides,
+            locationDeletions,
+            verifiedSuggestionsOnly
+          )
+          : [],
+        customPanchayats,
+        false
+      ).filter((panchayat) => !allowedPanchayat || panchayat === allowedPanchayat)
+  ).filter((panchayat) => policyAllowsCanonicalOption(policy, selectedCountry, values, "panchayat", panchayat));
   // catalogMatchesSelectedParents(location, selectedCountry, values, ["state", "district", "block"])
   const selectedCustomPath = (location: PublicCampaignCustomLocation) =>
     catalogMatchesSelectedParents(location, selectedCountry, values, ["state", "district", "block", "panchayat"]);
@@ -365,13 +430,13 @@ export function getIndiaLocationOptions({
     panchayatOptions,
     villageOptions: mergeIndiaLocationOptions(
       [],
-      customVillages,
+      [...customVillages, ...(pathKey ? (policyIndex.villagesForPath.get(pathKey) ?? []) : [])],
       true
     ),
     pinOptions: mergeIndiaLocationOptions(
-      useCatalogOnly ? [] : getPinOptions(values),
-      customPins,
-      true
+      allowStaticPinDirectory ? getPinOptions(values) : [],
+      [...customPins, ...(pathKey ? (policyIndex.pinsForPath.get(pathKey) ?? []) : [])],
+      false
     )
   };
 }

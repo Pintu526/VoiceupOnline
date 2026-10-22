@@ -23,12 +23,14 @@ export const PUBLIC_PROFILE_FIELDS = new Set([
   "blockId", "block", "panchayatId", "panchayat", "wardId", "ward",
   "address", "postalCode", "comment", "languagePreference",
   "communicationPreference", "volunteerInterest", "coordinatorInterest",
+  "locationReference",
   "profilePhotoPath", "profilePhotoUpdatedAt", "profileCompletion",
   "referredBy", "referredByPhoneOrCode", "referralSource", "referralCode"
 ]);
 
 export const PUBLIC_SIGNER_TRANSPORT_FIELDS = new Set([
-  "phone", "otpVerified", "otpChallengeId", "otpVerificationToken"
+  "phone", "otpVerified", "verificationMethod", "phoneOwnershipVerified", "emailOwnershipVerified",
+  "otpChallengeId", "otpVerificationToken"
 ]);
 
 export function isPublicParticipationAction(value: string): value is PublicParticipationAction {

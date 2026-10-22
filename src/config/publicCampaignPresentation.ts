@@ -89,7 +89,7 @@ const gauSammanCopy: Record<Language, PublicCampaignPresentationCopy> = {
     secondaryActionHint: "अभियान को आगे बढ़ाएं",
     participationTitle: "अपना समर्थन जोड़ें",
     participationTime: "सिर्फ 60 सेकंड में जुड़ें",
-    verifiedParticipation: "OTP सत्यापित भागीदारी",
+    verifiedParticipation: "स्क्रीन सत्यापित भागीदारी",
     privacyRespect: "गोपनीयता सुरक्षित",
     transparentCampaign: "पारदर्शी अभियान",
     publicCollaboration: "जन सहयोग",
@@ -100,7 +100,7 @@ const gauSammanCopy: Record<Language, PublicCampaignPresentationCopy> = {
     journeySteps: ["समर्थन दें", "सत्यापित करें", "साझा करें", "जुड़ें", "प्रगति देखें"],
     phoneLabel: "मोबाइल नंबर",
     phoneHint: "भारत का 10 अंकों का मोबाइल नंबर दर्ज करें।",
-    phoneIncomplete: "10 अंक पूरे होने पर OTP प्राप्त कर सकेंगे।",
+    phoneIncomplete: "10 अंक पूरे होने पर सत्यापन कोड प्राप्त कर सकेंगे।",
     phoneInvalid: "6, 7, 8 या 9 से शुरू होने वाला वैध भारतीय मोबाइल नंबर दर्ज करें।",
     heroFallbackLabel: "अभियान का स्वीकृत मुख्य चित्र शीघ्र जोड़ा जाएगा",
     privacyFooter: "आपका डेटा सुरक्षित और गोपनीय रखा जाता है।",
@@ -163,7 +163,7 @@ const gauSammanCopy: Record<Language, PublicCampaignPresentationCopy> = {
     secondaryActionHint: "Help the campaign grow",
     participationTitle: "Add Your Support",
     participationTime: "Join in just 60 seconds",
-    verifiedParticipation: "OTP-verified participation",
+    verifiedParticipation: "Screen-verified participation",
     privacyRespect: "Privacy protected",
     transparentCampaign: "Transparent campaign",
     publicCollaboration: "Public collaboration",
@@ -174,7 +174,7 @@ const gauSammanCopy: Record<Language, PublicCampaignPresentationCopy> = {
     journeySteps: ["Support", "Verify", "Share", "Join", "Track progress"],
     phoneLabel: "Mobile number",
     phoneHint: "Enter a 10-digit Indian mobile number.",
-    phoneIncomplete: "Complete 10 digits to request an OTP.",
+    phoneIncomplete: "Complete 10 digits to request a verification code.",
     phoneInvalid: "Enter a valid Indian mobile beginning with 6, 7, 8 or 9.",
     heroFallbackLabel: "Approved campaign hero artwork will be added here",
     privacyFooter: "Your data is kept secure and confidential.",
@@ -237,7 +237,7 @@ const gauSammanCopy: Record<Language, PublicCampaignPresentationCopy> = {
     secondaryActionHint: "ଅଭିଯାନକୁ ଆଗକୁ ବଢ଼ାନ୍ତୁ",
     participationTitle: "ଆପଣଙ୍କ ସମର୍ଥନ ଯୋଡ଼ନ୍ତୁ",
     participationTime: "ମାତ୍ର ୬୦ ସେକେଣ୍ଡରେ ଯୋଗ ଦିଅନ୍ତୁ",
-    verifiedParticipation: "OTP ସତ୍ୟାପିତ ଅଂଶଗ୍ରହଣ",
+    verifiedParticipation: "ସ୍କ୍ରିନ୍ ଯାଞ୍ଚିତ ଅଂଶଗ୍ରହଣ",
     privacyRespect: "ଗୋପନୀୟତା ସୁରକ୍ଷିତ",
     transparentCampaign: "ପାରଦର୍ଶୀ ଅଭିଯାନ",
     publicCollaboration: "ଜନ ସହଯୋଗ",
@@ -248,7 +248,7 @@ const gauSammanCopy: Record<Language, PublicCampaignPresentationCopy> = {
     journeySteps: ["ସମର୍ଥନ ଦିଅନ୍ତୁ", "ସତ୍ୟାପନ", "ସେୟାର", "ଯୋଗ ଦିଅନ୍ତୁ", "ପ୍ରଗତି ଦେଖନ୍ତୁ"],
     phoneLabel: "ମୋବାଇଲ ନମ୍ବର",
     phoneHint: "୧୦ ଅଙ୍କର ଭାରତୀୟ ମୋବାଇଲ ନମ୍ବର ଲେଖନ୍ତୁ।",
-    phoneIncomplete: "OTP ପାଇବାକୁ ୧୦ଟି ଅଙ୍କ ପୂରଣ କରନ୍ତୁ।",
+    phoneIncomplete: "ଯାଞ୍ଚ କୋଡ୍ ପାଇବାକୁ ୧୦ଟି ଅଙ୍କ ପୂରଣ କରନ୍ତୁ।",
     phoneInvalid: "୬, ୭, ୮ କିମ୍ବା ୯ ରୁ ଆରମ୍ଭ ହେଉଥିବା ବୈଧ ଭାରତୀୟ ମୋବାଇଲ ଲେଖନ୍ତୁ।",
     heroFallbackLabel: "ଅନୁମୋଦିତ ଅଭିଯାନ ମୁଖ୍ୟ ଚିତ୍ର ଏଠାରେ ଯୋଡ଼ାଯିବ",
     privacyFooter: "ଆପଣଙ୍କ ତଥ୍ୟ ସୁରକ୍ଷିତ ଓ ଗୋପନୀୟ ରଖାଯାଏ।",
@@ -371,26 +371,26 @@ export function normalizeIndianMobileInput(rawValue: string): IndianMobileInputS
   };
 }
 
-const PRODUCTION_OTP_HOSTS = new Set([
+const SCREEN_OTP_HOSTS = new Set([
   "gaumata.cloud",
   "www.gaumata.cloud",
   "voiceup.live",
   "www.voiceup.live"
 ]);
 
-export function canDisplayDevelopmentOtp(input: {
+export function canDisplayScreenOtp(input: {
   hostname: string;
   isDevelopment: boolean;
   explicitTestDisplayEnabled: boolean;
 }): boolean {
   const hostname = input.hostname.trim().toLowerCase().replace(/\.$/, "");
-  if (PRODUCTION_OTP_HOSTS.has(hostname)) return false;
-  const isPreviewOrLocalhost =
+  const isApprovedHost =
+    SCREEN_OTP_HOSTS.has(hostname) ||
     hostname.endsWith(".vercel.app") ||
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
     hostname === "[::1]";
-  return input.explicitTestDisplayEnabled && (input.isDevelopment || isPreviewOrLocalhost);
+  return input.explicitTestDisplayEnabled && (input.isDevelopment || isApprovedHost);
 }
 
 export function getSafeOtpDisplayMessage(
@@ -404,7 +404,7 @@ export function getSafeOtpDisplayMessage(
 ): string {
   const containsOtpValue = /\b(?:otp|code)\s*[:=-]\s*\d{4,8}\b/i.test(message);
   if (!containsOtpValue) return message;
-  return canDisplayDevelopmentOtp(input) ? message : input.neutralMessage;
+  return canDisplayScreenOtp(input) ? message : input.neutralMessage;
 }
 
 export interface PublicMetricInput {

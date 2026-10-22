@@ -145,6 +145,34 @@ Deno.serve(async (req) => {
       p_resource_slug: scope.campaignSlug
     };
 
+    if (request.action === "read_campaign_location_hierarchy") {
+      const parsedParent = request.parentPath && typeof request.parentPath === "object"
+        ? parsePath(request.parentPath)
+        : null;
+      if (!parsedParent) return error("validation_failed");
+      const result = await rpc(admin, "read_campaign_location_hierarchy_v2", {
+        ...base,
+        p_parent_path: parsedParent.normalizedPath,
+        p_limit: 1000
+      });
+      if (result.code !== "ok") return error(String(result.code));
+      return jsonResponse({
+        locations: result.locations ?? [],
+        total: result.total ?? 0,
+        childLevel: result.childLevel,
+        configurationVersion: result.configurationVersion ?? 0
+      });
+    }
+
+    if (request.action === "read_campaign_location_summary") {
+      const result = await rpc(admin, "read_campaign_location_summary_v2", base);
+      if (result.code !== "ok") return error(String(result.code));
+      return jsonResponse({
+        summary: result.summary,
+        configurationVersion: result.configurationVersion ?? 0
+      });
+    }
+
     if (request.action === "read_campaign_locations") {
       const active = typeof request.active === "boolean" ? request.active : true;
       const requestedLimit = pagination(request.limit, 500);
@@ -166,7 +194,7 @@ Deno.serve(async (req) => {
       let locationsQuery = admin
         .from("vboss_resource_location_paths")
         .select(
-          "id,country,state,district,block,panchayat,village,postalCode:postal_code,leafLevel:leaf_level,source,active,version,createdAt:created_at,updatedAt:updated_at",
+          "id,country,state,district,block,panchayat,village,postalCode:postal_code,locationReference:location_reference,leafLevel:leaf_level,source,active,version,createdAt:created_at,updatedAt:updated_at",
           { count: "exact" }
         )
         .eq("workspace_id", scope.workspaceId)

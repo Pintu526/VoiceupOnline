@@ -21,7 +21,7 @@ import type {
   ScanReviewItem,
   Signer
 } from "./types";
-import type { LocationDeletions, LocationOverrides } from "./geography";
+import type { LocationDeletions, LocationOverrideReferences, LocationOverrides } from "./geography";
 import type {
   CoordinatorDraft,
   CoordinatorNetworkSnapshot,
@@ -42,6 +42,9 @@ import {
   type WorkspaceResourceAssignmentStatus
 } from "./authorization/workspaceAccess";
 import { readPublicSigningBackendError } from "./publicSigningJourney";
+import type { LocationBrowserCatalogRequest } from "./businessOs/location/browser/LocationBrowserCatalogContract.ts";
+import { selectAuthorizedLocationCatalogWorkspace } from "./businessOs/location/browser/WorkspaceCatalogAuthorization.ts";
+import { createUnverifiedLocationReference } from "./businessOs/location/persistence/LocationReferenceGovernance.ts";
 
 export interface VoiceupRemoteState {
   campaigns: Campaign[];
@@ -51,6 +54,7 @@ export interface VoiceupRemoteState {
   activeCampaignId?: string;
   scanItems: ScanReviewItem[];
   locationOverrides: LocationOverrides;
+  locationOverrideReferences?: LocationOverrideReferences;
   locationDeletions: LocationDeletions;
   auditLogs?: AuditLogEntry[];
   integrations?: IntegrationSettings;
@@ -64,6 +68,17 @@ export interface VoiceupAccessContext {
   role: string;
   email: string;
   workspaceId: string;
+}
+
+export class WorkspaceSaveError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly code?: string
+  ) {
+    super(message);
+    this.name = "WorkspaceSaveError";
+  }
 }
 
 export interface PublicCampaignPayload {
@@ -131,6 +146,7 @@ export interface CampaignLocationPath {
   panchayat?: string;
   village?: string;
   postalCode?: string;
+  locationReference?: import("./businessOs/location/persistence/PersistedLocationReference.ts").PersistedLocationReference | null;
 }
 
 export interface CampaignLocationRecord extends CampaignLocationPath {
@@ -147,6 +163,39 @@ export interface CampaignLocationScope {
   workspaceId: string;
   campaignId: string;
   campaignSlug: string;
+}
+
+/** A database-aggregated campaign policy path. It is not a canonical identity. */
+export interface CampaignLocationHierarchyEntry extends CampaignLocationPath {
+  leafLevel: CampaignLocationLeafLevel;
+  verificationStatus: "unverified_custom";
+  canonicalNodeId: null;
+  officialCode: null;
+}
+
+export interface CampaignLocationSummary {
+  active: number;
+  inactive: number;
+  configuredRows?: { active: number; inactive: number };
+  levelsRepresented: number;
+  coverage: {
+    states: number;
+    districts: number;
+    blocks: number;
+    panchayats: number;
+    villages: number;
+    pins: number;
+  };
+  distinctValues?: {
+    states: number;
+    districts: number;
+    blocks: number;
+    panchayats: number;
+    villages: number;
+    pins: number;
+  };
+  coverageSemantics?: "distinct_normalized_ancestry_paths";
+  configurationVersion: number;
 }
 
 export class CampaignLocationApiError extends Error {
@@ -181,12 +230,16 @@ export interface OtpRequestResult {
   resendAfterSeconds: number;
   message: string;
   otp?: string;
+  screenOtp?: string;
+  verificationMethod?: "phone_otp" | "screen_otp";
   developmentOtp?: string;
 }
 
 export interface OtpVerifyResult {
   verified: boolean;
   verificationToken: string;
+  verificationMethod?: "phone_otp" | "screen_otp";
+  phoneOwnershipVerified?: boolean;
   customerSessionToken?: string;
   workspaceId?: string;
   message: string;
@@ -265,6 +318,27 @@ const customerWorkspaceKey = "voiceup-customer-workspace-v1";
 export const isBackendConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
 const supabase = isBackendConfigured ? createClient(supabaseUrl!, supabaseAnonKey!) : null;
+
+let passwordRecoveryUserId = "";
+const passwordRecoveryWaiters = new Set<(ready: boolean) => void>();
+
+function setPasswordRecoverySession(userId: string): void {
+  passwordRecoveryUserId = userId;
+  for (const waiter of passwordRecoveryWaiters) waiter(Boolean(userId));
+  passwordRecoveryWaiters.clear();
+}
+
+// Capture the one event that proves the current browser session came from a genuine
+// Supabase recovery link. A normal SIGNED_IN or restored session never opens the reset gate.
+if (supabase) {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY" && session?.user?.id) {
+      setPasswordRecoverySession(session.user.id);
+    } else if (event === "SIGNED_OUT") {
+      setPasswordRecoverySession("");
+    }
+  });
+}
 
 export const isSupabaseAuthAvailable = Boolean(supabase);
 export const isSupabaseStorageAvailable = Boolean(supabase);
@@ -600,7 +674,7 @@ async function resolveWorkspaceMembershipContext(userId: string): Promise<Worksp
   return {
     workspaceId: workspaceMembership?.workspace_id ?? "",
     workspaceMember: Boolean(workspaceMembership?.workspace_id),
-    platformAdmin: role === "platform_owner",
+    platformAdmin: orgRole === "platform_owner" || workspaceRole === "platform_owner",
     role
   };
 }
@@ -616,6 +690,76 @@ async function resolveWorkspaceId(): Promise<string | null> {
   }
 
   return readWorkspaceId();
+}
+
+async function resolveLocationCatalogWorkspaceId(requestedWorkspaceId: string): Promise<string | null> {
+  const requested = requestedWorkspaceId.trim();
+  if (!requested) return null;
+  if (!supabase) return requested === readWorkspaceId() ? requested : null;
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const user = userError ? null : userData.user;
+  if (!user) return null;
+
+  const membership = await resolveWorkspaceMembershipContext(user.id);
+  return selectAuthorizedLocationCatalogWorkspace(requested, membership);
+}
+
+/**
+ * Authenticated workspace transport for the canonical browser catalog.
+ * Ordinary callers are pinned to their active workspace membership. A trusted
+ * platform owner may request the selected workspace; the Edge function repeats
+ * the platform/workspace authorization before returning canonical data.
+ */
+export async function invokeWorkspaceLocationCatalog(
+  request: LocationBrowserCatalogRequest
+): Promise<unknown> {
+  const client = requireSupabase();
+  const requestedWorkspaceId = request.access.type === "workspace"
+    ? request.access.workspaceId
+    : "";
+  const workspaceId = await resolveLocationCatalogWorkspaceId(requestedWorkspaceId);
+  if (!workspaceId) {
+    throw new Error("Authenticated user is not authorized for this workspace.");
+  }
+  const { data, error } = await client.functions.invoke(
+    "voiceup-location-catalog-v1",
+    {
+      body: {
+        ...request,
+        access: { type: "workspace", workspaceId }
+      }
+    }
+  );
+  if (error) throw new Error("Canonical location catalog could not be loaded.");
+  return data;
+}
+
+/**
+ * Public, read-only transport for C11. The gateway re-resolves this slug to an
+ * actually published campaign on every request; no browser session or server
+ * Location API credential is accepted from the caller.
+ */
+export async function invokePublicCampaignLocationCatalog(
+  request: LocationBrowserCatalogRequest
+): Promise<unknown> {
+  const campaignSlug = request.access.type === "public_campaign"
+    ? request.access.campaignSlug.trim()
+    : "";
+  if (!campaignSlug) throw new Error("Published campaign access is required.");
+
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke(
+    "voiceup-location-catalog-v1",
+    {
+      body: {
+        ...request,
+        access: { type: "public_campaign", campaignSlug }
+      }
+    }
+  );
+  if (error) throw new Error("Canonical location catalog could not be loaded.");
+  return data;
 }
 
 export function clearCustomerSessionToken(): void {
@@ -987,6 +1131,60 @@ export async function signInWithSupabase(email: string, password: string) {
   return data.user;
 }
 
+export async function requestSaasAdminPasswordRecovery(email: string): Promise<void> {
+  const client = requireSupabase();
+  const redirectTo = new URL("/admin/reset-password", window.location.origin).toString();
+  const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw new Error("password_recovery_request_failed");
+}
+
+export async function waitForPasswordRecoverySession(): Promise<boolean> {
+  if (!supabase) return false;
+  if (passwordRecoveryUserId) return true;
+
+  // getSession waits for the client's URL initialization. The recovery event is then
+  // delivered asynchronously; retain a short bounded wait without accepting the session
+  // itself as proof, because an ordinary signed-in session is not a recovery grant.
+  const { error } = await supabase.auth.getSession();
+  if (error) return false;
+  if (passwordRecoveryUserId) return true;
+
+  return await new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (ready: boolean) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      passwordRecoveryWaiters.delete(finish);
+      resolve(ready);
+    };
+    const timeoutId = window.setTimeout(() => finish(false), 2_000);
+    passwordRecoveryWaiters.add(finish);
+    if (passwordRecoveryUserId) finish(true);
+  });
+}
+
+export async function updatePasswordFromRecovery(newPassword: string): Promise<void> {
+  if (!supabase || !passwordRecoveryUserId) {
+    throw new Error("recovery_session_invalid");
+  }
+
+  const recoveryUserId = passwordRecoveryUserId;
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (
+    sessionError
+    || !sessionData.session?.user?.id
+    || sessionData.session.user.id !== recoveryUserId
+  ) {
+    setPasswordRecoverySession("");
+    throw new Error("recovery_session_invalid");
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw new Error("password_update_failed");
+  setPasswordRecoverySession("");
+}
+
 export async function signOutSupabase() {
   if (!supabase) return;
   await supabase.auth.signOut();
@@ -1007,7 +1205,47 @@ export async function saveRemoteState(state: VoiceupRemoteState) {
   if (!workspaceId) {
     throw new Error("Authenticated user does not have a workspace membership.");
   }
-  await saveWorkspaceState(workspaceId, state);
+
+  const client = requireSupabase();
+  const snapshot = await readWorkspaceSnapshotById(workspaceId);
+  const baseline = workspaceSaveBaselines.get(workspaceId);
+  const baseState = (baseline?.serverState as VoiceupRemoteState | undefined) ?? snapshot.state ?? {};
+  const expectedUpdatedAt = baseline?.updatedAt ?? snapshot.updatedAt;
+
+  const { data, error, response } = await client.functions.invoke<{
+    ok?: boolean;
+    state?: VoiceupRemoteState;
+    updatedAt?: string | null;
+    error?: string;
+    code?: string;
+  }>("voiceup-workspace-state", {
+    body: {
+      workspaceId,
+      action: "save",
+      state,
+      baseState,
+      expectedUpdatedAt,
+      customerSessionToken: readCustomerSessionToken()
+    }
+  });
+
+  if (error) {
+    const body = await readPublicSigningBackendError(response);
+    const fallback = error instanceof Error ? error.message : "Workspace save failed.";
+    throw new WorkspaceSaveError(body?.message ?? fallback, response?.status, body?.code);
+  }
+  if (data?.error) {
+    throw new WorkspaceSaveError(data.error, response?.status, data.code);
+  }
+  if (!data?.ok || !data.state) {
+    throw new Error("Workspace save response was incomplete.");
+  }
+
+  workspaceSaveBaselines.set(workspaceId, {
+    serverState: data.state,
+    clientState: state,
+    updatedAt: data.updatedAt ?? expectedUpdatedAt
+  });
 }
 
 export async function approveScanReviewItem(
@@ -1103,7 +1341,7 @@ export async function loadCoordinatorNetwork(): Promise<CoordinatorNetworkSnapsh
   const client = requireSupabase();
   const workspaceId = await resolveWorkspaceId();
   if (!workspaceId) throw new Error("Authenticated workspace access is required.");
-  const { data, error } = await client.rpc("get_voiceup_coordinator_network", {
+  const { data, error } = await client.rpc("get_voiceup_coordinator_network_with_location", {
     p_workspace_id: workspaceId
   });
   if (error || !data) throw new Error(error?.message || "Coordinator network could not be loaded.");
@@ -1185,7 +1423,7 @@ export async function saveCoordinator(
 ): Promise<{ id: string; referralCode: string; version: number }> {
   const client = requireSupabase();
   const { geography, campaignIds, ...coordinator } = draft;
-  const { data, error } = await client.rpc("upsert_voiceup_coordinator", {
+  const { data, error } = await client.rpc("upsert_voiceup_coordinator_with_location", {
     p_workspace_id: workspaceId,
     p_coordinator: coordinator,
     p_geography: geographyForRole(geography, draft.role),
@@ -1274,7 +1512,8 @@ export async function loadPublicCampaignJourney(referralCode: string): Promise<P
 }
 
 type CampaignLocationFunctionResponse = {
-  locations?: CampaignLocationRecord[];
+  locations?: Array<CampaignLocationRecord | CampaignLocationHierarchyEntry>;
+  summary?: Omit<CampaignLocationSummary, "configurationVersion">;
   total?: number;
   limit?: number;
   offset?: number;
@@ -1315,12 +1554,73 @@ export async function readCampaignLocations(
     ...options
   });
   return {
-    locations: response.locations ?? [],
+    locations: (response.locations ?? []) as CampaignLocationRecord[],
     total: response.total ?? 0,
     limit: response.limit ?? 500,
     offset: response.offset ?? 0,
     hasMore: response.hasMore ?? false,
     nextOffset: response.nextOffset ?? null,
+    configurationVersion: response.configurationVersion ?? 0
+  };
+}
+
+export async function readPublicCampaignLocationHierarchy(
+  campaignSlug: string,
+  parentPath: Partial<CampaignLocationPath>
+): Promise<{
+  locations: CampaignLocationHierarchyEntry[];
+  total: number;
+  configurationVersion: number;
+}> {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke<CampaignLocationFunctionResponse>(
+    "voiceup-public-campaign",
+    {
+      body: {
+        action: "read_campaign_location_hierarchy",
+        slug: campaignSlug,
+        parentPath
+      }
+    }
+  );
+  if (error || data?.error) throw new CampaignLocationApiError(data?.error || "server_error");
+  return {
+    locations: (data?.locations ?? []) as CampaignLocationHierarchyEntry[],
+    total: data?.total ?? 0,
+    configurationVersion: data?.configurationVersion ?? 0
+  };
+}
+
+export async function readCampaignLocationHierarchy(
+  scope: CampaignLocationScope,
+  parentPath: Partial<CampaignLocationPath>
+): Promise<{
+  locations: CampaignLocationHierarchyEntry[];
+  total: number;
+  configurationVersion: number;
+}> {
+  const response = await invokeCampaignLocationApi({
+    action: "read_campaign_location_hierarchy",
+    ...scope,
+    parentPath
+  });
+  return {
+    locations: (response.locations ?? []) as CampaignLocationHierarchyEntry[],
+    total: response.total ?? 0,
+    configurationVersion: response.configurationVersion ?? 0
+  };
+}
+
+export async function readCampaignLocationSummary(
+  scope: CampaignLocationScope
+): Promise<CampaignLocationSummary> {
+  const response = await invokeCampaignLocationApi({
+    action: "read_campaign_location_summary",
+    ...scope
+  });
+  if (!response.summary) throw new CampaignLocationApiError("server_error");
+  return {
+    ...response.summary,
     configurationVersion: response.configurationVersion ?? 0
   };
 }
@@ -1426,6 +1726,7 @@ export async function requestOtp(
       resendAfterSeconds?: number;
       message?: string;
       otp?: string;
+      verificationMethod?: "phone_otp" | "screen_otp";
       error?: string;
       code?: string;
     }>("voiceup-otp", {
@@ -1454,8 +1755,16 @@ export async function requestOtp(
       resendAfterSeconds: data.resendAfterSeconds ?? 30,
       message: data.message ?? "Verification code sent.",
       otp: returnedOtp,
-      developmentOtp: returnedOtp
+      screenOtp: data.verificationMethod === "screen_otp" ? returnedOtp : undefined,
+      verificationMethod: data.verificationMethod,
+      developmentOtp: data.verificationMethod === "screen_otp" ? undefined : returnedOtp
     };
+  }
+  if (purpose === "public-signing") {
+    throw new PublicSignatureSubmissionError(
+      "Verification service is temporarily unavailable. Please retry.",
+      "server_error"
+    );
   }
   if (!import.meta.env.DEV) {
     throw new PublicSignatureSubmissionError(
@@ -1498,6 +1807,8 @@ export async function verifyOtp(
     const { data, error, response } = await supabase.functions.invoke<{
       verified?: boolean;
       verificationToken?: string;
+      verificationMethod?: "phone_otp" | "screen_otp";
+      phoneOwnershipVerified?: boolean;
       message?: string;
       error?: string;
       code?: string;
@@ -1525,8 +1836,16 @@ export async function verifyOtp(
     return {
       verified: true,
       verificationToken: data.verificationToken,
-      message: data.message ?? "Phone number verified."
+      verificationMethod: data.verificationMethod,
+      phoneOwnershipVerified: data.phoneOwnershipVerified,
+      message: data.message ?? "Verification complete."
     };
+  }
+  if (purpose === "public-signing") {
+    throw new PublicSignatureSubmissionError(
+      "Verification service is temporarily unavailable. Please retry.",
+      "server_error"
+    );
   }
   const challenges = readLocalOtpChallenges().filter((item) => item.expiresAt > Date.now());
   const challenge = challenges.find(
@@ -1549,7 +1868,9 @@ export async function verifyOtp(
   const result: OtpVerifyResult = {
     verified: true,
     verificationToken: createSecureToken("otpv"),
-    message: metadata && Object.keys(metadata).length >= 0 ? "Phone number verified." : "Phone number verified."
+    verificationMethod: "phone_otp",
+    phoneOwnershipVerified: true,
+    message: metadata && Object.keys(metadata).length >= 0 ? "Verification complete." : "Verification complete."
   };
   return result;
 }
@@ -1641,6 +1962,10 @@ export async function createTrialWorkspace(payload: unknown): Promise<{
     panchayat: "",
     location: country,
     postalCode: "",
+    locationReference: createUnverifiedLocationReference(
+      { country },
+      "onboarding_country"
+    ),
     startDate: new Date().toISOString().slice(0, 10),
     endDate: addDaysIso(30),
     goal,
@@ -1677,6 +2002,7 @@ export async function createTrialWorkspace(payload: unknown): Promise<{
     organization,
     scanItems: [],
     locationOverrides: {},
+    locationOverrideReferences: {},
     locationDeletions: { districts: [], blocks: [], panchayats: [] },
     auditLogs: [
       {

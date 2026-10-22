@@ -17,7 +17,9 @@ import {
   ShieldCheck,
   Smartphone,
   UserRound,
-  Users
+  Users,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import type {
   AuthorityRule,
@@ -32,11 +34,10 @@ import type {
 import { getConfiguredGrowthShareMessages } from "../growth/configuration";
 import type { GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
 import type { SupporterGrowthPortalModel } from "../growth/tree";
-import {
-  indiaGeographyService,
-  type LocationDeletions,
-  type LocationOverrides,
-  type LocationWithPin
+import type {
+  LocationDeletions,
+  LocationOverrides,
+  LocationWithPin
 } from "../geography";
 import type { getCampaignMetrics } from "../lib";
 import { Panel } from "../ui/Panel";
@@ -44,6 +45,7 @@ import { Field } from "../ui/Field";
 import { DonationCard } from "../components/DonationCard";
 import { IndiaLocationFields } from "../components/IndiaLocationFields";
 import { resolveIndiaLocationCatalog } from "../components/indiaLocationOptions";
+import { usePublicCampaignLocationCatalog } from "../components/usePublicCampaignLocationCatalog";
 import { GlobalLocationFields } from "../components/GlobalLocationFields";
 import { ReferralQrPreview } from "../components/ReferralQrPreview";
 import { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";
@@ -52,6 +54,12 @@ import {
   BrowserGPSAdapter,
   type GPSAdapter
 } from "../businessOs/geography/index.ts";
+import { PublicCampaignCanonicalLocationDisplay } from "../businessOs/location/ui";
+import {
+  createObservedLocationReference,
+  createUnverifiedLocationReference
+} from "../businessOs/location/persistence/LocationReferenceGovernance.ts";
+import type { PersistedLocationReference } from "../businessOs/location/persistence/PersistedLocationReference.ts";
 import {
   PublicSupporterPhoto,
   type PublicSupporterPhotoCopy
@@ -103,6 +111,7 @@ import {
   clearPublicSigningJourney,
   clearPublicSigningOtpState,
   getPublicSigningJourneyStorageKey,
+  isValidPublicSignerEmail,
   readPublicSigningDraft,
   writePublicSigningDraft
 } from "../publicSigningJourney";
@@ -115,7 +124,10 @@ import {
   participationRequestFingerprint
 } from "../movementRequests";
 import "../publicSigningExperience.css";
-import type { PublicCampaignCustomLocation } from "../backend";
+import {
+  invokePublicCampaignLocationCatalog,
+  type PublicCampaignCustomLocation
+} from "../backend";
 
 interface PublicCampaignPageProps {
   campaign: Campaign;
@@ -232,7 +244,7 @@ function getYouTubeEmbedUrl(value: string): string {
 const publicSigningCopyEn = {
   steps: {
     phone: "Phone",
-    otp: "OTP",
+    otp: "Verify",
     profile: "Profile",
     address: "Details",
     review: "Review",
@@ -251,11 +263,15 @@ const publicSigningCopyEn = {
   viewSignature: "View signature",
   referFriends: "Refer friends",
   phoneTitle: "Start with your phone",
-  phoneHelp: "OTP keeps signatures credible and protects the campaign from spam.",
-  otpTitle: "Verify OTP",
-  otpHelp: "Enter the code sent to your phone.",
-  resendOtp: "Resend OTP",
-  phoneVerified: "Phone verified",
+  phoneHelp: "A six-digit code will appear on the next screen to protect this signing journey from automated submissions.",
+  requestVerification: "Continue to verification",
+  otpTitle: "Complete verification",
+  otpHelp: "Enter the code shown below. This verifies the signing journey, not ownership of the mobile number.",
+  verifyCode: "Verify",
+  verificationProtected: "Verification-protected participation",
+  resendOtp: "Get a new code",
+  phoneVerified: "Verification complete",
+  verificationCompleteBody: "Signing verification is complete. Mobile number and email ownership were not verified.",
   profileTitle: "Your signature profile",
   profileHelp: "Enter the required signer details.",
   emailLabel: "Email",
@@ -302,7 +318,7 @@ const publicSigningCopy: Record<Language, typeof publicSigningCopyEn> = {
   hi: {
     steps: {
       phone: "फोन",
-      otp: "OTP",
+      otp: "सत्यापन",
       profile: "प्रोफाइल",
       address: "विवरण",
       review: "समीक्षा",
@@ -321,11 +337,15 @@ const publicSigningCopy: Record<Language, typeof publicSigningCopyEn> = {
     viewSignature: "हस्ताक्षर देखें",
     referFriends: "मित्रों को भेजें",
     phoneTitle: "अपने फोन से शुरू करें",
-    phoneHelp: "OTP हस्ताक्षरों को विश्वसनीय रखता है और अभियान को स्पैम से बचाता है।",
-    otpTitle: "OTP सत्यापित करें",
-    otpHelp: "अपने फोन पर भेजा गया कोड दर्ज करें।",
-    resendOtp: "OTP फिर भेजें",
-    phoneVerified: "फोन सत्यापित",
+    phoneHelp: "स्वचालित प्रस्तुतियों से बचाने के लिए अगली स्क्रीन पर छह अंकों का कोड दिखेगा।",
+    requestVerification: "सत्यापन के लिए आगे बढ़ें",
+    otpTitle: "सत्यापन पूरा करें",
+    otpHelp: "नीचे दिखाया गया कोड दर्ज करें। यह हस्ताक्षर यात्रा को सत्यापित करता है, मोबाइल नंबर के स्वामित्व को नहीं।",
+    verifyCode: "सत्यापित करें",
+    verificationProtected: "सत्यापन-सुरक्षित भागीदारी",
+    resendOtp: "नया कोड लें",
+    phoneVerified: "सत्यापन पूरा हुआ",
+    verificationCompleteBody: "हस्ताक्षर सत्यापन पूरा हुआ। मोबाइल नंबर और ईमेल के स्वामित्व का सत्यापन नहीं किया गया।",
     profileTitle: "आपका हस्ताक्षर प्रोफाइल",
     profileHelp: "जरूरी समर्थक विवरण दर्ज करें।",
     emailLabel: "ईमेल",
@@ -369,7 +389,7 @@ const publicSigningCopy: Record<Language, typeof publicSigningCopyEn> = {
   or: {
     steps: {
       phone: "ଫୋନ",
-      otp: "OTP",
+      otp: "ଯାଞ୍ଚ",
       profile: "ପ୍ରୋଫାଇଲ",
       address: "ବିବରଣୀ",
       review: "ସମୀକ୍ଷା",
@@ -388,11 +408,15 @@ const publicSigningCopy: Record<Language, typeof publicSigningCopyEn> = {
     viewSignature: "ସହି ଦେଖନ୍ତୁ",
     referFriends: "ମିତ୍ରଙ୍କୁ ପଠାନ୍ତୁ",
     phoneTitle: "ଆପଣଙ୍କ ଫୋନରୁ ଆରମ୍ଭ କରନ୍ତୁ",
-    phoneHelp: "OTP ସହିକୁ ବିଶ୍ୱସନୀୟ ରଖେ ଏବଂ ଅଭିଯାନକୁ ସ୍ପାମରୁ ସୁରକ୍ଷା କରେ।",
-    otpTitle: "OTP ସତ୍ୟାପିତ କରନ୍ତୁ",
-    otpHelp: "ଆପଣଙ୍କ ଫୋନକୁ ପଠାଯାଇଥିବା କୋଡ୍ ଦିଅନ୍ତୁ।",
-    resendOtp: "OTP ପୁନଃ ପଠାନ୍ତୁ",
-    phoneVerified: "ଫୋନ ସତ୍ୟାପିତ",
+    phoneHelp: "ସ୍ୱୟଂଚାଳିତ ଦାଖଲକୁ ରୋକିବା ପାଇଁ ପରବର୍ତ୍ତୀ ସ୍କ୍ରିନରେ ଛଅ ଅଙ୍କର କୋଡ୍ ଦେଖାଯିବ।",
+    requestVerification: "ଯାଞ୍ଚ ପାଇଁ ଆଗକୁ ବଢ଼ନ୍ତୁ",
+    otpTitle: "ଯାଞ୍ଚ ସମ୍ପୂର୍ଣ୍ଣ କରନ୍ତୁ",
+    otpHelp: "ତଳେ ଦେଖାଯାଇଥିବା କୋଡ୍ ଦିଅନ୍ତୁ। ଏହା ସହି ପ୍ରକ୍ରିୟାକୁ ଯାଞ୍ଚ କରେ, ମୋବାଇଲ ନମ୍ବର ମାଲିକାନାକୁ ନୁହେଁ।",
+    verifyCode: "ଯାଞ୍ଚ କରନ୍ତୁ",
+    verificationProtected: "ଯାଞ୍ଚ-ସୁରକ୍ଷିତ ଅଂଶଗ୍ରହଣ",
+    resendOtp: "ନୂଆ କୋଡ୍ ନିଅନ୍ତୁ",
+    phoneVerified: "ଯାଞ୍ଚ ସମ୍ପୂର୍ଣ୍ଣ",
+    verificationCompleteBody: "ସହି ଯାଞ୍ଚ ସମ୍ପୂର୍ଣ୍ଣ ହୋଇଛି। ମୋବାଇଲ ନମ୍ବର ଓ ଇମେଲ୍ ମାଲିକାନା ଯାଞ୍ଚ ହୋଇନାହିଁ।",
     profileTitle: "ଆପଣଙ୍କ ସହି ପ୍ରୋଫାଇଲ",
     profileHelp: "ଆବଶ୍ୟକ ସମର୍ଥକ ବିବରଣୀ ଦିଅନ୍ତୁ।",
     emailLabel: "ଇମେଲ",
@@ -749,9 +773,13 @@ export function PublicCampaignPage({
   const lockedLocationParts = formatLocationForCampaign(campaign, lockedLocation).split(", ").filter(Boolean);
   const publicIndiaAllowedLocation = lockedLocation.state?.trim() ? lockedLocation : undefined;
   const campaignCustomLocations = (campaign as Campaign & { customLocations?: unknown }).customLocations;
+  const publicCampaignLocationCatalog = usePublicCampaignLocationCatalog(campaign.slug, publicLocationForm);
   const signerLocationCatalog = useMemo(
-    () => resolveIndiaLocationCatalog(customLocations, campaignCustomLocations),
-    [campaignCustomLocations, customLocations]
+    () => resolveIndiaLocationCatalog(
+      [...customLocations, ...publicCampaignLocationCatalog.locations],
+      campaignCustomLocations
+    ),
+    [campaignCustomLocations, customLocations, publicCampaignLocationCatalog.locations]
   );
   const requiredFields = campaign.requiredFields ?? [];
   const copy = publicSigningCopy[language];
@@ -764,27 +792,6 @@ export function PublicCampaignPage({
   const locationSectionHelp = isGoudhanExperience
     ? t("goudhanCampaign.locationHelp")
     : experienceCopy.locationHelp;
-  const structuredLocationPath = useMemo(() => {
-    const country = publicLocationForm.country || campaign.country || (isGlobalMode ? "" : "India");
-    if (country && !["india", "in"].includes(country.trim().toLowerCase())) return [];
-    return indiaGeographyService.resolveSuggestedHierarchy("IN", {
-      country: country || "India",
-      state: publicLocationForm.state,
-      district: publicLocationForm.district,
-      block: publicLocationForm.block,
-      panchayat: publicLocationForm.panchayat,
-      postalCode: publicLocationForm.postalCode
-    });
-  }, [
-    campaign.country,
-    isGlobalMode,
-    publicLocationForm.block,
-    publicLocationForm.country,
-    publicLocationForm.district,
-    publicLocationForm.panchayat,
-    publicLocationForm.postalCode,
-    publicLocationForm.state
-  ]);
   const displayPublicMessage =
     publicMessage === "consent_required" ? t("public.consentRequiredInline") : publicMessage;
   const publicMessageIsError =
@@ -799,6 +806,55 @@ export function PublicCampaignPage({
     safeOtpMessage.trim() !== copy.otpHelp.trim() && isPublicFailureMessage(safeOtpMessage);
   const signerFieldLabel = (label: string, field: SignerRequiredField) =>
     requiredFields.includes(field) ? `${label} *` : label;
+  const prefersReducedMotion = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }, []);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const mantraAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [monkpujaVideoIndex, setMonkpujaVideoIndex] = useState(0);
+  const monkpujaVideoSources = ["/assets/gemini_generated_video_4.mp4"] as const;
+  const [panchagavyaVideoIndex, setPanchagavyaVideoIndex] = useState(0);
+  const panchagavyaVideoSources = ["/assets/panchagabyavideo.mp4", "/assets/dhanlaxmi.mp4"] as const;
+
+  useEffect(() => {
+    const audio = mantraAudioRef.current;
+    if (!audio) return;
+
+    audio.src = "/assets/sri-surabhyai-namah.mp3";
+    audio.load();
+    audio.volume = 0.25;
+    audio.loop = true;
+    audio.muted = false;
+
+    void audio.play().then(() => {
+      setAudioEnabled(true);
+    }).catch(() => {
+      setAudioEnabled(false);
+    });
+  }, []);
+
+  const handleMantraToggle = async () => {
+    const audio = mantraAudioRef.current;
+    if (!audio) return;
+    if (audioEnabled) {
+      audio.pause();
+      audio.muted = false;
+      setAudioEnabled(false);
+      return;
+    }
+    try {
+      audio.volume = 0.25;
+      audio.loop = true;
+      audio.muted = false;
+      await audio.play();
+      setAudioEnabled(true);
+    } catch (error) {
+      console.warn("Unable to play mantra audio on demand:", error);
+      audio.pause();
+      setAudioEnabled(false);
+    }
+  };
   const publicUrl = getCampaignPublicUrl(organization, campaign);
   const incomingReferralCode = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -830,7 +886,12 @@ export function PublicCampaignPage({
       }
     : configuredShareMessages;
   const [copiedReferral, setCopiedReferral] = useState("");
-  const [wizardStep, setWizardStep] = useState<SigningStepId>(publicForm.otpVerified ? "profile" : "phone");
+  const [wizardStep, setWizardStep] = useState<SigningStepId>(
+    publicForm.otpVerified ||
+    (publicForm.verificationMethod === "screen_otp" && Boolean(publicForm.otpVerificationToken))
+      ? "profile"
+      : "phone"
+  );
   const [restoredDraftStorageKey, setRestoredDraftStorageKey] = useState("");
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -861,6 +922,8 @@ export function PublicCampaignPage({
     panchayat: "",
     postalCode: ""
   });
+  const [coordinatorLocationReference, setCoordinatorLocationReference] =
+    useState<PersistedLocationReference | null>(null);
   const [coordinatorWard, setCoordinatorWard] = useState("");
   const [coordinatorExperience, setCoordinatorExperience] = useState("");
   const [coordinatorMotivation, setCoordinatorMotivation] = useState("");
@@ -880,6 +943,10 @@ export function PublicCampaignPage({
   const movementRequestResultRef = useRef<HTMLHeadingElement>(null);
   const previousWizardStepRef = useRef<SigningStepId>(wizardStep);
   const hasSignedCampaign = lastSignedSigner?.campaignId === campaign.id;
+  const publicVerificationComplete = Boolean(
+    publicForm.otpVerificationToken &&
+    (publicForm.otpVerified || publicForm.verificationMethod === "screen_otp")
+  );
   const campaignGoal = getCampaignGoalValue(campaign);
   const configuredCampaignGoal =
     Number.isFinite(campaign.goal) && campaign.goal > 0 ? campaign.goal : null;
@@ -889,6 +956,7 @@ export function PublicCampaignPage({
   );
   const draftStorageKey = getPublicSigningJourneyStorageKey(signingCampaignScope);
   const isRequired = (field: SignerRequiredField) => requiredFields.includes(field);
+  const emailRequired = isRequired("email") || isGoudhanExperience;
   const locationRequired = requiredFields.some((field) =>
     ["country", "state", "district", "block", "panchayat", "postalCode"].includes(field)
   );
@@ -923,8 +991,8 @@ export function PublicCampaignPage({
     : Boolean(publicForm.phone.trim()) && !phoneNumberReady;
   const otpReady = /^\d{6}$/.test(otpInput.trim());
   const emailReady = publicForm.email.trim()
-    ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(publicForm.email.trim())
-    : !isRequired("email");
+    ? isValidPublicSignerEmail(publicForm.email)
+    : !emailRequired;
   const profileReady =
     (!isRequired("name") || Boolean(publicForm.name.trim())) && emailReady;
   const detailsReady = requiredFields
@@ -1171,7 +1239,16 @@ export function PublicCampaignPage({
         setPublicForm(
           applySignerLocationRestriction(
             campaign,
-            { ...publicForm, ...values, address: values.address ?? publicForm.address, country: "India" },
+            {
+              ...publicForm,
+              ...values,
+              address: values.address ?? publicForm.address,
+              country: "India",
+              locationReference: createUnverifiedLocationReference(
+                { ...values, country: "India" },
+                "public_signer_manual"
+              )
+            },
             organization
           )
         )
@@ -1184,13 +1261,27 @@ export function PublicCampaignPage({
       labelOverrides={copy.locationLabels}
       fixedCountry="India"
       customLocations={signerLocationCatalog}
+      catalogStatus={publicCampaignLocationCatalog.status}
+      onPinObservation={(values, postalCode) => setPublicForm((current) => ({
+        ...current,
+        ...values,
+        locationReference: createObservedLocationReference(
+          values,
+          "public_signer_pin",
+          [{ kind: "pin", valueSnapshot: postalCode }]
+        )
+      }))}
     />
   ) : isGlobalMode ? (
     <GlobalLocationFields
       idPrefix="public-signer-location"
       values={publicLocationForm}
       onChange={(values) =>
-        setPublicForm(applySignerLocationRestriction(campaign, { ...publicForm, ...values }, organization))
+        setPublicForm(applySignerLocationRestriction(campaign, {
+          ...publicForm,
+          ...values,
+          locationReference: createUnverifiedLocationReference(values, "public_signer_global_manual")
+        }, organization))
       }
       allowedLocation={lockedLocation}
       hiddenLockedLevel={signerRestrictionLevel}
@@ -1202,7 +1293,12 @@ export function PublicCampaignPage({
       idPrefix="public-signer-location"
       values={{ ...restrictedPublicForm, address: publicForm.address }}
       onChange={(values) =>
-        setPublicForm(applySignerLocationRestriction(campaign, { ...publicForm, ...values, address: values.address ?? publicForm.address }, organization))
+        setPublicForm(applySignerLocationRestriction(campaign, {
+          ...publicForm,
+          ...values,
+          address: values.address ?? publicForm.address,
+          locationReference: createUnverifiedLocationReference(values, "public_signer_manual")
+        }, organization))
       }
       locationOverrides={locationOverrides}
       locationDeletions={locationDeletions}
@@ -1211,6 +1307,16 @@ export function PublicCampaignPage({
       requiredFields={requiredFields}
       labelOverrides={copy.locationLabels}
       customLocations={signerLocationCatalog}
+      catalogStatus={publicCampaignLocationCatalog.status}
+      onPinObservation={(values, postalCode) => setPublicForm((current) => ({
+        ...current,
+        ...values,
+        locationReference: createObservedLocationReference(
+          values,
+          "public_signer_pin",
+          [{ kind: "pin", valueSnapshot: postalCode }]
+        )
+      }))}
     />
   );
 
@@ -1272,19 +1378,19 @@ export function PublicCampaignPage({
       setWizardStep("done");
       return;
     }
-    if (publicForm.otpVerified && (wizardStep === "phone" || wizardStep === "otp")) {
+    if (publicVerificationComplete && (wizardStep === "phone" || wizardStep === "otp")) {
       setWizardStep("profile");
       return;
     }
     if (
       !hasSignedCampaign &&
-      !publicForm.otpVerified &&
+      !publicVerificationComplete &&
       wizardStep !== "phone" &&
       wizardStep !== "otp"
     ) {
       setWizardStep("phone");
     }
-  }, [hasSignedCampaign, publicForm.otpVerified, wizardStep]);
+  }, [hasSignedCampaign, publicVerificationComplete, wizardStep]);
 
   useEffect(() => {
     if (previousWizardStepRef.current === wizardStep) return;
@@ -1364,7 +1470,8 @@ export function PublicCampaignPage({
         state: lastSignedSigner?.state || "",
         district: lastSignedSigner?.district || "",
         block: lastSignedSigner?.block || "",
-        panchayat: lastSignedSigner?.panchayat || ""
+        panchayat: lastSignedSigner?.panchayat || "",
+        locationReference: lastSignedSigner?.locationReference ?? null
       },
       skills: parseParticipationRequestList(volunteerSkills),
       areasOfInterest: parseParticipationRequestList(volunteerInterests),
@@ -1391,7 +1498,8 @@ export function PublicCampaignPage({
         district: coordinatorLocation.district,
         block: coordinatorLocation.block,
         panchayat: coordinatorLocation.panchayat,
-        ward: coordinatorWard.trim()
+        ward: coordinatorWard.trim(),
+        locationReference: coordinatorLocationReference
       },
       motivation: coordinatorMotivation.trim(),
       experience: coordinatorExperience.trim(),
@@ -1489,7 +1597,19 @@ export function PublicCampaignPage({
       setPublicForm(
         applySignerLocationRestriction(
           campaign,
-          { ...publicForm, ...assignmentPrefill },
+          {
+            ...publicForm,
+            ...assignmentPrefill,
+            locationReference: createObservedLocationReference(
+              assignmentPrefill,
+              "browser_gps",
+              [{
+                kind: "gps",
+                valueSnapshot: `${reading.latitude.toFixed(6)},${reading.longitude.toFixed(6)};accuracy=${accuracy}m`,
+                confidence: accuracy <= 50 ? 0.9 : accuracy <= 250 ? 0.65 : 0.35
+              }]
+            )
+          },
           organization
         )
       );
@@ -1552,6 +1672,9 @@ export function PublicCampaignPage({
       data-gaumata-host={isGaumataCampaignExperience ? "true" : undefined}
       data-premium-presentation={premiumPresentation?.kind}
     >
+      <div className="public-page-language-toolbar" aria-label="Language selector">
+        <LanguageSwitcher />
+      </div>
       <div className="public-story-column">
         <article
           className={`public-campaign-v2-hero ${campaignHeroArtwork ? "campaign-page campaign-page-with-media" : "campaign-page"}`}
@@ -1584,7 +1707,7 @@ export function PublicCampaignPage({
                   aria-label={publicOrganizationLabel || undefined}
                 >
                   <img
-                    src="/brands/goudhan/logo.svg"
+                    src="/brands/gau-samman/campaign-logo.png"
                     alt={`${displayCampaign.title} logo`}
                   />
                   <span>{t("goudhanCampaign.tagline")}</span>
@@ -1684,7 +1807,7 @@ export function PublicCampaignPage({
               <span><ShieldCheck size={16} /> {presentationCopy?.privacyRespect ?? t("public.privacyRespected")}</span>
               <span>
                 <LockKeyhole size={16} />{" "}
-                {presentationCopy?.verifiedParticipation ?? (isGoudhanExperience ? t("public.movement.otpProtected") : t("public.otpVerified"))}
+                {presentationCopy?.verifiedParticipation ?? (isGoudhanExperience ? copy.verificationProtected : t("public.otpVerified"))}
               </span>
               <span>
                 {showNeutralAuthority ? <Landmark size={16} /> : <CheckCircle2 size={16} />}
@@ -1707,17 +1830,93 @@ export function PublicCampaignPage({
             role="img"
           >
             {campaignHeroArtwork ? (
-              <img
-                src={campaignHeroArtwork}
-                alt=""
-                fetchPriority="high"
-                decoding="async"
-              />
+              <>
+                <img
+                  src={campaignHeroArtwork}
+                  alt=""
+                  fetchPriority="high"
+                  decoding="async"
+                />
+                <div className="public-national-hero-devotional" aria-label="Devotional media block for Gau Samman" >
+                  <div className="public-national-hero-devotional-header">
+                    <span className="public-national-hero-devotional-title">॥ श्री सुरभ्यै नमः ॥</span>
+                    <button
+                      type="button"
+                      className="public-national-hero-audio-button"
+                      onClick={handleMantraToggle}
+                      aria-label={audioEnabled ? "Pause mantra audio" : "Play mantra audio"}
+                      title={audioEnabled ? "Pause mantra audio" : "Play mantra audio"}
+                    >
+                      {audioEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                    </button>
+                  </div>
+                  <video
+                    key={monkpujaVideoSources[monkpujaVideoIndex]}
+                    className="public-national-hero-video"
+                    style={{ height: "clamp(180px, 22vw, 250px)" }}
+                    src={monkpujaVideoSources[monkpujaVideoIndex]}
+                    title="Gau Samman Ahvaan video"
+                    autoPlay
+                    muted
+                    playsInline
+                    controls={false}
+                    preload="auto"
+                    loop
+                    aria-label="Gau Samman Ahvaan video"
+                    onEnded={() => setMonkpujaVideoIndex(0)}
+                  />
+                  <audio
+                    ref={mantraAudioRef}
+                    src="/assets/sri-surabhyai-namah.mp3"
+                    preload="auto"
+                    loop
+                    aria-label="Mantra audio"
+                    onPause={() => setAudioEnabled(false)}
+                    onEnded={() => setAudioEnabled(false)}
+                    onError={() => setAudioEnabled(false)}
+                  />
+                  <div className="public-national-hero-youtube-wrap">
+                    <div className="public-national-hero-youtube-frame">
+                      <video
+                        key={panchagavyaVideoSources[panchagavyaVideoIndex]}
+                        className="public-national-hero-local-video"
+                        src={panchagavyaVideoSources[panchagavyaVideoIndex]}
+                        title="Gau Samman Ahvaan video"
+                        autoPlay
+                        muted
+                        playsInline
+                        controls={false}
+                        preload="auto"
+                        aria-label="Gau Samman Ahvaan video"
+                        onEnded={() => setPanchagavyaVideoIndex((current) => (current + 1) % panchagavyaVideoSources.length)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </>
             ) : (
               <div className="public-national-hero-fallback" aria-hidden="true">
                 <span className="public-national-hero-halo" />
               </div>
             )}
+          </div>
+        )}
+
+        {!premiumPresentation && (
+          <div className="public-campaign-v2-blank-visual" aria-hidden="true">
+            <div className="public-campaign-v2-blank-scene">
+              <div className="public-campaign-v2-blank-sun" />
+              <div className="public-campaign-v2-blank-diya public-campaign-v2-blank-diya-left" />
+              <div className="public-campaign-v2-blank-diya public-campaign-v2-blank-diya-right" />
+              <div className="public-campaign-v2-blank-practitioner">
+                <div className="public-campaign-v2-blank-head" />
+                <div className="public-campaign-v2-blank-robe" />
+                <div className="public-campaign-v2-blank-hand public-campaign-v2-blank-hand-left" />
+                <div className="public-campaign-v2-blank-hand public-campaign-v2-blank-hand-right" />
+              </div>
+              <div className="public-campaign-v2-blank-carpet" />
+              <div className="public-campaign-v2-blank-chant">॥ श्री सुरभ्यै नमः ॥</div>
+            </div>
           </div>
         )}
 
@@ -2028,9 +2227,6 @@ export function PublicCampaignPage({
             <span>{metrics.progress}% · {metrics.verified.toLocaleString()} {t("public.verifiedSupporters")}</span>
           </div>
         </div>
-        <div className="public-language-selector">
-          <LanguageSwitcher />
-        </div>
         <div className="wizard-header">
           <span className="eyebrow">{copy.secureSigning}</span>
           <h2>{hasSignedCampaign ? copy.headerComplete : presentationCopy?.participationTitle ?? copy.headerActive}</h2>
@@ -2041,12 +2237,16 @@ export function PublicCampaignPage({
           )}
         </div>
 
-        {publicForm.otpVerified && !hasSignedCampaign && (
+        {publicVerificationComplete && !hasSignedCampaign && (
           <div className="verified-welcome" aria-live="polite">
             <UserRound size={20} />
             <div>
-              <strong>{t("public.welcomeBack")}</strong>
-              <span>{copy.phoneVerified}</span>
+              <strong>{copy.phoneVerified}</strong>
+              <span>
+                {publicForm.verificationMethod === "screen_otp"
+                  ? copy.verificationCompleteBody
+                  : t("public.welcomeBack")}
+              </span>
             </div>
           </div>
         )}
@@ -2149,7 +2349,7 @@ export function PublicCampaignPage({
                   : t("public.phoneValidation")}
               </p>
               <button className="primary-button" type="button" disabled={sendingOtp || !phoneReady} aria-busy={sendingOtp} onClick={() => void handleSendOtpWizard()}>
-                {sendingOtp ? experienceCopy.otpSending : t("public.sendOtp")} <ArrowRight size={18} />
+                {sendingOtp ? experienceCopy.otpSending : (isGoudhanExperience ? copy.requestVerification : t("public.sendOtp"))} <ArrowRight size={18} />
               </button>
               <aside className="referral-invite-note" aria-label={t("public.alreadySigned")}>
                 <BadgeCheck size={18} />
@@ -2212,10 +2412,10 @@ export function PublicCampaignPage({
                     {sendingOtp ? experienceCopy.otpSending : copy.resendOtp}
                   </button>
                   <button className="primary-button" type="button" disabled={verifyingOtp || !otpReady} aria-busy={verifyingOtp} onClick={() => void handleVerifyOtpWizard()}>
-                    {verifyingOtp ? experienceCopy.otpVerifying : t("public.verifyOtp")}
+                    {verifyingOtp ? experienceCopy.otpVerifying : (isGoudhanExperience ? copy.verifyCode : t("public.verifyOtp"))}
                   </button>
                 </div>
-                {publicForm.otpVerified && <span className="status-pill">{copy.phoneVerified}</span>}
+                {publicVerificationComplete && <span className="status-pill">{copy.phoneVerified}</span>}
                 {otpMessage && (
                   <p
                     className={otpMessageIsError ? "error-message" : "info-message"}
@@ -2245,8 +2445,8 @@ export function PublicCampaignPage({
                   onChange={(event) => setPublicForm({ ...publicForm, name: event.target.value })}
                 />
               </Field>
-              {isRequired("email") && (
-                <Field label={signerFieldLabel(copy.emailLabel, "email")}>
+              {emailRequired && (
+                <Field label={`${copy.emailLabel} *`}>
                   <input
                     aria-label={copy.emailLabel}
                     placeholder={copy.emailPlaceholder}
@@ -2315,28 +2515,24 @@ export function PublicCampaignPage({
                   </span>
                 )}
                 {locationMessage && <p role="status">{locationMessage}</p>}
-                {structuredLocationPath.length > 1 && (
-                  <div className="public-structured-location">
-                    <strong>{experienceCopy.structuredLocationTitle}</strong>
-                    <ol>
-                      {structuredLocationPath.slice(1).map((node) => (
-                        <li key={node.id}>
-                          <span>
-                            {node.level === "state"
-                              ? locationLabels.state
-                              : node.level === "district"
-                                ? locationLabels.district
-                                : node.level === "block"
-                                  ? locationLabels.block
-                                  : locationLabels.panchayat}
-                          </span>
-                          <b>{node.name}</b>
-                        </li>
-                      ))}
-                    </ol>
-                    <small>{experienceCopy.structuredLocationHelp}</small>
-                  </div>
-                )}
+                <PublicCampaignCanonicalLocationDisplay
+                  campaignSlug={campaign.slug}
+                  values={{
+                    country: publicLocationForm.country || campaign.country || (isGlobalMode ? "" : "India"),
+                    state: publicLocationForm.state,
+                    district: publicLocationForm.district,
+                    block: publicLocationForm.block,
+                    panchayat: publicLocationForm.panchayat
+                  }}
+                  campaignPolicy={signerLocationCatalog}
+                  transport={invokePublicCampaignLocationCatalog}
+                  title={experienceCopy.structuredLocationTitle}
+                  help={experienceCopy.structuredLocationHelp}
+                  labels={locationLabels}
+                  onConfirmCanonicalReference={(locationReference) =>
+                    setPublicForm((current) => ({ ...current, locationReference }))
+                  }
+                />
               </div>
               {(restrictionMessage || locationRequired) && (
                 <div className="public-location-limit" aria-live="polite">
@@ -2370,7 +2566,7 @@ export function PublicCampaignPage({
               )}
               <details className="optional-details">
                 <summary>{copy.optionalDetails}</summary>
-                {!isRequired("email") && (
+                {!emailRequired && (
                   <Field label={`${copy.emailLabel} (${t("public.optional")})`}>
                     <input
                       aria-label={copy.emailLabel}
@@ -2917,19 +3113,50 @@ export function PublicCampaignPage({
                         <IndiaLocationFields
                           idPrefix="public-coordinator-request"
                           values={coordinatorLocation}
-                          onChange={setCoordinatorLocation}
+                          onChange={(values) => {
+                            setCoordinatorLocation(values);
+                            setCoordinatorLocationReference(createUnverifiedLocationReference(
+                              { ...values, ward: coordinatorWard },
+                              "public_coordinator_manual"
+                            ));
+                          }}
                           locationOverrides={locationOverrides}
                           locationDeletions={locationDeletions}
                           requiredFields={coordinatorRequiredFields}
                           labelOverrides={copy.locationLabels}
                           customLocations={signerLocationCatalog}
+                          catalogStatus={publicCampaignLocationCatalog.status}
+                          onPinObservation={(values, postalCode) => {
+                            setCoordinatorLocation(values);
+                            setCoordinatorLocationReference(createObservedLocationReference(
+                              { ...values, ward: coordinatorWard },
+                              "public_coordinator_pin",
+                              [{ kind: "pin", valueSnapshot: postalCode }]
+                            ));
+                          }}
+                        />
+                        <PublicCampaignCanonicalLocationDisplay
+                          campaignSlug={campaign.slug}
+                          values={{ ...coordinatorLocation, country: "India" }}
+                          campaignPolicy={signerLocationCatalog}
+                          transport={invokePublicCampaignLocationCatalog}
+                          title={experienceCopy.structuredLocationTitle}
+                          help={experienceCopy.structuredLocationHelp}
+                          labels={locationLabels}
+                          onConfirmCanonicalReference={setCoordinatorLocationReference}
                         />
                         {coordinatorLevel === "ward" && (
                           <Field label={`${t("public.requests.villageWard")} *`}>
                             <input
                               required
                               value={coordinatorWard}
-                              onChange={(event) => setCoordinatorWard(event.target.value)}
+                              onChange={(event) => {
+                                setCoordinatorWard(event.target.value);
+                                setCoordinatorLocationReference(createUnverifiedLocationReference(
+                                  { ...coordinatorLocation, ward: event.target.value },
+                                  "public_coordinator_manual"
+                                ));
+                              }}
                             />
                           </Field>
                         )}

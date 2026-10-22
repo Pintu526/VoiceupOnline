@@ -7,6 +7,8 @@ import {
   type GeographyLevel,
   type GeographyNode
 } from "./businessOs/geography/index.ts";
+import { odishaLgdDataset } from "./businessOs/geography/OdishaLgdGenerated.ts";
+import { createLegacyOdishaCompatibilityProjection } from "./businessOs/geography/LegacyOdishaCompatibilityProjection.ts";
 
 export interface LocationValues {
   state: string;
@@ -29,6 +31,10 @@ interface LocationCatalogEntry {
 export interface PinCodeEntry extends LocationWithPin {}
 
 export type LocationOverrides = Record<string, Record<string, Record<string, string[]>>>;
+export type LocationOverrideReferences = Record<
+  string,
+  import("./businessOs/location/persistence/PersistedLocationReference.ts").PersistedLocationReference
+>;
 export type LocationOverrideLevel = "district" | "block" | "panchayat";
 export type LocationDeletionLevel = LocationOverrideLevel;
 
@@ -179,16 +185,30 @@ const districtOptionsByState: Record<string, string[]> = {
   Puducherry: ["Karaikal", "Mahe", "Puducherry", "Yanam"]
 };
 
+export const businessOsCompatibilityIndiaDataset = createIndiaAdministrativeDataset({
+  datasetVersion: "business-os-compatibility-v1",
+  source: BUSINESS_OS_COMPATIBILITY_SOURCE,
+  districtsByState: districtOptionsByState,
+  localCatalog: indiaLocationCatalog
+});
+
+const odishaStateNodeId = "in-state-odisha";
+const legacyCompatibleOdishaDataset = createLegacyOdishaCompatibilityProjection(odishaLgdDataset);
+const indiaDatasetWithOfficialOdisha = {
+  ...businessOsCompatibilityIndiaDataset,
+  datasetVersion: `${businessOsCompatibilityIndiaDataset.datasetVersion}+${legacyCompatibleOdishaDataset.datasetVersion}`,
+  generatedAt: legacyCompatibleOdishaDataset.generatedAt,
+  nodes: [
+    ...businessOsCompatibilityIndiaDataset.nodes.filter(
+      (node) => node.id !== odishaStateNodeId && !node.ancestorIds.includes(odishaStateNodeId)
+    ),
+    ...legacyCompatibleOdishaDataset.nodes.filter((node) => node.id !== indiaAdministrativeHierarchy.rootId)
+  ]
+};
+
 export const indiaGeographyService = new GeographyService({
   hierarchies: [indiaAdministrativeHierarchy],
-  datasets: [
-    createIndiaAdministrativeDataset({
-      datasetVersion: "business-os-compatibility-v1",
-      source: BUSINESS_OS_COMPATIBILITY_SOURCE,
-      districtsByState: districtOptionsByState,
-      localCatalog: indiaLocationCatalog
-    })
-  ]
+  datasets: [indiaDatasetWithOfficialOdisha]
 });
 
 export function getMaintainedDistrictOptions(state: string): string[] {
@@ -348,6 +368,47 @@ export function getBlockOptions(
     `${district} Urban Ward`,
     `${district} Development Block`
   ]).filter((block) => !isBlockDeleted(deletions, state, district, block));
+}
+
+function getDistrictUrbanLocalBodies(state: string, district: string): GeographyNode[] {
+  const stateNode = findSharedNode("state", state);
+  const districtNode = findSharedNode("district", district, stateNode?.id);
+  if (!districtNode) return [];
+  return indiaGeographyService.getChildren(districtNode.id, { levels: ["local_body"] });
+}
+
+function urbanLocalBodyOptionLabel(localBody: GeographyNode): string {
+  if (localBody.kind === "municipal_corporation") return `${localBody.name} Municipal Corporation`;
+  if (localBody.kind === "municipality") return `${localBody.name} Municipality`;
+  if (localBody.kind === "town_panchayat") return `${localBody.name} NAC`;
+  return `${localBody.name} Local Body`;
+}
+
+function findDistrictUrbanLocalBody(state: string, district: string, value: string) {
+  const candidates = getDistrictUrbanLocalBodies(state, district).filter(
+    (localBody) => urbanLocalBodyOptionLabel(localBody) === value.trim()
+  );
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
+/** Official urban local bodies are direct district children, never blocks. */
+export function getUrbanLocalBodyOptions(state: string, district: string) {
+  return uniqueOptions(getDistrictUrbanLocalBodies(state, district).map(urbanLocalBodyOptionLabel));
+}
+
+/**
+ * Resolves the selected value against the official district-scoped local-body
+ * nodes. This keeps the legacy `block` form slot compatible while ensuring an
+ * urban selection is never mistaken for a development block.
+ */
+export function isUrbanLocalBodySelection(state: string, district: string, localBody: string) {
+  return Boolean(findDistrictUrbanLocalBody(state, district, localBody));
+}
+
+/** Official Ward children of a validated district-scoped urban Local Body. */
+export function getWardOptions(state: string, district: string, localBody: string) {
+  const localBodyNode = findDistrictUrbanLocalBody(state, district, localBody);
+  return uniqueOptions(getSharedChildNames(localBodyNode, "ward"));
 }
 
 export function getPanchayatOptions(

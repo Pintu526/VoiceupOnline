@@ -67,6 +67,8 @@ test("mutation RPCs provide idempotency, atomic configuration versions, soft dea
 
 test("Edge API exposes only authenticated campaign-location actions with safe stable errors", () => {
   assert.match(edge, /getUser\(req\)/);
+  assert.match(edge, /request\.action === "read_campaign_location_hierarchy"/);
+  assert.match(edge, /request\.action === "read_campaign_location_summary"/);
   assert.match(edge, /request\.action === "read_campaign_locations"/);
   assert.match(edge, /request\.action === "add_campaign_location"/);
   assert.match(edge, /request\.action === "deactivate_campaign_location"/);

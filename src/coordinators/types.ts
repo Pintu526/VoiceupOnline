@@ -31,6 +31,7 @@ export interface CoordinatorGeographyInput {
   panchayat: string;
   ward: string;
   postalCode: string;
+  locationReference?: PersistedLocationReference | null;
 }
 
 export interface CoordinatorGeography {
@@ -41,6 +42,7 @@ export interface CoordinatorGeography {
   name: string;
   path: string[];
   depth: number;
+  locationReference?: PersistedLocationReference | null;
 }
 
 export interface Coordinator {
@@ -127,3 +129,4 @@ export interface CoordinatorDashboardMetrics {
   geographyCoverage: number;
   referralLinks: number;
 }
+import type { PersistedLocationReference } from "../businessOs/location/persistence/PersistedLocationReference.ts";

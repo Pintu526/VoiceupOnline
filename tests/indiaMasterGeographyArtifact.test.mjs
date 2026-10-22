@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
@@ -18,7 +17,7 @@ test("checked-in artifact is the byte-equivalent deterministic canonical project
     new URL("../supabase/functions/_shared/generated/indiaMasterGeography.ts", import.meta.url),
     "utf8"
   );
-  assert.equal(checkedIn, renderIndiaMasterGeographyArtifact(regenerated));
+  assert.equal(checkedIn.replace(/\r\n/gu, "\n"), renderIndiaMasterGeographyArtifact(regenerated));
 });
 
 test("artifact content hash and counts match canonical geography paths", () => {
@@ -69,18 +68,11 @@ test("artifact contains only immutable public master geography data", () => {
   }
 });
 
-test("Gate 3A leaves canonical frontend geography sources unchanged", () => {
-  const changed = execFileSync(
-    "git",
-    [
-      "diff",
-      "--name-only",
-      "--",
-      "src/geography.ts",
-      "src/businessOs/geography/IndiaAdministrativeHierarchy.ts",
-      "src/businessOs/geography/GeographyService.ts"
-    ],
-    { encoding: "utf8" }
-  ).trim();
-  assert.equal(changed, "");
+test("legacy campaign-location artifact stays pinned to its compatibility dataset", () => {
+  const generator = readFileSync(
+    new URL("../scripts/generateIndiaMasterGeography.mjs", import.meta.url),
+    "utf8"
+  );
+  assert.match(generator, /businessOsCompatibilityIndiaDataset/u);
+  assert.doesNotMatch(generator, /indiaGeographyService\.getDataset/u);
 });

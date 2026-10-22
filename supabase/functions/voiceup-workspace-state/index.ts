@@ -14,6 +14,10 @@ import {
   nextWorkspaceUpdatedAt,
   workspaceStatesEqual
 } from "../_shared/workspaceStateMerge.ts";
+import {
+  prepareWorkspaceLocationReferences,
+  WorkspaceLocationReferenceError
+} from "../_shared/workspaceLocationReferences.ts";
 
 function validateStateChange(previousState: any, nextState: any) {
   const organization = nextState?.organization;
@@ -173,10 +177,40 @@ Deno.serve(async (req) => {
           retryable: true
         }, 409);
       }
+      let preparedState: Record<string, unknown>;
+      try {
+        preparedState = await prepareWorkspaceLocationReferences(nextState, {
+          validateCanonical: async (candidate) => {
+            const { data, error } = await admin.rpc(
+              "voiceup_validate_persisted_location_reference_v1",
+              { candidate }
+            );
+            if (error || !data || typeof data !== "object" || Array.isArray(data)) {
+              throw new WorkspaceLocationReferenceError("invalid_workspace_location_reference");
+            }
+            return data as Record<string, unknown>;
+          },
+          validateShape: async (candidate) => {
+            const { data, error } = await admin.rpc(
+              "voiceup_is_persisted_location_reference_v1_shape",
+              { candidate }
+            );
+            return !error && data === true;
+          }
+        });
+      } catch (error) {
+        if (error instanceof WorkspaceLocationReferenceError) {
+          return jsonResponse({
+            error: "Workspace location reference validation failed.",
+            code: error.code
+          }, 422);
+        }
+        throw error;
+      }
       const saved = await saveVersionedWorkspace(
         admin,
         workspaceId,
-        nextState,
+        preparedState,
         baseState,
         expectedUpdatedAt
       );

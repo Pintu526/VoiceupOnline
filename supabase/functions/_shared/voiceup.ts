@@ -270,7 +270,17 @@ export function publicAuthoritiesForCampaign(state: any, campaign: any) {
         if (authority.district && campaign.district && authority.district !== campaign.district) return false;
         return true;
       })
+      .map((authority: any) => {
+        const { jurisdictionLocationReference: _privateJurisdiction, ...publicAuthority } = authority;
+        return publicAuthority;
+      })
     : [];
+}
+
+function sanitizePublicCampaign(campaign: any) {
+  if (!campaign || typeof campaign !== "object") return campaign;
+  const { locationReference: _workspaceLocationReference, ...publicCampaign } = campaign;
+  return publicCampaign;
 }
 
 export async function refreshPublicCampaignIndex(
@@ -291,7 +301,7 @@ export async function refreshPublicCampaignIndex(
       campaign_id: campaign.id,
       slug: campaign.slug,
       status: campaign.status,
-      campaign,
+      campaign: sanitizePublicCampaign(campaign),
       organization: sanitizePublicOrganization(state?.organization),
       authorities: publicAuthoritiesForCampaign(state, campaign),
       metrics: calculateMetrics(campaign, getSigners(state)),

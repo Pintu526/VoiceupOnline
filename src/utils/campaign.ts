@@ -18,6 +18,12 @@ import {
   getPublicCampaignUrl,
   getSaasAdminUrl
 } from "./links.ts";
+import {
+  canonicalContainsNode,
+  canonicalScopeMatches,
+  canonicalSnapshotForLevel
+} from "../businessOs/location/persistence/LocationReferenceGovernance.ts";
+import type { PersistedLocationReference } from "../businessOs/location/persistence/PersistedLocationReference.ts";
 
 const locationLevelOrder: LocationGovernanceLevel[] = [
   "none",
@@ -28,7 +34,9 @@ const locationLevelOrder: LocationGovernanceLevel[] = [
 ];
 
 type LocationFields = Pick<Campaign, "state" | "district" | "block" | "panchayat">;
-type CountryLocationFields = Partial<Pick<Campaign, "country">> & Partial<LocationFields>;
+type CountryLocationFields = Partial<Pick<Campaign, "country">> & Partial<LocationFields> & {
+  locationReference?: PersistedLocationReference | null;
+};
 
 export interface CampaignLocationLabels {
   country: string;
@@ -147,6 +155,7 @@ export function getLocationGovernance(organization: Organization) {
     district: organization.locationGovernance?.district ?? "",
     block: organization.locationGovernance?.block ?? "",
     panchayat: organization.locationGovernance?.panchayat ?? "",
+    locationReference: organization.locationGovernance?.locationReference ?? null,
     lockLevel: organization.locationGovernance?.lockLevel ?? "none" as LocationGovernanceLevel
   };
 }
@@ -209,7 +218,17 @@ export function applyLocationGovernanceToCampaign(
   if (isGlobalCampaign(campaign)) return campaign;
   const governance = getLocationGovernance(organization);
   const lockedValues = getLockedLocationValues(governance, governance.lockLevel);
-  return { ...campaign, ...lockedValues };
+  const canonicalMatch = canonicalScopeMatches(
+    governance.locationReference,
+    campaign.locationReference
+  );
+  return {
+    ...campaign,
+    ...lockedValues,
+    ...(canonicalMatch === false || !campaign.locationReference
+      ? { locationReference: governance.locationReference }
+      : {})
+  };
 }
 
 export function applySignerLocationRestriction<T extends CountryLocationFields>(
@@ -241,6 +260,28 @@ export function isWithinLocationRestriction(
     if (country.trim().toLowerCase() !== lockedCountry.trim().toLowerCase()) return false;
   }
   if (restrictionLevel === "none") return true;
+  const organizationLevel = organization && !isGlobalCampaign(campaign)
+    ? getConfiguredLocationLockLevel(
+        getLocationGovernance(organization),
+        getLocationGovernance(organization).lockLevel
+      )
+    : "none";
+  const scopeReference = locationLevelOrder.indexOf(organizationLevel) > locationLevelOrder.indexOf(
+    getConfiguredLocationLockLevel(campaign, getSignerLocationRestrictionLevel(campaign))
+  )
+    ? organization?.locationGovernance?.locationReference
+    : campaign.locationReference;
+  if (scopeReference?.verificationState === "canonical_verified"
+    && values.locationReference?.verificationState === "canonical_verified") {
+    const scopeNode = canonicalSnapshotForLevel(scopeReference, restrictionLevel)
+      ?? scopeReference;
+    if (
+      scopeReference.authority !== values.locationReference.authority
+      || scopeReference.sourceDataset !== values.locationReference.sourceDataset
+      || scopeReference.datasetVersion !== values.locationReference.datasetVersion
+    ) return false;
+    return canonicalContainsNode(values.locationReference, scopeNode.canonicalNodeId);
+  }
   const restrictedValues = getLockedLocationValues(campaign, restrictionLevel);
   return Object.entries(restrictedValues).every(
     ([key, value]) =>
@@ -307,6 +348,7 @@ export function createRemoteState(state: VoiceupRemoteState): VoiceupRemoteState
     organization: state.organization,
     scanItems: state.scanItems,
     locationOverrides: state.locationOverrides,
+    locationOverrideReferences: state.locationOverrideReferences ?? {},
     locationDeletions: state.locationDeletions,
     auditLogs: state.auditLogs ?? [],
     integrations: state.integrations ?? initialIntegrationSettings,

@@ -6,7 +6,13 @@ import {
   mergeIndiaLocationOptions,
   normalizeIndiaLocationOptionKey
 } from "../src/components/indiaLocationOptions.ts";
-import { emptyLocationDeletions } from "../src/geography.ts";
+import {
+  emptyLocationDeletions,
+  getBlockOptions,
+  getPanchayatOptions,
+  getUrbanLocalBodyOptions,
+  getWardOptions
+} from "../src/geography.ts";
 
 function customLocation(overrides = {}) {
   return {
@@ -240,7 +246,7 @@ test("VBOSS catalog states are not replaced by campaign state-only rows", () => 
   assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "maharashtra"));
 });
 
-test("selected Odisha state still parent-filters districts from the VBOSS catalog", () => {
+test("selected Odisha state merges parent-scoped campaign overlay with canonical districts", () => {
   const options = getIndiaLocationOptions({
     values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
     locationOverrides: {},
@@ -261,11 +267,11 @@ test("selected Odisha state still parent-filters districts from the VBOSS catalo
 
   assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "odisha"));
   assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "uttar pradesh"));
-  assert.ok(options.districtOptions.includes("ANUGUL"));
-  assert.ok(options.districtOptions.includes("KHORDHA"));
+  assert.ok(options.districtOptions.some((district) => normalizeIndiaLocationOptionKey(district) === "anugul"));
+  assert.ok(options.districtOptions.some((district) => normalizeIndiaLocationOptionKey(district) === "khordha"));
   assert.ok(!options.districtOptions.includes("LUCKNOW"));
-  assert.ok(!options.districtOptions.includes("Balasore"));
-  assert.ok(!options.districtOptions.includes("Cuttack"));
+  assert.ok(options.districtOptions.includes("Balasore"));
+  assert.ok(options.districtOptions.includes("Cuttack"));
 });
 
 test("empty campaign catalog keeps India master states", () => {
@@ -303,7 +309,7 @@ test("existing India state district block records remain selectable", () => {
   assert.ok(options.stateOptions.includes("Odisha"));
 });
 
-test("custom district ANUGUL replaces master Angul when campaign locations exist", () => {
+test("custom district ANUGUL remains an overlay beside canonical Angul", () => {
   const options = getIndiaLocationOptions({
     values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
     locationOverrides: { Odisha: { Angul: {} } },
@@ -316,11 +322,12 @@ test("custom district ANUGUL replaces master Angul when campaign locations exist
     allowedPanchayat: ""
   });
 
-  assert.deepEqual(options.districtOptions, ["ANUGUL"]);
-  assert.ok(!options.districtOptions.includes("Angul"));
+  assert.ok(options.districtOptions.includes("ANUGUL"));
+  assert.ok(options.districtOptions.includes("Angul"));
+  assert.ok(options.districtOptions.includes("Khordha"));
 });
 
-test("custom district BALESHWAR replaces master Balasore when campaign locations exist", () => {
+test("custom district BALESHWAR remains an overlay beside canonical Balasore", () => {
   const options = getIndiaLocationOptions({
     values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
     locationOverrides: {},
@@ -333,11 +340,11 @@ test("custom district BALESHWAR replaces master Balasore when campaign locations
     allowedPanchayat: ""
   });
 
-  assert.deepEqual(options.districtOptions, ["BALESHWAR"]);
-  assert.ok(!options.districtOptions.includes("Balasore"));
+  assert.ok(options.districtOptions.includes("BALESHWAR"));
+  assert.ok(options.districtOptions.includes("Balasore"));
 });
 
-test("when custom districts exist unrelated master districts are excluded", () => {
+test("custom districts do not erase unrelated canonical districts", () => {
   const options = getIndiaLocationOptions({
     values: { state: "Odisha", district: "", block: "", panchayat: "", postalCode: "" },
     locationOverrides: {},
@@ -353,12 +360,12 @@ test("when custom districts exist unrelated master districts are excluded", () =
     allowedPanchayat: ""
   });
 
-  assert.deepEqual(options.districtOptions, ["ANUGUL"]);
-  assert.ok(!options.districtOptions.includes("Balasore"));
-  assert.ok(!options.districtOptions.includes("Cuttack"));
+  assert.ok(options.districtOptions.includes("ANUGUL"));
+  assert.ok(options.districtOptions.includes("Balasore"));
+  assert.ok(options.districtOptions.includes("Cuttack"));
 });
 
-test("blocks use custom options when present and master fallback otherwise", () => {
+test("blocks merge custom overlay with canonical rural and urban options", () => {
   const withCustom = getIndiaLocationOptions({
     values: { state: "Odisha", district: "Khordha", block: "", panchayat: "", postalCode: "" },
     locationOverrides: {},
@@ -382,7 +389,11 @@ test("blocks use custom options when present and master fallback otherwise", () 
     allowedPanchayat: ""
   });
 
-  assert.deepEqual(withCustom.blockOptions, ["CUSTOM BLOCK"]);
+  assert.ok(withCustom.blockOptions.includes("CUSTOM BLOCK"));
+  for (const localBody of getUrbanLocalBodyOptions("Odisha", "Khordha")) {
+    assert.ok(withCustom.blockOptions.includes(localBody));
+  }
+  assert.ok(withCustom.blockOptions.includes("Balianta"));
   assert.ok(withoutCustom.blockOptions.length > 0);
 });
 
@@ -442,7 +453,10 @@ test("blocks from another state do not appear under the selected state and distr
     allowedPanchayat: ""
   });
 
-  assert.deepEqual(options.blockOptions, ["BALIANTA"]);
+  assert.ok(options.blockOptions.some((block) => normalizeIndiaLocationOptionKey(block) === "balianta"));
+  for (const localBody of getUrbanLocalBodyOptions("Odisha", "Khordha")) {
+    assert.ok(options.blockOptions.includes(localBody));
+  }
   assert.ok(!options.blockOptions.includes("ALIEN BLOCK"));
   assert.ok(!options.blockOptions.includes("HAVELI"));
 });
@@ -475,9 +489,9 @@ test("changing state replaces child options with the new state's cascade", () =>
     allowedPanchayat: ""
   });
 
-  assert.deepEqual(odisha.panchayatOptions, ["BAINCHUA"]);
-  assert.deepEqual(westBengal.districtOptions, ["KOLKATA"]);
-  assert.deepEqual(westBengal.blockOptions, ["KOLKATA"]);
+  assert.ok(odisha.panchayatOptions.some((panchayat) => normalizeIndiaLocationOptionKey(panchayat) === "bainchua"));
+  assert.ok(westBengal.districtOptions.some((district) => normalizeIndiaLocationOptionKey(district) === "kolkata"));
+  assert.ok(westBengal.blockOptions.some((block) => normalizeIndiaLocationOptionKey(block) === "kolkata"));
   assert.ok(!westBengal.districtOptions.includes("KHORDHA"));
   assert.ok(!westBengal.blockOptions.includes("BALIANTA"));
 });
@@ -535,7 +549,7 @@ function resolverOptions(overrides = {}) {
   });
 }
 
-test("loaded catalog dropdowns use catalog states only", () => {
+test("loaded catalog dropdowns retain canonical states and merge campaign state overlays", () => {
   const options = resolverOptions({
     catalogStatus: "ready",
     customLocations: [
@@ -545,11 +559,10 @@ test("loaded catalog dropdowns use catalog states only", () => {
     ]
   });
 
-  assert.deepEqual(
-    options.stateOptions.map((state) => normalizeIndiaLocationOptionKey(state)).sort(),
-    ["maharashtra", "odisha", "west bengal"]
-  );
-  assert.ok(!options.stateOptions.includes("Tamil Nadu"));
+  assert.ok(options.stateOptions.includes("Tamil Nadu"));
+  for (const state of ["maharashtra", "odisha", "west bengal"]) {
+    assert.equal(options.stateOptions.filter((option) => normalizeIndiaLocationOptionKey(option) === state).length, 1);
+  }
 });
 
 test("loading catalog does not use static geography fallback", () => {
@@ -619,13 +632,13 @@ test("West Bengal cannot expose Odisha KHORDHA or BALIANTA children", () => {
     values: { state: "MAHARASHTRA", district: "AHMEDNAGAR", block: "", panchayat: "", postalCode: "" }
   });
 
-  assert.deepEqual(westBengal.districtOptions, ["24 PARAGANAS NORTH"]);
+  assert.ok(westBengal.districtOptions.includes("24 PARAGANAS NORTH"));
   assert.ok(!westBengal.districtOptions.includes("KHORDHA"));
-  assert.deepEqual(westBengal.blockOptions, ["AMDANGA"]);
+  assert.ok(westBengal.blockOptions.includes("AMDANGA"));
   assert.ok(!westBengal.blockOptions.includes("BALIANTA"));
   assert.ok(!maharashtra.districtOptions.includes("KHORDHA"));
   assert.ok(!maharashtra.blockOptions.includes("BALIANTA"));
-  assert.deepEqual(maharashtra.blockOptions, ["AKOLE"]);
+  assert.ok(maharashtra.blockOptions.includes("AKOLE"));
 });
 
 test("a complete catalog is not reduced to an Odisha-only state list", () => {
@@ -644,18 +657,80 @@ test("a complete catalog is not reduced to an Odisha-only state list", () => {
     }))
   });
 
-  assert.equal(options.stateOptions.length, 35);
+  assert.ok(options.stateOptions.length > 35);
   assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "odisha"));
   assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "west bengal"));
   assert.ok(options.stateOptions.some((state) => normalizeIndiaLocationOptionKey(state) === "maharashtra"));
   assert.equal(options.stateOptions.filter((state) => normalizeIndiaLocationOptionKey(state) === "odisha").length, 1);
 });
 
-test("ready empty catalog does not silently present the static India master", () => {
+test("ready empty campaign overlay retains canonical India hierarchy", () => {
   const options = resolverOptions({ catalogStatus: "ready", customLocations: [] });
-  assert.deepEqual(options.stateOptions, []);
+  assert.ok(options.stateOptions.includes("Odisha"));
+  assert.ok(options.stateOptions.includes("Tamil Nadu"));
   assert.equal(allowsStaticIndiaLocationFallback("ready", 0), false);
   assert.equal(allowsStaticIndiaLocationFallback("loading", 0), false);
   assert.equal(allowsStaticIndiaLocationFallback("error", 0), false);
   assert.equal(allowsStaticIndiaLocationFallback("idle", 0), true);
+});
+
+function publicCampaignCanonicalOptions(values, campaignLocationPolicy = []) {
+  return getIndiaLocationOptions({
+    values,
+    locationOverrides: {},
+    locationDeletions: emptyLocationDeletions,
+    verifiedSuggestionsOnly: false,
+    customLocations: [],
+    campaignLocationPolicy,
+    allowedState: "",
+    allowedDistrict: "",
+    allowedBlock: "",
+    allowedPanchayat: ""
+  });
+}
+
+test("public campaign policy filters canonical Odisha rural nodes without replacing their children", () => {
+  const developmentBlocks = getBlockOptions("Odisha", "Khordha", {}, emptyLocationDeletions, false);
+  const baliantaPanchayats = getPanchayatOptions(
+    "Odisha",
+    "Khordha",
+    "Balianta",
+    {},
+    emptyLocationDeletions,
+    false
+  );
+  const policy = [{ country: "India", state: "Odisha", district: "Khordha", block: "Balianta" }];
+
+  assert.equal(developmentBlocks.length, 10);
+  assert.ok(developmentBlocks.includes("Balianta"));
+  assert.ok(baliantaPanchayats.length > 0);
+  assert.deepEqual(
+    publicCampaignCanonicalOptions(
+      { state: "Odisha", district: "Khordha", block: "", panchayat: "", postalCode: "" },
+      policy
+    ).blockOptions,
+    ["Balianta"]
+  );
+  assert.deepEqual(
+    publicCampaignCanonicalOptions(
+      { state: "Odisha", district: "Khordha", block: "Balianta", panchayat: "", postalCode: "" },
+      policy
+    ).panchayatOptions,
+    baliantaPanchayats
+  );
+});
+
+test("public campaign policy preserves canonical BMC and all official wards", () => {
+  const bmc = "Bhubaneswar Municipal Corporation";
+  const policy = [{ country: "India", state: "Odisha", district: "Khordha", block: bmc }];
+  const localBodies = getUrbanLocalBodyOptions("Odisha", "Khordha");
+  const wards = getWardOptions("Odisha", "Khordha", bmc);
+  const publicOptions = publicCampaignCanonicalOptions(
+    { state: "Odisha", district: "Khordha", block: bmc, panchayat: "", postalCode: "" },
+    policy
+  );
+
+  assert.ok(localBodies.includes(bmc));
+  assert.equal(wards.length, 67);
+  assert.deepEqual(publicOptions.panchayatOptions, wards);
 });

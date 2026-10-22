@@ -128,7 +128,8 @@ test("signup retains required name and mobile with optional email and location",
 test("location hierarchy remains referenced", () => {
   assert.match(page, /<IndiaLocationFields/);
   assert.match(page, /fixedCountry="India"/);
-  assert.match(page, /verifiedSuggestionsOnly/);
+  assert.match(page, /catalogStatus=\{publicCampaignLocationCatalog\.status\}/);
+  assert.match(page, /createObservedLocationReference/);
 });
 
 test("coordinator flow remains referenced", () => {

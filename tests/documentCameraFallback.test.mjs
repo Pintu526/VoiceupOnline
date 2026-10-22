@@ -182,7 +182,7 @@ test("camera output is corrected and enters the existing OCR pipeline", () => {
   assert.match(scansSource, /setCameraAutoUploadPending\(true\)/);
   assert.match(scansSource, /if \(!cameraAutoUploadPending \|\| !selectedCaptureFile\) return/);
   assert.match(scansSource, /onUploadScan\(preparedFile/);
-  assert.match(appSource, /analyzeBusinessOsDocument\(file, ocrDiagnosticId\)/);
+  assert.match(appSource, /analyzeBusinessOsDocument\([\s\S]{0,220}file,[\s\S]{0,220}ocrDiagnosticId,[\s\S]{0,220}canonicalLocationReader/);
 });
 
 test("the final OCR attempt covers all required variants and selects one scored result", () => {

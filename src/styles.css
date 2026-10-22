@@ -6483,8 +6483,10 @@ td span {
   box-shadow: 0 30px 90px rgba(15, 23, 42, 0.1);
   display: grid;
   gap: 26px;
-  min-height: 620px;
-  padding: clamp(24px, 4.6vw, 56px);
+  /* Reduced min-height and padding to remove unnecessary vertical whitespace
+     while keeping responsive spacing. */
+  min-height: 360px;
+  padding: clamp(16px, 3.2vw, 48px);
   position: relative;
 }
 
@@ -6498,6 +6500,7 @@ td span {
   gap: clamp(18px, 3vw, 30px);
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.48fr);
   max-width: 1440px;
+  position: relative;
 }
 
 .public-story-column {
@@ -6719,29 +6722,35 @@ td span {
   gap: 14px;
 }
 
-.public-language-selector {
+.public-page-language-toolbar {
   align-items: center;
-  background: rgba(248, 250, 252, 0.9);
-  border: 1px solid var(--border);
-  border-radius: 16px;
   display: flex;
-  gap: 10px;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  padding: 10px 12px;
+  justify-content: flex-end;
+  margin: 8px 0 0;
+  min-width: 0;
+  position: absolute;
+  right: clamp(18px, 2.4vw, 28px);
+  top: clamp(12px, 1.8vw, 18px);
+  z-index: 4;
 }
 
-.public-language-selector label {
-  color: var(--text-soft);
-  font-size: 0.78rem;
-  font-weight: 850;
-  letter-spacing: 0;
-  text-transform: uppercase;
+.public-page-language-toolbar .language-switcher {
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.06);
+  display: inline-flex;
+  max-width: min(220px, 100%);
+  padding: 6px 10px;
 }
 
-.public-language-selector select {
+.public-page-language-toolbar .language-switcher select {
   max-width: 160px;
-  min-height: 38px;
+  min-height: 36px;
+}
+
+.public-language-selector {
+  display: none;
 }
 
 .wizard-header {

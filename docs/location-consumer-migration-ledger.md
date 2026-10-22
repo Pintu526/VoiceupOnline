@@ -1,0 +1,51 @@
+# Business OS Location consumer migration ledger
+
+This ledger freezes the 29-consumer inventory established by the final consumer audit. A consumer is an independently invoked UI surface, resolver, API/Edge boundary, persistence boundary, or downstream transformer. IDs must not be renumbered or repurposed during later batches.
+
+The consolidated closure keeps the established Step 8/9 catalog and UI paths, then carries the additive `PersistedLocationReference` contract through all 29 consumers. Canonical claims are rebuilt by the trusted server validator; manual/custom values retain null canonical identity; GPS, OCR, and PIN remain observation evidence until explicit canonical confirmation.
+
+All legacy label fields remain readable and writable for compatibility. Downstream readers prefer a persisted canonical node and lineage when available, otherwise they retain the prior label behavior. No historical label-only record is promoted or backfilled by inference.
+
+The statuses below describe the completed local implementation. The additive database migration and modified Edge functions still require the separately authorized Development application/proof boundary before the new persistence paths can run remotely.
+
+| ID | Runtime file / component / function | User journey | Current geography authority | Current persistence format | Canonical migration target | Risk | Step 11 | Step 12 | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| C01 | `src/pages/OnboardingWizard.tsx` / `countryOptions`, `getDefaultDraft` | Workspace onboarding | Static country options and browser locale | Country display name | Canonical country reference plus display label | MEDIUM | YES | YES | MIGRATED |
+| C02 | `src/pages/app/CampaignsTab.tsx` / India create and edit fields | Create or edit an India campaign | Mixed LGD projection, compatibility hierarchy, campaign catalog, overrides, PIN and synthetic fallback | Campaign state/district/block/panchayat/postal names | Canonical campaign scope references with governed custom overlays | HIGH | YES | YES | MIGRATED |
+| C03 | `src/pages/app/CampaignsTab.tsx` / global location fields | Create or edit a global campaign | Global free text | Country/region/city/locality names | Canonical global references or explicitly unverified address values | HIGH | YES | YES | MIGRATED |
+| C04 | `src/pages/app/CampaignsTab.tsx` and `src/utils/authority.ts` / campaign authority and location filters | Configure campaign scope and routing | Campaign label projection and policy | Name comparisons in campaign/authority state | Canonical scope predicates using node identity and lineage | HIGH | YES | YES | MIGRATED |
+| C05 | `src/App.tsx` / legacy campaign location CSV handler | Import campaign locations | CSV text supplied by operator | Names in workspace/campaign state | Validated canonical import references with rejected/unresolved rows | HIGH | YES | YES | MIGRATED |
+| C06 | `src/businessOs/masterData/ResourceLocationManager.tsx` / manual entry | Add a campaign resource location | Manual resource hierarchy | `vboss_resource_location_*` names | Governed custom record with canonical parent reference | HIGH | YES | YES | MIGRATED |
+| C07 | `src/businessOs/masterData/ResourceLocationManager.tsx` / CSV import | Bulk-import resource locations | Operator CSV | Names-only resource paths | Validated canonical/custom batch contract | HIGH | YES | YES | MIGRATED |
+| C08 | `src/pages/app/SaasTab.tsx` / `SaasLocationGovernancePicker` | Edit organization location governance | Canonical LGD through the authenticated workspace catalog; manual path explicitly unverified | Existing display labels plus server-validated `locationReference` | Canonical UI selection with additive trusted persistence and legacy-label projection | LOW | NO | NO | MIGRATED |
+| C09 | `src/pages/PublicCampaignPage.tsx` / public India signer form | Public campaign signing | Campaign custom catalog plus mixed India helpers/fallbacks | Signer location names | Canonical public campaign-constrained references validated server-side | HIGH | YES | YES | MIGRATED |
+| C10 | `src/pages/PublicCampaignPage.tsx` / public global signer form | Public global signing | Free text | Signer country/region/city/locality names | Canonical or explicitly unverified global reference | HIGH | YES | YES | MIGRATED |
+| C11 | `src/pages/PublicCampaignPage.tsx` / `PublicCampaignCanonicalLocationDisplay` | View suggested structured public location | Canonical LGD through the published-public-campaign catalog gateway | Display only; signer input remains names-only and unverified | Read-only canonical resolution with ambiguity retained | MEDIUM | NO | NO | MIGRATED |
+| C12 | `src/pages/PublicCampaignPage.tsx` / browser geolocation action | Use smart location during public signup | Device GPS only | Accuracy/status; NO resolved canonical identity | GPS evidence resolved to canonical candidates with confidence | HIGH | YES | YES | MIGRATED |
+| C13 | `src/pages/PublicCampaignPage.tsx` / public coordinator request | Apply to coordinate a campaign | Mixed India helpers plus typed ward | Requested geography names | Server-validated canonical coordinator scope | HIGH | YES | YES | MIGRATED |
+| C14 | `src/pages/app/CoordinatorNetworkTab.tsx` / coordinator editor | Administer coordinator network | Mixed India fields and free-text ward | Coordinator geography names | Canonical coordinator reference and lineage | HIGH | YES | YES | MIGRATED |
+| C15 | `src/coordinators/network.ts`, `src/backend.ts`, coordinator RPCs / geography tree | Save and load coordinator geography | Internal name/path tree | Internal UUID plus level/name/path, NO LGD identity | Coordinator geography linked to canonical node | HIGH | YES | YES | MIGRATED |
+| C16 | `src/pages/app/ScansTab.tsx` and `src/lib.ts` / OCR mapping and review | Review scanned/paper signatures | OCR inference and manual review | Address/village/district/state text in scan items | Canonical candidates with confidence and unresolved evidence | HIGH | YES | YES | MIGRATED |
+| C17 | `src/documentIntelligence/references/india.ts` / `createIndiaDocumentReferenceData` | Map OCR tokens to geography vocabulary | Compatibility/manual reference lists | In-memory suggestion strings | Versioned canonical search vocabulary | MEDIUM | NO | YES | MIGRATED |
+| C18 | `src/utils/authority.ts` / default authority derivation and routing | Route campaign outcomes to authorities | Campaign names, postal prefix and authority labels | Text equality/prefix match | Canonical lineage-aware routing rules | HIGH | YES | YES | MIGRATED |
+| C19 | `src/authorityDirectory.ts` and `src/pages/app/CampaignsTab.tsx` / authority directory | Configure authority targets | Static templates and manual names | Authority state/district/location labels | Canonical authority jurisdiction references | HIGH | YES | YES | MIGRATED |
+| C20 | `src/components/useCampaignLocationCatalog.ts` and `src/backend.ts` / `readCampaignLocations` | Load campaign custom location options | `vboss_resource_location_*` campaign catalog | Names-only catalog response | Governed custom overlays referencing canonical parents | HIGH | YES | YES | MIGRATED |
+| C21 | `supabase/functions/voiceup-campaign-locations/index.ts` / read, write, import and deactivate | Campaign location administration API | Compatibility master guard plus custom resource paths | Names-only resource rows | Canonical validation plus governed custom extension contract | HIGH | YES | YES | MIGRATED |
+| C22 | `supabase/functions/voiceup-public-signing/logic.ts` and public participation SQL | Persist public signer geography | Client names and optional syntactic IDs | Names; optional IDs without LGD membership proof | Server-resolved canonical reference with dataset fence | HIGH | YES | YES | MIGRATED |
+| C23 | `supabase/functions/_shared/workspaceStateMerge.ts` and `src/backend.ts` / workspace state load/save | Synchronize workspace state | Authenticated workspace boundary plus trusted canonical validator | JSON legacy labels with additive validated references | Preserve and conflict-merge canonical references | HIGH | YES | NO | MIGRATED |
+| C24 | `src/geography.ts` / location override and deletion resolver | Maintain workspace geography overrides | Mutable name-keyed workspace overlays | Name-keyed overrides/deletions | Governed custom overlay with canonical parent identity | HIGH | YES | YES | MIGRATED |
+| C25 | `src/geography.ts` / `pinCodeDirectory`, `findPinCode`, `findLocationByPin` | Suggest location from PIN | Small static PIN directory | In-memory names/PIN | Canonical PIN/address resolution result with provenance | MEDIUM | NO | YES | MIGRATED |
+| C26 | `src/pages/app/MovementCrmTab.tsx`, `CommandCenterTab.tsx`, `EngagementTab.tsx` / location grouping | Analyze and operate supporter engagement | Persisted signer names | Text grouping/buckets | Canonical node/lineage aggregation | HIGH | YES | NO | MIGRATED |
+| C27 | `src/pages/app/ReportsTab.tsx` and `src/pdfExports.ts` / reports and CSV/PDF export | Report and export campaign activity | Persisted signer/campaign names | Text aggregation and presentation | Canonical aggregation with stable display labels | HIGH | YES | NO | MIGRATED |
+| C28 | `src/utils/referrals.ts` and ambassador/growth views / location formatting | Track referrals and movement growth | Persisted signer location strings | Concatenated location text | Canonical scope reference carried with referral identity | HIGH | YES | NO | MIGRATED |
+| C29 | `src/App.tsx` / campaign, signer, scan and authority orchestration handlers | Move geography across application boundaries | All upstream name/custom/static sources | Mutable application state names | Typed canonical references across orchestration boundaries | HIGH | YES | YES | MIGRATED |
+
+## Batch invariant
+
+- Total ledger rows: 29.
+- `MIGRATED`: 29.
+- `PARTIAL`: 0.
+- `NOT_STARTED`: 0.
+- `DEFERRED_WITH_REASON`: 0.
+- Canonical ID, code, version, bounded parents, and lineage remain additive under `locationReference`; all legacy labels remain present.
+- Manual/custom input and OCR/GPS/PIN evidence stay explicitly noncanonical unless the trusted validator rebuilds an explicit canonical selection.

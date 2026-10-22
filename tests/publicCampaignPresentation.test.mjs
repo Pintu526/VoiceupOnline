@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   GAU_SAMMAN_PREMIUM_SLUG,
   INDIAN_MOBILE_INPUT_MAX_LENGTH,
-  canDisplayDevelopmentOtp,
+  canDisplayScreenOtp,
   getPublicCampaignPresentation,
   getPublicCampaignPresentationCopy,
   getSafeOtpDisplayMessage,
@@ -23,9 +23,9 @@ test("canonical Gau Samman slug selects the premium national presentation", () =
   assert.equal(presentation?.kind, "premium-national");
   assert.equal(presentation?.defaultLanguage, "hi");
   assert.equal(presentation?.logoAsset, "/brands/gau-samman/campaign-logo.png");
-  assert.equal(presentation?.heroAsset, "/brands/gau-samman/gau-samman-hero-final.png");
+  assert.equal(presentation?.heroAsset, "/brands/gau-samman/gau-samman-final-artwork.png");
   assert.equal(existsSync("public/brands/gau-samman/campaign-logo.png"), true);
-  assert.equal(existsSync("public/brands/gau-samman/gau-samman-hero-final.png"), true);
+  assert.equal(existsSync("public/brands/gau-samman/gau-samman-final-artwork.png"), true);
 });
 
 test("unrelated and alias slugs retain the generic public presentation", () => {
@@ -43,9 +43,9 @@ test("premium presentation copy is complete in Hindi, English and Odia", () => {
     assert.deepEqual(Object.keys(copy).sort(), englishKeys);
     assert.ok(copy.primaryAction);
     assert.ok(copy.secondaryAction);
-    assert.equal(copy.pillars.length, 3);
+    assert.equal(copy.pillars.length, 5);
   }
-  assert.equal(getPublicCampaignPresentationCopy(presentation, "hi").identityLine, "सेवा | सुरक्षा | सम्मान");
+  assert.equal(getPublicCampaignPresentationCopy(presentation, "hi").identityLine.split("•").length, 4);
 });
 
 test("missing metrics are hidden and supplied real metrics pass through unchanged", () => {
@@ -119,12 +119,13 @@ test("pre-OTP UI performs no supporter lookup or account enumeration", () => {
   assert.doesNotMatch(sendSource, /resume_verified_supporter|campaignSigners|existing|duplicate|lookup/i);
 });
 
-test("returning supporter recognition occurs only after successful OTP verification", () => {
+test("phone OTP may resume only after verification while screen OTP skips resume", () => {
   const verifyStart = appSource.indexOf("async function verifyOtp()");
   const verifyEnd = appSource.indexOf("\n  async function", verifyStart + 1);
   const verifySource = appSource.slice(verifyStart, verifyEnd);
   assert.match(verifySource, /await verifyPublicOtp/);
   assert.match(verifySource, /action:\s*"resume_verified_supporter"/);
+  assert.match(verifySource, /result\.verificationMethod !== "screen_otp"/);
   assert.ok(
     verifySource.indexOf("await verifyPublicOtp") <
       verifySource.indexOf('action: "resume_verified_supporter"')
@@ -138,12 +139,13 @@ test("already-signed continuation does not submit a second signature", () => {
   assert.match(pageSource, /public-post-sign-sharing/);
 });
 
-test("email remains optional unless the campaign explicitly requires it", () => {
-  assert.match(pageSource, /\{isRequired\("email"\) && \(/);
-  assert.match(pageSource, /\{!isRequired\("email"\) && \(/);
+test("GSAA requires email while other campaigns continue to follow their required-fields contract", () => {
+  assert.match(pageSource, /const emailRequired = isRequired\("email"\) \|\| isGoudhanExperience/);
+  assert.match(pageSource, /\{emailRequired && \(/);
+  assert.match(pageSource, /\{!emailRequired && \(/);
 });
 
-test("production hosts can never display an OTP value", () => {
+test("approved GSAA production hosts display screen OTP only with the explicit flag", () => {
   for (const hostname of [
     "gaumata.cloud",
     "www.gaumata.cloud",
@@ -151,12 +153,12 @@ test("production hosts can never display an OTP value", () => {
     "www.voiceup.live"
   ]) {
     assert.equal(
-      canDisplayDevelopmentOtp({
+      canDisplayScreenOtp({
         hostname,
         isDevelopment: true,
         explicitTestDisplayEnabled: true
       }),
-      false
+      true
     );
     assert.equal(
       getSafeOtpDisplayMessage("OTP: 123456", {
@@ -165,14 +167,14 @@ test("production hosts can never display an OTP value", () => {
         explicitTestDisplayEnabled: true,
         neutralMessage: "Verification code sent."
       }),
-      "Verification code sent."
+      "OTP: 123456"
     );
   }
 });
 
-test("development OTP display matches Preview: explicit flag plus localhost or vercel.app", () => {
+test("screen OTP display requires the explicit flag on localhost, Preview, and approved hosts", () => {
   assert.equal(
-    canDisplayDevelopmentOtp({
+    canDisplayScreenOtp({
       hostname: "localhost",
       isDevelopment: true,
       explicitTestDisplayEnabled: true
@@ -180,7 +182,7 @@ test("development OTP display matches Preview: explicit flag plus localhost or v
     true
   );
   assert.equal(
-    canDisplayDevelopmentOtp({
+    canDisplayScreenOtp({
       hostname: "localhost",
       isDevelopment: false,
       explicitTestDisplayEnabled: true
@@ -188,7 +190,7 @@ test("development OTP display matches Preview: explicit flag plus localhost or v
     true
   );
   assert.equal(
-    canDisplayDevelopmentOtp({
+    canDisplayScreenOtp({
       hostname: "preview.vercel.app",
       isDevelopment: false,
       explicitTestDisplayEnabled: true
@@ -196,7 +198,7 @@ test("development OTP display matches Preview: explicit flag plus localhost or v
     true
   );
   assert.equal(
-    canDisplayDevelopmentOtp({
+    canDisplayScreenOtp({
       hostname: "localhost",
       isDevelopment: true,
       explicitTestDisplayEnabled: false
@@ -204,7 +206,7 @@ test("development OTP display matches Preview: explicit flag plus localhost or v
     false
   );
   assert.equal(
-    canDisplayDevelopmentOtp({
+    canDisplayScreenOtp({
       hostname: "preview.vercel.app",
       isDevelopment: false,
       explicitTestDisplayEnabled: false
@@ -226,8 +228,9 @@ test("gaumata host resolution continues to use the existing routing utility", ()
 
 test("premium public location integration retains hierarchy, custom locations and manual entry", () => {
   assert.match(pageSource, /<IndiaLocationFields/);
-  assert.match(pageSource, /verifiedSuggestionsOnly/);
-  assert.match(pageSource, /customLocations=\{customLocations\}/);
+  assert.match(pageSource, /catalogStatus=\{publicCampaignLocationCatalog\.status\}/);
+  assert.match(pageSource, /customLocations=\{signerLocationCatalog\}/);
+  assert.match(pageSource, /createObservedLocationReference/);
   assert.match(pageSource, /experienceCopy\.enterManually/);
   assert.doesNotMatch(pageSource, /ResourceLocationManager/);
 });
@@ -260,7 +263,7 @@ test("premium first screen contains required name and India mobile controls", ()
 test("approved campaign artwork drives the responsive hero without replacing generic media", () => {
   assert.match(pageSource, /campaignHeroImage === premiumPresentation\.placeholderHeroAsset/);
   assert.match(pageSource, /premiumPresentation\?\.heroAsset\.trim\(\) \|\| campaignSupportingArtwork/);
-  assert.match(pageSource, /src=\{premiumPresentation\?\.logoAsset\}/);
+  assert.match(pageSource, /src=\{premiumPresentation\.logoAsset\}/);
   assert.match(pageSource, /className=\{`public-national-hero-art/);
   assert.match(pageSource, /public-national-hero-fallback/);
   assert.match(cssSource, /\.public-national-hero-art/);

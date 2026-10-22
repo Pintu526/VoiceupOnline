@@ -355,7 +355,7 @@ test("the complete public signer envelope separates transport fields from its ac
   assert.equal(hasUnsupportedSignerFields(signer), false);
   assert.equal(hasUnsupportedSignerFields({ ...signer, unknownSignerField: "no" }), true);
   assert.deepEqual(profileFromSigner(signer), publicProfile);
-  assert.match(edge, /const profile = body\.payload\?\.profile \?\? \(Object\.keys\(signer\)\.length \? profileFromSigner\(signer\) : \{\}\)/);
+  assert.match(edge, /const profile: Record<string, any> = \{[\s\S]*body\.payload\?\.profile \?\? \(Object\.keys\(signer\)\.length \? profileFromSigner\(signer\) : \{\}\)/);
   assert.match(app, /const signerPayload = \{\s*\.\.\.restrictedPublicForm,/);
 });
 
@@ -371,7 +371,7 @@ test("Edge validation is bounded, action-specific, service-role mediated, and do
   assert.match(edge, /MAX_PUBLIC_BODY_BYTES = 64 \* 1024/);
   assert.match(edge, /normalizePublicCampaignSlug\(slug\)/);
   assert.match(edge, /isPublicParticipationAction/);
-  assert.match(edge, /admin\.rpc\("mutate_voiceup_public_participation"/);
+  assert.match(edge, /admin\.rpc\("mutate_voiceup_public_participation_screen_safe"/);
   assert.match(edge, /rpcErrorCode/);
   assert.doesNotMatch(edge, /console\.(log|info|debug|warn)/);
   assert.match(edge, /console\.error\("voiceup-public-signing RPC failure"/);

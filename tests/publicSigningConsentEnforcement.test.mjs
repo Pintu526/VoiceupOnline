@@ -227,7 +227,7 @@ test("K. production public signing reuses server OTP and requires its proof", ()
   assert.match(backendSource, /"voiceup-otp"/);
   assert.match(backendSource, /purpose:\s*"public-signing"/);
   assert.match(appSource, /otpVerificationToken:\s*result\.verificationToken/);
-  assert.match(signingFunctionSource, /admin\.rpc\("mutate_voiceup_public_participation"/);
+  assert.match(signingFunctionSource, /admin\.rpc\("mutate_voiceup_public_participation_screen_safe"/);
   assert.match(atomicMigrationSource, /challenge\.purpose = 'public-signing'/);
   assert.match(atomicMigrationSource, /verificationTokenHash/);
   assert.match(signingFunctionSource, /otp_verification_required/);
@@ -259,7 +259,7 @@ test("K1. invalid public phones are rejected before browser invocation and every
   assert.match(atomicMigrationSource, /\^\[0-9\]\{8,15\}\$/);
 });
 
-test("K2. only the Gau Samman alias or canonical slug returns an OTP when the server flag is enabled", () => {
+test("K2. only configured GSAA public signing returns a screen OTP", () => {
   const requestOtpSource = backendSource.slice(
     backendSource.indexOf("export async function requestOtp("),
     backendSource.indexOf("export async function verifyOtp(")
@@ -267,12 +267,13 @@ test("K2. only the Gau Samman alias or canonical slug returns an OTP when the se
   assert.match(otpFunctionSource, /const SHOW_GSAA_OTP = Deno\.env\.get\("VOICEUP_SHOW_OTP"\) === "true"/);
   assert.match(
     otpFunctionSource,
-    /purpose === "public-signing" &&[\s\S]*\(publicSlug === "GSAA" \|\| publicSlug === "gau-samman-ahvaan-abhiyan"\) &&[\s\S]*SHOW_GSAA_OTP[\s\S]*\? \{ otp: code \}/
+    /purpose === "public-signing" &&[\s\S]*SHOW_GSAA_OTP &&[\s\S]*SCREEN_OTP_SLUGS\.has\(canonicalPublicSlug\)[\s\S]*\? \{ otp: code \}/
   );
-  assert.match(requestOtpSource, /otp:\s*data\.otp/);
+  assert.match(requestOtpSource, /const returnedOtp = extractReturnedOtp\(invokeBody\) \?\? extractReturnedOtp\(data\)/);
+  assert.match(requestOtpSource, /otp:\s*returnedOtp/);
   assert.match(backendSource, /if \(!import\.meta\.env\.DEV\)[\s\S]*Verification service is temporarily unavailable/);
-  assert.match(appSource, /const otp = result\.otp/);
-  assert.match(appSource, /result\.developmentOtp\s*\?\s*`OTP: \$\{result\.developmentOtp\}`/);
+  assert.match(appSource, /const otp = result\.screenOtp \?\? result\.otp/);
+  assert.match(appSource, /result\.screenOtp\s*\?\s*`Verification code: \$\{result\.screenOtp\}`/);
 });
 
 test("L. signing recovery stays in the tab and never restores OTP proof", () => {
@@ -282,12 +283,14 @@ test("L. signing recovery stays in the tab and never restores OTP proof", () => 
   assert.doesNotMatch(publicPageSource, /window\.localStorage/);
 });
 
-test("M. optional location captures accuracy only and never reads coordinates", () => {
+test("M. optional GPS remains explicit unverified observation evidence", () => {
   assert.match(publicPageSource, /BrowserGPSAdapter/);
   assert.match(publicPageSource, /gpsAdapter\.requestPosition/);
   assert.match(publicPageSource, /reading\.accuracyMeters/);
-  assert.doesNotMatch(publicPageSource, /reading\.(latitude|longitude)/);
-  assert.doesNotMatch(publicPageSource, /console\.(log|info|debug|warn)\(/);
+  assert.match(publicPageSource, /createObservedLocationReference/);
+  assert.match(publicPageSource, /kind: "gps"/);
+  assert.match(publicPageSource, /verificationState: "unverified_observation"|"browser_gps"/);
+  assert.doesNotMatch(publicPageSource, /console\.(log|info|debug|warn)\([^)]*reading\.(?:latitude|longitude)/);
 });
 
 test("N. post-sign photo processing uses private signed upload without base64", () => {
@@ -308,12 +311,12 @@ test("O. responsive public signing keeps the route and puts the mobile phone act
   assert.match(publicPageSource, /const sent = await onSendOtp\(\);[\s\S]*if \(sent === false\) return;[\s\S]*setWizardStep\("otp"\)/);
   assert.match(appSource, /async function sendOtp\(\)[\s\S]*return true;[\s\S]*catch \(error\)[\s\S]*return false;/);
 
+  const languagePosition = publicPageSource.indexOf('className="public-page-language-toolbar"');
   const summaryPosition = publicPageSource.indexOf('className="public-mobile-campaign-summary"');
-  const languagePosition = publicPageSource.indexOf('className="public-language-selector"');
-  const phonePosition = publicPageSource.indexOf('{wizardStep === "phone" && (', languagePosition);
+  const phonePosition = publicPageSource.indexOf('{wizardStep === "phone" && (', summaryPosition);
   const shareToolsPosition = publicPageSource.indexOf('className="public-sign-share-tools"');
-  assert.ok(summaryPosition < languagePosition);
-  assert.ok(languagePosition < phonePosition);
+  assert.ok(languagePosition < summaryPosition);
+  assert.ok(summaryPosition < phonePosition);
   assert.ok(phonePosition < shareToolsPosition);
 
   assert.match(publicSigningCss, /height:\s*calc\(100vh - 56px\)/);

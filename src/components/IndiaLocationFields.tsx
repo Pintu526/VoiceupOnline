@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import {
   findLocationByPin,
   findPinCode,
+  isUrbanLocalBodySelection,
   type LocationDeletionLevel,
   type LocationDeletions,
   type LocationOverrides,
@@ -39,8 +40,10 @@ interface IndiaLocationFieldsProps {
   onAddLocation?: (values: LocationWithPin) => boolean | Promise<boolean>;
   onRemoveLocation?: (values: LocationWithPin, level: LocationDeletionLevel) => void;
   customLocations?: PublicCampaignCustomLocation[];
+  campaignLocationPolicy?: PublicCampaignCustomLocation[];
   catalogStatus?: IndiaLocationCatalogStatus;
   campaign?: { id: string; slug: string } | null;
+  onPinObservation?: (values: LocationWithPin, postalCode: string) => void;
 }
 
 function optionExists(options: string[], value: string): boolean {
@@ -66,10 +69,15 @@ export function IndiaLocationFields({
   onAddLocation,
   onRemoveLocation,
   customLocations,
+  campaignLocationPolicy,
   catalogStatus,
-  campaign
+  campaign,
+  onPinObservation
 }: IndiaLocationFieldsProps) {
-  const loadedCatalog = useCampaignLocationCatalog(customLocations === undefined ? campaign ?? null : null);
+  const loadedCatalog = useCampaignLocationCatalog(
+    customLocations === undefined ? campaign ?? null : null,
+    values
+  );
   const resolvedCustomLocations = customLocations ?? loadedCatalog.locations;
   const resolvedCatalogStatus = catalogStatus ?? (customLocations === undefined ? loadedCatalog.status : undefined);
   const catalogUnavailable = resolvedCatalogStatus === "loading" || resolvedCatalogStatus === "error";
@@ -114,7 +122,8 @@ export function IndiaLocationFields({
     allowedPanchayat,
     fixedCountry,
     catalogStatus: resolvedCatalogStatus,
-    catalogIndex
+    catalogIndex,
+    campaignLocationPolicy
   });
   const stateLocked = isLocationLevelAtLeast(lockedLevel, "state");
   const districtLocked = isLocationLevelAtLeast(lockedLevel, "district");
@@ -124,6 +133,11 @@ export function IndiaLocationFields({
   const hideDistrict = isLocationLevelAtLeast(hiddenLockedLevel, "district");
   const hideBlock = isLocationLevelAtLeast(hiddenLockedLevel, "block");
   const hidePanchayat = isLocationLevelAtLeast(hiddenLockedLevel, "panchayat");
+  const selectedUrbanLocalBody = isUrbanLocalBodySelection(
+    values.state,
+    values.district,
+    values.block
+  );
 
   const canDeleteDistrict = Boolean(allowInlineAdd && !districtLocked && values.state && values.district);
   const canDeleteBlock = Boolean(allowInlineAdd && !blockLocked && values.state && values.district && values.block);
@@ -184,7 +198,9 @@ export function IndiaLocationFields({
   function updatePin(postalCode: string) {
     const normalizedPin = postalCode.replace(/\D/g, "").slice(0, 6);
     const matchedLocation = allowStaticLocationFallback ? findLocationByPin(normalizedPin) : undefined;
-    onChange(matchedLocation ? { ...matchedLocation } : { ...values, postalCode: normalizedPin });
+    const nextValues = matchedLocation ? { ...matchedLocation } : { ...values, postalCode: normalizedPin };
+    onChange(nextValues);
+    if (normalizedPin) onPinObservation?.(nextValues, normalizedPin);
   }
 
   function addDistrict() {
@@ -368,11 +384,11 @@ export function IndiaLocationFields({
       )}
 
       {!hideBlock && (
-        <Field label={fieldLabel("Block / Tehsil / Taluk", "block")}>
+        <Field label={selectedUrbanLocalBody ? "Local Body" : fieldLabel("Block / Local Body", "block")}>
           <input
             list={`${idPrefix}-blocks`}
             autoComplete="off"
-            placeholder={values.district ? "Search block / ward group or leave blank" : "Choose district first"}
+            placeholder={values.district ? "Search development block or urban local body" : "Choose district first"}
             value={values.block}
             onChange={(event) => selectBlock(event.target.value)}
             disabled={
@@ -415,11 +431,15 @@ export function IndiaLocationFields({
       )}
 
       {!hidePanchayat && (
-        <Field label={fieldLabel("Gram Panchayat / Ward", "panchayat")}>
+        <Field label={selectedUrbanLocalBody ? "Ward" : fieldLabel("Gram Panchayat", "panchayat")}>
           <input
             list={`${idPrefix}-panchayats`}
             autoComplete="off"
-            placeholder={values.block ? "Search panchayat / ward or leave blank" : "Choose block first"}
+            placeholder={
+              values.block
+                ? selectedUrbanLocalBody ? "Search ward" : "Search Gram Panchayat or leave blank"
+                : "Choose block or urban local body first"
+            }
             value={values.panchayat}
             onChange={(event) => updateLocation({ ...values, panchayat: event.target.value })}
             disabled={

@@ -37,12 +37,21 @@ export function getSupporterPortalCode(): string {
 
 export function getCampaignAdminSlug(): string {
   if (typeof window === "undefined") return "";
-  return window.location.pathname.match(/^\/admin\/([^/]+)\/?$/)?.[1] ?? "";
+  const slug = window.location.pathname.match(/^\/admin\/([^/]+)\/?$/)?.[1] ?? "";
+  return slug === "reset-password" ? "" : slug;
 }
 
 export function getIsSaasAdminRoute(): boolean {
   if (typeof window === "undefined") return false;
   return window.location.pathname === "/admin" || window.location.pathname === "/admin/";
+}
+
+export function getIsSaasAdminPasswordResetRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    window.location.pathname === "/admin/reset-password"
+    || window.location.pathname === "/admin/reset-password/"
+  );
 }
 
 export function getIsAppRoute(): boolean {

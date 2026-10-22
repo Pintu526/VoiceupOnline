@@ -93,7 +93,8 @@ export function toPublicParticipationRequest(
       district: request.geographicScope.district,
       block: request.geographicScope.block,
       panchayat: request.geographicScope.panchayat,
-      ward: request.geographicScope.ward
+      ward: request.geographicScope.ward,
+      locationReference: request.geographicScope.locationReference
     },
     currentStage,
     submittedAt: request.submittedAt,

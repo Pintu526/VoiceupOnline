@@ -6,6 +6,7 @@ import {
   groupSignersByLocation,
   groupSignersByWeek
 } from "./lib";
+import { locationReferenceDisplay } from "./businessOs/location/persistence/LocationReferenceGovernance.ts";
 import {
   getCampaignAdminUrl,
   getCampaignGoalValue,
@@ -614,11 +615,11 @@ function drawSupporterRegister(doc: jsPDF, context: ReportContext) {
     { label: "Name", width: 22, value: (signer) => safe(signer.name) },
     { label: "Phone", width: 18, value: (signer) => safe(signer.phone) },
     { label: "Email", width: 24, value: (signer) => safe(signer.email) },
-    ...(isGlobalMode ? [{ label: "Country", width: 16, value: (signer: Signer) => safe(signer.country) }] : []),
-    { label: locationLabels.state, width: 18, value: (signer) => safe(signer.state) },
-    { label: locationLabels.district, width: 19, value: (signer) => safe(signer.district) },
-    ...(!isGlobalMode ? [{ label: locationLabels.block, width: 17, value: (signer: Signer) => safe(signer.block) }] : []),
-    { label: locationLabels.panchayat, width: 21, value: (signer) => safe(signer.panchayat) },
+    ...(isGlobalMode ? [{ label: "Country", width: 16, value: (signer: Signer) => safe(locationReferenceDisplay(signer.locationReference, signer, "country").label || signer.country) }] : []),
+    { label: locationLabels.state, width: 18, value: (signer) => safe(locationReferenceDisplay(signer.locationReference, signer, "state").label || signer.state) },
+    { label: locationLabels.district, width: 19, value: (signer) => safe(locationReferenceDisplay(signer.locationReference, signer, "district").label || signer.district) },
+    ...(!isGlobalMode ? [{ label: locationLabels.block, width: 17, value: (signer: Signer) => safe(locationReferenceDisplay(signer.locationReference, signer, "block").label || signer.block) }] : []),
+    { label: locationLabels.panchayat, width: 21, value: (signer) => safe(locationReferenceDisplay(signer.locationReference, signer, "panchayat").label || signer.panchayat) },
     { label: "Village", width: 15, value: () => "Not available" },
     { label: "Occupation", width: 17, value: () => "Not available" },
     { label: "Date", width: 17, value: (signer) => formatDate(signer.signedAt) },

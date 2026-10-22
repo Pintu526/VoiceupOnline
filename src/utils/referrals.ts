@@ -1,6 +1,7 @@
 import type { Campaign, Organization, Signer } from "../types";
 import { getCampaignPublicUrl } from "./campaign";
 import { createQrSvgFragment, isValidQrDestination } from "./qr";
+import { canonicalFirstLocationLabel } from "../businessOs/location/persistence/LocationReferenceGovernance.ts";
 
 export const REFERRAL_SHARE_POINTS = 1;
 export const REFERRAL_SIGNATURE_POINTS = 10;
@@ -101,7 +102,7 @@ export function getReferralLeaderboard(campaignSigners: Signer[]): ReferralLeade
         code,
         label: referrer ? getSafeReferrerLabel(referrer) : code,
         location: referrer
-          ? [referrer.panchayat, referrer.block, referrer.district, referrer.state].filter(Boolean).join(", ") ||
+          ? canonicalFirstLocationLabel(referrer) ||
             "Location not captured"
           : "Manual or external referral",
         referredSignatures,

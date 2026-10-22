@@ -11,6 +11,10 @@ const manager = readFileSync(
   new URL("../src/businessOs/masterData/ResourceLocationManager.tsx", import.meta.url),
   "utf8"
 );
+const hierarchyHook = readFileSync(
+  new URL("../src/components/useCampaignLocationCatalog.ts", import.meta.url),
+  "utf8"
+);
 
 test("read contract uses a default 500-row page, caps at 1000, and rejects invalid offsets", () => {
   assert.match(edge, /pagination\(request\.limit, 500\)/);
@@ -54,30 +58,44 @@ test("typed wrapper exposes pagination requests and response metadata", () => {
   }
 });
 
-test("manager loads pages sequentially at 500 rows and deduplicates by ID", () => {
-  const refresh = manager.slice(manager.indexOf("const refresh"), manager.indexOf("useEffect(() =>"));
-  assert.match(refresh, /let offset = 0/);
-  assert.match(refresh, /while \(true\)/);
-  assert.match(refresh, /limit: 500,\s*offset/);
-  assert.match(refresh, /new Map<string, CampaignLocationRecord>\(\)/);
-  assert.match(refresh, /accumulated\.set\(location\.id, location\)/);
-  assert.match(refresh, /if \(!result\.hasMore\) break/);
-  assert.match(refresh, /offset = result\.nextOffset/);
-  assert.doesNotMatch(refresh, /Promise\.all/);
+test("manager fetches exactly one 50-row administration page", () => {
+  const refresh = manager.slice(manager.indexOf("const refreshLocationsPage"), manager.indexOf("useEffect(() =>"));
+  assert.match(refresh, /readCampaignLocations\(scope/);
+  assert.match(refresh, /limit: locationPageSize/);
+  assert.match(refresh, /offset/);
+  assert.match(manager, /const locationPageSize = 50/);
+  assert.doesNotMatch(refresh, /while \(true\)|accumulated|result\.nextOffset/);
 });
 
-test("manager retains loaded pages after a failure and ignores stale requests", () => {
-  const refresh = manager.slice(manager.indexOf("const refresh"), manager.indexOf("useEffect(() =>"));
-  assert.match(refresh, /Location refresh paused after \$\{accumulated\.size\} loaded rows\. Retry refresh to continue\./);
-  assert.match(refresh, /if \(sequence !== requestSequence\.current\) return/);
-  assert.match(manager, /return \(\) => \{\s*requestSequence\.current \+= 1;/);
+test("manager ignores stale summary and list requests independently", () => {
+  assert.match(manager, /summaryRequestSequence/);
+  assert.match(manager, /locationsRequestSequence/);
+  assert.match(manager, /if \(sequence !== summaryRequestSequence\.current\) return/);
+  assert.match(manager, /if \(sequence !== locationsRequestSequence\.current\) return/);
 });
 
-test("refresh restarts from zero while existing mutation and public synchronization paths remain intact", () => {
-  assert.match(manager, /const sequence = \+\+requestSequence\.current/);
-  assert.match(manager, /let offset = 0/);
-  assert.match(manager, /await refresh\(\);/);
-  assert.match(manager, /\.filter\(\(location\) => location\.active\)\s*\.map\(toPublicCampaignCustomLocation\)/);
+test("lazy hierarchy loads only direct branches and never paginates the full catalog", () => {
+  assert.match(hierarchyHook, /readCampaignLocationHierarchy/);
+  assert.match(hierarchyHook, /parentPaths: Partial<CampaignLocationPath>\[\] = \[\{ country: "India" \}\]/);
+  assert.match(hierarchyHook, /Promise\.all\(parentPaths\.map/);
+  assert.doesNotMatch(hierarchyHook, /readCampaignLocations|while \(true\)|limit: 500|nextOffset/);
+  assert.match(manager, /setPageOffset\(0\)/);
   assert.match(manager, /addCampaignLocation\(scope, cleaned, idempotencyKey\(\)\)/);
   assert.match(manager, /deactivateCampaignLocation\(scope, pendingDeactivate\.id, pendingDeactivate\.version\)/);
+});
+
+test("summary counts transfer no rows and hierarchy is direct-child bounded", () => {
+  const summary = edge.slice(
+    edge.indexOf('request.action === "read_campaign_location_summary"'),
+    edge.indexOf('request.action === "read_campaign_locations"')
+  );
+  assert.match(summary, /read_campaign_location_summary_v2/);
+  assert.doesNotMatch(summary, /\.from\("vboss_resource_location_paths"\)|head: true|Promise\.all/);
+  const hierarchy = edge.slice(
+    edge.indexOf('request.action === "read_campaign_location_hierarchy"'),
+    edge.indexOf('request.action === "read_campaign_location_summary"')
+  );
+  assert.match(hierarchy, /read_campaign_location_hierarchy_v2/);
+  assert.match(hierarchy, /p_limit: 1000/);
+  assert.doesNotMatch(hierarchy, /\.from\("vboss_resource_location_paths"\)|\.eq\("leaf_level"/);
 });

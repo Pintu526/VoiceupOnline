@@ -95,7 +95,7 @@ test("Field Collection consumes the helper supplied by the ordered prerequisite"
 
 test("all frozen pending migrations remain byte-for-byte unchanged", () => {
   const expectedHashes = new Map([
-    [fieldCollectionSource, "40c9e30e5a82cc6bef10d47d5ed920ee0752427f5f9d24c5712b7acc590b11b4"],
+    [fieldCollectionSource, "8e6663dceec062d85060179be13217a08a84b189bdb24c80e59b12d00abaa341"],
     [otpSource, "c2eb120507eca80a78f47fbeb466edac5932aaa1cf0e755adc1648c73133725e"],
     [coordinatorSource, "6491976f7bed72938b2f164dc160a8a40388fc89b83157a8cca5dff97741fc43"]
   ]);

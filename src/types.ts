@@ -1,4 +1,5 @@
 import type { CampaignGrowthConfiguration } from "./growth/configuration";
+import type { PersistedLocationReference } from "./businessOs/location/persistence/PersistedLocationReference.ts";
 
 export type SignatureSource = "online" | "scan" | "field";
 
@@ -29,6 +30,7 @@ export interface PublicParticipationConsentRecord {
 export interface PublicCoordinatorApplication {
   requestedLevel?: string;
   requestedGeography?: Record<string, unknown>;
+  requestedLocationReference?: PersistedLocationReference | null;
   experience?: string;
   availability?: string;
   coordinatorConsent: PublicParticipationConsentRecord;
@@ -70,6 +72,7 @@ export interface ParticipationRequestGeographicScope {
   panchayat?: string;
   wardId?: string;
   ward?: string;
+  locationReference?: PersistedLocationReference | null;
 }
 
 export interface ParticipationRequestConsentEvidence {
@@ -169,7 +172,7 @@ export interface PublicParticipationRequest {
   minimumAcceptableLevel?: ParticipationRequestLevel;
   geographicScope: Pick<
     ParticipationRequestGeographicScope,
-    "country" | "state" | "district" | "block" | "panchayat" | "ward"
+    "country" | "state" | "district" | "block" | "panchayat" | "ward" | "locationReference"
   >;
   currentStage: PublicParticipationRequestStage;
   submittedAt: string;
@@ -352,6 +355,8 @@ export interface Campaign {
   panchayat: string;
   location: string;
   postalCode: string;
+  /** Additive workspace-only canonical/custom location persistence. */
+  locationReference?: PersistedLocationReference | null;
   startDate: string;
   endDate: string;
   goal: number;
@@ -399,6 +404,9 @@ export interface Signer {
   whatsappNumber: string;
   telegramHandle: string;
   otpVerified: boolean;
+  verificationMethod?: "phone_otp" | "email_otp" | "screen_otp";
+  phoneOwnershipVerified?: boolean;
+  emailOwnershipVerified?: boolean;
   selectedAuthorityId: string;
   selectedAuthorityName: string;
   country?: string;
@@ -408,6 +416,8 @@ export interface Signer {
   panchayat: string;
   address: string;
   postalCode: string;
+  /** Server-validated canonical identity or an explicitly unverified location record. */
+  locationReference?: PersistedLocationReference | null;
   comment: string;
   source: SignatureSource;
   status: VerificationStatus;
@@ -515,6 +525,8 @@ export interface AuthorityRule {
   email: string;
   submissionMethod: "Email" | "Portal" | "Physical office";
   confidence: number;
+  /** Additive jurisdiction identity; legacy labels remain available to older readers. */
+  jurisdictionLocationReference?: PersistedLocationReference | null;
 }
 
 export interface Organization {
@@ -551,6 +563,8 @@ export interface Organization {
     block?: string;
     panchayat?: string;
     lockLevel?: LocationGovernanceLevel;
+    /** Additive; legacy governance labels remain authoritative for old clients. */
+    locationReference?: PersistedLocationReference | null;
   };
   // Entitlement engine bookkeeping. All optional/backfillable so campaigns and
   // organizations created before this architecture keep working unchanged --
@@ -661,6 +675,8 @@ export interface ScanReviewItem {
   supporterId?: string;
   reviewVersion?: number;
   historicalLinkUncertain?: boolean;
+  /** OCR/GPS/PIN evidence is unverified until a user confirms a canonical candidate. */
+  locationReference?: PersistedLocationReference | null;
 }
 
 export interface SuggestedFeature {

@@ -7,68 +7,28 @@ import {
 import { fetchCanonicalPublishedCampaignBySlug } from "../_shared/publicCampaignIndex.ts";
 import { normalizePublicCampaignSlug } from "../_shared/publicCampaignSlug.ts";
 
-const PUBLIC_LOCATION_PAGE_SIZE = 1_000;
-const MAX_PUBLIC_CAMPAIGN_LOCATIONS = 60_000;
-const PUBLIC_LOCATION_PAGE_CONCURRENCY = 6;
+const hierarchyKeys = ["country", "state", "district", "block", "panchayat", "village"] as const;
 
-function publicCampaignLocationsQuery(admin: any, resolved: any) {
-  return {
-    select(columns: string, options?: Record<string, unknown>) {
-      return admin
-        .from("vboss_resource_location_paths")
-        .select(columns, options)
-        .eq("workspace_id", resolved.row.workspace_id)
-        .eq("application_key", "voiceup")
-        .eq("resource_type", "campaign")
-        .eq("resource_id", resolved.row.campaign_id)
-        .eq("active", true);
-    }
-  };
+function clean(value: unknown): string {
+  return String(value ?? "").normalize("NFKC").replace(/[\t\n\r\f\v]/g, " ")
+    .replace(/[\p{Cc}]/gu, "").trim().replace(/\s+/gu, " ");
 }
 
-async function loadPublicCampaignLocations(admin: any, resolved: any) {
-  const { count, error: countError } = await publicCampaignLocationsQuery(admin, resolved)
-    .select("id", { count: "exact", head: true });
-  if (countError || count === null) return [];
-  if (count > MAX_PUBLIC_CAMPAIGN_LOCATIONS) {
-    throw new Error("Campaign location set exceeds the public response safety limit.");
-  }
-
-  const pageOffsets: number[] = [];
-  for (let offset = 0; offset < count; offset += PUBLIC_LOCATION_PAGE_SIZE) {
-    pageOffsets.push(offset);
-  }
-
-  const locations: Array<Record<string, string | null>> = [];
-  const locationIds = new Set<string>();
-  for (let pageStart = 0; pageStart < pageOffsets.length; pageStart += PUBLIC_LOCATION_PAGE_CONCURRENCY) {
-    const pageLocations = await Promise.all(
-      pageOffsets
-        .slice(pageStart, pageStart + PUBLIC_LOCATION_PAGE_CONCURRENCY)
-        .map(async (offset) => {
-          const { data, error } = await publicCampaignLocationsQuery(admin, resolved)
-            .select("id,country,state,district,block,panchayat,village,postal_code")
-            .order("normalized_path")
-            .order("id")
-            .range(offset, offset + PUBLIC_LOCATION_PAGE_SIZE - 1);
-          if (error) throw error;
-          return data ?? [];
-        })
-    );
-    for (const page of pageLocations) {
-      for (const location of page) {
-        if (locationIds.has(location.id)) {
-          throw new Error("Campaign location pagination returned a duplicate row.");
-        }
-        locationIds.add(location.id);
-        locations.push(location);
-      }
+function normalizedParentPath(value: unknown): string | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const input = value as Record<string, unknown>;
+  const parts: string[] = [];
+  let foundEmpty = false;
+  for (const key of hierarchyKeys) {
+    const label = clean(input[key]);
+    if (!label) {
+      foundEmpty = true;
+      continue;
     }
+    if (foundEmpty || label.length > 120) return null;
+    parts.push(label.toLowerCase());
   }
-  if (locations.length !== count) {
-    throw new Error("Campaign location pagination did not return the complete location set.");
-  }
-  return locations;
+  return parts.length >= 1 && parts.length <= 5 ? parts.join("|") : null;
 }
 
 Deno.serve(async (req) => {
@@ -94,7 +54,26 @@ Deno.serve(async (req) => {
     if (!resolved.ok || !resolved.row.campaign) {
       return jsonResponse({ campaign: null });
     }
-    const customLocations = await loadPublicCampaignLocations(admin, resolved);
+    if (body?.action === "read_campaign_location_hierarchy") {
+      const parentPath = normalizedParentPath(body?.parentPath);
+      if (!parentPath) return jsonResponse({ error: "validation_failed" }, 400);
+      const { data, error } = await admin.rpc("read_public_campaign_location_hierarchy_v2", {
+        p_workspace_id: resolved.row.workspace_id,
+        p_application_key: "voiceup",
+        p_resource_type: "campaign",
+        p_resource_id: resolved.row.campaign_id,
+        p_resource_slug: resolved.row.slug,
+        p_parent_path: parentPath,
+        p_limit: 1000
+      });
+      if (error || data?.code !== "ok") return jsonResponse({ error: data?.code ?? "server_error" }, 503);
+      return jsonResponse({
+        locations: data.locations ?? [],
+        total: data.total ?? 0,
+        childLevel: data.childLevel,
+        configurationVersion: data.configurationVersion ?? 0
+      });
+    }
 
     return jsonResponse({
       campaign: {
@@ -102,11 +81,7 @@ Deno.serve(async (req) => {
         organization: resolved.row.organization ?? undefined,
         authorities: resolved.row.authorities ?? [],
         metrics: resolved.row.metrics,
-        customLocations: (customLocations ?? []).map((location) => ({
-          country: location.country, state: location.state ?? undefined, district: location.district ?? undefined,
-          block: location.block ?? undefined, panchayat: location.panchayat ?? undefined,
-          village: location.village ?? undefined, postalCode: location.postal_code ?? undefined
-        }))
+        customLocations: []
       }
     });
   } catch (error) {

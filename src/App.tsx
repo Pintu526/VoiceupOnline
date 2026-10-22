@@ -18,6 +18,7 @@ import {
   getCurrentAuthSession,
   getCurrentAuthUser,
   getCurrentWorkspaceId,
+  invokeWorkspaceLocationCatalog,
   isBackendConfigured,
   isSupabaseAuthAvailable,
   isSupabaseStorageAvailable,
@@ -44,7 +45,13 @@ import {
   verifySecureFieldUploadAccess
 } from "./backend";
 import type { PublicCampaignJourney, PublicCampaignPayload } from "./backend";
-import { ProvisionWorkspaceMemberError, PublicSignatureSubmissionError } from "./backend";
+import {
+  ProvisionWorkspaceMemberError,
+  PublicSignatureSubmissionError,
+  WorkspaceSaveError
+} from "./backend";
+import { LocationBrowserCatalogClient } from "./businessOs/location/browser/LocationBrowserCatalogClient.ts";
+import { createIndiaLgdCatalogReader } from "./businessOs/location/ui/IndiaLgdCatalogReader.ts";
 import {
   applyCampaignAdminProvisioningFailure,
   applyCampaignAdminProvisioningSuccess,
@@ -117,6 +124,7 @@ import {
   removeLocationOption,
   type LocationDeletionLevel,
   type LocationDeletions,
+  type LocationOverrideReferences,
   type LocationOverrides,
   type LocationWithPin
 } from "./geography";
@@ -151,6 +159,7 @@ import {
   getCampaignAdminSlug,
   getIsAppRoute,
   getIsLandingPageRoute,
+  getIsSaasAdminPasswordResetRoute,
   getIsStartRoute,
   getIsSaasAdminRoute,
   getLegalPage,
@@ -186,6 +195,10 @@ import {
   getSignerSelectedAuthority,
   normalizeAuthorityLevel
 } from "./utils/authority";
+import {
+  createUnverifiedLocationReference,
+  legacyLocationPathKey
+} from "./businessOs/location/persistence/LocationReferenceGovernance.ts";
 import {
   getCreateCampaignBlockReason,
   getDefaultMessageLimit,
@@ -256,6 +269,7 @@ import {
   clearPublicSigningOtpState,
   createPublicSigningSubmissionAttempt,
   formatPublicSigningBackendError,
+  isValidPublicSignerEmail,
   transitionPublicSigningCampaign,
   type PublicSigningCampaignScope,
   type PublicSigningSubmissionAttempt
@@ -274,6 +288,7 @@ import type {
 } from "./pages/OnboardingWizard";
 import { LegalPage } from "./pages/LegalPage";
 import { SaasAppLoginPage } from "./pages/SaasAppLoginPage";
+import { SaasAdminPasswordResetPage } from "./pages/SaasAdminPasswordResetPage";
 import {
   PublicCampaignPage,
   PublicCampaignNotFound,
@@ -315,6 +330,7 @@ const supporterPortalCode = getSupporterPortalCode();
 const adminCampaignSlug = getCampaignAdminSlug();
 const isAppRoute = getIsAppRoute();
 const isSaasAdminRoute = getIsSaasAdminRoute();
+const isSaasAdminPasswordResetRoute = getIsSaasAdminPasswordResetRoute();
 const legalPage = getLegalPage();
 const isLandingPageRoute = getIsLandingPageRoute();
 const isStartRoute = getIsStartRoute();
@@ -503,6 +519,11 @@ function App() {
     `${storagePrefix}-location-overrides`,
     {}
   );
+  const [locationOverrideReferences, setLocationOverrideReferences] =
+    usePersistentState<LocationOverrideReferences>(
+      `${storagePrefix}-location-override-references`,
+      {}
+    );
   const [locationDeletions, setLocationDeletions] = usePersistentState<LocationDeletions>(
     `${storagePrefix}-location-deletions`,
     emptyLocationDeletions
@@ -567,8 +588,14 @@ function App() {
   const [campaignAdminProvisioningPending, setCampaignAdminProvisioningPending] = useState(false);
   const [campaignAdminProvisioningMessage, setCampaignAdminProvisioningMessage] = useState("");
   const campaignAdminProvisioningInFlightRef = useRef(false);
+  const autosavesInFlightRef = useRef(new Set<Promise<void>>());
   const [appLogin, setAppLogin] = useState(blankAppLogin);
-  const [appLoginMessage, setAppLoginMessage] = useState("");
+  const [appLoginMessage, setAppLoginMessage] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("passwordReset") === "success"
+      ? "Password updated successfully. Sign in with your new password."
+      : "";
+  });
   const [authContextLoading, setAuthContextLoading] = useState(isBackendConfigured);
   const [isPlatformAdminAuthenticated, setIsPlatformAdminAuthenticated] = useState(false);
   const [isCustomerWorkspaceAuthenticated, setIsCustomerWorkspaceAuthenticated] = useState(false);
@@ -701,8 +728,8 @@ function App() {
       setPublicForm((current) => clearPublicSigningOtpState(current));
       setOtpCode("");
       setOtpInput("");
-      setOtpMessage("Your OTP verification expired. Request a new code.");
-      setPublicMessage("Your OTP verification expired. Request a new code and verify again.");
+      setOtpMessage("Your verification expired. Request a new code.");
+      setPublicMessage("Your verification expired. Request a new code and verify again.");
       setPublicOtpExpiresAt(0);
       setLastPublicOtpVerificationToken("");
       publicMovementRequestLoadGenerationRef.current += 1;
@@ -1137,6 +1164,7 @@ function App() {
           setLocationOverrides((current) =>
             mergeLocationOverrides(remoteState.locationOverrides ?? {}, current)
           );
+          setLocationOverrideReferences(remoteState.locationOverrideReferences ?? {});
           setLocationDeletions(remoteState.locationDeletions ?? emptyLocationDeletions);
           setAuditLogs(remoteState.auditLogs ?? []);
           setIntegrations(remoteState.integrations ?? initialIntegrationSettings);
@@ -1152,6 +1180,7 @@ function App() {
           setCampaignDraft(null);
           setCampaignFormMode("edit");
           setLocationOverrides({});
+          setLocationOverrideReferences({});
           setLocationDeletions(emptyLocationDeletions);
           setAuditLogs([]);
           setIntegrations(initialIntegrationSettings);
@@ -1180,7 +1209,7 @@ function App() {
     isPublicCampaignRoute,
     startupMode,
     setAuthorities, setAuditLogs, setCampaigns, setCommercialPackages,
-    setIntegrations, setLocationDeletions, setLocationOverrides,
+    setIntegrations, setLocationDeletions, setLocationOverrideReferences, setLocationOverrides,
     setOrganization, setScanItems, setSigners
   ]);
 
@@ -1193,6 +1222,7 @@ function App() {
       isCampaignAdminRoute
     ) return;
     const timeoutId = window.setTimeout(() => {
+      if (campaignAdminProvisioningInFlightRef.current) return;
       const state = createRemoteState({
         campaigns,
         activeCampaignId,
@@ -1200,19 +1230,23 @@ function App() {
         authorities,
         organization,
         scanItems,
-        locationOverrides, locationDeletions, auditLogs, integrations, commercialPackages
+        locationOverrides, locationOverrideReferences, locationDeletions, auditLogs, integrations, commercialPackages
       });
-      void saveRemoteState(state)
+      const autosave = saveRemoteState(state);
+      autosavesInFlightRef.current.add(autosave);
+      void autosave
         .then(() => setBackendMessage("Saved to shared campaign database."))
         .catch((error) =>
           setBackendMessage(`Shared database save error: ${error instanceof Error ? error.message : "Unable to save"}`)
-        );
+        )
+        .finally(() => autosavesInFlightRef.current.delete(autosave));
     }, 700);
     return () => window.clearTimeout(timeoutId);
   }, [
     isCampaignAdminRoute, startupMode,
     activeCampaignId, authorities, auditLogs, campaigns, commercialPackages, integrations,
-    locationDeletions, locationOverrides, organization, remoteStateLoaded, scanItems, signers
+    campaignAdminProvisioningPending, locationDeletions, locationOverrideReferences, locationOverrides, organization,
+    remoteStateLoaded, scanItems, signers
   ]);
 
   useEffect(() => {
@@ -1258,6 +1292,7 @@ function App() {
       setAuthorities(response.state.authorities ?? initialAuthorities);
       setScanItems(response.state.scanItems ?? []);
       setLocationOverrides(response.state.locationOverrides ?? {});
+      setLocationOverrideReferences(response.state.locationOverrideReferences ?? {});
       setLocationDeletions(response.state.locationDeletions ?? emptyLocationDeletions);
       setAuditLogs(response.state.auditLogs ?? []);
       setIntegrations(response.state.integrations ?? initialIntegrationSettings);
@@ -1405,6 +1440,10 @@ function App() {
       panchayat: "",
       location: payload.country,
       postalCode: "",
+      locationReference: createUnverifiedLocationReference(
+        { country: payload.country },
+        "onboarding_country"
+      ),
       startDate: new Date().toISOString().slice(0, 10),
       endDate: addDaysIso(30),
       goal,
@@ -1653,16 +1692,55 @@ function App() {
       // Only the email is saved for display/compatibility. The password is never
       // persisted -- Campaign Admin login is verified live against Supabase Auth.
       const provisionedCampaign = applyCampaignAdminProvisioningSuccess(campaignDraft, trimmedEmail);
-      setCampaigns((current) =>
-        current.map((c) => (c.id === provisionedCampaign.id ? provisionedCampaign : c))
-      );
-      setCampaignDraft(provisionedCampaign);
-      addAuditLog(
-        "campaign.admin_provisioned",
-        `Provisioned Campaign Admin access for "${provisionedCampaign.title}"`,
-        provisionedCampaign.id
-      );
-      setCampaignAdminProvisioningMessage(CAMPAIGN_ADMIN_PROVISIONING_MESSAGES.success);
+      const saveProvisionedCampaignState = async () => {
+        await Promise.allSettled([...autosavesInFlightRef.current]);
+        const refreshedState = await loadRemoteState();
+        const refreshedCampaigns = refreshedState?.campaigns ?? [];
+        const refreshedCampaign = refreshedCampaigns.find((campaign) => campaign.id === provisionedCampaign.id);
+        if (!refreshedState || !refreshedCampaign) {
+          throw new Error("Reload the workspace before saving the provisioned Campaign Admin.");
+        }
+        const updatedProvisionedCampaign = {
+          ...refreshedCampaign,
+          adminEmail: provisionedCampaign.adminEmail,
+          adminProvisioningStatus: provisionedCampaign.adminProvisioningStatus
+        };
+        const updatedCampaigns = refreshedCampaigns.map((campaign) =>
+          campaign.id === updatedProvisionedCampaign.id ? updatedProvisionedCampaign : campaign
+        );
+        await saveRemoteState(createRemoteState({
+          ...refreshedState,
+          campaigns: updatedCampaigns
+        }));
+        return { updatedCampaigns, updatedProvisionedCampaign };
+      };
+      try {
+        let savedState;
+        try {
+          savedState = await saveProvisionedCampaignState();
+        } catch (error) {
+          if (!(error instanceof WorkspaceSaveError) || error.status !== 409 || error.code !== "workspace_state_conflict") {
+            throw error;
+          }
+          savedState = await saveProvisionedCampaignState();
+        }
+
+        setCampaigns(savedState.updatedCampaigns);
+        setCampaignDraft(savedState.updatedProvisionedCampaign);
+        addAuditLog(
+          "campaign.admin_provisioned",
+          `Provisioned Campaign Admin access for "${provisionedCampaign.title}"`,
+          provisionedCampaign.id
+        );
+        setCampaignAdminProvisioningMessage(CAMPAIGN_ADMIN_PROVISIONING_MESSAGES.success);
+      } catch (persistError) {
+        const persistFailure =
+          persistError instanceof Error ? persistError.message : "Unable to save the updated Campaign Admin state.";
+        setCampaignAdminProvisioningMessage(
+          `Campaign Admin access was created, but the workspace save failed: ${persistFailure}`
+        );
+        return;
+      }
     } catch (error) {
       if (error instanceof ProvisionWorkspaceMemberError && error.code) {
         // Developer-only observability; never shown to the user and never includes the password.
@@ -1892,8 +1970,12 @@ function App() {
       setPublicMessage("This campaign has reached its signer limit.");
       return;
     }
-    if (!publicForm.otpVerified) {
-      setPublicMessage("Please verify your phone number with OTP before signing.");
+    const publicVerificationComplete = Boolean(
+      publicForm.otpVerificationToken &&
+      (publicForm.otpVerified || publicForm.verificationMethod === "screen_otp")
+    );
+    if (!publicVerificationComplete) {
+      setPublicMessage("Please complete verification before signing.");
       return;
     }
     if (isBackendConfigured && !publicForm.otpVerificationToken) {
@@ -1903,7 +1985,7 @@ function App() {
       setOtpInput("");
       setPublicOtpExpiresAt(0);
       setLastPublicOtpVerificationToken("");
-      setPublicMessage("Your OTP verification expired. Request a new code and verify again.");
+      setPublicMessage("Your verification expired. Request a new code and verify again.");
       return;
     }
     const hasAppealConsent = Boolean(
@@ -1925,6 +2007,14 @@ function App() {
       return;
     }
     const requiredFields = activeCampaign.requiredFields ?? [];
+    const phaseOneEmail = restrictedPublicForm.email.trim();
+    if (
+      isGoudhanProductionCampaign(activeCampaign, organization) &&
+      !isValidPublicSignerEmail(phaseOneEmail)
+    ) {
+      setPublicMessage("Enter a valid email address to sign this campaign.");
+      return;
+    }
     const missingRequiredField = requiredFields.find(
       (field) => !restrictedPublicForm[field]?.trim()
     );
@@ -2141,21 +2231,24 @@ function App() {
           : publicParticipationSlug,
         campaignId: activeCampaign?.id ?? ""
       });
-      const otp = result.otp;
+      const otp = result.screenOtp ?? result.otp;
       setPublicOtpExpiresAt(Date.now() + 10 * 60 * 1000);
       setOtpCode(otp ?? "");
       setPublicForm((current) => current.phone.trim() === phone
         ? {
             ...current,
             otpVerified: false,
+            verificationMethod: result.verificationMethod,
+            phoneOwnershipVerified: false,
+            emailOwnershipVerified: false,
             otpChallengeId: result.challengeId,
             otpVerificationToken: ""
           }
         : current
       );
       setOtpMessage(
-        result.developmentOtp
-          ? `OTP: ${result.developmentOtp}`
+        result.screenOtp
+          ? `Verification code: ${result.screenOtp}`
           : result.message
       );
       return true;
@@ -2175,7 +2268,7 @@ function App() {
     const phone = publicForm.phone.trim();
     if (!publicForm.otpChallengeId) { setOtpMessage("Request a verification code first."); return; }
     if (!otpInput.trim()) { setOtpMessage("Enter the verification code."); return; }
-    setOtpMessage("Verifying phone number...");
+      setOtpMessage("Completing verification...");
     try {
       const result = await verifyPublicOtp(
         publicForm.otpChallengeId,
@@ -2192,13 +2285,20 @@ function App() {
       setPublicForm((current) => current.phone.trim() === phone
         ? {
             ...current,
-            otpVerified: result.verified,
+            otpVerified: result.phoneOwnershipVerified === true,
+            verificationMethod: result.verificationMethod,
+            phoneOwnershipVerified: result.phoneOwnershipVerified === true,
+            emailOwnershipVerified: false,
             otpVerificationToken: result.verificationToken
           }
         : current
       );
       setOtpMessage("");
-      if (isBackendConfigured && activeCampaign?.slug) {
+      if (
+        isBackendConfigured &&
+        activeCampaign?.slug &&
+        result.verificationMethod !== "screen_otp"
+      ) {
         const resumed = await mutatePublicParticipation({
           slug: publicParticipationSlug,
           action: "resume_verified_supporter",
@@ -2250,7 +2350,7 @@ function App() {
       const message =
         error instanceof PublicSignatureSubmissionError
           ? formatPublicSigningBackendError(error)
-          : "Phone verification failed. Please retry.";
+          : "Verification failed. Please retry.";
       if (
         /expir|challenge not found/i.test(message) ||
         (
@@ -2293,6 +2393,7 @@ function App() {
             panchayat: publicForm.panchayat,
             address: publicForm.address,
             postalCode: publicForm.postalCode,
+            locationReference: publicForm.locationReference,
             comment: publicForm.comment,
             referredBy: publicForm.referredBy,
             referredByPhoneOrCode: publicForm.referredByPhoneOrCode,
@@ -2390,6 +2491,7 @@ function App() {
               block: lastSignedSigner.block,
               panchayat: lastSignedSigner.panchayat
             },
+            requestedLocationReference: lastSignedSigner.locationReference ?? null,
             experience: "",
             availability: "",
             coordinatorConsent: {
@@ -2614,7 +2716,18 @@ function App() {
         consentCapturedBy: metadata?.consentCapturedBy?.trim() || undefined
       };
       try {
-        const documentResult = await analyzeBusinessOsDocument(file, ocrDiagnosticId);
+        const workspaceId = getCurrentWorkspaceId();
+        const canonicalLocationReader = workspaceId
+          ? createIndiaLgdCatalogReader(new LocationBrowserCatalogClient({
+              access: { type: "workspace", workspaceId },
+              transport: invokeWorkspaceLocationCatalog
+            }))
+          : undefined;
+        const documentResult = await analyzeBusinessOsDocument(
+          file,
+          ocrDiagnosticId,
+          canonicalLocationReader
+        );
         const extractedText = documentResult.rawText.trim() || scanText;
         const legacyParsedSigner = parseSignerFromText(documentResult.normalizedText);
         const parsedSigner = {
@@ -2721,7 +2834,23 @@ function App() {
   ) {
     setScanItems((current) =>
       current.map((item) =>
-        item.id === scanId ? { ...item, parsedSigner: { ...item.parsedSigner, [field]: value } } : item
+        item.id === scanId
+          ? (() => {
+              const parsedSigner = { ...item.parsedSigner, [field]: value };
+              const locationField = ["country", "state", "district", "block", "panchayat", "postalCode", "address"]
+                .includes(String(field));
+              const locationReference = locationField
+                ? createUnverifiedLocationReference(parsedSigner, "scan_manual_review", {
+                    sourceRecordId: item.id
+                  })
+                : item.locationReference ?? item.parsedSigner.locationReference;
+              return {
+                ...item,
+                locationReference,
+                parsedSigner: { ...parsedSigner, locationReference }
+              };
+            })()
+          : item
       )
     );
   }
@@ -2966,6 +3095,10 @@ function App() {
       email: "authority@example.gov",
       submissionMethod: "Email",
       confidence: 70
+      ,jurisdictionLocationReference: activeCampaign.locationReference ?? createUnverifiedLocationReference(
+        activeCampaign,
+        "authority_manual"
+      )
     };
     setAuthorities((current) => [rule, ...current]);
   }
@@ -2975,6 +3108,7 @@ function App() {
       const rows = parseCsv(await file.text());
       if (rows.length === 0) { setCsvUploadMessage("Location CSV failed: no rows found."); return; }
       let nextOverrides = locationOverrides;
+      const nextReferences = { ...locationOverrideReferences };
       let addedCount = 0;
       rows.forEach((row) => {
         const values: LocationWithPin = {
@@ -2987,6 +3121,10 @@ function App() {
         };
         if (values.state && values.district) {
           nextOverrides = addLocationOverride(nextOverrides, values);
+          const reference = createUnverifiedLocationReference(values, "legacy_location_csv", {
+            sourceRecordId: file.name
+          });
+          if (reference) nextReferences[legacyLocationPathKey(values)] = reference;
           addedCount += 1;
         }
       });
@@ -2999,6 +3137,7 @@ function App() {
         return;
       }
       setLocationOverrides(nextOverrides);
+      setLocationOverrideReferences(nextReferences);
       setLocationCsvFile(null);
       setCsvUploadMessage(`Location CSV uploaded successfully. Added/updated ${addedCount} row(s).`);
       addAuditLog("location.added", `Uploaded ${addedCount} location rows from CSV`, activeCampaign?.id);
@@ -3033,6 +3172,13 @@ function App() {
           email: getCsvValue(row, "email"),
           submissionMethod: "Email" as const,
           confidence: 100
+          ,jurisdictionLocationReference: createUnverifiedLocationReference({
+            country: "India",
+            state: getCsvValue(row, "state"),
+            district: getCsvValue(row, "district"),
+            block: getCsvValue(row, "block", "tehsil", "taluk"),
+            panchayat: getCsvValue(row, "panchayat", "gramPanchayat", "ward", "village")
+          }, "authority_csv", { sourceRecordId: file.name })
         });
         return acc;
       }, []);
@@ -3057,7 +3203,11 @@ function App() {
     const level = getLocationLevel(values);
     const nextOverrides = addLocationOverride(locationOverrides, values);
     const nextDeletions = clearLocationDeletion(locationDeletions, values, level);
+    const nextReferences = { ...locationOverrideReferences };
+    const reference = createUnverifiedLocationReference(values, "workspace_inline_location");
+    if (reference) nextReferences[legacyLocationPathKey(values)] = reference;
     setLocationOverrides(nextOverrides);
+    setLocationOverrideReferences(nextReferences);
     setLocationDeletions(nextDeletions);
     addAuditLog("location.added", `Added ${level} dropdown value`, activeCampaign?.id);
     setBackendMessage(`Added ${level} location option. Saving to shared database...`);
@@ -3071,6 +3221,7 @@ function App() {
           organization,
           scanItems,
           locationOverrides: nextOverrides,
+          locationOverrideReferences: nextReferences,
           locationDeletions: nextDeletions,
           auditLogs,
           integrations,
@@ -3097,6 +3248,11 @@ function App() {
       const result = removeLocationOption(currentOverrides, locationDeletions, values, level);
       setLocationDeletions(result.deletions);
       return result.overrides;
+    });
+    setLocationOverrideReferences((current) => {
+      const next = { ...current };
+      delete next[legacyLocationPathKey(values)];
+      return next;
     });
     addAuditLog("location.deleted", `Deleted ${level} dropdown value`, activeCampaign?.id);
   }
@@ -3705,6 +3861,7 @@ function App() {
     setIntegrations(initialIntegrationSettings);
     setCommercialPackages(initialCommercialPackages);
     setLocationOverrides({});
+    setLocationOverrideReferences({});
     setLocationDeletions(emptyLocationDeletions);
     setActiveCampaignId(initialCampaigns[0]?.id ?? "");
     setCampaignDraft(initialCampaigns[0] ?? null);
@@ -3749,6 +3906,10 @@ function App() {
   );
 
   // ─── Route rendering ──────────────────────────────────────────────────────
+  if (isSaasAdminPasswordResetRoute) {
+    return <SaasAdminPasswordResetPage />;
+  }
+
   if (isSupporterPortalRoute) {
     if (publicCampaignJourneyLoading) {
       return <SupporterGrowthPortalLoading />;

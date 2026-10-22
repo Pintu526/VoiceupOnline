@@ -4,6 +4,7 @@ import type {
   Campaign
 } from "../types";
 import { getCampaignGeographyMode, getCampaignLocationLabels } from "./campaign";
+import { canonicalScopeMatches } from "../businessOs/location/persistence/LocationReferenceGovernance.ts";
 
 export function getAppealAuthority(
   campaign: Campaign,
@@ -131,6 +132,11 @@ export function getAuthorityOptionsForCampaign(
 ): AuthorityRule[] {
   const level = campaign.authorityTargetLevel ?? "district";
   return authorities.filter((authority) => {
+    const canonicalMatch = canonicalScopeMatches(
+      authority.jurisdictionLocationReference,
+      campaign.locationReference
+    );
+    if (canonicalMatch !== undefined) return canonicalMatch;
     if (authority.level !== "any" && authority.level !== level) return false;
     if (authority.category !== "Any" && authority.category !== campaign.category) return false;
     if (authority.panchayat && authority.panchayat !== campaign.panchayat) return false;

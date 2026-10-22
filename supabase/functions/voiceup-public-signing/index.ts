@@ -16,6 +16,10 @@ import {
 } from "./logic.ts";
 import { fetchCanonicalPublishedCampaignBySlug } from "../_shared/publicCampaignIndex.ts";
 import { normalizePublicCampaignSlug } from "../_shared/publicCampaignSlug.ts";
+import {
+  prepareWorkspaceLocationReference,
+  WorkspaceLocationReferenceError
+} from "../_shared/workspaceLocationReferences.ts";
 
 const MAX_PUBLIC_BODY_BYTES = 64 * 1024;
 
@@ -35,8 +39,12 @@ function publicError(code: string) {
     coordinator_authority_protected: { status: 403, message: "Coordinator approval can only be changed by an authorized manager." },
     base64_not_allowed: { status: 400, message: "Upload the image separately instead of embedding it in the profile." },
     invalid_phone: { status: 400, message: "Enter a valid phone number." },
+    invalid_email: { status: 400, message: "Enter a valid email address." },
     invalid_idempotency_key: { status: 400, message: "Refresh the page and retry this action." },
-    otp_verification_required: { status: 401, message: "Verify your phone with a fresh OTP before continuing." },
+    otp_verification_required: { status: 401, message: "Complete verification with a fresh code before continuing." },
+    screen_verification_submit_required: { status: 401, message: "Complete a new campaign support submission before continuing." },
+    screen_verification_existing_supporter: { status: 409, message: "Support cannot be added again with this mobile number." },
+    screen_verification_already_consumed: { status: 409, message: "This verification was already used. Start a new signing journey." },
     campaign_unavailable: { status: 404, message: "Campaign is not available for participation." },
     supporter_not_found: { status: 404, message: "No verified supporter profile was found." },
     idempotency_conflict: { status: 409, message: "This request key was already used for another action." },
@@ -46,6 +54,7 @@ function publicError(code: string) {
     monthly_limit_reached: { status: 402, message: "This campaign owner has reached the monthly supporter limit." },
     invalid_consent: { status: 400, message: "Consent evidence is incomplete." },
     invalid_geography: { status: 400, message: "Structured geography is incomplete or invalid." },
+    invalid_location_reference: { status: 422, message: "The location could not be verified. Reselect it or keep it unverified." },
     invalid_request_payload: { status: 400, message: "Check the application details and retry." },
     unsupported_request_field: { status: 400, message: "One or more application fields cannot be submitted." },
     invalid_request_type: { status: 400, message: "Choose a supported application type." },
@@ -63,6 +72,26 @@ function publicError(code: string) {
     busy: { status: 503, message: "Participation is busy. Please retry safely." }
   };
   return errors[code] ?? { status: 500, message: "Participation could not be completed. Please retry." };
+}
+
+async function preparePublicLocationReference(admin: any, candidate: unknown) {
+  return prepareWorkspaceLocationReference(candidate, {
+    async validateCanonical(value) {
+      const { data, error } = await admin.rpc(
+        "voiceup_validate_persisted_location_reference_v1",
+        { candidate: value }
+      );
+      if (error || !data) throw new WorkspaceLocationReferenceError("invalid_workspace_location_reference");
+      return data as Record<string, unknown>;
+    },
+    async validateShape(value) {
+      const { data, error } = await admin.rpc(
+        "voiceup_is_persisted_location_reference_v1_shape",
+        { candidate: value }
+      );
+      return !error && data === true;
+    }
+  }, { allowObservation: true });
 }
 
 function rpcErrorCode(error: unknown): string {
@@ -171,7 +200,25 @@ async function invokeMutation(
     const mapped = publicError(code);
     return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
   }
-  const profile = body.payload?.profile ?? (Object.keys(signer).length ? profileFromSigner(signer) : {});
+  const profile: Record<string, any> = {
+    ...(body.payload?.profile ?? (Object.keys(signer).length ? profileFromSigner(signer) : {}))
+  };
+  try {
+    if (Object.prototype.hasOwnProperty.call(profile, "locationReference")) {
+      profile.locationReference = await preparePublicLocationReference(admin, profile.locationReference);
+    }
+    const application = body.payload?.application ?? body.application;
+    if (application && Object.prototype.hasOwnProperty.call(application, "requestedLocationReference")) {
+      application.requestedLocationReference = await preparePublicLocationReference(
+        admin, application.requestedLocationReference
+      );
+    }
+  } catch (error) {
+    if (!(error instanceof WorkspaceLocationReferenceError)) throw error;
+    const code = "invalid_location_reference";
+    const mapped = publicError(code);
+    return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
+  }
   if (!validateProfileFields(profile) || hasBase64Image(body)) {
     const code = hasBase64Image(body) ? "base64_not_allowed" : "unsupported_profile_field";
     const mapped = publicError(code);
@@ -214,13 +261,18 @@ async function invokeMutation(
     resolved.row.workspace_id,
     resolved.row.campaign_id
   ].join(":"));
+  const application = body.payload?.application ?? body.application ?? {};
+  const hasLocationReference = Object.prototype.hasOwnProperty.call(profile, "locationReference");
+  const hasRequestedLocationReference = Object.prototype.hasOwnProperty.call(
+    application, "requestedLocationReference"
+  );
   const payload = {
     profile,
     consents,
-    application: body.payload?.application ?? body.application ?? {},
+    application,
     baseUpdatedAt: body.payload?.baseUpdatedAt ?? body.baseUpdatedAt ?? null
   };
-  const { data, error } = await admin.rpc("mutate_voiceup_public_participation", {
+  const { data, error } = await admin.rpc("mutate_voiceup_public_participation_screen_safe", {
     p_workspace_id: resolved.row.workspace_id,
     p_campaign_id: resolved.row.campaign_id,
     p_campaign_slug: resolved.row.slug,
@@ -233,7 +285,13 @@ async function invokeMutation(
       source: "public-web-edge",
       requestId: createId("req"),
       clientHash: clientFingerprint
-    }
+    },
+    p_has_location_reference: hasLocationReference,
+    p_location_reference: hasLocationReference ? profile.locationReference : null,
+    p_has_requested_location_reference: hasRequestedLocationReference,
+    p_requested_location_reference: hasRequestedLocationReference
+      ? application.requestedLocationReference
+      : null
   });
   if (error) {
     console.error("voiceup-public-signing RPC failure", {
@@ -259,6 +317,25 @@ async function invokeMutation(
   return { data };
 }
 
+async function authorizeParticipationRequest(
+  admin: any,
+  resolved: any,
+  phone: string,
+  verificationToken: string
+) {
+  const { error } = await admin.rpc("voiceup_public_verification_context", {
+    p_workspace_id: resolved.row.workspace_id,
+    p_campaign_id: resolved.row.campaign_id,
+    p_campaign_slug: resolved.row.slug,
+    p_phone: phone,
+    p_verification_token: verificationToken
+  });
+  if (!error) return null;
+  const code = rpcErrorCode(error);
+  const mapped = publicError(code);
+  return jsonResponse({ error: mapped.message, code }, mapped.status);
+}
+
 async function invokeParticipationRequest(
   admin: any,
   resolved: any,
@@ -278,8 +355,12 @@ async function invokeParticipationRequest(
     const mapped = publicError(code);
     return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
   }
+  const authorizationFailure = await authorizeParticipationRequest(
+    admin, resolved, phone, verificationToken
+  );
+  if (authorizationFailure) return { response: authorizationFailure };
 
-  const request = body.payload?.request ?? body.request;
+  let request = body.payload?.request ?? body.request;
   const protectedRequestFields = new Set([
     "id",
     "workspaceId",
@@ -305,6 +386,25 @@ async function invokeParticipationRequest(
     const mapped = publicError(code);
     return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
   }
+  try {
+    const geographicScope = request.geographicScope;
+    if (geographicScope && Object.prototype.hasOwnProperty.call(geographicScope, "locationReference")) {
+      request = {
+        ...request,
+        geographicScope: {
+          ...geographicScope,
+          locationReference: await preparePublicLocationReference(
+            admin, geographicScope.locationReference
+          )
+        }
+      };
+    }
+  } catch (error) {
+    if (!(error instanceof WorkspaceLocationReferenceError)) throw error;
+    const code = "invalid_location_reference";
+    const mapped = publicError(code);
+    return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
+  }
 
   const clientFingerprint = await sha256Hex([
     body.clientVersion ?? "",
@@ -312,7 +412,11 @@ async function invokeParticipationRequest(
     resolved.row.campaign_id,
     "submit_participation_request"
   ].join(":"));
-  const { data, error } = await admin.rpc("voiceup_submit_participation_request", {
+  const geographicScope = request.geographicScope ?? {};
+  const hasLocationReference = Object.prototype.hasOwnProperty.call(
+    geographicScope, "locationReference"
+  );
+  const { data, error } = await admin.rpc("voiceup_submit_participation_request_with_location", {
     p_workspace_id: resolved.row.workspace_id,
     p_campaign_id: resolved.row.campaign_id,
     p_campaign_slug: resolved.row.slug,
@@ -324,7 +428,9 @@ async function invokeParticipationRequest(
       source: "public-web-edge",
       requestId: createId("req"),
       clientHash: clientFingerprint
-    }
+    },
+    p_has_location_reference: hasLocationReference,
+    p_location_reference: hasLocationReference ? geographicScope.locationReference : null
   });
   if (error) {
     console.error("voiceup-public-signing request RPC failure", {
@@ -362,6 +468,10 @@ async function invokeParticipationRequestRead(
     const mapped = publicError(code);
     return { response: jsonResponse({ error: mapped.message, code }, mapped.status) };
   }
+  const authorizationFailure = await authorizeParticipationRequest(
+    admin, resolved, phone, verificationToken
+  );
+  if (authorizationFailure) return { response: authorizationFailure };
 
   const { data, error } = await admin.rpc("voiceup_read_own_participation_requests", {
     p_workspace_id: resolved.row.workspace_id,

@@ -1,6 +1,15 @@
 {
   "goudhanCampaign": {
     "brandName": "Goudhan.com",
+    "marketplace": {
+      "aria": "Goudhan.com marketplace for Panchagavya products",
+      "eyebrow": "Marketplace",
+      "description": "Buy and sell authentic Panchagavya products through the trusted Goudhan marketplace.",
+      "tag1": "Farm fresh",
+      "tag2": "Verified sellers",
+      "tag3": "Daily use",
+      "cta": "Explore Goudhan.com"
+    },
     "poweredByVoiceUp": "Powered by VoiceUp",
     "tagline": "Respect for Gau. Strength for villages.",
     "title": "Gau Samman Ahvaan Abhiyan",
@@ -2363,8 +2372,8 @@
     "name": "Name",
     "phone": "Phone",
     "sendOtp": "Send OTP",
-    "verifyOtp": "Verify OTP",
-    "enterOtp": "Enter OTP",
+    "verifyOtp": "Verify",
+    "enterOtp": "Enter verification code",
     "review": "Review",
     "submitSupport": "Submit support",
     "consentRequiredInline": "Please review and accept both consent confirmations before signing.",

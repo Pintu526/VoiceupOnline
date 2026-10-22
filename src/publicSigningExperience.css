@@ -1109,22 +1109,22 @@
 
 /* Public Campaign V2 — Phase 1: compact hero presentation */
 .public-campaign-v2.public-layout .public-story-column {
-  gap: 16px;
+  gap: 12px;
 }
 
 .public-campaign-v2 .public-campaign-v2-hero {
-  gap: 16px;
+  gap: 12px;
   min-height: auto;
-  padding: clamp(16px, 2.4vw, 28px);
+  padding: clamp(18px, 2vw, 24px) clamp(16px, 2vw, 24px) 18px;
 }
 
 .public-campaign-v2 .public-campaign-v2-hero-surface {
-  gap: 14px;
+  gap: 10px;
 }
 
 .public-campaign-v2 .public-campaign-v2-hero-main {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 @media (min-width: 901px) {
@@ -1206,15 +1206,19 @@
 }
 
 .public-campaign-v2 .public-hero-content {
+  display: grid;
+  gap: 8px;
   max-width: none;
 }
 
 .public-campaign-v2 .public-hero-kicker {
   gap: 8px;
+  margin-bottom: 2px;
 }
 
 .public-campaign-v2 .public-hero-actions {
-  margin-top: 12px;
+  margin-bottom: 2px;
+  margin-top: 8px;
 }
 
 .public-campaign-v2 .public-hero-actions .primary-button,
@@ -1321,6 +1325,220 @@
   align-items: center;
   display: inline-flex;
   gap: 6px;
+}
+
+.public-campaign-v2-blank-visual {
+  background: linear-gradient(135deg, rgba(255, 247, 230, 0.91), rgba(255, 255, 255, 0.88));
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 22px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  height: clamp(220px, 24vw, 300px);
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.public-campaign-v2-blank-scene {
+  height: 100%;
+  position: relative;
+  width: 100%;
+}
+
+.public-campaign-v2-blank-sun {
+  background: radial-gradient(circle, rgba(255, 222, 133, 0.9) 0%, rgba(255, 175, 71, 0.48) 32%, transparent 70%);
+  border-radius: 50%;
+  height: 120px;
+  left: 12%;
+  position: absolute;
+  top: 12%;
+  width: 120px;
+}
+
+.public-campaign-v2-blank-diya {
+  animation: public-campaign-v2-diya-glow 2.8s ease-in-out infinite alternate;
+  background: radial-gradient(circle at 50% 35%, #fff1bc, #f59e0b 32%, #8f4d00 75%, rgba(143, 77, 0, 0.24) 100%);
+  border-radius: 50%;
+  bottom: 88px;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.38);
+  height: 18px;
+  position: absolute;
+  width: 18px;
+}
+
+.public-campaign-v2-blank-diya::before {
+  animation: public-campaign-v2-flame 2.4s ease-in-out infinite alternate;
+  background: radial-gradient(circle at 50% 20%, rgba(255, 255, 255, 0.92), rgba(255, 208, 83, 0.9) 24%, rgba(249, 115, 22, 0.9) 55%, rgba(124, 45, 18, 0.32) 100%);
+  border-radius: 50% 50% 45% 50% / 50% 50% 60% 40%;
+  bottom: 8px;
+  content: "";
+  display: block;
+  height: 26px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 18px;
+}
+
+.public-campaign-v2-blank-diya-left {
+  left: 26%;
+}
+
+.public-campaign-v2-blank-diya-right {
+  right: 26%;
+}
+
+.public-campaign-v2-blank-practitioner {
+  animation: public-campaign-v2-breathe 7s ease-in-out infinite;
+  bottom: 68px;
+  height: 150px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  width: 150px;
+}
+
+.public-campaign-v2-blank-head {
+  background: linear-gradient(180deg, #f7d3b0, #d6a06d);
+  border-radius: 50%;
+  box-shadow: inset 0 -4px 0 rgba(92, 60, 30, 0.12);
+  height: 34px;
+  left: 58px;
+  position: absolute;
+  top: 16px;
+  width: 34px;
+}
+
+.public-campaign-v2-blank-robe {
+  background: linear-gradient(180deg, #e59a2f 0%, #d46a1f 40%, #9a3d18 100%);
+  border-radius: 28px 28px 18px 18px;
+  bottom: 18px;
+  box-shadow: inset 0 -14px 18px rgba(86, 23, 10, 0.2);
+  height: 98px;
+  left: 36px;
+  position: absolute;
+  width: 78px;
+}
+
+.public-campaign-v2-blank-robe::before,
+.public-campaign-v2-blank-robe::after {
+  background: rgba(255, 249, 227, 0.14);
+  border-radius: 50%;
+  content: "";
+  display: block;
+  height: 22px;
+  position: absolute;
+  top: 24px;
+  width: 22px;
+}
+
+.public-campaign-v2-blank-robe::before {
+  left: 14px;
+}
+
+.public-campaign-v2-blank-robe::after {
+  right: 14px;
+}
+
+.public-campaign-v2-blank-hand {
+  background: linear-gradient(180deg, #f3c48d, #d29b62);
+  border-radius: 999px;
+  height: 46px;
+  position: absolute;
+  top: 52px;
+  width: 12px;
+}
+
+.public-campaign-v2-blank-hand-left {
+  left: 25px;
+  transform: rotate(26deg);
+}
+
+.public-campaign-v2-blank-hand-right {
+  right: 25px;
+  transform: rotate(-26deg);
+}
+
+.public-campaign-v2-blank-carpet {
+  background: linear-gradient(180deg, rgba(145, 98, 52, 0.82), rgba(83, 48, 20, 0.8));
+  border-radius: 16px 16px 12px 12px;
+  bottom: 14px;
+  box-shadow: inset 0 10px 18px rgba(255, 255, 255, 0.1);
+  height: 30px;
+  left: 18%;
+  position: absolute;
+  width: 64%;
+}
+
+.public-campaign-v2-blank-carpet::before,
+.public-campaign-v2-blank-carpet::after {
+  background: rgba(255, 255, 255, 0.12);
+  content: "";
+  display: block;
+  height: 100%;
+  position: absolute;
+  width: 2px;
+}
+
+.public-campaign-v2-blank-carpet::before {
+  left: 32%;
+}
+
+.public-campaign-v2-blank-carpet::after {
+  right: 32%;
+}
+
+.public-campaign-v2-blank-chant {
+  bottom: 16px;
+  color: rgba(80, 38, 15, 0.9);
+  font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  position: absolute;
+  text-align: center;
+  width: 100%;
+}
+
+@keyframes public-campaign-v2-breathe {
+  0%, 100% {
+    transform: translateX(-50%) rotate(-1.5deg) scale(0.985);
+  }
+  50% {
+    transform: translateX(-50%) rotate(1.5deg) scale(1.01);
+  }
+}
+
+@keyframes public-campaign-v2-flame {
+  0% {
+    filter: blur(1px) saturate(1.15);
+    transform: translateX(-50%) scaleY(0.85) scaleX(0.9);
+  }
+  100% {
+    filter: blur(0.5px) saturate(1.4);
+    transform: translateX(-50%) scaleY(1.12) scaleX(1.04);
+  }
+}
+
+@keyframes public-campaign-v2-diya-glow {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+.public-campaign-v2 .public-campaign-v2-blank-visual + .public-campaign-v2-guide,
+.public-campaign-v2 .public-campaign-v2-blank-visual + .public-section,
+.public-campaign-v2 .public-campaign-v2-blank-visual + .public-campaign-v2-signing-panel {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .public-campaign-v2-blank-visual {
+    height: 200px;
+  }
 }
 
 .public-campaign-v2 .goudhan-public-brand {
@@ -1451,6 +1669,81 @@
   box-shadow: 0 20px 56px rgba(90, 25, 34, 0.14);
 }
 
+.public-campaign-v2-support-card {
+  align-self: stretch;
+  background: linear-gradient(180deg, #fffdf8 0%, #fff5e8 100%);
+  border: 1px solid rgba(197, 160, 89, 0.38);
+  border-radius: 16px;
+  box-shadow: 0 10px 24px rgba(82, 40, 18, 0.06);
+  color: var(--premium-ink);
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding: clamp(14px, 2vw, 18px);
+  width: 100%;
+}
+
+.public-campaign-v2-support-card .eyebrow {
+  color: var(--premium-maroon);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.public-campaign-v2-support-card h3 {
+  color: var(--premium-maroon);
+  font-family: "Noto Serif Devanagari", "Noto Sans Oriya", Georgia, serif;
+  font-size: clamp(1.08rem, 1.7vw, 1.32rem);
+  line-height: 1.35;
+  margin: 0;
+}
+
+.public-campaign-v2-support-card p {
+  color: #4e3934;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.public-campaign-v2-support-card ul {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.public-campaign-v2-support-card li {
+  background: #f7ecd9;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 750;
+  padding: 7px 8px;
+  text-align: center;
+}
+
+.public-campaign-v2-support-card-link {
+  align-items: center;
+  background: #7d1e2b;
+  border-radius: 10px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.86rem;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.public-campaign-v2-support-card-link:hover {
+  background: #641722;
+  color: #fff;
+}
+
 .public-campaign-v2 .primary-button {
   background: #7d1e2b;
   border-color: #7d1e2b;
@@ -1461,12 +1754,40 @@
   border-color: #641722;
 }
 
+/* Make primary CTA more prominent in the hero without changing behavior */
+.public-campaign-v2 .public-hero-actions .primary-button {
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: 0 8px 28px rgba(125, 30, 43, 0.14);
+  border-radius: 10px;
+  z-index: 3;
+}
+
+/* Prevent signing panel from overlapping hero on narrower viewports */
+@media (max-width: 1100px) {
+  .public-campaign-v2 > .public-campaign-v2-signing-panel {
+    position: static;
+    margin-top: 12px;
+  }
+}
+
+/* Slightly increase sticky offset on wider screens to avoid touching the top edge */
+@media (min-width: 901px) {
+  .public-campaign-v2 > .public-campaign-v2-signing-panel {
+    top: 24px;
+  }
+}
+
 .public-campaign-v2 .public-smart-location {
   background: linear-gradient(135deg, #fff7e6, #fffdf8);
   border-color: rgba(194, 132, 35, 0.25);
 }
 
 .public-campaign-v2 > .public-campaign-v2-signing-panel > .panel {
+  /* Keep panel in normal flow (override generic sticky panel rule) */
+  position: static;
+  top: auto;
   border: 2px solid rgba(37, 99, 235, 0.18);
   box-shadow:
     0 28px 90px rgba(15, 23, 42, 0.16),
@@ -1474,9 +1795,11 @@
 }
 
 @media (min-width: 901px) {
+  /* Disable sticky positioning for the signing panel to prevent it
+     overlapping main campaign content. Keep the panel in normal flow. */
   .public-campaign-v2 > .public-campaign-v2-signing-panel {
-    position: sticky;
-    top: 16px;
+    position: static;
+    top: auto;
   }
 
   .public-campaign-v2 > .public-campaign-v2-signing-panel > .panel {
@@ -1561,6 +1884,7 @@
 .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-subtitle,
 .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-invocation {
   margin-inline: auto;
+  text-align: center;
 }
 
 .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand {
@@ -1657,6 +1981,108 @@
   max-height: none;
   object-fit: contain;
   object-position: center center;
+  width: 100%;
+}
+
+.public-national-hero-devotional {
+  background: rgba(255, 251, 244, 0.92);
+  border: 1px solid rgba(129, 79, 13, 0.16);
+  border-radius: 18px;
+  box-shadow: 0 12px 26px rgba(95, 62, 28, 0.08);
+  display: grid;
+  gap: 10px;
+  margin: 12px auto 0;
+  max-width: min(420px, calc(100% - 20px));
+  padding: 10px 10px 12px;
+}
+
+.public-national-hero-youtube-wrap {
+  margin: 12px auto 0;
+  max-width: min(420px, calc(100% - 20px));
+  width: 100%;
+}
+
+.public-national-hero-youtube-frame {
+  background: rgba(255, 255, 255, 0.76);
+  border: 1px solid rgba(129, 79, 13, 0.16);
+  border-radius: 16px;
+  box-shadow: 0 12px 26px rgba(95, 62, 28, 0.08);
+  overflow: hidden;
+  padding: 0;
+  width: 100%;
+  position: relative;
+}
+
+.public-national-hero-youtube-frame iframe,
+.public-national-hero-youtube-frame .public-national-hero-local-video {
+  aspect-ratio: 16 / 9;
+  border: 0;
+  display: block;
+  height: auto;
+  object-fit: cover;
+  width: 100%;
+}
+
+/* Overlay video variant: sits directly over the primary video without affecting layout */
+.public-national-hero-youtube-frame .public-national-hero-local-video.overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  z-index: 1;
+}
+
+.public-national-hero-devotional-header {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  position: relative;
+}
+
+.public-national-hero-devotional-title {
+  color: #7d3d14;
+  flex: 1;
+  font-family: "Noto Serif Devanagari", Georgia, serif;
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.public-national-hero-audio-button {
+  align-items: center;
+  aspect-ratio: 1;
+  background: linear-gradient(180deg, #f7d28b 0%, #efac42 100%);
+  border: 1px solid rgba(121, 74, 24, 0.18);
+  border-radius: 999px;
+  color: #4e2a10;
+  cursor: pointer;
+  display: inline-flex;
+  justify-content: center;
+  min-width: 32px;
+  padding: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.public-national-hero-audio-button:hover,
+.public-national-hero-audio-button:focus-visible {
+  box-shadow: 0 8px 18px rgba(123, 76, 18, 0.18);
+  transform: translateY(-1px);
+}
+
+.public-national-hero-video {
+  background: linear-gradient(180deg, #f5e6d4 0%, #e7d4b0 100%);
+  border: 1px solid rgba(123, 84, 27, 0.15);
+  border-radius: 12px;
+  display: block;
+  height: clamp(160px, 19vw, 220px);
+  object-fit: cover;
+  object-position: center;
   width: 100%;
 }
 
@@ -2018,6 +2444,11 @@
     padding-right: 0;
   }
 
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-national-hero-art,
+  .public-campaign-v2[data-premium-presentation="premium-national"] > .public-campaign-v2-signing-panel {
+    align-self: start;
+  }
+
   .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero {
     grid-area: header;
   }
@@ -2032,8 +2463,10 @@
 
   .public-campaign-v2[data-premium-presentation="premium-national"] > .public-campaign-v2-signing-panel {
     grid-area: signup;
-    position: sticky;
-    top: 16px;
+    /* Ensure the premium signing panel also remains in normal flow so
+       content cannot scroll underneath it. */
+    position: static;
+    top: auto;
   }
 
   .public-campaign-v2[data-premium-presentation="premium-national"] .public-gau-closing {
@@ -2202,6 +2635,9 @@
   margin: 0;
   max-width: 52rem;
   text-wrap: pretty;
+  margin-inline: auto;
+  text-align: center;
+  display: block;
 }
 
 .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-subtitle {

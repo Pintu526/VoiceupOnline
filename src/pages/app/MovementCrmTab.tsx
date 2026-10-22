@@ -26,6 +26,10 @@ import { Panel } from "../../ui/Panel";
 import { MetricCard } from "../../ui/MetricCard";
 import { Field } from "../../ui/Field";
 import { useTranslation } from "../../i18n/useTranslation";
+import {
+  canonicalFirstLocationLabel,
+  locationReferenceDisplay
+} from "../../businessOs/location/persistence/LocationReferenceGovernance.ts";
 
 interface MovementCrmTabProps {
   campaigns: Campaign[];
@@ -93,11 +97,19 @@ export function MovementCrmTab({
         .sort((a, b) => new Date(b.signedAt).getTime() - new Date(a.signedAt).getTime())
         .map((signer) => ({
           ...signer,
-          location: [signer.panchayat, signer.block, signer.district, signer.state].filter(Boolean).join(", "),
+          location: canonicalFirstLocationLabel(signer),
           campaignsSupported: signers.filter((item) => item.phone && item.phone === signer.phone).length || 1,
           lastActivity: signer.signedAt,
           volunteerLevel: "Supporter",
-          tags: [signer.status, signer.source, signer.otpVerified ? "Verified" : "Unverified"].filter(Boolean)
+          tags: [
+            signer.status,
+            signer.source,
+            signer.verificationMethod === "screen_otp"
+              ? "Screen verified; phone and email ownership not verified"
+              : signer.otpVerified
+                ? "Phone verified"
+                : "Phone not verified"
+          ].filter(Boolean)
         })),
     [movementSigners, signers]
   );
@@ -106,8 +118,12 @@ export function MovementCrmTab({
   const newSupporters = movementSigners.filter((signer) => getDaysAgo(signer.signedAt) <= 7).length;
   const inactiveSupporters = movementSigners.filter((signer) => getDaysAgo(signer.signedAt) > 30).length;
   const communicationReady = movementSigners.filter((signer) => signer.phone || signer.email).length;
-  const districtCoverage = uniqueCount(movementSigners.map((signer) => signer.district));
-  const stateCoverage = uniqueCount(movementSigners.map((signer) => signer.state));
+  const districtCoverage = uniqueCount(movementSigners.map((signer) =>
+    locationReferenceDisplay(signer.locationReference, signer, "district").groupingKey
+  ));
+  const stateCoverage = uniqueCount(movementSigners.map((signer) =>
+    locationReferenceDisplay(signer.locationReference, signer, "state").groupingKey
+  ));
   const authorityReady = Boolean(activeCampaign?.selectedAuthorityId || authorities.length > 0);
   const campaignScanItems = activeCampaign
     ? scanItems.filter((item) => item.campaignId === activeCampaign.id)
@@ -115,8 +131,12 @@ export function MovementCrmTab({
   const pendingUploads = campaignScanItems.filter((item) => item.status === "Needs review").length;
   const approvedUploads = campaignScanItems.filter((item) => item.status === "Approved").length;
   const rejectedUploads = campaignScanItems.filter((item) => item.status === "Rejected").length;
-  const blockCoverage = uniqueCount(movementSigners.map((signer) => signer.block));
-  const panchayatCoverage = uniqueCount(movementSigners.map((signer) => signer.panchayat));
+  const blockCoverage = uniqueCount(movementSigners.map((signer) =>
+    locationReferenceDisplay(signer.locationReference, signer, "block").groupingKey
+  ));
+  const panchayatCoverage = uniqueCount(movementSigners.map((signer) =>
+    locationReferenceDisplay(signer.locationReference, signer, "panchayat").groupingKey
+  ));
   const fieldCollectionSupporters = movementSigners.filter(
     (signer) => signer.source === "scan" || signer.source === "field"
   ).length;
@@ -166,7 +186,7 @@ export function MovementCrmTab({
   const selectedProfile = supporterProfiles.find((profile) => profile.id === selectedProfileId);
   const leaderboard = supporterProfiles
     .slice()
-    .sort((a, b) => b.campaignsSupported - a.campaignsSupported || Number(b.otpVerified) - Number(a.otpVerified))
+    .sort((a, b) => b.campaignsSupported - a.campaignsSupported || Number(b.status === "verified") - Number(a.status === "verified"))
     .slice(0, 5);
   const volunteerReadinessScore = Math.min(
     100,
@@ -538,7 +558,7 @@ export function MovementCrmTab({
                 <span>{index + 1}</span>
                 <div>
                   <strong>{profile.name || t("supporters.common.unnamed")}</strong>
-                  <small>{profile.campaignsSupported} {t("crm.leaderboard.campaignTouchpoints")} - {t(profile.otpVerified ? "crm.status.verified" : "crm.status.pending")}</small>
+                  <small>{profile.campaignsSupported} {t("crm.leaderboard.campaignTouchpoints")} - {t(profile.status === "verified" ? "crm.status.verified" : "crm.status.pending")}</small>
                 </div>
               </div>
             ))}

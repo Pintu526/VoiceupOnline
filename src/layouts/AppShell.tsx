@@ -32,6 +32,7 @@ import type { Campaign, Organization } from "../types";
 import type { AuthorityRule, Signer, ScanReviewItem, AuditLogEntry, IntegrationSettings, CommercialPackage, ConfirmationQueueItem, ScanCaptureMetadata } from "../types";
 import type { LocationDeletions, LocationDeletions as LD, LocationOverrides } from "../geography";
 import { NavButton, type Tab } from "../components/NavButton";
+import { LanguageSwitcher } from "../i18n";
 import { CommandPalette } from "../components/CommandPalette";
 import { AppToast } from "../components/AppToast";
 import { DashboardTab } from "../pages/app/DashboardTab";
@@ -1304,6 +1305,10 @@ export function AppShell({
                 >
                   <Command size={18} />
                 </button>
+                {/* Language selector for quick access */}
+                <div style={{ display: "flex", alignItems: "center", marginLeft: 8 }}>
+                  <LanguageSwitcher />
+                </div>
                 <button
                   className="secondary-button icon-button"
                   type="button"

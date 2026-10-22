@@ -1,5 +1,6 @@
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { Building2, CheckCircle2, LockKeyhole, Megaphone, ShieldCheck } from "lucide-react";
+import { requestSaasAdminPasswordRecovery } from "../backend";
 import { PasswordField } from "../ui/PasswordField";
 import { blankAppLogin } from "../constants";
 import { useTranslation } from "../i18n/useTranslation";
@@ -21,6 +22,31 @@ export function SaasAppLoginPage({
 }: SaasAppLoginPageProps) {
   const { t } = useTranslation();
   const isWorkspaceMode = mode === "workspace";
+  const [recoveryMessage, setRecoveryMessage] = useState("");
+  const [recoveryFailed, setRecoveryFailed] = useState(false);
+  const [recoverySending, setRecoverySending] = useState(false);
+
+  async function requestPasswordRecovery() {
+    const email = appLogin.email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setRecoveryFailed(true);
+      setRecoveryMessage("Enter your SaaS Admin email address first.");
+      return;
+    }
+
+    setRecoverySending(true);
+    setRecoveryFailed(false);
+    setRecoveryMessage("");
+    try {
+      await requestSaasAdminPasswordRecovery(email);
+      setRecoveryMessage("If the account exists, a password recovery link has been sent.");
+    } catch {
+      setRecoveryFailed(true);
+      setRecoveryMessage("Password recovery could not be started. Try again later.");
+    } finally {
+      setRecoverySending(false);
+    }
+  }
 
   return (
     <main className="login-shell">
@@ -127,7 +153,22 @@ export function SaasAppLoginPage({
           <button className="primary-button" type="submit">
             {t(isWorkspaceMode ? "workspace.login.supportLogin" : "workspace.login.adminLogin")}
           </button>
+          {!isWorkspaceMode && (
+            <button
+              className="secondary-button"
+              type="button"
+              disabled={recoverySending}
+              onClick={() => void requestPasswordRecovery()}
+            >
+              {recoverySending ? "Sending recovery link..." : "Forgot password?"}
+            </button>
+          )}
           {message && <p className="info-message">{message}</p>}
+          {recoveryMessage && (
+            <p className={recoveryFailed ? "error-message" : "info-message"} role="status">
+              {recoveryMessage}
+            </p>
+          )}
           <p className="helper-text">
             {isWorkspaceMode
               ? t("workspace.login.customerSessionHelp")

@@ -291,7 +291,7 @@ test("upload, OCR, review creation, public signing and authentication remain iso
     "utf8"
   );
   assert.match(uploadSource, /uploadPrivateFileToStorage\("campaign-private"/);
-  assert.match(uploadSource, /analyzeBusinessOsDocument\(file, ocrDiagnosticId\)/);
+  assert.match(uploadSource, /analyzeBusinessOsDocument\([\s\S]{0,220}file,[\s\S]{0,220}ocrDiagnosticId,[\s\S]{0,220}canonicalLocationReader/);
   assert.doesNotMatch(uploadSource, /tesseract\.js|recognize\(/);
   assert.match(providerSource, /import\("tesseract\.js"\)/);
   assert.match(uploadSource, /createScanReviewItem/);

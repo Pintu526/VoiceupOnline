@@ -211,8 +211,8 @@ test("loading, empty, error, refresh, and current-stage states are accessible an
 });
 
 test("existing request submission, participation, referrals, and QR paths remain unchanged", () => {
-  assert.match(edgeSource, /admin\.rpc\("voiceup_submit_participation_request"/);
-  assert.match(edgeSource, /admin\.rpc\("mutate_voiceup_public_participation"/);
+  assert.match(edgeSource, /admin\.rpc\("voiceup_submit_participation_request_with_location"/);
+  assert.match(edgeSource, /admin\.rpc\("mutate_voiceup_public_participation_screen_safe"/);
   assert.match(publicPageSource, /getCampaignReferralUrl/);
   assert.match(publicPageSource, /<ReferralQrPreview/);
   assert.match(publicPageSource, /downloadQrPosterSvg/);

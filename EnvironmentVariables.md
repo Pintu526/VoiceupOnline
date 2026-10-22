@@ -14,6 +14,23 @@ Supabase anon key used by `src/backend.ts`.
 
 Workspace row ID in the `voiceup_workspaces` table. Defaults to `default` when unset.
 
+## GSAA Public Signing Screen Verification
+
+`VITE_VOICEUP_SHOW_OTP`
+
+Set to `true` in the Vercel scope serving GSAA so the six-digit server-generated
+verification code is shown on the existing Verify step. This is a public browser
+flag and is not a credential.
+
+`VOICEUP_SHOW_OTP`
+
+Set to `true` for the `voiceup-otp` Edge Function so GSAA public-signing requests
+use `screen_otp` and return the code. This does not require `DEV_MODE` or an OTP
+provider. It does not affect onboarding or coordinator-mobile OTP purposes.
+
+The screen verification proves completion of the active signing challenge only.
+It does not prove ownership of the supplied mobile number.
+
 ## Required for MVP Platform Admin Login
 
 `VITE_VOICEUP_APP_ADMIN_EMAIL`

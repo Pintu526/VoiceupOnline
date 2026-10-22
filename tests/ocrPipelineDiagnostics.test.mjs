@@ -41,6 +41,6 @@ test("all requested stages surround existing Field Collection boundaries", () =>
 test("provider-specific Tesseract logic is absent from UI integration", () => {
   assert.doesNotMatch(appSource, /tesseract|recognize\(/i);
   assert.doesNotMatch(scansSource, /tesseract|recognize\(/i);
-  assert.match(appSource, /analyzeBusinessOsDocument\(file, ocrDiagnosticId\)/);
+  assert.match(appSource, /analyzeBusinessOsDocument\([\s\S]{0,220}file,[\s\S]{0,220}ocrDiagnosticId,[\s\S]{0,220}canonicalLocationReader/);
 });
 

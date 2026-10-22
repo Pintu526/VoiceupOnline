@@ -9,31 +9,36 @@ const india = readFileSync(new URL("../src/components/IndiaLocationFields.tsx", 
 const options = readFileSync(new URL("../src/components/indiaLocationOptions.ts", import.meta.url), "utf8");
 const manager = readFileSync(new URL("../src/businessOs/masterData/ResourceLocationManager.tsx", import.meta.url), "utf8");
 const hook = readFileSync(new URL("../src/components/useCampaignLocationCatalog.ts", import.meta.url), "utf8");
+const publicHook = readFileSync(new URL("../src/components/usePublicCampaignLocationCatalog.ts", import.meta.url), "utf8");
+const backend = readFileSync(new URL("../src/backend.ts", import.meta.url), "utf8");
+const aggregateMigration = readFileSync(
+  new URL("../supabase/migrations/20260918010000_campaign_location_aggregate_reads_v2.sql", import.meta.url),
+  "utf8"
+);
 
-test("public response reads only active paths from the exact published campaign scope", () => {
-  assert.match(edge, /\.eq\("workspace_id", resolved\.row\.workspace_id\)/);
-  assert.match(edge, /\.eq\("resource_id", resolved\.row\.campaign_id\)/);
-  assert.match(edge, /\.eq\("application_key", "voiceup"\)/);
-  assert.match(edge, /\.eq\("resource_type", "campaign"\)/);
-  assert.match(edge, /\.eq\("active", true\)/);
-  assert.match(edge, /customLocations:/);
-  assert.doesNotMatch(edge, /id: location\.id|version: location\.version|actor_user_id|audit/);
+test("public response no longer hydrates campaign location rows", () => {
+  assert.match(edge, /customLocations: \[\]/u);
+  assert.doesNotMatch(edge, /vboss_resource_location_paths|PUBLIC_LOCATION_PAGE_SIZE|MAX_PUBLIC_CAMPAIGN_LOCATIONS/u);
+  assert.doesNotMatch(edge, /for \(let offset|\.range\(|locationIds/u);
 });
 
-test("public location loading retrieves every bounded page in stable order", () => {
-  assert.match(edge, /const PUBLIC_LOCATION_PAGE_SIZE = 1_000/);
-  assert.match(edge, /\.select\("id", \{ count: "exact", head: true \}\)/);
-  assert.match(edge, /for \(let offset = 0; offset < count; offset \+= PUBLIC_LOCATION_PAGE_SIZE\)/);
-  assert.match(edge, /\.order\("normalized_path"\)\s*\.order\("id"\)\s*\.range\(offset, offset \+ PUBLIC_LOCATION_PAGE_SIZE - 1\)/);
+test("public hierarchy reads are published-scope, service-role-only, and database aggregated", () => {
+  assert.match(edge, /fetchCanonicalPublishedCampaignBySlug\(admin, slug\)/u);
+  assert.match(edge, /read_public_campaign_location_hierarchy_v2/u);
+  assert.match(aggregateMigration, /campaign_index\.status = 'Published'/u);
+  assert.match(aggregateMigration, /path\.active/u);
+  assert.match(aggregateMigration, /split_part\(path\.normalized_path, '\|', child_depth\)/u);
+  assert.match(aggregateMigration, /revoke all on function public\.read_public_campaign_location_hierarchy_v2[\s\S]*from public, anon, authenticated/u);
+  assert.match(aggregateMigration, /grant execute on function public\.read_public_campaign_location_hierarchy_v2[\s\S]*to service_role/u);
 });
 
-test("public location loading rejects partial or duplicate page results", () => {
-  assert.match(edge, /MAX_PUBLIC_CAMPAIGN_LOCATIONS = 60_000/);
-  assert.match(edge, /Campaign location set exceeds the public response safety limit/);
-  assert.match(edge, /locationIds\.has\(location\.id\)/);
-  assert.match(edge, /Campaign location pagination returned a duplicate row/);
-  assert.match(edge, /if \(locations\.length !== count\)/);
-  assert.match(edge, /Campaign location pagination did not return the complete location set/);
+test("public browser loads only selected direct hierarchy branches", () => {
+  assert.match(backend, /export async function readPublicCampaignLocationHierarchy/u);
+  assert.match(publicHook, /parentPaths: Partial<CampaignLocationPath>\[\] = \[\{ country: "India" \}\]/u);
+  assert.match(publicHook, /readPublicCampaignLocationHierarchy\(campaignSlug, parentPath\)/u);
+  assert.doesNotMatch(publicHook, /readCampaignLocations|while \(true\)|nextOffset|limit: 500/u);
+  assert.match(page, /usePublicCampaignLocationCatalog\(campaign\.slug, publicLocationForm\)/u);
+  assert.match(page, /catalogStatus=\{publicCampaignLocationCatalog\.status\}/u);
 });
 
 test("public location transport remains render-only", () => {
@@ -52,11 +57,12 @@ test("master options remain primary while custom hierarchy values deduplicate by
   assert.doesNotMatch(options, /campaignStateFilter/);
 });
 
-test("Block suggestions retain catalog-only options when the VBOSS catalog is in play", () => {
+test("Block suggestions merge canonical choices with the parent-scoped campaign overlay", () => {
   const blockOptions = options.slice(options.indexOf("const blockOptions"), options.indexOf("const panchayatOptions"));
-  assert.match(blockOptions, /useCatalogOnly/);
+  assert.match(blockOptions, /canonicalHierarchyAvailable/);
   assert.match(blockOptions, /getBlockOptions/);
-  assert.match(blockOptions, /catalogMatchesSelectedParents\(location, selectedCountry, values, \["state", "district"\]\)/);
+  assert.match(blockOptions, /customBlocks/);
+  assert.match(blockOptions, /false/);
   assert.match(india, /!verifiedSuggestionsOnly && blockOptions\.length === 0/);
 });
 
@@ -67,9 +73,10 @@ test("custom lower hierarchy options require their exact selected parents", () =
   assert.match(selectedCustomPath, /catalogMatchesSelectedParents\(location, selectedCountry, values, \["state", "district", "block", "panchayat"\]\)/);
 });
 
-test("static geography and PIN directory cannot bypass a VBOSS catalog state", () => {
+test("campaign catalog failure stays fail-closed while ready overlays cannot erase canonical hierarchy", () => {
   assert.match(options, /allowsStaticIndiaLocationFallback/);
-  assert.match(options, /useCatalogOnly/);
+  assert.match(options, /catalogStatus !== "loading" && catalogStatus !== "error"/);
+  assert.match(options, /allowStaticPinDirectory/);
   assert.match(india, /allowStaticLocationFallback \? findPinCode/);
   assert.match(india, /allowStaticLocationFallback \? findLocationByPin/);
   assert.match(hook, /status: "loading"/);

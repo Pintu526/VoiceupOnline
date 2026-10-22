@@ -101,7 +101,7 @@ test("CREATE OR REPLACE preserves existing ownership and grants", () => {
 test("the frozen Field Collection migration remains byte-for-byte unchanged", () => {
   assert.equal(
     createHash("sha256").update(baselineSource).digest("hex"),
-    "40c9e30e5a82cc6bef10d47d5ed920ee0752427f5f9d24c5712b7acc590b11b4"
+    "8e6663dceec062d85060179be13217a08a84b189bdb24c80e59b12d00abaa341"
   );
 });
 

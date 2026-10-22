@@ -3,6 +3,11 @@ import type { blankSigner } from "./constants";
 export const PUBLIC_SIGNING_JOURNEY_VERSION = "public-signing-v2";
 const PUBLIC_SIGNING_STORAGE_PREFIX = "voiceup-public-signing-progress";
 
+export function isValidPublicSignerEmail(email: string): boolean {
+  const normalized = email.trim();
+  return normalized.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+}
+
 export interface PublicSigningCampaignScope {
   campaignId: string;
   slug: string;
@@ -79,12 +84,18 @@ export function transitionPublicSigningCampaign(
 
 export function clearPublicSigningOtpState<T extends {
   otpVerified: boolean;
+  verificationMethod?: "phone_otp" | "email_otp" | "screen_otp";
+  phoneOwnershipVerified?: boolean;
+  emailOwnershipVerified?: boolean;
   otpChallengeId: string;
   otpVerificationToken: string;
 }>(form: T): T {
   return {
     ...form,
     otpVerified: false,
+    verificationMethod: undefined,
+    phoneOwnershipVerified: false,
+    emailOwnershipVerified: false,
     otpChallengeId: "",
     otpVerificationToken: ""
   };

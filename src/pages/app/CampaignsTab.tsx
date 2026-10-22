@@ -35,7 +35,10 @@ import type {
 } from "../../types";
 import type { CampaignTemplate } from "../../campaignTemplates";
 import type { AuthorityDirectoryEntry } from "../../authorityDirectory";
-import type { PublicCampaignCustomLocation } from "../../backend";
+import {
+  getCurrentWorkspaceId,
+  invokeWorkspaceLocationCatalog
+} from "../../backend";
 import type {
   LocationDeletionLevel,
   LocationDeletions,
@@ -50,6 +53,11 @@ import { GlobalLocationFields } from "../../components/GlobalLocationFields";
 import { getIndiaLocationOptions } from "../../components/indiaLocationOptions";
 import { useCampaignLocationCatalog } from "../../components/useCampaignLocationCatalog";
 import { ResourceLocationManager } from "../../businessOs/masterData/ResourceLocationManager";
+import { WorkspaceCanonicalLocationPicker } from "../../businessOs/location/ui";
+import {
+  createObservedLocationReference,
+  createUnverifiedLocationReference
+} from "../../businessOs/location/persistence/LocationReferenceGovernance.ts";
 import { PasswordField } from "../../ui/PasswordField";
 import { ReferralQrPreview } from "../../components/ReferralQrPreview";
 import { QrCodeGraphic } from "../../components/QrCodeGraphic";
@@ -299,14 +307,7 @@ export function CampaignsTab({
   const [copiedCampaignLink, setCopiedCampaignLink] = useState("");
   const canUseCampaignCreationTools = campaignFormMode === "create" && !isCampaignAdminRoute;
   const [campaignLinkMessage, setCampaignLinkMessage] = useState("");
-  const [campaignCustomLocations, setCampaignCustomLocations] = useState<PublicCampaignCustomLocation[]>([]);
-  const loadedCampaignLocations = useCampaignLocationCatalog(
-    campaignFormMode === "edit" ? activeCampaign ?? null : null
-  );
-  const campaignLocationCatalog =
-    campaignCustomLocations.length > 0 ? campaignCustomLocations : loadedCampaignLocations.locations;
-  const campaignLocationCatalogStatus =
-    campaignCustomLocations.length > 0 ? "ready" as const : loadedCampaignLocations.status;
+  const [campaignLocationCatalogRevision, setCampaignLocationCatalogRevision] = useState(0);
   const [creationMode, setCreationMode] = useState<"manual" | "template" | "ai">("manual");
   const savedSnapshot = campaignFormMode === "edit" ? campaignSnapshot(activeCampaign) : "";
   const draftSnapshot = campaignSnapshot(campaignDraft);
@@ -383,9 +384,13 @@ export function CampaignsTab({
   const effectiveCampaignDraft = campaignDraft
     ? { ...campaignDraft, ...governedLocationValues }
     : null;
-  useEffect(() => {
-    setCampaignCustomLocations([]);
-  }, [effectiveCampaignDraft?.id]);
+  const loadedCampaignLocations = useCampaignLocationCatalog(
+    campaignFormMode === "edit" ? effectiveCampaignDraft ?? activeCampaign ?? null : null,
+    effectiveCampaignDraft ?? activeCampaign ?? {},
+    campaignLocationCatalogRevision
+  );
+  const campaignLocationCatalog = loadedCampaignLocations.locations;
+  const campaignLocationCatalogStatus = loadedCampaignLocations.status;
   const campaignGeographyMode = getCampaignGeographyMode(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
   const isGlobalMode = campaignGeographyMode === "global";
   const locationLabels = getCampaignLocationLabels(effectiveCampaignDraft ?? campaignDraft ?? activeCampaign);
@@ -1432,29 +1437,71 @@ export function CampaignsTab({
                   <GlobalLocationFields
                     idPrefix="campaign-global-location"
                     values={effectiveCampaignDraft}
-                    onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values, block: "" })}
+                    onChange={(values) => setCampaignDraft({
+                      ...campaignDraft,
+                      ...values,
+                      block: "",
+                      locationReference: createUnverifiedLocationReference(
+                        { ...campaignDraft, ...values, block: "" },
+                        "campaign_global_manual"
+                      )
+                    })}
                     lockedLevel="none"
                   />
                 ) : (
-                  <IndiaLocationFields
-                    idPrefix="campaign-location"
-                    values={effectiveCampaignDraft}
-                    onChange={(values) => setCampaignDraft({ ...campaignDraft, ...values })}
-                    locationOverrides={locationOverrides}
-                    locationDeletions={locationDeletions}
-                    allowedLocation={configuredGovernanceLockLevel === "none" ? undefined : governedLocationValues}
-                    lockedLevel={isCampaignAdminRoute ? configuredGovernanceLockLevel : "none"}
-                    allowInlineAdd
-                    onAddLocation={onAddAdminLocationOption}
-                    onRemoveLocation={onRemoveAdminLocationOption}
-                    customLocations={campaignLocationCatalog}
-                    catalogStatus={campaignLocationCatalogStatus}
-                  />
+                  <>
+                    <div className="wide">
+                      <WorkspaceCanonicalLocationPicker
+                        workspaceId={getCurrentWorkspaceId()}
+                        transport={invokeWorkspaceLocationCatalog}
+                        id="campaign-canonical-location"
+                        label="Official canonical campaign location"
+                        onChange={(labels, locationReference) => setCampaignDraft({
+                          ...campaignDraft,
+                          country: "India",
+                          ...labels,
+                          location: locationReference.labelSnapshot,
+                          postalCode: "",
+                          locationReference
+                        })}
+                        onClear={() => setCampaignDraft({ ...campaignDraft, locationReference: null })}
+                      />
+                    </div>
+                    <IndiaLocationFields
+                      idPrefix="campaign-location"
+                      values={effectiveCampaignDraft}
+                      onChange={(values) => setCampaignDraft({
+                        ...campaignDraft,
+                        ...values,
+                        location: values.panchayat || values.block || values.district || values.state,
+                        locationReference: createUnverifiedLocationReference(values, "campaign_manual")
+                      })}
+                      locationOverrides={locationOverrides}
+                      locationDeletions={locationDeletions}
+                      allowedLocation={configuredGovernanceLockLevel === "none" ? undefined : governedLocationValues}
+                      lockedLevel={isCampaignAdminRoute ? configuredGovernanceLockLevel : "none"}
+                      allowInlineAdd
+                      onAddLocation={onAddAdminLocationOption}
+                      onRemoveLocation={onRemoveAdminLocationOption}
+                      customLocations={campaignLocationCatalog}
+                      catalogStatus={campaignLocationCatalogStatus}
+                      onPinObservation={(values, postalCode) => setCampaignDraft({
+                        ...campaignDraft,
+                        ...values,
+                        location: values.panchayat || values.block || values.district || values.state,
+                        locationReference: createObservedLocationReference(
+                          values,
+                          "campaign_pin",
+                          [{ kind: "pin", valueSnapshot: postalCode }]
+                        )
+                      })}
+                    />
+                  </>
                 )}
                 {campaignFormMode === "edit" && (
                   <ResourceLocationManager
                     campaign={effectiveCampaignDraft}
-                    onLocationsChange={setCampaignCustomLocations}
+                    onLocationsChanged={() => setCampaignLocationCatalogRevision((revision) => revision + 1)}
                   />
                 )}
 
@@ -2580,6 +2627,27 @@ export function CampaignsTab({
                     )
                   )
                 }
+              />
+              <WorkspaceCanonicalLocationPicker
+                workspaceId={getCurrentWorkspaceId()}
+                transport={invokeWorkspaceLocationCatalog}
+                id={`authority-jurisdiction-${authority.id}`}
+                label="Official authority jurisdiction"
+                onChange={(labels, jurisdictionLocationReference) =>
+                  setAuthorities((current) => current.map((item) => item.id === authority.id
+                    ? {
+                        ...item,
+                        state: labels.state,
+                        district: labels.district,
+                        block: labels.block,
+                        panchayat: labels.panchayat,
+                        jurisdictionLocationReference
+                      }
+                    : item))
+                }
+                onClear={() => setAuthorities((current) => current.map((item) => item.id === authority.id
+                  ? { ...item, jurisdictionLocationReference: null }
+                  : item))}
               />
             </div>
           ))}

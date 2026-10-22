@@ -15,7 +15,7 @@ The app now starts as a clean workspace with no fake campaigns, no fake signers,
 - Campaign admin can enforce one selected authority or allow signers to choose from uploaded authority options
 - Optional donation/support contribution section with caption, UPI ID, UPI QR image, payment instructions, and one-time/recurring labels
 - Optional WhatsApp and Telegram contact fields for signers
-- OTP verification workflow for signer phone numbers, ready for SMS/WhatsApp provider integration
+- Server-validated public-signing verification, with GSAA screen OTP recorded separately from phone ownership evidence
 - Individual signed appeal PDF download with signer details and selected authority details
 - India location hierarchy with state, district, block/tehsil/taluk, and gram panchayat/ward fields
 - True dependent dropdowns for district, block/tehsil/taluk, and gram panchayat/ward after state selection

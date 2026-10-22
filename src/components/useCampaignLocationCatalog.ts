@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import {
   getCurrentWorkspaceId,
-  readCampaignLocations,
-  type CampaignLocationRecord,
+  readCampaignLocationHierarchy,
+  type CampaignLocationHierarchyEntry,
+  type CampaignLocationPath,
   type PublicCampaignCustomLocation
 } from "../backend";
 import type { IndiaLocationCatalogStatus } from "./indiaLocationOptions";
 
-function toCatalogEntry(location: CampaignLocationRecord): PublicCampaignCustomLocation {
+function toCatalogEntry(location: CampaignLocationHierarchyEntry): PublicCampaignCustomLocation {
   return {
     country: location.country,
     state: location.state,
@@ -25,7 +26,9 @@ export interface CampaignLocationCatalogState {
 }
 
 export function useCampaignLocationCatalog(
-  campaign?: { id: string; slug: string } | null
+  campaign?: { id: string; slug: string } | null,
+  selectedPath: Partial<CampaignLocationPath> = {},
+  refreshKey = 0
 ): CampaignLocationCatalogState {
   const [catalog, setCatalog] = useState<CampaignLocationCatalogState>(() =>
     campaign?.id && campaign.slug
@@ -45,25 +48,38 @@ export function useCampaignLocationCatalog(
     setCatalog({ status: "loading", locations: [] });
 
     async function loadCatalog() {
-      const accumulated: PublicCampaignCustomLocation[] = [];
-      let offset = 0;
       try {
-        while (true) {
-          const result = await readCampaignLocations(
-            {
-              workspaceId: getCurrentWorkspaceId(),
-              campaignId,
-              campaignSlug
-            },
-            { active: true, limit: 500, offset }
-          );
-          for (const location of result.locations) {
-            accumulated.push(toCatalogEntry(location));
-          }
-          if (!result.hasMore) break;
-          if (result.nextOffset === null || result.nextOffset <= offset) break;
-          offset = result.nextOffset;
+        const parentPaths: Partial<CampaignLocationPath>[] = [{ country: "India" }];
+        if (selectedPath.state) parentPaths.push({ country: "India", state: selectedPath.state });
+        if (selectedPath.state && selectedPath.district) parentPaths.push({
+          country: "India",
+          state: selectedPath.state,
+          district: selectedPath.district
+        });
+        if (selectedPath.state && selectedPath.district && selectedPath.block) parentPaths.push({
+          country: "India",
+          state: selectedPath.state,
+          district: selectedPath.district,
+          block: selectedPath.block
+        });
+        if (selectedPath.state && selectedPath.district && selectedPath.block && selectedPath.panchayat) {
+          parentPaths.push({
+            country: "India",
+            state: selectedPath.state,
+            district: selectedPath.district,
+            block: selectedPath.block,
+            panchayat: selectedPath.panchayat
+          });
         }
+        const results = await Promise.all(parentPaths.map((parentPath) => readCampaignLocationHierarchy(
+          {
+            workspaceId: getCurrentWorkspaceId(),
+            campaignId,
+            campaignSlug
+          },
+          parentPath
+        )));
+        const accumulated = results.flatMap((result) => result.locations.map(toCatalogEntry));
         if (!cancelled) setCatalog({ status: "ready", locations: accumulated });
       } catch {
         if (!cancelled) setCatalog({ status: "error", locations: [] });
@@ -74,7 +90,15 @@ export function useCampaignLocationCatalog(
     return () => {
       cancelled = true;
     };
-  }, [campaign?.id, campaign?.slug]);
+  }, [
+    campaign?.id,
+    campaign?.slug,
+    selectedPath.state,
+    selectedPath.district,
+    selectedPath.block,
+    selectedPath.panchayat,
+    refreshKey
+  ]);
 
   return catalog;
 }

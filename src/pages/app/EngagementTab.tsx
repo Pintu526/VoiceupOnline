@@ -17,6 +17,7 @@ import {
   getReferralLeaderboard
 } from "../../utils/referrals";
 import { useTranslation } from "../../i18n/useTranslation";
+import { canonicalFirstLocationLabel } from "../../businessOs/location/persistence/LocationReferenceGovernance.ts";
 
 interface EngagementTabProps {
   activeCampaign: Campaign | undefined;
@@ -603,9 +604,7 @@ export function EngagementTab({
                   <strong>{signer.name}</strong>
                   <span>{signer.phone}</span>
                   <small>
-                    {[signer.panchayat, signer.block, signer.district, signer.state]
-                      .filter(Boolean)
-                      .join(", ")}
+                    {canonicalFirstLocationLabel(signer)}
                   </small>
                 </div>
                 <div className="button-row">

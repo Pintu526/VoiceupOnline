@@ -19,6 +19,7 @@ import {
   getCampaignLocationLabels
 } from "../../utils/campaign";
 import { useTranslation } from "../../i18n/useTranslation";
+import { locationReferenceDisplay } from "../../businessOs/location/persistence/LocationReferenceGovernance.ts";
 
 interface ReportsTabProps {
   activeCampaign: Campaign | undefined;
@@ -565,10 +566,10 @@ export function ReportsTab({
                     </td>
                     <td>{t(signer.otpVerified ? "reports.status.verified" : "reports.status.notVerified")}</td>
                     {isGlobalMode && <td>{signer.country || t("reports.status.notCaptured")}</td>}
-                    <td>{signer.state || t("reports.status.notCaptured")}</td>
-                    <td>{signer.district || t("reports.status.notCaptured")}</td>
-                    {!isGlobalMode && <td>{signer.block || t("reports.status.notCaptured")}</td>}
-                    <td>{signer.panchayat || t("reports.status.notCaptured")}</td>
+                    <td>{locationReferenceDisplay(signer.locationReference, signer, "state").label || signer.state || t("reports.status.notCaptured")}</td>
+                    <td>{locationReferenceDisplay(signer.locationReference, signer, "district").label || signer.district || t("reports.status.notCaptured")}</td>
+                    {!isGlobalMode && <td>{locationReferenceDisplay(signer.locationReference, signer, "block").label || signer.block || t("reports.status.notCaptured")}</td>}
+                    <td>{locationReferenceDisplay(signer.locationReference, signer, "panchayat").label || signer.panchayat || t("reports.status.notCaptured")}</td>
                     <td>{signer.source}</td>
                     <td>
                       <select

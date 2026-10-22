@@ -17,7 +17,7 @@ import {
   UsersRound,
   WalletCards
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type {
   BillingCadence,
   BillingPlan,
@@ -28,8 +28,13 @@ import type {
   PrepaidWalletMode
 } from "../../types";
 import type { Campaign, ScanReviewItem, Signer } from "../../types";
-import type { LocationDeletions, LocationOverrides, LocationWithPin } from "../../geography";
-import { IndiaLocationFields } from "../../components/IndiaLocationFields";
+import type { LocationDeletions, LocationOverrides } from "../../geography";
+import type { PersistedLocationReference } from "../../businessOs/location/persistence/PersistedLocationReference.ts";
+import { invokeWorkspaceLocationCatalog } from "../../backend";
+import {
+  SaasLocationGovernancePicker,
+  type LegacyLocationGovernanceLabels
+} from "../../businessOs/location/ui";
 import { subscriptionPlans } from "../../data";
 import { Panel } from "../../ui/Panel";
 import { Field } from "../../ui/Field";
@@ -179,12 +184,11 @@ export function SaasTab({
   const [providerStatusByName, setProviderStatusByName] = useState<Record<string, ProviderStatus>>({});
   const [providerTestMessage, setProviderTestMessage] = useState("");
   const locationGovernance = getLocationGovernance(organization);
-  const governanceValues: LocationWithPin = {
+  const governanceValues: LegacyLocationGovernanceLabels = {
     state: locationGovernance.state,
     district: locationGovernance.district,
     block: locationGovernance.block,
-    panchayat: locationGovernance.panchayat,
-    postalCode: ""
+    panchayat: locationGovernance.panchayat
   };
   const currentPlan = getSubscriptionPlan(organization.plan);
   const pricingEstimate = calculateSubscriptionEstimate(organization);
@@ -195,18 +199,22 @@ export function SaasTab({
     organization.paymentReference ||
     `${organization.id.toUpperCase()}-${new Date().toISOString().slice(0, 7)}`;
 
-  function updateLocationGovernance(values: LocationWithPin) {
-    setOrganization({
-      ...organization,
+  const updateLocationGovernance = useCallback((
+    values: LegacyLocationGovernanceLabels,
+    locationReference: PersistedLocationReference | null
+  ) => {
+    setOrganization((current) => ({
+      ...current,
       locationGovernance: {
-        ...locationGovernance,
+        ...getLocationGovernance(current),
         state: values.state,
         district: values.district,
         block: values.block,
-        panchayat: values.panchayat
+        panchayat: values.panchayat,
+        locationReference
       }
-    });
-  }
+    }));
+  }, [setOrganization]);
 
   function getProviderStatus(providerName: string): ProviderStatus {
     return providerStatusByName[providerName] ?? "Not configured";
@@ -394,13 +402,11 @@ export function SaasTab({
       {saasSection === "organization" && (
         <Panel title={t("organization.locationGovernance")} icon={<MapPin />}>
           <div className="form-grid">
-            <IndiaLocationFields
-              idPrefix="saas-location-governance"
+            <SaasLocationGovernancePicker
+              workspaceId={organization.id}
               values={governanceValues}
               onChange={updateLocationGovernance}
-              locationOverrides={locationOverrides}
-              locationDeletions={locationDeletions}
-              campaign={activeCampaign ?? campaigns[0] ?? null}
+              transport={invokeWorkspaceLocationCatalog}
             />
             <Field label={t("organization.lockLevel")}>
               <select

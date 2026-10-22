@@ -7,13 +7,14 @@ import {
   commitCampaignLocationImport,
   deactivateCampaignLocation,
   getCurrentWorkspaceId,
+  readCampaignLocationSummary,
   readCampaignLocations,
   validateCampaignLocationImport,
   type CampaignLocationImport,
   type CampaignLocationPath,
   type CampaignLocationRecord,
   type CampaignLocationScope,
-  type PublicCampaignCustomLocation
+  type CampaignLocationSummary
 } from "../../backend";
 import { Field } from "../../ui/Field";
 import {
@@ -24,7 +25,9 @@ import {
   toResourceLocationErrorCsvRows
 } from "./resourceLocationCsv";
 
-const fields: Array<keyof CampaignLocationPath> = [
+type CampaignLocationTextField = Exclude<keyof CampaignLocationPath, "locationReference">;
+
+const fields: CampaignLocationTextField[] = [
   "country", "state", "district", "block", "panchayat", "village", "postalCode"
 ];
 
@@ -67,49 +70,30 @@ function isIndiaPinValid(path: CampaignLocationPath) {
   return path.country.trim().toLowerCase() !== "india" || !path.postalCode || /^\d{6}$/.test(path.postalCode);
 }
 
-function countUniqueActiveLocationValues(
-  locations: CampaignLocationRecord[],
-  field: keyof CampaignLocationPath
-) {
-  return new Set(
-    locations
-      .filter((location) => location.active)
-      .map((location) => location[field]?.trim().toLowerCase())
-      .filter(Boolean)
-  ).size;
-}
-
 interface ResourceLocationManagerProps {
   campaign: Campaign;
-  onLocationsChange?: (locations: PublicCampaignCustomLocation[]) => void;
+  onLocationsChanged?: () => void;
 }
 
-function toPublicCampaignCustomLocation(location: CampaignLocationRecord): PublicCampaignCustomLocation {
-  return {
-    country: location.country,
-    state: location.state,
-    district: location.district,
-    block: location.block,
-    panchayat: location.panchayat,
-    village: location.village,
-    postalCode: location.postalCode
-  };
-}
+const locationPageSize = 50;
 
-export function ResourceLocationManager({ campaign, onLocationsChange }: ResourceLocationManagerProps) {
+export function ResourceLocationManager({ campaign, onLocationsChanged }: ResourceLocationManagerProps) {
   const scope = useMemo<CampaignLocationScope>(() => ({
     workspaceId: getCurrentWorkspaceId(),
     campaignId: campaign.id,
     campaignSlug: campaign.slug
   }), [campaign.id, campaign.slug]);
   const [locations, setLocations] = useState<CampaignLocationRecord[]>([]);
+  const [locationTotal, setLocationTotal] = useState(0);
+  const [pageOffset, setPageOffset] = useState(0);
+  const [summary, setSummary] = useState<CampaignLocationSummary | null>(null);
   const [configurationVersion, setConfigurationVersion] = useState(0);
   const [form, setForm] = useState<CampaignLocationPath>(emptyPath);
-  const [filter, setFilter] = useState<"active" | "inactive" | "all">("active");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [locationsLoading, setLocationsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [status, setStatus] = useState("Loading campaign locations…");
+  const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [pendingDeactivate, setPendingDeactivate] = useState<CampaignLocationRecord | null>(null);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -118,72 +102,74 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
   const [importKey, setImportKey] = useState("");
   const [importHash, setImportHash] = useState("");
   const [activeTab, setActiveTab] = useState<"overview" | "manual" | "import" | "active" | "inactive">("overview");
-  const requestSequence = useRef(0);
+  const summaryRequestSequence = useRef(0);
+  const locationsRequestSequence = useRef(0);
 
-  const refresh = async () => {
-    const sequence = ++requestSequence.current;
-    setLoading(true);
+  const refreshSummary = async () => {
+    const sequence = ++summaryRequestSequence.current;
+    setSummaryLoading(true);
     setError("");
-    setStatus("Loading campaign locations…");
-    const accumulated = new Map<string, CampaignLocationRecord>();
-    let offset = 0;
     try {
-      while (true) {
-        const result = await readCampaignLocations(scope, {
-          active: filter === "all" ? undefined : filter === "active",
-          limit: 500,
-          offset
-        });
-        if (sequence !== requestSequence.current) return;
-        for (const location of result.locations) accumulated.set(location.id, location);
-        const loaded = [...accumulated.values()];
-        setLocations(loaded);
-        onLocationsChange?.(
-          loaded
-            .filter((location) => location.active)
-            .map(toPublicCampaignCustomLocation)
-        );
-        setConfigurationVersion(result.configurationVersion);
-        setStatus(`Loaded ${loaded.length} of ${result.total} locations`);
-        if (!result.hasMore) break;
-        if (result.nextOffset === null || result.nextOffset <= offset) {
-          throw new CampaignLocationApiError("server_error");
-        }
-        offset = result.nextOffset;
-      }
+      const result = await readCampaignLocationSummary(scope);
+      if (sequence !== summaryRequestSequence.current) return;
+      setSummary(result);
+      setConfigurationVersion(result.configurationVersion);
     } catch (reason) {
-      if (sequence !== requestSequence.current) return;
+      if (sequence !== summaryRequestSequence.current) return;
       setError(messageFor(reason));
-      setStatus(`Location refresh paused after ${accumulated.size} loaded rows. Retry refresh to continue.`);
     } finally {
-      if (sequence === requestSequence.current) setLoading(false);
+      if (sequence === summaryRequestSequence.current) setSummaryLoading(false);
+    }
+  };
+
+  const refreshLocationsPage = async (offset = pageOffset) => {
+    if (activeTab !== "active" && activeTab !== "inactive") return;
+    const sequence = ++locationsRequestSequence.current;
+    setLocationsLoading(true);
+    setError("");
+    try {
+      const result = await readCampaignLocations(scope, {
+        active: activeTab === "active",
+        limit: locationPageSize,
+        offset
+      });
+      if (sequence !== locationsRequestSequence.current) return;
+      setLocations(result.locations);
+      setLocationTotal(result.total);
+      setConfigurationVersion(result.configurationVersion);
+      setStatus(`Showing ${result.locations.length} of ${result.total} ${activeTab} locations.`);
+    } catch (reason) {
+      if (sequence !== locationsRequestSequence.current) return;
+      setError(messageFor(reason));
+      setLocations([]);
+      setLocationTotal(0);
+    } finally {
+      if (sequence === locationsRequestSequence.current) setLocationsLoading(false);
     }
   };
 
   useEffect(() => {
-    void refresh();
+    setError("");
+    void refreshSummary();
     return () => {
-      requestSequence.current += 1;
+      summaryRequestSequence.current += 1;
     };
-  }, [scope.workspaceId, scope.campaignId, scope.campaignSlug, filter]);
+  }, [scope.workspaceId, scope.campaignId, scope.campaignSlug]);
+
+  useEffect(() => {
+    if (activeTab !== "active" && activeTab !== "inactive") return undefined;
+    void refreshLocationsPage(pageOffset);
+    return () => {
+      locationsRequestSequence.current += 1;
+    };
+  }, [scope.workspaceId, scope.campaignId, scope.campaignSlug, activeTab, pageOffset]);
 
   const visibleLocations = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return locations.filter((location) => !term || pathLabel(location).toLowerCase().includes(term)).slice(0, 50);
+    return locations.filter((location) => !term || pathLabel(location).toLowerCase().includes(term));
   }, [locations, search]);
-  const activeCount = locations.filter((location) => location.active).length;
-  const inactiveCount = locations.filter((location) => !location.active).length;
-  const levels = new Set(locations.map((location) => location.leafLevel)).size;
-  const locationCoverage = useMemo(() => ({
-    states: countUniqueActiveLocationValues(locations, "state"),
-    districts: countUniqueActiveLocationValues(locations, "district"),
-    blocks: countUniqueActiveLocationValues(locations, "block"),
-    panchayats: countUniqueActiveLocationValues(locations, "panchayat"),
-    villages: countUniqueActiveLocationValues(locations, "village"),
-    pins: countUniqueActiveLocationValues(locations, "postalCode")
-  }), [locations]);
 
-  const update = (field: keyof CampaignLocationPath, value: string) => {
+  const update = (field: CampaignLocationTextField, value: string) => {
     setForm((current) => ({ ...current, [field]: value.slice(0, 120) }));
   };
 
@@ -209,7 +195,8 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
       setConfigurationVersion(result.configurationVersion);
       setStatus(result.result === "duplicate" ? "The location is already active." : "Custom location saved.");
       setForm(emptyPath());
-      await refresh();
+      await refreshSummary();
+      onLocationsChanged?.();
     } catch (reason) {
       setError(messageFor(reason));
     } finally {
@@ -226,7 +213,8 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
       setConfigurationVersion(result.configurationVersion);
       setPendingDeactivate(null);
       setStatus("Custom location deactivated.");
-      await refresh();
+      await Promise.all([refreshSummary(), refreshLocationsPage(pageOffset)]);
+      onLocationsChanged?.();
     } catch (reason) {
       setError(messageFor(reason));
     } finally {
@@ -267,7 +255,8 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
       setConfigurationVersion(result.configurationVersion);
       setImportState("completed");
       setStatus("CSV import completed.");
-      await refresh();
+      await refreshSummary();
+      onLocationsChanged?.();
     } catch (reason) {
       setImportState("failed");
       setError(messageFor(reason));
@@ -275,8 +264,8 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
   };
 
   const selectTab = (tab: typeof activeTab) => {
+    if (tab === "active" || tab === "inactive") setPageOffset(0);
     setActiveTab(tab);
-    if (tab === "active" || tab === "inactive") setFilter(tab);
   };
 
   return (
@@ -316,24 +305,25 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
         <section aria-labelledby="location-tab-button-overview" id="location-tab-overview" role="tabpanel">
           <div className="button-row">
             <span className="status-pill"><ShieldCheck size={15} /> Version {configurationVersion}</span>
-            <button className="secondary-button" type="button" onClick={() => void refresh()} disabled={loading}>
+            <button className="secondary-button" type="button" onClick={() => void refreshSummary()} disabled={summaryLoading}>
               <RefreshCw size={16} /> Refresh
             </button>
           </div>
+          {summaryLoading && <p className="helper-text" role="status">Loading summary…</p>}
           <div className="metric-grid" aria-label="Location configuration summary">
-            <div className="metric-card"><span>Active custom</span><strong>{activeCount}</strong></div>
-            <div className="metric-card"><span>Inactive custom</span><strong>{inactiveCount}</strong></div>
-            <div className="metric-card"><span>Levels represented</span><strong>{levels}</strong></div>
+            <div className="metric-card"><span>Active custom</span><strong>{summary?.active ?? 0}</strong></div>
+            <div className="metric-card"><span>Inactive custom</span><strong>{summary?.inactive ?? 0}</strong></div>
+            <div className="metric-card"><span>Levels represented</span><strong>{summary?.levelsRepresented ?? 0}</strong></div>
           </div>
           <section className="wide authority-picker-panel" aria-label="Campaign Locations">
             <span className="eyebrow">Campaign Locations</span>
             <div className="metric-grid">
-              <div className="metric-card"><span>States</span><strong>{locationCoverage.states}</strong></div>
-              <div className="metric-card"><span>Districts</span><strong>{locationCoverage.districts}</strong></div>
-              <div className="metric-card"><span>Blocks</span><strong>{locationCoverage.blocks}</strong></div>
-              <div className="metric-card"><span>Panchayats</span><strong>{locationCoverage.panchayats}</strong></div>
-              <div className="metric-card"><span>Villages</span><strong>{locationCoverage.villages}</strong></div>
-              <div className="metric-card"><span>PINs</span><strong>{locationCoverage.pins}</strong></div>
+              <div className="metric-card"><span>States</span><strong>{summary?.coverage.states ?? 0}</strong></div>
+              <div className="metric-card"><span>Districts</span><strong>{summary?.coverage.districts ?? 0}</strong></div>
+              <div className="metric-card"><span>Blocks</span><strong>{summary?.coverage.blocks ?? 0}</strong></div>
+              <div className="metric-card"><span>Panchayats</span><strong>{summary?.coverage.panchayats ?? 0}</strong></div>
+              <div className="metric-card"><span>Villages</span><strong>{summary?.coverage.villages ?? 0}</strong></div>
+              <div className="metric-card"><span>PINs</span><strong>{summary?.coverage.pins ?? 0}</strong></div>
             </div>
           </section>
         </section>
@@ -397,12 +387,12 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
         <section aria-labelledby={`location-tab-button-${activeTab}`} id={`location-tab-${activeTab}`} role="tabpanel">
           <div className="wide authority-picker-panel">
             <div className="authority-picker-toolbar">
-              <Field label="Search locations">
+              <Field label="Search this page">
                 <div className="input-with-icon"><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search custom locations" /></div>
               </Field>
             </div>
-            {loading ? <p className="helper-text">Loading locations…</p> : visibleLocations.length === 0 ? (
-              <p className="helper-text">No {filter === "all" ? "" : `${filter} `}custom locations match this view.</p>
+            {locationsLoading ? <p className="helper-text" role="status">Loading locations…</p> : visibleLocations.length === 0 ? (
+              <p className="helper-text">No {activeTab} custom locations match this page.</p>
             ) : (
               <div className="campaign-link-list">
                 {visibleLocations.map((location) => (
@@ -419,7 +409,30 @@ export function ResourceLocationManager({ campaign, onLocationsChange }: Resourc
                 ))}
               </div>
             )}
-            {locations.length > 50 && <p className="helper-text">Showing the first 50 matching locations. Refine your search to narrow the list.</p>}
+            <div className="button-row" aria-label={`${activeTab} location pages`}>
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={locationsLoading || pageOffset === 0}
+                onClick={() => setPageOffset((offset) => Math.max(0, offset - locationPageSize))}
+              >
+                Previous
+              </button>
+              <span className="helper-text">
+                {locationTotal === 0 ? "0 locations" : `${pageOffset + 1}–${Math.min(pageOffset + locations.length, locationTotal)} of ${locationTotal}`}
+              </span>
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={locationsLoading || pageOffset + locations.length >= locationTotal}
+                onClick={() => setPageOffset((offset) => offset + locationPageSize)}
+              >
+                Next
+              </button>
+              <button className="secondary-button" type="button" disabled={locationsLoading} onClick={() => void refreshLocationsPage(pageOffset)}>
+                <RefreshCw size={15} /> Refresh page
+              </button>
+            </div>
           </div>
         </section>
       )}

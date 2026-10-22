@@ -3,7 +3,11 @@ import { logDocumentIntelligenceStage } from "./diagnostics.ts";
 import { analyzeDocumentImageQuality } from "./imageQuality.ts";
 import { analyzeDocument } from "./pipeline.ts";
 import { tesseractOcrProvider } from "./providers/tesseract.ts";
-import { createIndiaDocumentReferenceData } from "./references/india.ts";
+import {
+  createCanonicalIndiaDocumentReferenceData,
+  createIndiaDocumentReferenceData
+} from "./references/india.ts";
+import type { CanonicalLocationCatalogReader } from "../businessOs/location/ui/CanonicalLocationUiModel.ts";
 import {
   getCameraRecommendationReasons,
   scoreOcrCandidate,
@@ -17,8 +21,19 @@ export const DOCUMENT_CAMERA_RECOMMENDATION_MESSAGE =
 
 export async function analyzeBusinessOsDocument(
   image: Blob,
-  diagnosticId: string
+  diagnosticId: string,
+  canonicalLocationReader?: CanonicalLocationCatalogReader
 ): Promise<BusinessOsDocumentAnalysis> {
+  let referenceData = createIndiaDocumentReferenceData();
+  if (canonicalLocationReader) {
+    try {
+      referenceData = (await createCanonicalIndiaDocumentReferenceData(canonicalLocationReader)).referenceData;
+    } catch (error) {
+      logDocumentIntelligenceStage(diagnosticId, "Canonical OCR vocabulary unavailable; using compatibility vocabulary", {
+        error: error instanceof Error ? error.message : "Unknown canonical catalog error"
+      });
+    }
+  }
   const imageQuality = await analyzeDocumentImageQuality(image);
   const variants = await generateOcrImageVariants(image, imageQuality);
   const candidates = [];
@@ -28,7 +43,7 @@ export async function analyzeBusinessOsDocument(
       provider: tesseractOcrProvider,
       languages: ["eng"],
       languagePacks: [englishDocumentLanguagePack],
-      referenceData: createIndiaDocumentReferenceData()
+      referenceData
     });
     candidates.push({ output, score: scoreOcrCandidate(variant.id, output) });
   }

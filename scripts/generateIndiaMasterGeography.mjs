@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { indiaGeographyService } from "../src/geography.ts";
+import { businessOsCompatibilityIndiaDataset } from "../src/geography.ts";
 
 const expectedCounts = Object.freeze({
   country: 1,
@@ -117,8 +117,7 @@ export function canonicalMasterGeographyContent(artifact) {
 }
 
 export function buildIndiaMasterGeographyArtifact() {
-  const dataset = indiaGeographyService.getDataset("IN");
-  if (!dataset) throw new Error("The canonical India geography dataset is unavailable.");
+  const dataset = businessOsCompatibilityIndiaDataset;
   if (dataset.datasetVersion !== "business-os-compatibility-v1") {
     throw new Error(`Unexpected canonical dataset version: ${dataset.datasetVersion}.`);
   }

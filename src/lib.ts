@@ -1,4 +1,9 @@
 import type { AuthorityRule, Campaign, ScanReviewItem, Signer } from "./types";
+import { createObservedLocationReference } from "./businessOs/location/persistence/LocationReferenceGovernance.ts";
+import {
+  canonicalScopeMatches,
+  locationReferenceDisplay
+} from "./businessOs/location/persistence/LocationReferenceGovernance.ts";
 
 export function createId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
@@ -61,10 +66,16 @@ export function groupSignersByLocation(
   signers: Signer[],
   level: "country" | "state" | "district" | "block" | "panchayat"
 ) {
-  return signers.reduce<Record<string, number>>((accumulator, signer) => {
-    const label = signer[level]?.trim() || "Not captured";
-    accumulator[label] = (accumulator[label] ?? 0) + 1;
-    return accumulator;
+  const buckets = new Map<string, { label: string; count: number }>();
+  for (const signer of signers) {
+    const resolved = locationReferenceDisplay(signer.locationReference, signer, level);
+    const label = resolved.label || signer[level]?.trim() || "Not captured";
+    const current = buckets.get(resolved.groupingKey);
+    buckets.set(resolved.groupingKey, { label, count: (current?.count ?? 0) + 1 });
+  }
+  return [...buckets.values()].reduce<Record<string, number>>((totals, bucket) => {
+    totals[bucket.label] = (totals[bucket.label] ?? 0) + bucket.count;
+    return totals;
   }, {});
 }
 
@@ -99,6 +110,12 @@ export function matchAuthority(campaign: Campaign, authorities: AuthorityRule[])
   const matches = authorities
     .map((authority) => {
       let score = authority.confidence;
+      const canonicalMatch = canonicalScopeMatches(
+        authority.jurisdictionLocationReference,
+        campaign.locationReference
+      );
+      if (canonicalMatch === false) return { authority, score: -1 };
+      if (canonicalMatch === true) score += 40;
       if (authority.category === campaign.category) score += 15;
       if (authority.category === "Any") score += 5;
       if (authority.locationKeyword && normalizedLocation.includes(authority.locationKeyword.toLowerCase())) {
@@ -126,7 +143,7 @@ export function parseSignerFromText(text: string) {
     return "";
   };
 
-  return {
+  const parsed = {
     name: valueFor(["name", "full name", "signer"]),
     email: valueFor(["email", "e-mail"]),
     phone: valueFor(["phone", "mobile", "contact"]),
@@ -144,6 +161,17 @@ export function parseSignerFromText(text: string) {
     postalCode: valueFor(["postal code", "postcode", "pin", "zip"]),
     comment: valueFor(["comment", "message", "reason"]) || "Imported from scanned hard copy."
   };
+  const observedValues = [parsed.country, parsed.state, parsed.district, parsed.block, parsed.panchayat, parsed.postalCode]
+    .filter(Boolean)
+    .join(" | ");
+  return {
+    ...parsed,
+    locationReference: createObservedLocationReference(
+      parsed,
+      "scan_ocr",
+      [{ kind: "ocr", valueSnapshot: observedValues || "No structured location recognized" }]
+    )
+  };
 }
 
 export function createScanReviewItem(
@@ -151,12 +179,14 @@ export function createScanReviewItem(
   fileName: string,
   extractedText: string
 ): ScanReviewItem {
+  const parsedSigner = parseSignerFromText(extractedText);
   return {
     id: createId("scan"),
     campaignId,
     fileName,
     extractedText,
-    parsedSigner: parseSignerFromText(extractedText),
+    parsedSigner,
+    locationReference: parsedSigner.locationReference,
     status: "Needs review",
     createdAt: new Date().toISOString()
   };
@@ -202,6 +232,9 @@ export function exportCsv(campaign: Campaign, signers: Signer[]) {
       "Status",
       "Signed At",
       "Comment"
+      ,"Location verification"
+      ,"Canonical node ID"
+      ,"Canonical dataset version"
     ],
     ...signers.map((signer) => [
       campaign.title,
@@ -223,6 +256,11 @@ export function exportCsv(campaign: Campaign, signers: Signer[]) {
       signer.status,
       signer.signedAt,
       signer.comment
+      ,signer.locationReference?.verificationState ?? "legacy_unresolved"
+      ,signer.locationReference?.canonicalNodeId ?? ""
+      ,signer.locationReference?.verificationState === "canonical_verified"
+        ? signer.locationReference.datasetVersion
+        : ""
     ])
   ];
 
@@ -249,6 +287,7 @@ export function makePublicSigner(
     | "panchayat"
     | "address"
     | "postalCode"
+    | "locationReference"
     | "comment"
   > &
     Partial<Pick<Signer, "referralCode" | "referredBy" | "referredByPhoneOrCode" | "referralSource">>,

@@ -24,6 +24,7 @@ import type { Campaign } from "../../types";
 import type { LocationDeletions, LocationOverrides, LocationWithPin } from "../../geography";
 import {
   changeCoordinatorStatus,
+  invokeWorkspaceLocationCatalog,
   loadCoordinatorNetwork,
   openCoordinatorPhoto,
   removeCoordinator,
@@ -32,6 +33,11 @@ import {
   uploadCoordinatorPhoto,
   verifyCoordinatorMobileOtp
 } from "../../backend";
+import { WorkspaceCanonicalLocationPicker } from "../../businessOs/location/ui";
+import {
+  createObservedLocationReference,
+  createUnverifiedLocationReference
+} from "../../businessOs/location/persistence/LocationReferenceGovernance.ts";
 import {
   buildCoordinatorTree,
   coordinatorGeographyLabel,
@@ -138,6 +144,7 @@ function geographyInputFor(
   values.postalCode = postalCode;
   const byId = new Map(geographies.map((item) => [item.id, item]));
   let current = byId.get(geographyId);
+  if (current?.locationReference) values.locationReference = current.locationReference;
   while (current) {
     values[current.level] = current.name;
     current = current.parentId ? byId.get(current.parentId) : undefined;
@@ -758,14 +765,54 @@ export function CoordinatorNetworkTab({
               <strong>Geography hierarchy</strong>
               <p>The saved hierarchy is normalized and reused across coordinators.</p>
             </div>
+            <WorkspaceCanonicalLocationPicker
+              workspaceId={snapshot.workspaceId}
+              transport={invokeWorkspaceLocationCatalog}
+              id={`coordinator-canonical-${draft.id}`}
+              label="Official canonical coordinator geography"
+              onChange={(labels, locationReference) => setDraft({
+                ...draft,
+                geography: {
+                  ...draft.geography,
+                  country: "India",
+                  ...labels,
+                  ward: "",
+                  postalCode: "",
+                  locationReference
+                }
+              })}
+              onClear={() => setDraft({
+                ...draft,
+                geography: { ...draft.geography, locationReference: null }
+              })}
+            />
             <IndiaLocationFields
               idPrefix={`coordinator-${draft.id}`}
               values={draft.geography as LocationWithPin}
-              onChange={(values) => setDraft({ ...draft, geography: { ...draft.geography, ...values } })}
+              onChange={(values) => setDraft({
+                ...draft,
+                geography: {
+                  ...draft.geography,
+                  ...values,
+                  locationReference: createUnverifiedLocationReference(values, "coordinator_manual")
+                }
+              })}
               locationOverrides={locationOverrides}
               locationDeletions={locationDeletions}
               showOptionalLabels
               campaign={activeCampaign ?? campaigns[0] ?? null}
+              onPinObservation={(values, postalCode) => setDraft({
+                ...draft,
+                geography: {
+                  ...draft.geography,
+                  ...values,
+                  locationReference: createObservedLocationReference(
+                    values,
+                    "coordinator_pin",
+                    [{ kind: "pin", valueSnapshot: postalCode }]
+                  )
+                }
+              })}
             />
             {(draft.role === "ward_coordinator" || draft.role === "field_coordinator") && (
               <Field label="Ward *">
@@ -773,7 +820,14 @@ export function CoordinatorNetworkTab({
                   value={draft.geography.ward}
                   onChange={(event) => setDraft({
                     ...draft,
-                    geography: { ...draft.geography, ward: event.target.value }
+                    geography: {
+                      ...draft.geography,
+                      ward: event.target.value,
+                      locationReference: createUnverifiedLocationReference(
+                        { ...draft.geography, ward: event.target.value },
+                        "coordinator_manual"
+                      )
+                    }
                   })}
                 />
               </Field>

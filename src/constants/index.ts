@@ -29,6 +29,9 @@ export const blankSigner = {
   whatsappNumber: "",
   telegramHandle: "",
   otpVerified: false,
+  verificationMethod: undefined as "phone_otp" | "email_otp" | "screen_otp" | undefined,
+  phoneOwnershipVerified: false,
+  emailOwnershipVerified: false,
   otpChallengeId: "",
   otpVerificationToken: "",
   selectedAuthorityId: "",
@@ -40,6 +43,7 @@ export const blankSigner = {
   panchayat: "",
   address: "",
   postalCode: "",
+  locationReference: null as PersistedLocationReference | null,
   comment: "",
   referralCode: "",
   referredBy: "",
@@ -68,3 +72,4 @@ Gram Panchayat:
 Address:
 PIN Code:
 Comment:`;
+import type { PersistedLocationReference } from "../businessOs/location/persistence/PersistedLocationReference.ts";

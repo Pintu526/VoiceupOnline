@@ -326,8 +326,8 @@ test("mobile verification is authenticated, purpose-bound, expiring, and single-
 });
 
 test("backend adapters use workspace RPCs, private photos, and the existing OTP function", () => {
-  assert.match(backendSource, /rpc\("get_voiceup_coordinator_network"/);
-  assert.match(backendSource, /rpc\("upsert_voiceup_coordinator"/);
+  assert.match(backendSource, /rpc\("get_voiceup_coordinator_network_with_location"/);
+  assert.match(backendSource, /rpc\("upsert_voiceup_coordinator_with_location"/);
   assert.match(backendSource, /rpc\("set_voiceup_coordinator_status"/);
   assert.match(backendSource, /rpc\("delete_voiceup_coordinator"/);
   assert.match(backendSource, /purpose: "coordinator-mobile"/);

@@ -168,7 +168,7 @@ test("backend failure retains form state and never displays false success", () =
 
 test("existing Edge boundary and typed backend adapter return the authoritative saved request", () => {
   assert.match(edgeLogicSource, /"submit_participation_request"/);
-  assert.match(edgeSource, /admin\.rpc\("voiceup_submit_participation_request"/);
+  assert.match(edgeSource, /admin\.rpc\("voiceup_submit_participation_request_with_location"/);
   assert.match(edgeSource, /if \(action === "submit_participation_request"\)/);
   assert.match(backendSource, /export async function submitParticipationRequest/);
   assert.match(backendSource, /payload: \{ request: input\.request \}/);

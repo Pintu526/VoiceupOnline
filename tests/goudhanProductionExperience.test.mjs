@@ -127,13 +127,18 @@ test("campaign, referral, QR and share links preserve the gaumata.cloud origin",
 });
 
 test("Goudhan public content has exact English, Hindi and Odia key parity", () => {
-  const englishKeys = Object.keys(locales.en.goudhanCampaign).sort();
-  assert.deepEqual(Object.keys(locales.hi.goudhanCampaign).sort(), englishKeys);
-  assert.deepEqual(Object.keys(locales.or.goudhanCampaign).sort(), englishKeys);
+  const leafEntries = (value, prefix = "") => Object.entries(value).flatMap(([key, child]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    return child && typeof child === "object" && !Array.isArray(child)
+      ? leafEntries(child, path)
+      : [[path, child]];
+  });
+  const englishKeys = leafEntries(locales.en.goudhanCampaign).map(([key]) => key).sort();
+  assert.deepEqual(leafEntries(locales.hi.goudhanCampaign).map(([key]) => key).sort(), englishKeys);
+  assert.deepEqual(leafEntries(locales.or.goudhanCampaign).map(([key]) => key).sort(), englishKeys);
 
   for (const language of ["en", "hi", "or"]) {
-    for (const key of englishKeys) {
-      const value = locales[language].goudhanCampaign[key];
+    for (const [key, value] of leafEntries(locales[language].goudhanCampaign)) {
       assert.equal(typeof value, "string");
       assert.ok(value.trim(), `${language}.goudhanCampaign.${key} must not be empty`);
       assert.doesNotMatch(value, /^goudhanCampaign\./);
@@ -146,7 +151,7 @@ test("production blueprint contains the reusable campaign capabilities and appro
   assert.equal(goudhanProductionOrganization.customDomain, "gaumata.cloud");
   assert.equal(goudhanCampaignBlueprint.campaign.slug, GOUDHAN_CAMPAIGN_SLUG);
   assert.equal(goudhanCampaignBlueprint.joinFlow.otpMode, "production");
-  assert.equal(goudhanCampaignBlueprint.joinFlow.verificationMethod, "phone_otp");
+  assert.equal(goudhanCampaignBlueprint.joinFlow.verificationMethod, "screen_otp");
   assert.equal(goudhanCampaignBlueprint.joinFlow.duplicatePolicy, "one_supporter_per_campaign_phone");
   assert.deepEqual(
     goudhanCampaignBlueprint.capabilities.reports,
@@ -219,11 +224,11 @@ test("the first Goudhan campaign instance is published through existing initial 
   assert.equal(goudhanGauSammanCampaign.country, "India");
   assert.deepEqual(
     goudhanGauSammanCampaign.requiredFields,
-    ["phone", "name", "state", "district", "block"]
+    ["phone", "name", "email", "state", "district", "block"]
   );
   assert.deepEqual(
     goudhanCampaignBlueprint.joinFlow.requiredFields,
-    ["phone", "name", "state", "district", "block"]
+    ["phone", "name", "email", "state", "district", "block"]
   );
   assert.ok(!goudhanGauSammanCampaign.requiredFields.includes("panchayat"));
   assert.ok(!goudhanGauSammanCampaign.requiredFields.includes("address"));
@@ -251,6 +256,7 @@ test("signer required location contract excludes panchayat, village, and PIN", (
   const signerValues = {
     phone: "9876543210",
     name: "Test Signer",
+    email: "signer@example.test",
     country: "",
     state: "Odisha",
     district: "Khordha",
@@ -313,7 +319,7 @@ test("unfinished modules are hidden only behind the Goudhan campaign gate", () =
   assert.match(commandCenterSource, /showUnfinishedModules && pendingScans/);
 });
 
-test("production OTP fails closed when no SMS webhook is configured", () => {
+test("GSAA screen OTP bypasses SMS while every non-screen OTP still fails closed without a provider", () => {
   const sendResponseStart = otpSource.indexOf("return jsonResponse({", otpSource.indexOf('if (action === "send")'));
   const sendResponseEnd = otpSource.indexOf("\n        });", sendResponseStart);
   const sendResponseSource = otpSource.slice(sendResponseStart, sendResponseEnd);
@@ -323,20 +329,22 @@ test("production OTP fails closed when no SMS webhook is configured", () => {
   assert.match(otpSource, /const SHOW_GSAA_OTP = Deno\.env\.get\("VOICEUP_SHOW_OTP"\) === "true"/);
   assert.match(
     sendResponseSource,
-    /purpose === "public-signing" &&\s*\(publicSlug === "GSAA" \|\| publicSlug === "gau-samman-ahvaan-abhiyan"\) &&\s*SHOW_GSAA_OTP\s*\? \{ otp: code \}\s*: \{\}/
+    /\.\.\.\(isScreenOtp[\s\S]*\? \{ otp: code \}[\s\S]*: \{\}\)/
   );
+  assert.match(otpSource, /if \(isScreenOtp\)[\s\S]*else if \(DEV_MODE\)[\s\S]*await sendWithProvider/);
   assert.equal((otpSource.match(/\botp:\s*code\b/g) ?? []).length, 1);
   assert.match(otpSource, /error: "Verification service is temporarily unavailable\. Please retry\."/);
 });
 
-test("GSAA alone selects verified India hierarchy fields while global campaigns keep their existing component", () => {
+test("GSAA keeps India fields and canonical confirmation while global campaigns keep their component", () => {
   const locationStart = publicCampaignSource.indexOf("const locationFields =");
   const locationEnd = publicCampaignSource.indexOf("\n\n  useEffect(", locationStart);
   const locationSource = publicCampaignSource.slice(locationStart, locationEnd);
 
   assert.match(locationSource, /isGoudhanExperience \? \(\s*<IndiaLocationFields/);
   assert.match(locationSource, /fixedCountry="India"/);
-  assert.match(locationSource, /verifiedSuggestionsOnly/);
+  assert.match(publicCampaignSource, /PublicCampaignCanonicalLocationDisplay/u);
+  assert.match(locationSource, /createUnverifiedLocationReference/u);
   assert.match(locationSource, /\) : isGlobalMode \? \(\s*<GlobalLocationFields/);
   assert.equal(isGoudhanProductionCampaign({ slug: "GSAA", title: "Campaign" }), true);
   assert.equal(isGoudhanProductionCampaign({ slug: "other", title: "Other campaign" }), false);
@@ -361,13 +369,16 @@ test("verified geography suggestions follow State, District and Block without sy
     getPanchayatOptions("Bihar", "Patna", "Bihta", {}, emptyLocationDeletions, true),
     ["Bishunpura", "Katesar", "Painal"]
   );
-  assert.deepEqual(getBlockOptions("Odisha", "Khordha", overrides, emptyLocationDeletions, true), []);
+  const officialKhordhaBlocks = getBlockOptions("Odisha", "Khordha", overrides, emptyLocationDeletions, true);
+  assert.equal(officialKhordhaBlocks.length, 10);
+  assert.ok(officialKhordhaBlocks.includes("Balianta"));
+  assert.ok(!officialKhordhaBlocks.includes("Invented Block"));
   assert.deepEqual(
     getPanchayatOptions("Odisha", "Khordha", "Invented Block", overrides, emptyLocationDeletions, true),
     []
   );
-  assert.ok(getBlockOptions("Odisha", "Khordha").includes("Khordha Sadar"));
-  assert.ok(getPanchayatOptions("Odisha", "Khordha", "Khordha Rural Block").includes("Khordha Rural Block Ward 1"));
+  assert.ok(getBlockOptions("Odisha", "Khordha").includes("Balianta"));
+  assert.ok(!getBlockOptions("Odisha", "Khordha").includes("Khordha Sadar"));
 });
 
 test("GSAA manual fallback preserves editable lower levels, location strings and translated locality labels", () => {

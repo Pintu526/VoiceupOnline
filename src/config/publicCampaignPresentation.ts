@@ -384,13 +384,18 @@ export function canDisplayScreenOtp(input: {
   explicitTestDisplayEnabled: boolean;
 }): boolean {
   const hostname = input.hostname.trim().toLowerCase().replace(/\.$/, "");
-  const isApprovedHost =
-    SCREEN_OTP_HOSTS.has(hostname) ||
-    hostname.endsWith(".vercel.app") ||
+  const isLoopbackHost =
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
     hostname === "[::1]";
-  return input.explicitTestDisplayEnabled && (input.isDevelopment || isApprovedHost);
+  const isApprovedHost =
+    SCREEN_OTP_HOSTS.has(hostname) ||
+    hostname.endsWith(".vercel.app") ||
+    isLoopbackHost;
+  return (
+    (input.isDevelopment && isLoopbackHost) ||
+    (input.explicitTestDisplayEnabled && (input.isDevelopment || isApprovedHost))
+  );
 }
 
 export function getSafeOtpDisplayMessage(

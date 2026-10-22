@@ -172,14 +172,23 @@ test("approved GSAA production hosts display screen OTP only with the explicit f
   }
 });
 
-test("screen OTP display requires the explicit flag on localhost, Preview, and approved hosts", () => {
+test("Development localhost displays screen OTP while deployed hosts retain the explicit flag", () => {
   assert.equal(
     canDisplayScreenOtp({
       hostname: "localhost",
       isDevelopment: true,
-      explicitTestDisplayEnabled: true
+      explicitTestDisplayEnabled: false
     }),
     true
+  );
+  assert.equal(
+    getSafeOtpDisplayMessage("Verification code: 123456", {
+      hostname: "localhost",
+      isDevelopment: true,
+      explicitTestDisplayEnabled: false,
+      neutralMessage: "Enter the code shown below."
+    }),
+    "Verification code: 123456"
   );
   assert.equal(
     canDisplayScreenOtp({
@@ -200,7 +209,7 @@ test("screen OTP display requires the explicit flag on localhost, Preview, and a
   assert.equal(
     canDisplayScreenOtp({
       hostname: "localhost",
-      isDevelopment: true,
+      isDevelopment: false,
       explicitTestDisplayEnabled: false
     }),
     false
@@ -209,6 +218,14 @@ test("screen OTP display requires the explicit flag on localhost, Preview, and a
     canDisplayScreenOtp({
       hostname: "preview.vercel.app",
       isDevelopment: false,
+      explicitTestDisplayEnabled: false
+    }),
+    false
+  );
+  assert.equal(
+    canDisplayScreenOtp({
+      hostname: "192.168.1.25",
+      isDevelopment: true,
       explicitTestDisplayEnabled: false
     }),
     false

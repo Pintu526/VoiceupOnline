@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-10-21T13:58:26.4049312+05:30",
+  "projectRef": "ravweavcfrpiykfgtmbf",
+  "method": "supabase functions list plus functions download --use-api",
+  "functions": [
+    {
+      "name": "voiceup-workspace-state",
+      "version": 16,
+      "status": "ACTIVE",
+      "verifyJwt": true,
+      "bundleSha256": "029ace2b6f1ce9ee34f1358943a301b7d29d9c9f2af1b3b4c8e76add143a3be2"
+    },
+    {
+      "name": "voiceup-public-signing",
+      "version": 14,
+      "status": "ACTIVE",
+      "verifyJwt": true,
+      "bundleSha256": "854a95372c8d2814807d01556152628e3f2f042b98af72309514a04228c4f9cf"
+    },
+    {
+      "name": "voiceup-otp",
+      "version": 13,
+      "status": "ACTIVE",
+      "verifyJwt": true,
+      "bundleSha256": "8db648f5e811a2abac944151b4192b293854d732d227becb78410b3d6b5142bd"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "path": "supabase/functions/voiceup-otp/index.ts",
+      "sha256": "7261a15da154c650daa6bc8faf7be8dc02f14dcced429cd005bec3ec27521f32"
+    },
+    {
+      "path": "supabase/functions/voiceup-public-signing/index.ts",
+      "sha256": "4fb69b6c5489d58d57ec3d941fa4ddc0bfb94e270f8f311c70f8d2abfb2a8655"
+    },
+    {
+      "path": "supabase/functions/voiceup-public-signing/logic.ts",
+      "sha256": "17c6eedc3f3bd7b738dbdf509e020039da1e566f2dbe6a4ab8052f1451a38fc1"
+    },
+    {
+      "path": "supabase/functions/voiceup-workspace-state/index.ts",
+      "sha256": "023082a4b4bc70527dd94bfb07e0062ad3eb4b897b5d09eff364ae65c7fe6d22"
+    },
+    {
+      "path": "supabase/functions/_shared/publicCampaignIndex.ts",
+      "sha256": "de17d025a18e1e0edd7aefb19f98abd4f474d4a0c316fc6f46266bf83abc6ad9"
+    },
+    {
+      "path": "supabase/functions/_shared/publicCampaignSlug.ts",
+      "sha256": "618b56f107d6c0d8a18eed37c9a3ab4b164e272459c02e0395db9204843c77d2"
+    },
+    {
+      "path": "supabase/functions/_shared/voiceup.ts",
+      "sha256": "888a5a27b7be8b71cea2a82248d649111e75e21040ea06be0e193708fcb44db5"
+    },
+    {
+      "path": "supabase/functions/_shared/workspaceLocationReferences.ts",
+      "sha256": "20e3946f09fc75a010383ef6f0d6ad7e3af8d75a721711acdb513b5d5cc1adcb"
+    },
+    {
+      "path": "supabase/functions/_shared/workspaceStateMerge.ts",
+      "sha256": "b789dfc5f678197c637bba3738cf09c84865a1270818724eb1873f74de3e5e02"
+    }
+  ],
+  "runtimeFlags": {
+    "DEV_MODE": false,
+    "VOICEUP_SHOW_OTP": true
+  },
+  "rollbackDirectories": [
+    {
+      "functionName": "voiceup-workspace-state",
+      "version": 14,
+      "path": "D:/VoiceupOnline-ReleaseCandidates/Archives/DEV-ravweavcfrpiykfgtmbf-voiceup-workspace-state-v14-20261021-052519"
+    },
+    {
+      "functionName": "voiceup-public-signing",
+      "version": 12,
+      "path": "D:/VoiceupOnline-ReleaseCandidates/Archives/DEV-ravweavcfrpiykfgtmbf-voiceup-public-signing-v12-20261021-064212"
+    },
+    {
+      "functionName": "voiceup-otp",
+      "version": 12,
+      "path": "D:/VoiceupOnline-ReleaseCandidates/Archives/DEV-ravweavcfrpiykfgtmbf-voiceup-otp-v12-20261021-065558-IST"
+    }
+  ]
+}

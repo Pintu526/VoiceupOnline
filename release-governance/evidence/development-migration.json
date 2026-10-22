@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-10-21T13:58:26.4049312+05:30",
+  "projectRef": "ravweavcfrpiykfgtmbf",
+  "path": "supabase/migrations/20261019010000_screen_otp_public_signing.sql",
+  "sha256": "58a23e8d18cc19e50e6b5ba77d3c1ceb3fec44533cc75e89522a58932270e4a8",
+  "manualApplicationReported": true,
+  "method": "Supabase SQL Editor",
+  "postMigrationObjectChecksReported": true,
+  "authoritativeRemoteHistoryVerified": false,
+  "reason": "Supabase CLI returned no remote migration-history entries; manual SQL Editor execution is not represented in supabase_migrations."
+}

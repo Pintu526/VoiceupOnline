@@ -1,35 +1,111 @@
-name: Deploy Supabase Production
+name: Deploy Supabase Production (Protected)
 
 on:
   workflow_dispatch:
+    inputs:
+      release_branch:
+        description: Exact protected release branch
+        required: true
+        type: string
+      release_commit:
+        description: Exact validated Git commit
+        required: true
+        type: string
+      confirm_project_id:
+        description: Enter the exact Production Supabase project ref
+        required: true
+        type: string
+      approval_phrase:
+        description: Enter DEPLOY_PRODUCTION
+        required: true
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
-  deploy:
+  validate:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out selected branch
+      - name: Check out exact release commit
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_branch }}
+          fetch-depth: 0
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Restore locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Validate source against Development evidence
+        env:
+          VOICEUP_ACTUAL_BRANCH: ${{ inputs.release_branch }}
+          VOICEUP_EXPECTED_BRANCH: ${{ inputs.release_branch }}
+          VOICEUP_EXPECTED_COMMIT: ${{ inputs.release_commit }}
+          VITE_SUPABASE_URL: https://ravweavcfrpiykfgtmbf.supabase.co
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.DEVELOPMENT_SUPABASE_ANON_KEY }}
+          VITE_VOICEUP_SHOW_OTP: "true"
+          VERCEL_PROJECT_ID: prj_1b8PL4aXQw3ArAYsLAJaBcb1RDHp
+        run: >
+          node scripts/release-guard/validate-development.mjs
+          --mode pr
+          --expected-branch "$VOICEUP_EXPECTED_BRANCH"
+          --expected-commit "$VOICEUP_EXPECTED_COMMIT"
+          --manifest "$RUNNER_TEMP/production-source-validation.json"
+
+      - name: Upload source-validation manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-source-validation-${{ inputs.release_commit }}
+          path: ${{ runner.temp }}/production-source-validation.json
+          if-no-files-found: error
+          retention-days: 90
+
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Check out exact release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_commit }}
+          fetch-depth: 0
 
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.109.1
+
+      - name: Enforce explicit authorization and exact Production target
+        env:
+          CONFIRMED_PROJECT_ID: ${{ inputs.confirm_project_id }}
+          APPROVAL_PHRASE: ${{ inputs.approval_phrase }}
+          PRODUCTION_DEPLOYMENT_AUTHORIZED: ${{ secrets.PRODUCTION_DEPLOYMENT_AUTHORIZED }}
+        run: |
+          test "$APPROVAL_PHRASE" = "DEPLOY_PRODUCTION"
+          test "$CONFIRMED_PROJECT_ID" = "seseeabxmnsrhghthemd"
+          test "$PRODUCTION_DEPLOYMENT_AUTHORIZED" = "true"
 
       - name: Deploy voiceup-otp
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-        run: supabase functions deploy voiceup-otp --project-ref "$SUPABASE_PROJECT_REF" --use-api
+        run: supabase functions deploy voiceup-otp --project-ref seseeabxmnsrhghthemd --use-api
 
       - name: Deploy voiceup-public-signing
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-        run: supabase functions deploy voiceup-public-signing --project-ref "$SUPABASE_PROJECT_REF" --use-api
+        run: supabase functions deploy voiceup-public-signing --project-ref seseeabxmnsrhghthemd --use-api
 
       - name: Verify deployed functions
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-        run: supabase functions list --project-ref "$SUPABASE_PROJECT_REF"
+        run: supabase functions list --project-ref seseeabxmnsrhghthemd

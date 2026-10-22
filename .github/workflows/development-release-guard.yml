@@ -1,0 +1,59 @@
+name: Development Release Guard
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: development-release-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  development-release-guard:
+    name: development-release-guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Restore locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run fail-closed Development release guard
+        env:
+          VOICEUP_ACTUAL_BRANCH: ${{ github.head_ref || github.ref_name }}
+          VOICEUP_EXPECTED_BRANCH: ${{ github.head_ref || github.ref_name }}
+          VOICEUP_EXPECTED_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          VITE_SUPABASE_URL: https://ravweavcfrpiykfgtmbf.supabase.co
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.DEVELOPMENT_SUPABASE_ANON_KEY }}
+          VITE_VOICEUP_SHOW_OTP: "true"
+          VERCEL_PROJECT_ID: prj_1b8PL4aXQw3ArAYsLAJaBcb1RDHp
+          VOICEUP_DEPLOYMENT_AUTHORIZED: "false"
+        run: >
+          node scripts/release-guard/validate-development.mjs
+          --mode pr
+          --expected-branch "$VOICEUP_EXPECTED_BRANCH"
+          --expected-commit "$VOICEUP_EXPECTED_COMMIT"
+          --manifest "$RUNNER_TEMP/development-release-manifest.json"
+
+      - name: Upload release manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: development-release-manifest-${{ github.sha }}
+          path: ${{ runner.temp }}/development-release-manifest.json
+          if-no-files-found: error
+          retention-days: 30

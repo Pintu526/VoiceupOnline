@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-10-21T13:58:26.4049312+05:30",
+  "projectName": "voiceup-development",
+  "projectId": "prj_1b8PL4aXQw3ArAYsLAJaBcb1RDHp",
+  "deploymentId": "dpl_CrYnSMXFK1wT3u6u4LTU23MT2jCB",
+  "url": "https://voiceup-development-527xdci9s-debasish1.vercel.app",
+  "target": "preview",
+  "status": "READY",
+  "developmentSupabaseReferencePresent": true,
+  "productionSupabaseReferencePresent": false,
+  "exactSourceRevisionVerified": false,
+  "sourceRevision": null,
+  "reason": "Deployment metadata contains no Git revision or immutable source manifest; matching application behavior and Development bundle identity do not prove exact source bytes.",
+  "rollback": {
+    "deploymentId": "dpl_8KVxb3tuhFtuXCwcsHNSpPbXtSGw",
+    "url": "https://voiceup-development-dqaietc5z-debasish1.vercel.app",
+    "status": "READY",
+    "target": "preview"
+  }
+}

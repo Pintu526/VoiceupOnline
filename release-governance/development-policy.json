@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "expectedRepository": {
+    "packageName": "voiceup-online",
+    "remote": "https://github.com/Pintu526/VoiceupOnline.git",
+    "branch": "feat/lgd-location-master-2026-08-29",
+    "baselineCommit": "d55efd9090709a94ae971d87c823b6aa14b20a38"
+  },
+  "development": {
+    "supabaseProjectRef": "ravweavcfrpiykfgtmbf",
+    "vercelProjectName": "voiceup-development",
+    "vercelProjectId": "prj_1b8PL4aXQw3ArAYsLAJaBcb1RDHp",
+    "previewUrl": "https://voiceup-development-527xdci9s-debasish1.vercel.app"
+  },
+  "production": {
+    "forbiddenSupabaseRefs": [
+      "seseeabxmnsrhghthemd"
+    ],
+    "forbiddenVercelProjectIds": [
+      "prj_YZJd0cfHhfJOiRipAYgo0GzQs9WB"
+    ]
+  },
+  "requiredMigrations": [
+    {
+      "path": "supabase/migrations/20261019010000_screen_otp_public_signing.sql",
+      "sha256": "58a23e8d18cc19e50e6b5ba77d3c1ceb3fec44533cc75e89522a58932270e4a8"
+    }
+  ],
+  "requiredEdgeFunctions": [
+    {
+      "name": "voiceup-workspace-state",
+      "bundleSha256": "029ace2b6f1ce9ee34f1358943a301b7d29d9c9f2af1b3b4c8e76add143a3be2"
+    },
+    {
+      "name": "voiceup-public-signing",
+      "bundleSha256": "854a95372c8d2814807d01556152628e3f2f042b98af72309514a04228c4f9cf"
+    },
+    {
+      "name": "voiceup-otp",
+      "bundleSha256": "8db648f5e811a2abac944151b4192b293854d732d227becb78410b3d6b5142bd"
+    }
+  ]
+}

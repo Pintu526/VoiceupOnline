@@ -70,6 +70,18 @@ test("post-sign reads and writes require the screen challenge to be bound to its
   assert.match(migration, /signer ->> 'id' = v_supporter_id/);
 });
 
+test("screen OTP defers optional communication consent until the atomic support submission", () => {
+  const consentMutation = app.slice(
+    app.indexOf("async function updatePublicCommunicationConsent"),
+    app.indexOf("async function uploadLastSupporterPhoto")
+  );
+  assert.match(
+    consentMutation,
+    /verificationMethod === "screen_otp" && !lastSignedSigner[\s\S]*return/
+  );
+  assert.match(app, /communicationConsent: hasCommunicationConsent/);
+});
+
 test("migration is forward-only and adds no database structure", () => {
   assert.match(migration, /^BEGIN;[\s\S]*COMMIT;\s*$/);
   assert.doesNotMatch(migration, /\b(create|alter|drop)\s+table\b|\bdrop\s+column\b/i);

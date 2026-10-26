@@ -1802,7 +1802,7 @@
     top: auto;
   }
 
-  .public-campaign-v2 > .public-campaign-v2-signing-panel > .panel {
+  .public-campaign-v2:not([data-premium-presentation="premium-national"]) > .public-campaign-v2-signing-panel > .panel {
     max-height: calc(100vh - 32px);
     overflow-y: auto;
   }
@@ -2462,10 +2462,10 @@
   }
 
   .public-campaign-v2[data-premium-presentation="premium-national"] > .public-campaign-v2-signing-panel {
+    align-self: stretch;
     grid-area: signup;
-    /* Ensure the premium signing panel also remains in normal flow so
-       content cannot scroll underneath it. */
-    position: static;
+    min-height: 0;
+    position: relative;
     top: auto;
   }
 
@@ -2474,8 +2474,12 @@
   }
 
   .public-campaign-v2[data-premium-presentation="premium-national"] > .public-campaign-v2-signing-panel > .panel {
-    max-height: calc(100vh - 32px);
-    overflow: auto;
+    height: auto;
+    inset: 0;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    position: absolute;
   }
 }
 

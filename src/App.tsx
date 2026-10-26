@@ -2429,6 +2429,7 @@ function App() {
 
   async function updatePublicCommunicationConsent(granted: boolean) {
     if (!isBackendConfigured || !activeCampaign || !publicParticipationSlug || !publicForm.otpVerificationToken) return;
+    if (publicForm.verificationMethod === "screen_otp" && !lastSignedSigner) return;
     const policy = buildPublicWebConsentPayload(activeCampaign.consentText ?? "");
     try {
       await mutatePublicParticipation({

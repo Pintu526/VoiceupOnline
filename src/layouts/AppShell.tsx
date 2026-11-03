@@ -1379,6 +1379,22 @@ export function AppShell({
                 onOpenActivity={() => requestTabChange("activity")}
                 onOpenFund={() => requestTabChange("fund")}
                 onOpenProve={() => requestTabChange("prove")}
+                canOpenModule={(module) =>
+                  module.action === "aiCopilot"
+                    ? canUseAiCopilot && !campaignCreationBlockReason
+                    : Boolean(
+                        module.tab &&
+                        !(isCampaignAdminRoute && (module.tab === "saas" || module.tab === "ideas")) &&
+                        canAccessWorkspaceTab(module.tab)
+                      )
+                }
+                onNavigateModule={(module) => {
+                  if (module.action === "aiCopilot") {
+                    requestAiCampaignCreation();
+                  } else if (module.tab) {
+                    requestTabChange(module.tab);
+                  }
+                }}
                 canAccessPlatformAdmin={canAccessPlatformAdmin}
                 showUnfinishedModules={showUnfinishedModules}
               />

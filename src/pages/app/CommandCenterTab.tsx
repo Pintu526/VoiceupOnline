@@ -14,6 +14,20 @@ import {
   UsersRound
 } from "lucide-react";
 import type { getCampaignMetrics } from "../../lib";
+import type { Language } from "../../i18n/provider";
+import {
+  campaignReadinessLabels,
+  campaignShowcaseCopy,
+  campaignShowcaseModules,
+  campaignShowcaseTracks,
+  type CampaignReadinessStatus,
+  type CampaignShowcaseModule
+} from "../../campaignShowcaseCatalog";
+import {
+  campaignCapabilityAssessments,
+  campaignCompletionLabels,
+  getCampaignCompletionSummary
+} from "../../campaignCompletion";
 import type {
   AuthorityRule,
   Campaign,
@@ -50,6 +64,8 @@ interface CommandCenterTabProps {
   onOpenActivity: () => void;
   onOpenFund: () => void;
   onOpenProve: () => void;
+  canOpenModule: (module: CampaignShowcaseModule) => boolean;
+  onNavigateModule: (module: CampaignShowcaseModule) => void;
   canAccessPlatformAdmin: boolean;
   showUnfinishedModules?: boolean;
 }
@@ -99,6 +115,10 @@ function MovementDashboardCard({ icon, title, value, detail }: { icon: ReactNode
   );
 }
 
+function getCriterionResultLabel(result: "verified" | "notMet" | "notAssessed", language: Language) {
+  return campaignCompletionLabels[result][language];
+}
+
 export function CommandCenterTab({
   activeCampaign,
   campaignSigners,
@@ -117,10 +137,16 @@ export function CommandCenterTab({
   onOpenActivity,
   onOpenFund,
   onOpenProve,
+  canOpenModule,
+  onNavigateModule,
   canAccessPlatformAdmin,
   showUnfinishedModules = true
 }: CommandCenterTabProps) {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
+  const completionSummary = getCampaignCompletionSummary();
+  const assessmentById = new Map(campaignCapabilityAssessments.map((assessment) => [assessment.id, assessment]));
+  const formatPercent = (value: number | null) =>
+    value === null ? campaignCompletionLabels.notAssessed[language] : `${value}%`;
   const campaignScanItems = activeCampaign
     ? scanItems.filter((item) => item.campaignId === activeCampaign.id)
     : scanItems;
@@ -309,6 +335,175 @@ export function CommandCenterTab({
           {showUnfinishedModules && <button className="secondary-button" type="button" onClick={onOpenProve}>{t("framework.command.quickActions.prove")}</button>}
           {showUnfinishedModules && <button className="secondary-button" type="button" onClick={onOpenFund}>{t("framework.command.quickActions.fund")}</button>}
         </div>
+        <section className="campaign-showcase" aria-labelledby="campaign-showcase-title">
+          <div className="campaign-showcase-heading">
+            <div>
+              <span className="eyebrow">{campaignShowcaseModules.length.toLocaleString(language)}</span>
+              <h3 id="campaign-showcase-title">{campaignShowcaseCopy.title[language]}</h3>
+              <p>{campaignShowcaseCopy.description[language]}</p>
+            </div>
+          </div>
+          <ul className="campaign-showcase-status-key" aria-label={campaignShowcaseCopy.title[language]}>
+            {(Object.keys(campaignReadinessLabels) as CampaignReadinessStatus[]).map((status) => (
+              <li key={status}>
+                <span className={`campaign-readiness-badge status-${status}`}>
+                  {campaignReadinessLabels[status][language]}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <section className="campaign-completion-summary" aria-label={campaignCompletionLabels.developmentCompletion[language]}>
+            <div className="campaign-completion-metrics">
+              <article>
+                <span>{campaignCompletionLabels.totalCapabilities[language]}</span>
+                <strong>{completionSummary.totalCapabilities.toLocaleString(language)}</strong>
+              </article>
+              <article>
+                <span>{campaignCompletionLabels.developmentCompletion[language]}</span>
+                <strong>{formatPercent(completionSummary.developmentCompletionPercent)}</strong>
+              </article>
+              <article>
+                <span>{campaignCompletionLabels.productionReadiness[language]}</span>
+                <strong>{formatPercent(completionSummary.productionReadinessPercent)}</strong>
+                <small>{completionSummary.productionUnassessedCapabilityCount.toLocaleString(language)} / {completionSummary.totalCapabilities.toLocaleString(language)} {campaignCompletionLabels.notAssessed[language]}</small>
+              </article>
+              <article>
+                <span>{campaignCompletionLabels.unassessedCapabilities[language]}</span>
+                <strong>{completionSummary.unassessedCapabilityCount.toLocaleString(language)}</strong>
+                <small>{completionSummary.unassessedCriterionCount.toLocaleString(language)} {campaignCompletionLabels.unassessedCriteria[language]}</small>
+              </article>
+            </div>
+            <ul className="campaign-completion-status-counts">
+              {(Object.keys(campaignReadinessLabels) as CampaignReadinessStatus[]).map((status) => (
+                <li key={status}>
+                  <span className={`campaign-readiness-badge status-${status}`}>
+                    {campaignCompletionLabels[status][language]}
+                  </span>
+                  <strong>{completionSummary.statusCounts[status].toLocaleString(language)}</strong>
+                </li>
+              ))}
+            </ul>
+            <p className="campaign-completion-method">{campaignCompletionLabels.scoreMethod[language]}</p>
+            <p className="campaign-completion-method">{campaignCompletionLabels.productionNote[language]}</p>
+          </section>
+          <div className="campaign-showcase-tracks">
+            {campaignShowcaseTracks.map((track) => {
+              const modules = campaignShowcaseModules.filter((module) => module.track === track.id);
+              const trackCompletion = completionSummary.trackCompletion[track.id];
+              return (
+                <section className="campaign-showcase-track" key={track.id} aria-labelledby={`campaign-track-${track.id}`}>
+                  <header className="campaign-showcase-track-heading">
+                    <h4 id={`campaign-track-${track.id}`}>{track.title[language]}</h4>
+                    <p>{track.description[language]}</p>
+                    <strong className="campaign-showcase-track-completion">
+                      {campaignCompletionLabels.trackCompletion[language]}: {formatPercent(trackCompletion)}
+                    </strong>
+                  </header>
+                  <div className="campaign-showcase-grid">
+                    {modules.map((module) => {
+                      const assessment = assessmentById.get(module.id);
+                      if (!assessment) throw new Error(`Missing completion assessment for capability ${module.id}`);
+                      const title = module.title[language];
+                      const hasDestination = Boolean(module.tab || module.action);
+                      const accessible = hasDestination && canOpenModule(module);
+                      const blocked = module.status === "blocked";
+                      const disabled = !accessible || blocked;
+                      const actionLabel = blocked || !hasDestination
+                        ? campaignShowcaseCopy.noAction[language]
+                        : accessible
+                          ? campaignShowcaseCopy.openModule[language]
+                          : campaignShowcaseCopy.restricted[language];
+                      return (
+                        <article className="campaign-showcase-card" key={module.id}>
+                          <div className="campaign-showcase-card-heading">
+                            <h5>{title}</h5>
+                          </div>
+                          <p>{module.description[language]}</p>
+                          <div className="campaign-showcase-assessment-status">
+                            <span>
+                              <small>{campaignCompletionLabels.previousStatus[language]}</small>
+                              <strong className={`campaign-readiness-badge status-${assessment.previousStatus}`}>
+                                {campaignReadinessLabels[assessment.previousStatus][language]}
+                              </strong>
+                            </span>
+                            <span>
+                              <small>{campaignCompletionLabels.actualStatus[language]}</small>
+                              <strong className={`campaign-readiness-badge status-${assessment.actualStatus}`}>
+                                {campaignReadinessLabels[assessment.actualStatus][language]}
+                              </strong>
+                            </span>
+                            <span>
+                              <small>{campaignCompletionLabels.completion[language]}</small>
+                              <strong className="campaign-completion-percent">{formatPercent(assessment.completionPercent)}</strong>
+                            </span>
+                          </div>
+                          <p className="campaign-showcase-status-help">{assessment.statusRationale[language]}</p>
+                          <dl className="campaign-showcase-facts">
+                            <div>
+                              <dt>{campaignCompletionLabels.working[language]}</dt>
+                              <dd>{assessment.workingFunctionality[language]}</dd>
+                            </div>
+                            <div>
+                              <dt>{campaignCompletionLabels.remaining[language]}</dt>
+                              <dd>{assessment.remainingFunctionality[language]}</dd>
+                            </div>
+                            <div>
+                              <dt>{campaignCompletionLabels.blockers[language]}</dt>
+                              <dd>{assessment.blocker?.[language] ?? campaignCompletionLabels.noKnownBlockers[language]}</dd>
+                            </div>
+                          </dl>
+                          <details className="campaign-showcase-evidence">
+                            <summary>{campaignCompletionLabels.evidence[language]} · {campaignCompletionLabels.criteria[language]}</summary>
+                            <p>{campaignCompletionLabels.capabilityWeight[language]}: {assessment.capabilityWeight}</p>
+                            <ul>
+                              {assessment.criteria.map((criterion) => (
+                                <li key={criterion.id}>
+                                  <div className="campaign-showcase-criterion-heading">
+                                    <strong>{criterion.label[language]}</strong>
+                                    <span>{criterion.weight}% · {getCriterionResultLabel(criterion.result, language)}</span>
+                                  </div>
+                                  <small>{criterion.evidence.join(", ")}</small>
+                                </li>
+                              ))}
+                            </ul>
+                            <p>
+                              {campaignCompletionLabels.productionReadiness[language]}:{" "}
+                              {getCriterionResultLabel(assessment.productionReadiness.result, language)} —{" "}
+                              {assessment.productionReadiness.evidence.join(", ")}
+                            </p>
+                            <ol className="campaign-showcase-status-history">
+                              {assessment.statusHistory.map((entry) => (
+                                <li key={`${entry.phase}-${entry.status}`}>
+                                  {entry.phase === "beforeVerification"
+                                    ? campaignCompletionLabels.previousStatus[language]
+                                    : campaignCompletionLabels.actualStatus[language]}:{" "}
+                                  {campaignReadinessLabels[entry.status][language]} · {entry.date}
+                                </li>
+                              ))}
+                            </ol>
+                            <small>
+                              {campaignCompletionLabels.lastVerified[language]}: {assessment.lastVerified}
+                            </small>
+                          </details>
+                          <button
+                            className="campaign-showcase-action"
+                            type="button"
+                            disabled={disabled}
+                            aria-label={`${actionLabel}: ${title}`}
+                            onClick={() => onNavigateModule(module)}
+                          >
+                            {actionLabel}
+                            {!disabled && <ArrowRight size={14} aria-hidden="true" />}
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </section>
       </Panel>
 
     </section>

@@ -13782,6 +13782,62 @@ button.secondary-link-button {
 @media (max-width: 900px) { .vboss-command-grid, .vboss-placeholder-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .vboss-overview-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .movement-dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .vboss-command-grid, .vboss-placeholder-grid, .vboss-overview-strip, .movement-dashboard-grid, .vboss-command-actions { grid-template-columns: 1fr; } .vboss-command-heading, .vboss-placeholder-heading, .vboss-section-heading { align-items: flex-start; flex-direction: column; } .vboss-command-card { min-height: 108px; } }
 
+/* CampaignOS evidence-based capability assessment */
+.campaign-showcase { display: grid; gap: 1rem; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.campaign-showcase-heading h3 { margin: 0.15rem 0 0.35rem; font-size: clamp(1.05rem, 2vw, 1.35rem); }
+.campaign-showcase-heading p, .campaign-showcase-track-heading p { max-width: 72ch; margin: 0; color: var(--muted); line-height: 1.5; }
+.campaign-showcase-status-key { display: flex; flex-wrap: wrap; gap: 0.45rem; margin: 0; padding: 0; list-style: none; }
+.campaign-completion-summary { display: grid; gap: 0.75rem; padding: 0.85rem; border: 1px solid var(--border); border-radius: 0.8rem; background: var(--panel-solid); }
+.campaign-completion-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; }
+.campaign-completion-metrics article { display: grid; align-content: start; gap: 0.2rem; min-width: 0; padding: 0.65rem; border: 1px solid var(--border); border-radius: 0.65rem; }
+.campaign-completion-metrics span, .campaign-completion-metrics small { color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
+.campaign-completion-metrics strong { font-size: 1rem; overflow-wrap: anywhere; }
+.campaign-completion-status-counts { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.campaign-completion-status-counts li { display: inline-flex; align-items: center; gap: 0.35rem; }
+.campaign-completion-method { margin: 0; color: var(--muted); font-size: 0.72rem; line-height: 1.45; }
+.campaign-showcase-tracks { display: grid; gap: 1.15rem; }
+.campaign-showcase-track { display: grid; gap: 0.65rem; }
+.campaign-showcase-track-heading { display: grid; gap: 0.2rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+.campaign-showcase-track-heading h4 { margin: 0; font-size: 0.9rem; letter-spacing: 0.04em; }
+.campaign-showcase-track-heading p { font-size: 0.78rem; }
+.campaign-showcase-track-completion { color: var(--primary); font-size: 0.75rem; }
+.campaign-showcase-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+.campaign-showcase-card { display: flex; min-width: 0; flex-direction: column; gap: 0.55rem; padding: 0.8rem; border: 1px solid var(--border); border-radius: 0.8rem; background: var(--surface-soft); }
+.campaign-showcase-card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.campaign-showcase-card h5 { min-width: 0; margin: 0; font-size: 0.88rem; line-height: 1.35; }
+.campaign-showcase-card > p { margin: 0; color: var(--muted); font-size: 0.78rem; line-height: 1.45; overflow-wrap: anywhere; }
+.campaign-showcase-card > .campaign-showcase-status-help { font-size: 0.72rem; }
+.campaign-showcase-assessment-status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; }
+.campaign-showcase-assessment-status > span { display: grid; align-content: start; gap: 0.25rem; min-width: 0; }
+.campaign-showcase-assessment-status small { color: var(--muted); font-size: 0.65rem; line-height: 1.3; }
+.campaign-showcase-assessment-status .campaign-readiness-badge { justify-self: start; white-space: normal; }
+.campaign-completion-percent { color: var(--primary); font-size: 0.78rem; }
+.campaign-showcase-facts { display: grid; gap: 0.45rem; margin: 0; }
+.campaign-showcase-facts div { display: grid; gap: 0.15rem; }
+.campaign-showcase-facts dt { font-size: 0.7rem; font-weight: 750; }
+.campaign-showcase-facts dd { margin: 0; color: var(--muted); font-size: 0.72rem; line-height: 1.4; overflow-wrap: anywhere; }
+.campaign-showcase-evidence { margin-top: 0.1rem; border-top: 1px solid var(--border); padding-top: 0.5rem; }
+.campaign-showcase-evidence summary { color: var(--primary); cursor: pointer; font-size: 0.72rem; font-weight: 750; }
+.campaign-showcase-evidence ul { display: grid; gap: 0.5rem; margin: 0.5rem 0; padding-left: 1rem; }
+.campaign-showcase-evidence li { min-width: 0; color: var(--muted); font-size: 0.68rem; line-height: 1.4; overflow-wrap: anywhere; }
+.campaign-showcase-criterion-heading { display: grid; gap: 0.15rem; }
+.campaign-showcase-criterion-heading strong { color: var(--text); font-size: 0.7rem; }
+.campaign-showcase-evidence p, .campaign-showcase-evidence > small { display: block; margin: 0.4rem 0; color: var(--muted); font-size: 0.68rem; line-height: 1.4; overflow-wrap: anywhere; }
+.campaign-showcase-status-history { display: grid; gap: 0.15rem; margin: 0.5rem 0; padding-left: 1rem; color: var(--muted); font-size: 0.68rem; }
+.campaign-readiness-badge { display: inline-flex; flex: 0 0 auto; align-items: center; max-width: 100%; border: 1px solid transparent; border-radius: 999px; padding: 0.2rem 0.45rem; font-size: 0.65rem; font-weight: 750; line-height: 1.25; }
+.campaign-readiness-badge.status-completed { border-color: color-mix(in srgb, var(--india-green) 28%, transparent); background: color-mix(in srgb, var(--india-green) 12%, var(--panel-solid)); color: var(--india-green); }
+.campaign-readiness-badge.status-pendingFinalReview { border-color: color-mix(in srgb, var(--saffron) 32%, transparent); background: color-mix(in srgb, var(--saffron) 12%, var(--panel-solid)); color: var(--saffron); }
+.campaign-readiness-badge.status-inProgress { border-color: color-mix(in srgb, var(--primary) 28%, transparent); background: color-mix(in srgb, var(--primary) 10%, var(--panel-solid)); color: var(--primary); }
+.campaign-readiness-badge.status-notStarted { border-color: var(--border); background: var(--panel-solid); color: var(--muted); }
+.campaign-readiness-badge.status-blocked { border-color: color-mix(in srgb, #dc2626 30%, transparent); background: color-mix(in srgb, #dc2626 10%, var(--panel-solid)); color: #b91c1c; }
+.campaign-showcase-action { display: inline-flex; align-items: center; justify-content: center; align-self: flex-start; gap: 0.35rem; min-height: 34px; margin-top: auto; padding: 0.35rem 0.55rem; border: 1px solid var(--border); border-radius: 0.55rem; background: var(--panel-solid); color: var(--primary); font: inherit; font-size: 0.72rem; font-weight: 750; text-align: left; }
+.campaign-showcase-action:not(:disabled) { cursor: pointer; }
+.campaign-showcase-action:not(:disabled):hover, .campaign-showcase-action:not(:disabled):focus-visible { border-color: var(--primary); outline: 2px solid color-mix(in srgb, var(--primary) 28%, transparent); outline-offset: 2px; }
+.campaign-showcase-action:disabled { cursor: not-allowed; color: var(--muted); opacity: 0.82; }
+@media (max-width: 900px) { .campaign-showcase-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .campaign-completion-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .campaign-showcase-grid { grid-template-columns: 1fr; } .campaign-showcase-card-heading { align-items: flex-start; flex-direction: column; } .campaign-showcase-assessment-status { grid-template-columns: 1fr; } }
+
 /* Final Business OS landing experience */
 .global-landing .business-os-hero {
   background:

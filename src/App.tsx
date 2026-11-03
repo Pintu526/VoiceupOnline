@@ -44,12 +44,21 @@ import {
   verifyOtp as verifyPublicOtp,
   verifySecureFieldUploadAccess
 } from "./backend";
-import type { PublicCampaignJourney, PublicCampaignPayload } from "./backend";
+import type {
+  PublicCampaignJourney,
+  PublicCampaignPayload
+} from "./backend";
 import {
   ProvisionWorkspaceMemberError,
   PublicSignatureSubmissionError,
   WorkspaceSaveError
 } from "./backend";
+import {
+  isSupporterClaimGrant,
+  type SupporterAccountClaimGrant,
+  type SupporterAccountLink
+} from "./supporterAccountClaim";
+import { consumeUnifiedLoginHandoff } from "./accountAccess";
 import { LocationBrowserCatalogClient } from "./businessOs/location/browser/LocationBrowserCatalogClient.ts";
 import { createIndiaLgdCatalogReader } from "./businessOs/location/ui/IndiaLgdCatalogReader.ts";
 import {
@@ -158,12 +167,15 @@ import {
 import {
   getCampaignAdminSlug,
   getIsAppRoute,
+  getIsVoiceupAccountRoute,
+  getIsVoiceupLoginRoute,
   getIsLandingPageRoute,
   getIsSaasAdminPasswordResetRoute,
   getIsStartRoute,
   getIsSaasAdminRoute,
   getLegalPage,
   getPublicCampaignSlug,
+  getSupporterAccountDashboardId,
   getSupporterPortalCode
 } from "./utils/routing";
 import { updateSeoMetadata } from "./utils/seo";
@@ -289,6 +301,9 @@ import type {
 import { LegalPage } from "./pages/LegalPage";
 import { SaasAppLoginPage } from "./pages/SaasAppLoginPage";
 import { SaasAdminPasswordResetPage } from "./pages/SaasAdminPasswordResetPage";
+import { VoiceupLoginPage } from "./pages/VoiceupLoginPage";
+import { VoiceupAccountPage } from "./pages/VoiceupAccountPage";
+import { readCampaignAuthContext } from "./campaignAuthContext";
 import {
   PublicCampaignPage,
   PublicCampaignNotFound,
@@ -329,6 +344,12 @@ const publicCampaignSlug = getPublicCampaignSlug();
 const supporterPortalCode = getSupporterPortalCode();
 const adminCampaignSlug = getCampaignAdminSlug();
 const isAppRoute = getIsAppRoute();
+const appCampaignContext = isAppRoute && typeof window !== "undefined"
+  ? readCampaignAuthContext(window.location.search)
+  : null;
+const isVoiceupLoginRoute = getIsVoiceupLoginRoute();
+const isVoiceupAccountRoute = getIsVoiceupAccountRoute();
+const supporterAccountDashboardId = getSupporterAccountDashboardId();
 const isSaasAdminRoute = getIsSaasAdminRoute();
 const isSaasAdminPasswordResetRoute = getIsSaasAdminPasswordResetRoute();
 const legalPage = getLegalPage();
@@ -547,6 +568,10 @@ function App() {
   const [otpMessage, setOtpMessage] = useState("");
   const [publicOtpExpiresAt, setPublicOtpExpiresAt] = useState(0);
   const [lastSignedSigner, setLastSignedSigner] = useState<Signer | null>(null);
+  const [supporterAccountClaimGrant, setSupporterAccountClaimGrant] =
+    useState<SupporterAccountClaimGrant | null>(null);
+  const [linkedSupporterAccount, setLinkedSupporterAccount] =
+    useState<SupporterAccountLink | null>(null);
   const [lastPublicOtpVerificationToken, setLastPublicOtpVerificationToken] = useState("");
   const [publicMovementRequests, setPublicMovementRequests] =
     useState<PublicParticipationRequest[]>([]);
@@ -624,6 +649,7 @@ function App() {
   // ahead with a stale getCurrentAuthUser() lookup (made before sign-in resolves) and briefly
   // or permanently overwriting the login handler's correct result with "unauthenticated".
   const campaignAdminLoginInFlightRef = useRef(false);
+  const [campaignAdminHandoffChecking, setCampaignAdminHandoffChecking] = useState(isCampaignAdminRoute);
 
   function resetSecureFieldUploadAccess(access: AnySecureFieldUploadAccess) {
     verificationCoordinatorRef.current.reset();
@@ -713,6 +739,8 @@ function App() {
     setPublicOtpExpiresAt(0);
     setLastPublicOtpVerificationToken("");
     setLastSignedSigner(null);
+    setSupporterAccountClaimGrant(null);
+    setLinkedSupporterAccount(null);
     publicMovementRequestLoadGenerationRef.current += 1;
     publicMovementRequestLoadRef.current = null;
     setPublicMovementRequests([]);
@@ -959,6 +987,81 @@ function App() {
       isCancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isCampaignAdminRoute) {
+      setCampaignAdminHandoffChecking(false);
+      return;
+    }
+    if (backendLoading || !activeCampaign) return;
+    if (authenticatedAdminSlugs[activeCampaign.slug]) {
+      setCampaignAdminHandoffChecking(false);
+      return;
+    }
+
+    let isCancelled = false;
+    async function activateUnifiedCampaignAdminHandoff() {
+      try {
+        const authenticatedUser = await getCurrentAuthUser();
+        const workspaceId = getCurrentWorkspaceId();
+        if (!authenticatedUser || !consumeUnifiedLoginHandoff({
+          userId: authenticatedUser.id,
+          workspaceId,
+          resourceId: activeCampaign!.id,
+          resourceSlug: activeCampaign!.slug
+        })) return;
+
+        const assignmentContext = await resolveCampaignAdminAssignmentContext(
+          workspaceId,
+          activeCampaign!.id,
+          activeCampaign!.slug,
+          authenticatedUser.id,
+          "voiceup",
+          "campaign_admin"
+        );
+        const entitlements = getCampaignEntitlements(organization);
+        const loginAccess = evaluateCampaignAdminLoginAccess({
+          authenticatedUserId: authenticatedUser.id,
+          resourceId: activeCampaign!.id,
+          resourceSlug: activeCampaign!.slug,
+          assignment: assignmentContext.assignment,
+          workspaceMembershipActive: assignmentContext.workspaceMembershipActive,
+          hasValidWorkspaceMembershipRole: assignmentContext.hasValidWorkspaceMembershipRole,
+          subscriptionActive: !entitlements.isSuspended && !entitlements.isCancelled && !entitlements.isExpired,
+          hasCampaignAdminAccessFeature: entitlements.features.campaign_admin_access === true
+        });
+        if (isCancelled) return;
+        if (!loginAccess.authorized) {
+          setAdminLoginMessage(loginAccess.message);
+          return;
+        }
+
+        writeCampaignAdminSupabaseSession({
+          slug: activeCampaign!.slug,
+          userId: authenticatedUser.id,
+          workspaceId,
+          resourceId: activeCampaign!.id,
+          email: (authenticatedUser.email ?? "").trim().toLowerCase(),
+          schemaVersion: CAMPAIGN_ADMIN_SESSION_MARKER_SCHEMA_VERSION,
+          applicationKey: "voiceup",
+          role: "campaign_admin",
+          resourceType: "campaign",
+          issuedAt: new Date().toISOString()
+        });
+        const nextAuth = { ...authenticatedAdminSlugs, [activeCampaign!.slug]: true };
+        setAuthenticatedAdminSlugs(nextAuth);
+        writeAuthenticatedAdminSlugs(nextAuth);
+        setAdminLoginMessage("");
+      } catch {
+        if (!isCancelled) setAdminLoginMessage(CAMPAIGN_ADMIN_ACCESS_MESSAGES.authenticationFailure);
+      } finally {
+        if (!isCancelled) setCampaignAdminHandoffChecking(false);
+      }
+    }
+
+    void activateUnifiedCampaignAdminHandoff();
+    return () => { isCancelled = true; };
+  }, [activeCampaign, authenticatedAdminSlugs, backendLoading, organization]);
 
   useEffect(() => {
     const campaignAdminAccessActive = Boolean(
@@ -1279,6 +1382,18 @@ function App() {
       );
     }
   }, [adminCampaignSlug, campaigns]);
+
+  useEffect(() => {
+    if (!appCampaignContext) return;
+    const contextualCampaign = campaigns.find((candidate) =>
+      candidate.id === appCampaignContext.campaignId
+      && publicCampaignSlugsMatch(candidate.slug, appCampaignContext.campaignSlug)
+    );
+    if (!contextualCampaign) return;
+    setCampaignFormMode("edit");
+    setActiveCampaignId(contextualCampaign.id);
+    setCampaignDraft(contextualCampaign);
+  }, [campaigns]);
 
   // ─── Business logic handlers ──────────────────────────────────────────────
   async function completeOnboardingCampaign(
@@ -2086,6 +2201,12 @@ function App() {
         setPublicOtpExpiresAt(0);
         setLastPublicOtpVerificationToken(signerPayload.otpVerificationToken);
         setLastSignedSigner(result.signer);
+        setLinkedSupporterAccount(null);
+        setSupporterAccountClaimGrant(
+          isSupporterClaimGrant(result.supporterAccountClaimGrant)
+            ? result.supporterAccountClaimGrant
+            : null
+        );
         setPublicMovementRequests([]);
         setPublicMovementRequestsError("");
         if (result.signer.status !== "duplicate") {
@@ -2175,6 +2296,8 @@ function App() {
     setPublicOtpExpiresAt(0);
     setLastPublicOtpVerificationToken("");
     setLastSignedSigner(signer);
+    setSupporterAccountClaimGrant(null);
+    setLinkedSupporterAccount(null);
     setPublicMessage(
       signer.status === "duplicate"
         ? "Thanks. This looks like a duplicate, so it was sent to review."
@@ -2199,6 +2322,8 @@ function App() {
     setPublicOtpExpiresAt(0);
     setLastPublicOtpVerificationToken("");
     setLastSignedSigner(null);
+    setSupporterAccountClaimGrant(null);
+    setLinkedSupporterAccount(null);
     publicMovementRequestLoadGenerationRef.current += 1;
     publicMovementRequestLoadRef.current = null;
     setPublicMovementRequests([]);
@@ -3911,6 +4036,14 @@ function App() {
     return <SaasAdminPasswordResetPage />;
   }
 
+  if (isVoiceupLoginRoute) {
+    return <VoiceupLoginPage />;
+  }
+
+  if (isVoiceupAccountRoute) {
+    return <VoiceupAccountPage supporterAccountId={supporterAccountDashboardId || undefined} />;
+  }
+
   if (isSupporterPortalRoute) {
     if (publicCampaignJourneyLoading) {
       return <SupporterGrowthPortalLoading />;
@@ -3942,6 +4075,18 @@ function App() {
           setPublicForm={setPublicForm}
           publicMessage={publicMessage}
           lastSignedSigner={lastSignedSigner}
+          supporterAccountClaimGrant={supporterAccountClaimGrant}
+          linkedSupporterAccount={linkedSupporterAccount}
+          onSupporterAccountLinked={(link) => {
+            if (
+              lastSignedSigner
+              && link.campaignId === lastSignedSigner.campaignId
+              && link.supporterId === lastSignedSigner.id
+            ) {
+              setLinkedSupporterAccount(link);
+              setSupporterAccountClaimGrant(null);
+            }
+          }}
           growthSnapshot={lastSignedGrowthSnapshot}
           growthPortal={lastSignedGrowthPortal}
           otpInput={otpInput}
@@ -3973,6 +4118,9 @@ function App() {
   if (isCampaignAdminRoute) {
     if (backendLoading) return <PublicCampaignLoading message={backendMessage} />;
     if (!activeCampaign) return <CampaignAdminNotFound />;
+    if (campaignAdminHandoffChecking) {
+      return <PublicCampaignLoading message="Verifying authorized campaign access..." />;
+    }
     if (!authenticatedAdminSlugs[activeCampaign.slug]) {
       return (
         <CampaignAdminLoginPage

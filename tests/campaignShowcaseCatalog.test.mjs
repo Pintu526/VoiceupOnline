@@ -145,10 +145,12 @@ test("excluded participation email receipts are not presented as in progress or 
   assert.match(receipts?.description.en ?? "", /not included in this release/i);
 });
 
-test("blocked account claiming names the unavailable release implementation dependency", () => {
+test("blocked account claiming records confirmed Auth configuration and pending Preview acceptance", () => {
   const accountClaim = campaignShowcaseModules.find((module) => module.id === "supporter-registration-claim");
   assert.equal(accountClaim?.status, "blocked");
-  assert.match(accountClaim?.blockedReason?.en ?? "", /implementation and required migrations are absent from this release base/);
+  assert.match(accountClaim?.blockedReason?.en ?? "", /administrator confirmed the existing redirect wildcard/);
+  assert.match(accountClaim?.blockedReason?.en ?? "", /acceptance is pending/);
+  assert.doesNotMatch(accountClaim?.blockedReason?.en ?? "", /not yet verified/);
 });
 
 test("showcase actions retain AppShell entitlement checks and the AI Copilot gate", () => {

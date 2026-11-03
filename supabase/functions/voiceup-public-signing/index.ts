@@ -314,7 +314,34 @@ async function invokeMutation(
       )
     };
   }
-  return { data };
+  let responseData = data;
+  if (action === "submit_support" && data?.signer?.id) {
+    const { data: grant, error: grantError } = await admin.rpc(
+      "voiceup_issue_supporter_account_claim_grant",
+      {
+        p_workspace_id: resolved.row.workspace_id,
+        p_campaign_id: resolved.row.campaign_id,
+        p_supporter_id: data.signer.id,
+        p_signing_idempotency_key: idempotencyKey
+      }
+    );
+    if (grantError) {
+      // Account creation is optional. A grant failure must never roll back or
+      // change the already-completed public signing transaction.
+      console.error("supporter account claim grant issuance failed", {
+        code: grantError.code
+      });
+    } else if (grant?.issued === true && grant?.token) {
+      responseData = {
+        ...responseData,
+        supporterAccountClaimGrant: {
+          token: grant.token,
+          expiresAt: grant.expiresAt
+        }
+      };
+    }
+  }
+  return { data: responseData };
 }
 
 async function authorizeParticipationRequest(

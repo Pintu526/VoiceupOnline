@@ -41,7 +41,6 @@ type AssessmentSpec = {
   capabilityWeight: number;
   sourceEvidence?: string[];
   testEvidence: string[];
-  unavailableTestEvidence?: string[];
   coreResult: CriterionResult;
   scopeResult: CriterionResult;
   regressionResult: CriterionResult;
@@ -51,9 +50,8 @@ type AssessmentSpec = {
   blocker?: Record<Language, string>;
 };
 
-const verificationDate = "2026-11-03";
+const verificationDate = "2026-11-04";
 const releaseEvidence = "CAMPAIGN_SHOWCASE_RELEASE.md";
-const unavailableEvidencePrefix = "Unavailable in this release base: ";
 const accessEvidence = [
   "src/layouts/AppShell.tsx",
   "tests/campaignShowcaseCatalog.test.mjs"
@@ -216,31 +214,24 @@ const specs: Record<string, AssessmentSpec> = {
   "supporter-registration-claim": {
     actualStatus: "blocked",
     capabilityWeight: 2,
-    testEvidence: [],
-    unavailableTestEvidence: ["tests/supporterAccountClaimFlow.test.mjs", "tests/supporterAccountOwnership.test.mjs"],
+    testEvidence: ["tests/supporterAccountClaimFlow.test.mjs", "tests/supporterAccountOwnership.test.mjs"],
     coreResult: "verified",
-    scopeResult: "notAssessed",
-    regressionResult: "notAssessed",
+    scopeResult: "notMet",
+    regressionResult: "verified",
     accessResult: "verified",
     blocker: words(
-      "The account-claim/auth implementation and required migrations from the validated candidate are absent from this release base. Compatible implementation and authenticated Preview acceptance are still required; the administrator-confirmed Auth URL allowlist is not the blocker.",
-      "सत्यापित candidate का account-claim/auth implementation और आवश्यक migrations इस release base में नहीं हैं। संगत implementation और authenticated Preview acceptance अभी आवश्यक हैं; administrator द्वारा पुष्टि की गई Auth URL allowlist blocker नहीं है।",
-      "ଯାଞ୍ଚିତ candidate ର account-claim/auth implementation ଏବଂ ଆବଶ୍ୟକ migrations ଏହି release base ରେ ନାହିଁ। ସୁସଙ୍ଗତ implementation ଏବଂ authenticated Preview acceptance ଏବେ ମଧ୍ୟ ଆବଶ୍ୟକ; administrator ଙ୍କ ଦ୍ୱାରା ନିଶ୍ଚିତ Auth URL allowlist blocker ନୁହେଁ।"
-    ),
-    remainingFunctionality: words(
-      "Reconcile the missing account-claim/auth implementation and required migrations with the release base, then complete authenticated Preview acceptance. No database changes are part of this recovery.",
-      "गुम account-claim/auth implementation और आवश्यक migrations को release base के साथ संगत करें, फिर authenticated Preview acceptance पूरी करें। इस recovery में कोई database परिवर्तन शामिल नहीं है।",
-      "ଅନୁପସ୍ଥିତ account-claim/auth implementation ଏବଂ ଆବଶ୍ୟକ migrations କୁ release base ସହିତ ସୁସଙ୍ଗତ କରନ୍ତୁ, ପରେ authenticated Preview acceptance ସମ୍ପୂର୍ଣ୍ଣ କରନ୍ତୁ। ଏହି recovery ରେ କୌଣସି database ପରିବର୍ତ୍ତନ ହେଉନାହିଁ।"
+      "Authenticated Development Preview acceptance is pending. The administrator confirmed the existing redirect wildcard; registration, claiming, and dashboard acceptance have not been performed against this release.",
+      "Authenticated Development Preview स्वीकृति लंबित है। प्रशासक ने मौजूदा redirect wildcard की पुष्टि की है; इस release पर registration, claiming और dashboard स्वीकृति नहीं की गई है।",
+      "Authenticated Development Preview ଗ୍ରହଣ ବାକି ଅଛି। ପ୍ରଶାସକ ମୌଜୁଦା redirect wildcard ନିଶ୍ଚିତ କରିଛନ୍ତି; ଏହି release ରେ registration, claiming ଏବଂ dashboard ଗ୍ରହଣ କରାଯାଇନାହିଁ।"
     )
   },
   "supporter-dashboard": {
     actualStatus: "pendingFinalReview",
     capabilityWeight: 2,
-    testEvidence: [],
-    unavailableTestEvidence: ["tests/supporterAccountOwnership.test.mjs", "tests/accountAccessExperience.test.mjs"],
+    testEvidence: ["tests/supporterAccountOwnership.test.mjs", "tests/accountAccessExperience.test.mjs"],
     coreResult: "verified",
-    scopeResult: "notAssessed",
-    regressionResult: "notAssessed",
+    scopeResult: "verified",
+    regressionResult: "verified",
     accessResult: "verified"
   },
   "participation-receipts": {
@@ -480,11 +471,10 @@ const specs: Record<string, AssessmentSpec> = {
   authentication: {
     actualStatus: "pendingFinalReview",
     capabilityWeight: 2,
-    testEvidence: [],
-    unavailableTestEvidence: ["tests/supporterAuth.test.mjs", "tests/supporterEmailConfirmation.test.mjs", "tests/supporterPasswordRecovery.test.mjs"],
+    testEvidence: ["tests/supporterAuth.test.mjs", "tests/supporterEmailConfirmation.test.mjs", "tests/supporterPasswordRecovery.test.mjs"],
     coreResult: "verified",
-    scopeResult: "notAssessed",
-    regressionResult: "notAssessed",
+    scopeResult: "verified",
+    regressionResult: "verified",
     accessResult: "verified"
   },
   "multilingual-localization": {
@@ -730,14 +720,7 @@ function getAssessment(module: CampaignShowcaseModule): CampaignCapabilityAssess
     ...(actionSource ? [actionSource] : [])
   ])];
   const testEvidence = [...spec.testEvidence];
-  const unavailableTestEvidence = (spec.unavailableTestEvidence ?? [])
-    .map((path) => `${unavailableEvidencePrefix}${path}`);
-  const allEvidence = [...new Set([
-    ...sourceEvidence,
-    ...testEvidence,
-    ...unavailableTestEvidence,
-    releaseEvidence
-  ])];
+  const allEvidence = [...new Set([...sourceEvidence, ...testEvidence, releaseEvidence])];
   const criteria: WeightedAcceptanceCriterion[] = [
     criterion(
       module,
@@ -753,9 +736,7 @@ function getAssessment(module: CampaignShowcaseModule): CampaignCapabilityAssess
       "scopeCriterion",
       criteriaWeights.scope,
       spec.scopeResult,
-      testEvidence.length || unavailableTestEvidence.length
-        ? [...sourceEvidence, ...testEvidence, ...unavailableTestEvidence]
-        : [releaseEvidence, ...sourceEvidence]
+      testEvidence.length ? [...sourceEvidence, ...testEvidence] : [releaseEvidence, ...sourceEvidence]
     ),
     criterion(
       module,
@@ -763,9 +744,7 @@ function getAssessment(module: CampaignShowcaseModule): CampaignCapabilityAssess
       "regressionCriterion",
       criteriaWeights.regression,
       spec.regressionResult,
-      testEvidence.length || unavailableTestEvidence.length
-        ? [...testEvidence, ...unavailableTestEvidence]
-        : [releaseEvidence, "tests/campaignShowcaseCatalog.test.mjs"]
+      testEvidence.length ? testEvidence : [releaseEvidence, "tests/campaignShowcaseCatalog.test.mjs"]
     ),
     criterion(
       module,
@@ -810,9 +789,9 @@ function getAssessment(module: CampaignShowcaseModule): CampaignCapabilityAssess
   const remainingFunctionality = spec.remainingFunctionality ?? (
     spec.actualStatus === "blocked"
       ? words(
-          "Verify the documented Development Auth URL allowlist, then complete authenticated Preview acceptance of account claiming.",
-          "दस्तावेज़ित Development Auth URL allowlist सत्यापित करें, फिर account claiming की authenticated Preview acceptance पूरी करें।",
-          "ଦଲିଲଭୁକ୍ତ Development Auth URL allowlist ଯାଞ୍ଚ କରନ୍ତୁ, ପରେ account claiming ପାଇଁ authenticated Preview acceptance ସମ୍ପୂର୍ଣ୍ଣ କରନ୍ତୁ।"
+          "Complete authenticated Development Preview acceptance for registration, account claiming, and the owner-scoped dashboard.",
+          "Registration, account claiming और owner-scoped dashboard के लिए authenticated Development Preview स्वीकृति पूरी करें।",
+          "Registration, account claiming ଏବଂ owner-scoped dashboard ପାଇଁ authenticated Development Preview ଗ୍ରହଣ ସମ୍ପୂର୍ଣ୍ଣ କରନ୍ତୁ।"
         )
       : spec.actualStatus === "notStarted"
       ? words(

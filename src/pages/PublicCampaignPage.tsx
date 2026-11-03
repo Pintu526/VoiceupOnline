@@ -9,6 +9,7 @@ import {
   HeartHandshake,
   Landmark,
   LockKeyhole,
+  LogIn,
   Mail,
   MapPin,
   MessageCircle,
@@ -64,6 +65,13 @@ import {
   PublicSupporterPhoto,
   type PublicSupporterPhotoCopy
 } from "../components/PublicSupporterPhoto";
+import { SupporterAccountClaimPanel } from "../components/SupporterAccountClaimPanel";
+import { CampaignInlineAuthPanel } from "../components/CampaignInlineAuthPanel";
+import type {
+  SupporterAccountClaimGrant,
+  SupporterAccountLink
+} from "../supporterAccountClaim";
+import { getCampaignLoginPath } from "../campaignAuthContext";
 import { blankSigner } from "../constants";
 import {
   isGaumataPublicHostname,
@@ -140,6 +148,9 @@ interface PublicCampaignPageProps {
   setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;
   publicMessage: string;
   lastSignedSigner: Signer | null;
+  supporterAccountClaimGrant?: SupporterAccountClaimGrant | null;
+  linkedSupporterAccount?: SupporterAccountLink | null;
+  onSupporterAccountLinked?: (link: SupporterAccountLink) => void;
   growthSnapshot?: GrowthSupporterSnapshot;
   growthPortal?: SupporterGrowthPortalModel;
   otpInput: string;
@@ -687,6 +698,9 @@ export function PublicCampaignPage({
   setPublicForm,
   publicMessage,
   lastSignedSigner,
+  supporterAccountClaimGrant = null,
+  linkedSupporterAccount = null,
+  onSupporterAccountLinked,
   otpInput,
   setOtpInput,
   otpMessage,
@@ -743,6 +757,10 @@ export function PublicCampaignPage({
         heroImage: campaignHeroImage
       }
     : { ...campaign, heroImage: campaignHeroImage };
+  const campaignAccountAccessPath = getCampaignLoginPath({
+    campaignId: campaign.id,
+    campaignSlug: campaign.slug
+  });
   const publicOrganizationLabel = organization?.name?.trim() ?? "";
   const configuredAuthorityOptions = getAuthorityOptionsForCampaign(campaign, authorities);
   const publicAuthorityOptions = isGaumataCampaignExperience
@@ -891,6 +909,11 @@ export function PublicCampaignPage({
     (publicForm.verificationMethod === "screen_otp" && Boolean(publicForm.otpVerificationToken))
       ? "profile"
       : "phone"
+  );
+  const [participationMode, setParticipationMode] = useState<"support" | "sign_in">(() =>
+    typeof window !== "undefined" && window.location.hash === "#campaign-sign-in"
+      ? "sign_in"
+      : "support"
   );
   const [restoredDraftStorageKey, setRestoredDraftStorageKey] = useState("");
   const [sendingOtp, setSendingOtp] = useState(false);
@@ -1673,6 +1696,14 @@ export function PublicCampaignPage({
       data-premium-presentation={premiumPresentation?.kind}
     >
       <div className="public-page-language-toolbar" aria-label="Language selector">
+        <a
+          className="public-campaign-sign-in"
+          href={campaignAccountAccessPath}
+          aria-label={t("account.login.campaignSignUpLoginAria")}
+        >
+          <LogIn aria-hidden="true" size={17} />
+          <span>{t("account.login.campaignSignUpLogin")}</span>
+        </a>
         <LanguageSwitcher />
       </div>
       <div className="public-story-column">
@@ -1744,7 +1775,7 @@ export function PublicCampaignPage({
               {!presentationCopy && <p className="public-summary">{heroSummary}</p>}
               {!premiumPresentation && (
               <div className="public-hero-actions">
-                <a className="primary-button" href="#public-sign-form">
+                <a className="primary-button" href="#public-sign-form" onClick={() => setParticipationMode("support")}>
                   {isGoudhanExperience ? t("goudhanCampaign.joinMovement") : t("public.signInMinutes")} <ArrowRight size={18} />
                 </a>
                 {!isGoudhanExperience && nativeShareSupported && (
@@ -2166,6 +2197,7 @@ export function PublicCampaignPage({
               className="secondary-link-button movement-volunteer-cta"
               href="#public-sign-form"
               onClick={() => {
+                setParticipationMode("support");
                 if (hasSignedCampaign) setPostSignPanel("coordinator");
               }}
             >
@@ -2216,7 +2248,7 @@ export function PublicCampaignPage({
         )}
       </div>
 
-      <div className="public-campaign-v2-signing-panel">
+      <div className="public-campaign-v2-signing-panel" id="campaign-sign-in">
       <Panel title={hasSignedCampaign ? copy.panelTitleComplete : presentationCopy?.participationTitle ?? copy.panelTitleSign} icon={<ClipboardList />}>
         <div className="public-mobile-campaign-summary">
           <span className="eyebrow">{experienceCopy.campaignAtGlance}</span>
@@ -2227,6 +2259,38 @@ export function PublicCampaignPage({
             <span>{metrics.progress}% · {metrics.verified.toLocaleString()} {t("public.verifiedSupporters")}</span>
           </div>
         </div>
+        {!hasSignedCampaign && (
+          <div className="campaign-participation-tabs" role="tablist" aria-label={t("account.login.participationMode")}>
+            <button
+              id="campaign-support-tab"
+              type="button"
+              role="tab"
+              aria-controls="public-sign-form"
+              aria-selected={participationMode === "support"}
+              onClick={() => setParticipationMode("support")}
+            >
+              {t("account.login.supportTab")}
+            </button>
+            <button
+              id="campaign-sign-in-tab"
+              type="button"
+              role="tab"
+              aria-controls="campaign-sign-in"
+              aria-selected={participationMode === "sign_in"}
+              onClick={() => setParticipationMode("sign_in")}
+            >
+              {t("account.login.campaignSignIn")}
+            </button>
+          </div>
+        )}
+
+        {participationMode === "sign_in" && !hasSignedCampaign ? (
+          <CampaignInlineAuthPanel
+            active
+            context={{ campaignId: campaign.id, campaignSlug: campaign.slug }}
+          />
+        ) : (
+        <>
         <div className="wizard-header">
           <span className="eyebrow">{copy.secureSigning}</span>
           <h2>{hasSignedCampaign ? copy.headerComplete : presentationCopy?.participationTitle ?? copy.headerActive}</h2>
@@ -2800,6 +2864,57 @@ export function PublicCampaignPage({
                 ) : null}
                 <p>{t("public.success.returnLater")}</p>
               </section>
+
+              {lastSignedSigner &&
+                onSupporterAccountLinked &&
+                (supporterAccountClaimGrant || linkedSupporterAccount) && (
+                  <SupporterAccountClaimPanel
+                    grant={supporterAccountClaimGrant}
+                    linkedAccount={linkedSupporterAccount}
+                    campaignId={campaign.id}
+                    campaignSlug={campaign.slug}
+                    campaignTitle={displayCampaign.title}
+                    supporterId={lastSignedSigner.id}
+                    supporterName={lastSignedSigner.name}
+                    supporterEmail={lastSignedSigner.email}
+                    onLinked={onSupporterAccountLinked}
+                    copy={{
+                      eyebrow: t("public.success.account.eyebrow"),
+                      title: t("public.success.account.title"),
+                      help: t("public.success.account.help"),
+                      email: t("public.success.account.email"),
+                      password: t("public.success.account.password"),
+                      showPassword: t("public.success.account.showPassword"),
+                      hidePassword: t("public.success.account.hidePassword"),
+                      register: t("public.success.account.register"),
+                      loginAndClaim: t("public.success.account.loginAndClaim"),
+                      claim: t("public.success.account.claim"),
+                      useAnotherAccount: t("public.success.account.useAnotherAccount"),
+                      registrationSent: t("public.success.account.registrationSent"),
+                      signedInAs: t("public.success.account.signedInAs"),
+                      signingEmail: t("public.success.account.signingEmail"),
+                      accountEmail: t("public.success.account.accountEmail"),
+                      emailMismatch: t("public.success.account.emailMismatch"),
+                      linkedTitle: t("public.success.account.linkedTitle"),
+                      linkedHelp: t("public.success.account.linkedHelp"),
+                      profileName: t("public.success.account.profileName"),
+                      supporterId: t("public.success.account.supporterId"),
+                      campaign: t("public.success.account.campaign"),
+                      openProfile: t("public.success.account.openProfile"),
+                      working: t("public.success.account.working"),
+                      authFailed: t("public.success.account.authFailed"),
+                      confirmationRequired: t("public.success.account.confirmationRequired"),
+                      claimInvalid: t("public.success.account.claimInvalid"),
+                      claimExpired: t("public.success.account.claimExpired"),
+                      claimFailed: t("public.success.account.claimFailed"),
+                      skip: t("public.success.account.skip"),
+                      openingDashboard: t("public.success.account.openingDashboard"),
+                      forgotPassword: t("account.login.forgotPassword"),
+                      recoverySent: t("account.login.recoverySent"),
+                      recoveryFailed: t("account.login.recoveryFailed")
+                    }}
+                  />
+                )}
 
               <section className="public-post-sign-sharing" aria-label={t("public.shareThisCampaign")}>
                 <div className="public-section-heading">
@@ -3475,6 +3590,8 @@ export function PublicCampaignPage({
             </p>
           )}
         </form>
+        </>
+        )}
         {premiumPresentation && !hasSignedCampaign && (
           <div className="public-mobile-trust-progress">
             <div className="public-mobile-trust-row">
@@ -3527,7 +3644,7 @@ export function PublicCampaignPage({
       </div>
 
       {!hasSignedCampaign && (
-        <a className="sticky-support-button" href="#public-sign-form">
+        <a className="sticky-support-button" href="#public-sign-form" onClick={() => setParticipationMode("support")}>
           <CheckCircle2 size={18} />{" "}
           {isGaumataCampaignExperience
             ? t("goudhanCampaign.joinMovement")

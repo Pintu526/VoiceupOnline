@@ -13,7 +13,7 @@
 
 ## Scope
 
-Adds a role- and entitlement-aware Campaign Command Center showcase over the existing application navigation. It does not claim incomplete functionality is complete, does not add backend/data behavior, and does not change Supabase schema, RLS, Edge Functions, administrator workflows, Production, aliases, DNS, or auth redirect configuration.
+Retains the role- and entitlement-aware Campaign Command Center over existing application navigation and adds the candidate's supporter registration/login, email confirmation and recovery, account claiming, and owner-scoped dashboard. The two SQL migrations are versioned source only; neither was applied. No Supabase settings, database data, Production configuration, aliases, DNS, or deployment were changed.
 
 ## Changed application and test files
 
@@ -25,7 +25,11 @@ Adds a role- and entitlement-aware Campaign Command Center showcase over the exi
 - **src/i18n/locales/hi.json**: Hindi framework strings.
 - **src/i18n/locales/or.json**: Odia framework strings.
 - **tests/campaignShowcaseCatalog.test.mjs**: inventory, translations, access, blockers, and non-simulated workflow regression checks.
-- **tests/campaignCompletion.test.mjs**: exact 47-capability preservation, status history, weighted calculations, and explicit unavailable-evidence coverage.
+- **tests/campaignCompletion.test.mjs**: exact 47-capability preservation, status history, weighted calculations, and explicit assessed/unassessed evidence coverage.
+- Supporter account runtime: **src/accountAccess.ts**, **src/authSession.ts**, **src/campaignAuthContext.ts**, **src/supporterAuth.ts**, **src/supporterAccountClaim.ts**, **src/supporterEmailConfirmation.ts**, and **src/supporterPasswordResetPage.ts**, with login/account pages and claim/auth panels.
+- **src/backend.ts**, **src/App.tsx**, **src/pages/PublicCampaignPage.tsx**, and **supabase/functions/voiceup-public-signing/index.ts**: integrate the existing account flows and grant issuance while retaining signing behavior and permission checks.
+- **supabase/migrations/20261025010000_supporter_account_claim_grants.sql** and **supabase/migrations/20261029010000_account_access_manifest_and_supporter_dashboard.sql**: migration sources only; not executed.
+- **supporter-email-confirmed.html**, **supporter-reset-password.html**, their public bootstrap scripts, **vite.config.ts**, and the relevant account/auth tests: confirmation and recovery build entries and regression coverage.
 
 ## Explicit exclusions
 
@@ -38,14 +42,14 @@ Adds a role- and entitlement-aware Campaign Command Center showcase over the exi
 
 ## Validation
 
-- Full regression suite: **PASS**: 884 tests, 876 passed, 0 failed, 8 skipped.
+- Supporter-account, catalogue, evidence, and CampaignOS tests: **PASS**, 68/68.
+- GSAA signing, OTP/idempotency, and campaign-admin authorization regressions: **PASS**, 192/192.
 - TypeScript typecheck: **PASS**.
-- Production build: **PASS**. Existing large-chunk size warning remains.
-- Showcase inventory: 47 modules across 7 tracks.
-- Final Preview deployment: **PASS**. Vercel inspection confirms `target=preview`, `readyState=READY`, with no alias change.
-- Protected Preview root and assets: **PASS**. Authenticated Vercel fetch retrieved the root and 56 linked assets.
-- Preview Supabase-host exclusivity: **PASS**. The final served assets contain `ravweavcfrpiykfgtmbf.supabase.co` and no Production host `seseeabxmnsrhghthemd.supabase.co`.
-- No interactive authenticated browser session was available for acceptance verification.
+- Production build: **PASS**; both confirmation and password-recovery HTML entries emitted. The existing large-chunk warning remains.
+- Development Supabase project **ravweavcfrpiykfgtmbf** was inspected read-only. Claim/dashboard tables, RLS, required base columns, RPCs, and privileges exist; the four live RPC bodies match the source migration function bodies. The migration history relation is unavailable, so migration lineage cannot be asserted and no migration was applied.
+- Active Development signing Edge Function version 29 source matches the candidate. It issues the supporter claim grant after a successful support submission; grant errors do not roll back signing.
+- The administrator confirmed the existing Auth redirect wildcard covers the Preview origin and callback paths. No Auth configuration was changed.
+- Prior candidate Preview deployment evidence above is historical; **this release branch has not been deployed**. No interactive signed-in acceptance was performed.
 
 ## Baseline readiness totals (before final acceptance verification)
 
@@ -112,21 +116,21 @@ Adds a role- and entitlement-aware Campaign Command Center showcase over the exi
 ## Final acceptance evidence (updated 2026-11-04)
 
 - All **47 existing capabilities** and all **seven existing tracks** remain in the catalogue. Existing names, descriptions, module destinations, and original statuses are protected by a catalogue SHA-256 regression assertion.
-- Development completion: **67%**, calculated from five weighted acceptance criteria per capability: implemented slice (25), full described scope (20), capability-specific regression evidence (25), existing route/permission integration (15), and signed-in Preview acceptance (15). A criterion earns credit only when verified; `notMet` and `notAssessed` are shown separately. A capability reaches 100% only when every criterion passes.
+- Development completion: **69%**, calculated from five weighted acceptance criteria per capability: implemented slice (25), full described scope (20), capability-specific regression evidence (25), existing route/permission integration (15), and signed-in Preview acceptance (15). Only verified criteria receive credit; signed-in Preview acceptance remains pending. A capability reaches 100% only when every defined criterion passes.
 - Overall aggregation uses capability weights: **3** for release-priority areas (Campaign Management, signing, Field Collection/Scans/OCR, CRM, reporting, referrals, and SaaS administration), **2** for standard capabilities, and **1** for preview-only/unimplemented items. Track percentages use those same weights.
 - Verified Production readiness: **Not assessed**. Production was not accessed or changed; the release evidence covers Preview only. All 47 Production readiness checks remain unassessed.
-- Capabilities with no development completion assessment: **0**. There are **68** individually unassessed acceptance criteria, including the authenticated Preview checks and unavailable account-claim, supporter-dashboard, and authentication scope/regression tests; these receive no completion credit.
-- Recovery validation: **PASS** — 15 focused CampaignOS tests, 0 failed; TypeScript typecheck **PASS**; Vite build **PASS**. The earlier full-suite result remains 890 tests, 882 passed, 0 failed, 8 skipped; it was not rerun for this focused recovery. Vite still warns that a generated chunk exceeds 500 kB.
+- Capabilities with no Development completion assessment: **0**. **62** acceptance criteria remain unassessed, including authenticated Preview acceptance; the account/auth unit and regression evidence is now available and passing. All 47 Production readiness checks remain unassessed.
+- Current branch validation: **260 focused tests passed, 0 failed** across the two focused runs; TypeScript **PASS**; Vite build **PASS**. The full suite was not rerun. Vite still reports the existing large-chunk warning.
 
 | Track | Weighted development completion |
 |---|---:|
 | ORGANIZE | 75% |
 | PLAN | 69% |
-| ACT | 73% |
+| ACT | 78% |
 | FUND | 15% |
 | PROVE | 72% |
 | GROW | 60% |
-| BUSINESS OS | 69% |
+| BUSINESS OS | 74% |
 
 | Status | Before verification | Actual verified |
 |---|---:|---:|
@@ -146,7 +150,7 @@ The release candidate contains no verified `voiceup.live/CampaignOS` product rou
 
 ## Known blocker
 
-The Development Supabase Auth redirect allowlist was administrator-confirmed sufficient for the latest Preview callbacks; no Auth configuration was changed. Supporter registration/account claiming remains **Blocked** because its candidate-only account/auth implementation and required migrations are absent from this release base. The six account-claim, supporter-dashboard, and authentication test references remain explicitly marked unavailable; their scope and regression criteria are unassessed and receive no completion credit. No implementation was fabricated or database work performed.
+The existing Development Supabase Auth redirect wildcard is administrator-confirmed sufficient. Supporter registration/account claiming remains **Blocked** pending authenticated Development Preview acceptance; the implementation and required database objects are present, but no signed-in walkthrough was performed against this branch. The migration files remain source only, and the database was not changed.
 
 ## Integrity inventory
 
@@ -154,5 +158,5 @@ The Development Supabase Auth redirect allowlist was administrator-confirmed suf
 
 ## Promotion and rollback notes
 
-- Production promotion is not authorized. Before considering it, resolve the missing account-claim/auth implementation dependencies, complete authenticated Preview acceptance, and obtain explicit Production approval plus the required Production-specific review.
+- Production promotion is not authorized. Complete authenticated Development Preview acceptance before considering promotion; any Production work still requires explicit approval and Production-specific review.
 - The prior Ready Preview remains available as a comparison/rollback reference: https://voiceup-development-i56lt1d9p-debasish1.vercel.app (**dpl_HMikwCwFok8RF4umGZrXp99hrZJb**). No aliases were changed.

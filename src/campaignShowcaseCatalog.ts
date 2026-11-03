@@ -201,9 +201,9 @@ export const campaignShowcaseModules: ReadonlyArray<CampaignShowcaseModule> = [
     status: "blocked",
     tab: "public",
     blockedReason: words(
-      "The validated candidate's account-claim/auth implementation and required migrations are absent from this release base, so authenticated account-claim acceptance cannot be performed here.",
-      "सत्यापित candidate का account-claim/auth implementation और आवश्यक migrations इस release base में नहीं हैं, इसलिए यहाँ authenticated account-claim acceptance नहीं की जा सकती।",
-      "ଯାଞ୍ଚିତ candidate ର account-claim/auth implementation ଏବଂ ଆବଶ୍ୟକ migrations ଏହି release base ରେ ନାହିଁ, ତେଣୁ ଏଠାରେ authenticated account-claim acceptance କରାଯାଇପାରିବ ନାହିଁ।"
+      "Authenticated Development Preview acceptance is pending; the administrator confirmed the existing redirect wildcard, but this release has not completed registration, claiming, and dashboard acceptance.",
+      "Authenticated Development Preview स्वीकृति लंबित है; प्रशासक ने मौजूदा redirect wildcard की पुष्टि की है, लेकिन इस release पर registration, claiming और dashboard स्वीकृति पूरी नहीं हुई है।",
+      "Authenticated Development Preview ଗ୍ରହଣ ବାକି ଅଛି; ପ୍ରଶାସକ ମୌଜୁଦା redirect wildcard ନିଶ୍ଚିତ କରିଛନ୍ତି, କିନ୍ତୁ ଏହି release ରେ registration, claiming ଏବଂ dashboard ଗ୍ରହଣ ସମ୍ପୂର୍ଣ୍ଣ ହୋଇନାହିଁ।"
     )
   },
   {

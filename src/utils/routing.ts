@@ -59,6 +59,25 @@ export function getIsAppRoute(): boolean {
   return window.location.pathname === "/app" || window.location.pathname.startsWith("/app/");
 }
 
+export function getIsVoiceupLoginRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.pathname === "/login" || window.location.pathname === "/login/";
+}
+
+export function getSupporterAccountDashboardId(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.pathname.match(
+    /^\/account\/supporter\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/?$/i
+  )?.[1] ?? "";
+}
+
+export function getIsVoiceupAccountRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.pathname === "/account"
+    || window.location.pathname === "/account/"
+    || Boolean(getSupporterAccountDashboardId());
+}
+
 export function getLegalPage(): "privacy" | "terms" | "refund" | "data-deletion" | null {
   if (typeof window === "undefined") return null;
   const path = window.location.pathname.replace(/^\//, "");

@@ -6,6 +6,9 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
     outDir: "dist",
-    sourcemap: false
+    sourcemap: false,
+    rollupOptions: {
+      input: ["index.html", "supporter-email-confirmed.html", "supporter-reset-password.html"]
+    }
   }
 });

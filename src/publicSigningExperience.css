@@ -743,6 +743,181 @@
   margin-inline: auto;
 }
 
+.public-supporter-account {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  width: 100%;
+}
+
+.public-supporter-account h4 {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  margin: 0;
+}
+
+.public-supporter-account-form,
+.public-supporter-account-form label,
+.public-supporter-account-session {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.public-supporter-account-form label > span:first-child {
+  font-weight: 800;
+}
+
+.public-supporter-account-form input {
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+}
+
+.public-supporter-account-form .password-field {
+  min-width: 0;
+  width: 100%;
+}
+
+.public-supporter-account-message,
+.public-supporter-account-session p,
+.public-supporter-account-linked p {
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.public-supporter-account-message[data-tone="error"] {
+  color: #b42318;
+  font-weight: 700;
+}
+
+.campaign-participation-tabs {
+  background: #eef2f7;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 14px;
+  padding: 5px;
+}
+
+.campaign-participation-tabs button {
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: var(--text-soft);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  min-height: 46px;
+  padding: 8px 10px;
+}
+
+.campaign-participation-tabs button[aria-selected="true"] {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.09);
+}
+
+.campaign-participation-tabs button:focus-visible {
+  box-shadow: var(--ring);
+  outline: 0;
+}
+
+.campaign-inline-auth {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.campaign-inline-auth .public-section-heading h3,
+.campaign-inline-auth .public-section-heading p {
+  margin: 0;
+}
+
+.campaign-inline-auth-form,
+.campaign-inline-auth-no-access {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.campaign-inline-auth-no-access > p { color: var(--text-soft); margin: 0; }
+.campaign-inline-auth-no-access > svg { color: var(--primary); }
+.campaign-inline-auth-fallback { justify-self: start; }
+
+.public-campaign-v2[data-premium-presentation="premium-national"] .campaign-participation-tabs button[aria-selected="true"] {
+  color: var(--premium-maroon);
+}
+
+@media (max-width: 430px) {
+  .campaign-participation-tabs,
+  .campaign-inline-auth .account-login-methods {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.public-supporter-account-profile {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  min-width: 0;
+}
+
+.public-supporter-account-profile > div {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.public-supporter-account-profile dt {
+  color: var(--text-soft);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.public-supporter-account-profile dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.public-supporter-account-identities {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.public-supporter-account-identities > div {
+  min-width: 0;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--public-accent) 18%, #d8dee9);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--public-accent) 4%, #fff);
+}
+
+.public-supporter-account-identities dt {
+  color: var(--public-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.public-supporter-account-identities dd {
+  overflow-wrap: anywhere;
+  margin: 0.2rem 0 0;
+  font-weight: 700;
+}
+
 .public-coordinator-action {
   justify-content: center;
   min-height: 48px;
@@ -1027,6 +1202,8 @@
   }
 
   .public-success-facts,
+  .public-supporter-account-profile,
+  .public-supporter-account-identities,
   .public-request-tracker-card dl,
   .public-movement-dashboard {
     grid-template-columns: 1fr;

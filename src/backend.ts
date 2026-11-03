@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { VOICEUP_AUTH_STORAGE_KEY } from "./authSession";
 import {
   mergeWorkspaceStateForSave,
   nextWorkspaceUpdatedAt
@@ -215,6 +216,11 @@ export type PublicParticipationAction =
   | "submit_coordinator_application"
   | "sync_coordinator_application_state";
 
+export interface SupporterAccountClaimGrant {
+  token: string;
+  expiresAt: string;
+}
+
 export interface PublicParticipationResult {
   action: PublicParticipationAction;
   signer: Signer | null;
@@ -223,6 +229,7 @@ export interface PublicParticipationResult {
   coordinatorApplicationStatus?: string;
   message: string;
   metrics: PublicCampaignPayload["metrics"];
+  supporterAccountClaimGrant?: SupporterAccountClaimGrant;
 }
 
 export interface OtpRequestResult {
@@ -317,7 +324,16 @@ const customerWorkspaceKey = "voiceup-customer-workspace-v1";
 
 export const isBackendConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 
-const supabase = isBackendConfigured ? createClient(supabaseUrl!, supabaseAnonKey!) : null;
+const supabase = isBackendConfigured
+  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+      auth: {
+        storageKey: VOICEUP_AUTH_STORAGE_KEY,
+        persistSession: true,
+        autoRefreshToken: true,
+        flowType: "pkce"
+      }
+    })
+  : null;
 
 let passwordRecoveryUserId = "";
 const passwordRecoveryWaiters = new Set<(ready: boolean) => void>();
@@ -652,7 +668,10 @@ interface WorkspaceMembershipContext {
   role: string;
 }
 
-async function resolveWorkspaceMembershipContext(userId: string): Promise<WorkspaceMembershipContext> {
+async function resolveWorkspaceMembershipContext(
+  userId: string,
+  preferredWorkspaceId = readWorkspaceId()
+): Promise<WorkspaceMembershipContext> {
   const { data: orgMembership } = await requireSupabase()
     .from("organization_members")
     .select("role")
@@ -660,12 +679,16 @@ async function resolveWorkspaceMembershipContext(userId: string): Promise<Worksp
     .limit(1)
     .maybeSingle();
 
-  const { data: workspaceMembership } = await requireSupabase()
+  const { data: workspaceMemberships } = await requireSupabase()
     .from("voiceup_workspace_members")
-    .select("workspace_id,role")
+    .select("workspace_id,role,active")
     .eq("user_id", userId)
-    .limit(1)
-    .maybeSingle();
+    .eq("active", true);
+
+  const activeMemberships = workspaceMemberships ?? [];
+  const workspaceMembership = activeMemberships.find(
+    (membership) => membership.workspace_id === preferredWorkspaceId
+  ) ?? (activeMemberships.length === 1 ? activeMemberships[0] : undefined);
 
   const orgRole = orgMembership?.role ?? "";
   const workspaceRole = workspaceMembership?.role ?? "";
@@ -673,7 +696,7 @@ async function resolveWorkspaceMembershipContext(userId: string): Promise<Worksp
 
   return {
     workspaceId: workspaceMembership?.workspace_id ?? "",
-    workspaceMember: Boolean(workspaceMembership?.workspace_id),
+    workspaceMember: Boolean(workspaceMembership?.workspace_id && workspaceMembership.active === true),
     platformAdmin: orgRole === "platform_owner" || workspaceRole === "platform_owner",
     role
   };
@@ -2082,7 +2105,12 @@ export async function submitPublicSignatureSecure(
   },
   communicationConsent = false,
   idempotencyKey = createPublicParticipationIdempotencyKey("support")
-): Promise<{ signer: Signer; message: string; metrics: PublicCampaignPayload["metrics"] }> {
+): Promise<{
+  signer: Signer;
+  message: string;
+  metrics: PublicCampaignPayload["metrics"];
+  supporterAccountClaimGrant?: SupporterAccountClaimGrant;
+}> {
   const result = await mutatePublicParticipation({
     slug,
     action: "submit_support",
@@ -2095,7 +2123,8 @@ export async function submitPublicSignatureSecure(
   return {
     signer: result.signer,
     message: result.message,
-    metrics: result.metrics
+    metrics: result.metrics,
+    supporterAccountClaimGrant: result.supporterAccountClaimGrant
   };
 }
 

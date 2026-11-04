@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { getSaasAdminPasswordRecoveryRedirectTo } from "../src/adminPasswordRecoveryRedirect.ts";
 
 const appSource = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
 const backendSource = readFileSync(new URL("../src/backend.ts", import.meta.url), "utf8");
@@ -50,9 +51,28 @@ test("password update requires the recovery user and current session user to mat
 });
 
 test("recovery requests use a fixed reset route and do not reveal account existence", () => {
-  assert.match(backendSource, /new URL\("\/admin\/reset-password", window\.location\.origin\)/);
+  assert.match(backendSource, /getSaasAdminPasswordRecoveryRedirectTo\(window\.location\.origin\)/);
   assert.match(backendSource, /resetPasswordForEmail\(email, \{ redirectTo \}\)/);
   assert.match(loginSource, /If the account exists, a password recovery link has been sent\./);
+});
+
+test("Development Preview recovery uses the public Development reset route without redirecting Production", () => {
+  assert.equal(
+    getSaasAdminPasswordRecoveryRedirectTo("https://voiceup-development-8qd8xe8z5-debasish1.vercel.app"),
+    "https://voiceup-development.vercel.app/admin/reset-password"
+  );
+  assert.equal(
+    getSaasAdminPasswordRecoveryRedirectTo("https://voiceup-development.vercel.app"),
+    "https://voiceup-development.vercel.app/admin/reset-password"
+  );
+  assert.equal(
+    getSaasAdminPasswordRecoveryRedirectTo("https://voiceup.live"),
+    "https://voiceup.live/admin/reset-password"
+  );
+  assert.equal(
+    getSaasAdminPasswordRecoveryRedirectTo("http://localhost:5173"),
+    "http://localhost:5173/admin/reset-password"
+  );
 });
 
 test("reset UI includes confirmation, expiry handling and a safe return to admin login", () => {

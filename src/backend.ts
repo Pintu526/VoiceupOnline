@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getSaasAdminPasswordRecoveryRedirectTo } from "./adminPasswordRecoveryRedirect";
 import { VOICEUP_AUTH_STORAGE_KEY } from "./authSession";
 import {
   mergeWorkspaceStateForSave,
@@ -1156,7 +1157,7 @@ export async function signInWithSupabase(email: string, password: string) {
 
 export async function requestSaasAdminPasswordRecovery(email: string): Promise<void> {
   const client = requireSupabase();
-  const redirectTo = new URL("/admin/reset-password", window.location.origin).toString();
+  const redirectTo = getSaasAdminPasswordRecoveryRedirectTo(window.location.origin);
   const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) throw new Error("password_recovery_request_failed");
 }

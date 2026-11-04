@@ -2439,6 +2439,7 @@
     "goalReached": "लक्ष्य पूरा होने तक",
     "signInMinutes": "कुछ मिनट में समर्थन करें",
     "shareCampaign": "अभियान साझा करें",
+    "canonicalLocationUnavailable": "मानक स्थान सत्यापन उपलब्ध नहीं है। अभियान के स्थान फ़ील्ड से आगे बढ़ें; यह चयन असत्यापित रहेगा।",
     "campaignProgress": "अभियान प्रगति",
     "liveProgress": "वर्तमान प्रगति",
     "verifiedGoal": "{goal} सत्यापित हस्ताक्षरों में से",

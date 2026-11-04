@@ -29,6 +29,7 @@ export interface PublicCampaignCanonicalLocationDisplayProps {
     block: string;
     panchayat: string;
   };
+  unavailableMessage: string;
   onConfirmCanonicalReference?: (reference: PersistedCanonicalLocationReference) => void;
 }
 
@@ -61,6 +62,7 @@ export function PublicCampaignCanonicalLocationDisplay({
   title,
   help,
   labels,
+  unavailableMessage,
   onConfirmCanonicalReference
 }: PublicCampaignCanonicalLocationDisplayProps) {
   const client = useMemo(() => createIndiaLgdCatalogReader(
@@ -123,7 +125,7 @@ export function PublicCampaignCanonicalLocationDisplay({
     return <p className="public-structured-location" role="status">Loading structured location…</p>;
   }
   if (state.status === "error") {
-    return <p className="public-structured-location" role="alert">Structured location is temporarily unavailable.</p>;
+    return <p className="public-structured-location" role="status">{unavailableMessage}</p>;
   }
   if (state.canonicalSelection.length <= 1) return null;
 

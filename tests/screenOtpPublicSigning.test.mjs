@@ -62,6 +62,22 @@ test("unbound screen proof cannot resume or modify an existing phone-bound suppo
   assert.match(app, /result\.verificationMethod !== "screen_otp"[\s\S]*resume_verified_supporter/);
 });
 
+test("Campaign Admin participation uses public signing without changing account roles", () => {
+  assert.match(app, /const isPublicCampaignRoute = Boolean\(publicCampaignSlug\)/);
+  assert.match(app, /submitPublicSignatureSecure/);
+  assert.match(app, /onSubmit=\{submitPublicSignature\}/);
+  assert.match(page, /onSubmit=\{handlePublicSubmit\}/);
+  assert.doesNotMatch(migration, /\b(?:platform_owner|campaign_admin|workspace_memberships)\b/i);
+  assert.match(migration, /screen_verification_existing_supporter/);
+  assert.match(migration, /if v_existing_signer is not null then/);
+});
+
+test("an already-supported response offers a campaign-sharing action without exposing supporter data", () => {
+  assert.match(app, /error\.code === "screen_verification_existing_supporter"[\s\S]*setPublicMessage\("existing_supporter_duplicate"\)/);
+  assert.match(page, /publicMessage === "existing_supporter_duplicate"[\s\S]*href=\{shareLinks\.whatsapp\}[\s\S]*t\("public\.shareCampaign"\)/);
+  assert.doesNotMatch(page, /existing_supporter_duplicate[\s\S]{0,300}(?:publicForm\.email|publicForm\.phone)/);
+});
+
 test("post-sign reads and writes require the screen challenge to be bound to its new supporter", () => {
   assert.match(signingEdge, /admin\.rpc\("mutate_voiceup_public_participation_screen_safe"/);
   assert.match(signingEdge, /admin\.rpc\("voiceup_public_verification_context"/);

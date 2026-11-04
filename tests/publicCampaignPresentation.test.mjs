@@ -111,12 +111,15 @@ test("incomplete premium mobile cannot trigger the OTP network workflow", () => 
   assert.match(pageSource, /premiumPresentation\s*\?\s*indianMobile\.valid/);
 });
 
-test("pre-OTP UI performs no supporter lookup or account enumeration", () => {
+test("pre-OTP send remains Journey A while background routing is privacy-neutral", () => {
   const sendStart = pageSource.indexOf("async function handleSendOtpWizard()");
   const sendEnd = pageSource.indexOf("async function handleVerifyOtpWizard()", sendStart);
   const sendSource = pageSource.slice(sendStart, sendEnd);
   assert.match(sendSource, /await onSendOtp\(\)/);
   assert.doesNotMatch(sendSource, /resume_verified_supporter|campaignSigners|existing|duplicate|lookup/i);
+  assert.match(pageSource, /precheckPublicSupporterRouting\(campaign\.slug, publicForm\.phone\)/);
+  assert.match(pageSource, /setTimeout\(\(\) =>[\s\S]*450\)/);
+  assert.doesNotMatch(pageSource, /supporterRoutingPrecheck\?\.(?:route|account|supporter|signature)/);
 });
 
 test("phone OTP may resume only after verification while screen OTP skips resume", () => {
@@ -243,12 +246,13 @@ test("gaumata host resolution continues to use the existing routing utility", ()
   );
 });
 
-test("premium public location integration retains hierarchy, custom locations and manual entry", () => {
+test("premium public location integration retains hierarchy, campaign policy, global fallback and guidance", () => {
   assert.match(pageSource, /<IndiaLocationFields/);
   assert.match(pageSource, /catalogStatus=\{publicCampaignLocationCatalog\.status\}/);
   assert.match(pageSource, /customLocations=\{signerLocationCatalog\}/);
   assert.match(pageSource, /createObservedLocationReference/);
-  assert.match(pageSource, /experienceCopy\.enterManually/);
+  assert.match(pageSource, /experienceCopy\.locationHelp/);
+  assert.match(pageSource, /<GlobalLocationFields/);
   assert.doesNotMatch(pageSource, /ResourceLocationManager/);
 });
 

@@ -134,6 +134,13 @@ import {
   invokePublicCampaignLocationCatalog,
   type PublicCampaignCustomLocation
 } from "../backend";
+import {
+  clearSupporterRoutingPrecheck,
+  precheckPublicSupporterRouting,
+  readSupporterRoutingPrecheck,
+  writeSupporterRoutingPrecheck,
+  type PublicSupporterRoutingPrecheck
+} from "../supporterRouting";
 
 interface PublicCampaignPageProps {
   campaign: Campaign;
@@ -883,6 +890,9 @@ export function PublicCampaignPage({
       ? "sign_in"
       : "support"
   );
+  const [supporterRoutingPrecheck, setSupporterRoutingPrecheck] =
+    useState<PublicSupporterRoutingPrecheck | null>(() => readSupporterRoutingPrecheck(campaign.id));
+  const [supporterRoutingChecking, setSupporterRoutingChecking] = useState(false);
   const [restoredDraftStorageKey, setRestoredDraftStorageKey] = useState("");
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
@@ -990,6 +1000,44 @@ export function PublicCampaignPage({
     )
     .every((field) => Boolean(restrictedPublicForm[field]?.trim()));
   const requiredConsentsAccepted = appealConsent && campaignConsent;
+
+  useEffect(() => {
+    if (wizardStep !== "phone") {
+      setSupporterRoutingChecking(false);
+      return;
+    }
+    if (!phoneReady) {
+      clearSupporterRoutingPrecheck(campaign.id);
+      setSupporterRoutingPrecheck(null);
+      setSupporterRoutingChecking(false);
+      return;
+    }
+    clearSupporterRoutingPrecheck(campaign.id);
+    setSupporterRoutingPrecheck(null);
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setSupporterRoutingChecking(true);
+      void precheckPublicSupporterRouting(campaign.slug, publicForm.phone)
+        .then((precheck) => {
+          if (!active) return;
+          writeSupporterRoutingPrecheck(campaign.id, precheck);
+          setSupporterRoutingPrecheck(precheck);
+        })
+        .catch(() => {
+          if (!active) return;
+          // Precheck failure never blocks the established screen-OTP journey.
+          clearSupporterRoutingPrecheck(campaign.id);
+          setSupporterRoutingPrecheck(null);
+        })
+        .finally(() => {
+          if (active) setSupporterRoutingChecking(false);
+        });
+    }, 450);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [campaign.id, campaign.slug, phoneReady, publicForm.phone, wizardStep]);
   const currentStepLabel =
     wizardStep === "review" ? t("public.review") : copy.steps[wizardStep];
   const stepProgressLabel = t("public.stepProgress")
@@ -1549,6 +1597,8 @@ export function PublicCampaignPage({
     setCommunicationConsent(false);
     setAppealConsent(false);
     setCampaignConsent(false);
+    clearSupporterRoutingPrecheck(campaign.id);
+    setSupporterRoutingPrecheck(null);
     onStartNewJourney();
   }
 
@@ -2195,6 +2245,8 @@ export function PublicCampaignPage({
           <CampaignInlineAuthPanel
             active
             context={{ campaignId: campaign.id, campaignSlug: campaign.slug }}
+            routingToken={supporterRoutingPrecheck?.routingToken}
+            onContinueSigning={() => setParticipationMode("support")}
           />
         ) : (
         <>
@@ -2322,6 +2374,11 @@ export function PublicCampaignPage({
               <button className="primary-button" type="button" disabled={sendingOtp || !phoneReady} aria-busy={sendingOtp} onClick={() => void handleSendOtpWizard()}>
                 {sendingOtp ? experienceCopy.otpSending : (isGoudhanExperience ? copy.requestVerification : t("public.sendOtp"))} <ArrowRight size={18} />
               </button>
+              {supporterRoutingChecking && (
+                <p className="info-message" role="status" aria-live="polite">
+                  {t("account.login.checking")}
+                </p>
+              )}
               <aside className="referral-invite-note" aria-label={t("public.alreadySigned")}>
                 <BadgeCheck size={18} />
                 <div>
@@ -2486,6 +2543,7 @@ export function PublicCampaignPage({
                   title={experienceCopy.structuredLocationTitle}
                   help={experienceCopy.structuredLocationHelp}
                   labels={locationLabels}
+                  unavailableMessage={t("public.canonicalLocationUnavailable")}
                   onConfirmCanonicalReference={(locationReference) =>
                     setPublicForm((current) => ({ ...current, locationReference }))
                   }
@@ -2593,6 +2651,18 @@ export function PublicCampaignPage({
                       : copy.notEntered}
                   </strong>
                 </span>
+                {publicForm.state.trim() ? (
+                  <span>{copy.locationLabels.state} <strong>{publicForm.state}</strong></span>
+                ) : null}
+                {publicForm.district.trim() ? (
+                  <span>{copy.locationLabels.district} <strong>{publicForm.district}</strong></span>
+                ) : null}
+                {publicForm.block.trim() ? (
+                  <span>{copy.locationLabels.block} <strong>{publicForm.block}</strong></span>
+                ) : null}
+                {publicForm.panchayat.trim() ? (
+                  <span>{copy.locationLabels.panchayat} <strong>{publicForm.panchayat}</strong></span>
+                ) : null}
                 <span>
                   {copy.reviewAuthority}{" "}
                   <strong>
@@ -3151,6 +3221,7 @@ export function PublicCampaignPage({
                           title={experienceCopy.structuredLocationTitle}
                           help={experienceCopy.structuredLocationHelp}
                           labels={locationLabels}
+                          unavailableMessage={t("public.canonicalLocationUnavailable")}
                           onConfirmCanonicalReference={setCoordinatorLocationReference}
                         />
                         {coordinatorLevel === "ward" && (
@@ -3480,6 +3551,20 @@ export function PublicCampaignPage({
               aria-live={publicMessageIsError ? "assertive" : "polite"}
             >
               {displayPublicMessage}
+              {publicMessage === "existing_supporter_duplicate" && (
+                <>
+                  {" "}
+                  <a
+                    className="primary-link-button"
+                    href={shareLinks.whatsapp}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => trackShareClick("whatsapp")}
+                  >
+                    <Share2 size={16} /> {t("public.shareCampaign")}
+                  </a>
+                </>
+              )}
             </p>
           )}
         </form>

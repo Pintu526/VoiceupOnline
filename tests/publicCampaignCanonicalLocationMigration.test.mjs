@@ -247,6 +247,9 @@ test("C11 source fence uses only the canonical public path and preserves legacy 
   assert.match(component, /setState\(loadingState\(values\)\)/u);
   assert.match(component, /status: "empty"/u);
   assert.match(component, /status: "error"/u);
+  assert.match(component, /role="status">\{unavailableMessage\}/u);
+  assert.doesNotMatch(component, /Structured location is temporarily unavailable/u);
+  assert.match(page, /unavailableMessage=\{t\("public\.canonicalLocationUnavailable"\)\}/u);
   assert.doesNotMatch(`${component}\n${model}`, /OdishaLgdGenerated|indiaMasterGeography|\.\.\/\.\.\/geography\.ts|synthetic/iu);
   assert.doesNotMatch(`${component}\n${model}`, /LOCATION_API_KEY|SUPABASE_SERVICE_ROLE_KEY|SUPABASE_DB_URL/u);
 

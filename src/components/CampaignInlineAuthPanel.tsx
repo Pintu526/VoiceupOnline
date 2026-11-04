@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowRight, BriefcaseBusiness, KeyRound, Mail, ShieldCheck } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, KeyRound, Mail, ShieldCheck, UserRound } from "lucide-react";
 import {
   AccountAccessError,
   getAuthorizedDestinations,
@@ -19,18 +19,25 @@ import {
   getCurrentSupporterIdentity,
   loginSupporterWithEmail,
   logoutSupporter,
+  registerSupporterWithEmailForContext,
   requestSupporterEmailOtp,
   requestSupporterPasswordRecovery,
   SupporterAuthError,
   verifySupporterEmailOtp
 } from "../supporterAuth.ts";
+import {
+  claimHistoricalSupporterRoutingGrant,
+  resolveAuthenticatedSupporterRouting
+} from "../supporterRouting.ts";
 import { PasswordField } from "../ui/PasswordField";
 
-type SignInMethod = "password" | "email_otp";
+type SignInMethod = "password" | "email_otp" | "register";
 
 interface CampaignInlineAuthPanelProps {
   active: boolean;
   context: CampaignAuthContext;
+  routingToken?: string;
+  onContinueSigning?: () => void;
 }
 
 function safeMessage(error: unknown, t: (key: string) => string): string {
@@ -47,7 +54,12 @@ function safeMessage(error: unknown, t: (key: string) => string): string {
   return t("account.login.failed");
 }
 
-export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthPanelProps) {
+export function CampaignInlineAuthPanel({
+  active,
+  context,
+  routingToken = "",
+  onContinueSigning
+}: CampaignInlineAuthPanelProps) {
   const { t } = useTranslation();
   const returnPath = getCampaignLoginPath(context);
   const [method, setMethod] = useState<SignInMethod>("password");
@@ -60,6 +72,7 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
   const [isError, setIsError] = useState(false);
   const [manifest, setManifest] = useState<VoiceupAccessManifest | null>(null);
   const [accessMissing, setAccessMissing] = useState(false);
+  const [canContinueSigning, setCanContinueSigning] = useState(false);
 
   function openDestination(value: VoiceupAccessManifest, destination: AccessDestination) {
     if (destination.workspaceId) selectVoiceupWorkspace(destination.workspaceId);
@@ -80,6 +93,34 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
     setMessage(t("account.login.noCampaignAccess"));
   }
 
+  async function finishAuthenticatedRouting() {
+    if (routingToken) {
+      const routing = await resolveAuthenticatedSupporterRouting(
+        context.campaignSlug,
+        routingToken
+      );
+      if (routing.route === "claim_available" && routing.claimGrant) {
+        await claimHistoricalSupporterRoutingGrant(routing.claimGrant);
+      } else if (routing.route === "eligible_to_sign") {
+        setManifest(await loadVoiceupAccessManifest());
+        setAccessMissing(true);
+        setCanContinueSigning(true);
+        setIsError(false);
+        setMessage(t("account.login.noCampaignAccess"));
+        return;
+      } else if (routing.route === "identity_not_linked") {
+        setManifest(await loadVoiceupAccessManifest());
+        setAccessMissing(true);
+        setCanContinueSigning(false);
+        setIsError(false);
+        setMessage(t("account.login.accessUnavailable"));
+        return;
+      }
+    }
+    setCanContinueSigning(false);
+    resolveManifest(await loadVoiceupAccessManifest());
+  }
+
   useEffect(() => {
     if (!active) return;
     let current = true;
@@ -89,8 +130,7 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
         if (!current || !identity) return;
         setEmail(identity.email);
         setBusy(true);
-        const value = await loadVoiceupAccessManifest();
-        if (current) resolveManifest(value);
+        await finishAuthenticatedRouting();
       } catch {
         // Missing or expired sessions leave the normal sign-in controls available.
       } finally {
@@ -98,9 +138,9 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
       }
     })();
     return () => { current = false; };
-    // The campaign context is immutable while this public campaign is mounted.
+    // Re-run when a debounced precheck arrives for an already authenticated user.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
+  }, [active, context.campaignId, context.campaignSlug, routingToken]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -108,6 +148,14 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
     setIsError(false);
     setAccessMissing(false);
     try {
+      if (method === "register") {
+        setMessage(t("account.login.creating"));
+        await registerSupporterWithEmailForContext(email, password, returnPath);
+        setPassword("");
+        setMethod("password");
+        setMessage(t("account.login.registrationSent"));
+        return;
+      }
       if (method === "email_otp") {
         if (!otpSent) {
           await requestSupporterEmailOtp(email, returnPath);
@@ -123,8 +171,7 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
         await loginSupporterWithEmail(email, password);
         setPassword("");
       }
-      const value = await loadVoiceupAccessManifest();
-      resolveManifest(value);
+      await finishAuthenticatedRouting();
     } catch (error) {
       setPassword("");
       setIsError(true);
@@ -159,6 +206,7 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
       await logoutSupporter();
       setManifest(null);
       setAccessMissing(false);
+      setCanContinueSigning(false);
       setEmail("");
       setPassword("");
       setOtp("");
@@ -199,6 +247,11 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
           <button className="secondary-button" type="button" disabled={busy} onClick={() => void switchAccount()}>
             {t("account.login.useAnotherAccount")}
           </button>
+          {canContinueSigning && onContinueSigning && (
+            <button className="primary-button" type="button" disabled={busy} onClick={onContinueSigning}>
+              {t("account.login.supportTab")}
+            </button>
+          )}
         </div>
       ) : (
         <>
@@ -209,19 +262,22 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
             <button type="button" aria-pressed={method === "email_otp"} onClick={() => { setMethod("email_otp"); setMessage(""); }}>
               <Mail size={16} aria-hidden="true" /> {t("account.login.emailOtpMethod")}
             </button>
+            <button type="button" aria-pressed={method === "register"} onClick={() => { setMethod("register"); setOtpSent(false); setMessage(""); }}>
+              <UserRound size={16} aria-hidden="true" /> {t("account.login.create")}
+            </button>
           </div>
           <form className="form-stack campaign-inline-auth-form" onSubmit={submit} aria-busy={busy}>
             <label className="field" htmlFor="campaign-account-email">
               <span className="label">{t("account.login.email")}</span>
               <input id="campaign-account-email" type="email" autoComplete="email" required value={email} onChange={(event) => { setEmail(event.target.value); setOtpSent(false); setOtp(""); }} />
             </label>
-            {method === "password" && (
+            {(method === "password" || method === "register") && (
               <label className="field" htmlFor="campaign-account-password">
                 <span className="label">{t("account.login.password")}</span>
                 <PasswordField
                   id="campaign-account-password"
                   name="password"
-                  autoComplete="current-password"
+                  autoComplete={method === "register" ? "new-password" : "current-password"}
                   required
                   disabled={busy}
                   value={password}
@@ -238,7 +294,7 @@ export function CampaignInlineAuthPanel({ active, context }: CampaignInlineAuthP
               </label>
             )}
             <button className="primary-button" type="submit" disabled={busy}>
-              {busy ? t("account.login.working") : method === "email_otp" ? t(otpSent ? "account.login.verifyOtp" : "account.login.sendOtp") : t("account.login.continue")}
+              {busy ? t("account.login.working") : method === "register" ? t("account.login.create") : method === "email_otp" ? t(otpSent ? "account.login.verifyOtp" : "account.login.sendOtp") : t("account.login.continue")}
               {!busy && <ArrowRight size={17} aria-hidden="true" />}
             </button>
             {method === "email_otp" && otpSent && (

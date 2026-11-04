@@ -656,15 +656,6 @@
   margin: 0;
 }
 
-.public-location-accuracy {
-  color: var(--success) !important;
-  font-weight: 800;
-}
-
-.public-location-accuracy.is-poor {
-  color: #b45309 !important;
-}
-
 .public-structured-location {
   background: rgba(255, 255, 255, 0.84);
   border: 1px solid rgba(37, 99, 235, 0.16);
@@ -3106,5 +3097,4 @@ html[lang="or"] .public-campaign-v2[data-premium-presentation="premium-national"
     flex-wrap: wrap;
   }
 }
-
 

@@ -283,14 +283,13 @@ test("L. signing recovery stays in the tab and never restores OTP proof", () => 
   assert.doesNotMatch(publicPageSource, /window\.localStorage/);
 });
 
-test("M. optional GPS remains explicit unverified observation evidence", () => {
-  assert.match(publicPageSource, /BrowserGPSAdapter/);
-  assert.match(publicPageSource, /gpsAdapter\.requestPosition/);
-  assert.match(publicPageSource, /reading\.accuracyMeters/);
+test("M. public signing has no GPS controls and retains PIN observation evidence", () => {
+  assert.doesNotMatch(publicPageSource, /BrowserGPSAdapter|GPSAdapter|gpsAdapter|requestSmartLocation|Use My Location|Enter Manually/);
+  assert.match(publicPageSource, /<IndiaLocationFields/);
+  assert.match(publicPageSource, /fixedCountry="India"/);
   assert.match(publicPageSource, /createObservedLocationReference/);
-  assert.match(publicPageSource, /kind: "gps"/);
-  assert.match(publicPageSource, /verificationState: "unverified_observation"|"browser_gps"/);
-  assert.doesNotMatch(publicPageSource, /console\.(log|info|debug|warn)\([^)]*reading\.(?:latitude|longitude)/);
+  assert.match(publicPageSource, /kind: "pin"/);
+  assert.match(publicPageSource, /"public_signer_manual"/);
 });
 
 test("N. post-sign photo processing uses private signed upload without base64", () => {

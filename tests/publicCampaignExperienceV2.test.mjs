@@ -120,8 +120,9 @@ test("signup retains required name and mobile with optional email and location",
   assert.match(page, /required=\{isRequired\("name"\)\}/);
   assert.match(page, /inputMode="tel"/);
   assert.match(page, /locationTitle: "Location \(Optional\)"/);
-  assert.match(page, /Use My Location/);
-  assert.match(page, /Enter Manually/);
+  assert.doesNotMatch(page, /Use My Location|Enter Manually|requestSmartLocation|GPS/);
+  assert.match(page, /<IndiaLocationFields/);
+  assert.match(page, /fixedCountry="India"/);
   assert.match(page, /label=\{`\$\{copy\.emailLabel\} \(\$\{t\("public\.optional"\)\}\)`\}/);
 });
 

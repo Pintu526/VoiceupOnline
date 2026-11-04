@@ -2229,6 +2229,13 @@ function App() {
         }
         if (
           error instanceof PublicSignatureSubmissionError &&
+          error.code === "screen_verification_existing_supporter"
+        ) {
+          setPublicMessage("existing_supporter_duplicate");
+          return;
+        }
+        if (
+          error instanceof PublicSignatureSubmissionError &&
           (error.code === "otp_verification_required" || error.code === "invalid_idempotency_key")
         ) {
           publicSigningSubmissionRef.current = null;
@@ -2419,6 +2426,7 @@ function App() {
         : current
       );
       setOtpMessage("");
+      setPublicMessage("");
       if (
         isBackendConfigured &&
         activeCampaign?.slug &&

@@ -42,7 +42,7 @@
     "villageLabel": "Village / locality",
     "villagePlaceholder": "Enter village, ward or locality",
     "locationTitle": "Location details",
-    "locationHelp": "GPS detection is optional. Please select your administrative location to continue.",
+    "locationHelp": "Please select your administrative location using the fields below.",
     "consent": "I consent to add my verified support and to the secure use of my details only for this campaign.",
     "coordinatorRequestBody": "I have supported Gau Samman Ahvaan Abhiyan and would like to join the existing Coordinator Network approval workflow."
   },
@@ -2409,6 +2409,7 @@
     "review": "Review",
     "submitSupport": "Submit support",
     "consentRequiredInline": "Please review and accept both consent confirmations before signing.",
+    "existingSupporterDuplicate": "This campaign has already been supported using this number. No new signature was added. You can still share the campaign.",
     "thankYou": "Thank you",
     "welcomeBack": "Welcome back",
     "alreadySigned": "Already signed?",

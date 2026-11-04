@@ -407,7 +407,7 @@ test("GSAA manual fallback preserves editable lower levels, location strings and
   }
 });
 
-test("GSAA location parent changes clear stale PIN and GPS remains optional and non-blocking", () => {
+test("GSAA location parent changes clear stale PIN and manual fields remain available without GPS", () => {
   const selectStateSource = indiaLocationSource.slice(
     indiaLocationSource.indexOf("function selectState"),
     indiaLocationSource.indexOf("function selectDistrict")
@@ -424,10 +424,8 @@ test("GSAA location parent changes clear stale PIN and GPS remains optional and 
   assert.match(selectStateSource, /district: "",\s*block: "",\s*panchayat: "",\s*postalCode: ""/);
   assert.match(selectDistrictSource, /block: "",\s*panchayat: "",\s*postalCode: ""/);
   assert.match(selectBlockSource, /panchayat: "",\s*postalCode: ""/);
-  assert.match(publicCampaignSource, /onClick=\{requestSmartLocation\}/);
-  assert.match(publicCampaignSource, /async function requestSmartLocation\(\)/);
-  assert.match(
-    publicCampaignSource,
-    /catch \{\s*setLocationAccuracy\(null\);\s*setLocationMessage\(experienceCopy\.locationUnavailable\);\s*\}/
-  );
+  assert.doesNotMatch(publicCampaignSource, /BrowserGPSAdapter|GPSAdapter|gpsAdapter|requestSmartLocation|Use My Location|Enter Manually/);
+  assert.match(publicCampaignSource, /<IndiaLocationFields/);
+  assert.match(publicCampaignSource, /fixedCountry="India"/);
+  assert.match(publicCampaignSource, /requiredFields=\{requiredFields\}/);
 });

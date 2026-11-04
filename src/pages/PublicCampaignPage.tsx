@@ -51,10 +51,6 @@ import { GlobalLocationFields } from "../components/GlobalLocationFields";
 import { ReferralQrPreview } from "../components/ReferralQrPreview";
 import { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";
 import { GauSammanApprovedContent } from "../components/GauSammanApprovedContent";
-import {
-  BrowserGPSAdapter,
-  type GPSAdapter
-} from "../businessOs/geography/index.ts";
 import { PublicCampaignCanonicalLocationDisplay } from "../businessOs/location/ui";
 import {
   createObservedLocationReference,
@@ -121,6 +117,8 @@ import {
   getPublicSigningJourneyStorageKey,
   isValidPublicSignerEmail,
   readPublicSigningDraft,
+  transitionPublicSigningStep,
+  type PublicSigningStepId,
   writePublicSigningDraft
 } from "../publicSigningJourney";
 import { createConsentVersion } from "../utils/consent";
@@ -175,11 +173,10 @@ interface PublicCampaignPageProps {
   onRefreshMovementRequests?: () => void | Promise<void>;
   onSubmitCoordinatorApplication?: () => void | Promise<void>;
   onStartNewJourney: () => void;
-  gpsAdapter?: GPSAdapter;
   onSubmit: (event: FormEvent) => void | Promise<void>;
 }
 
-type SigningStepId = "phone" | "otp" | "profile" | "address" | "review" | "done";
+type SigningStepId = PublicSigningStepId;
 type InvolvementPanel = "none" | "volunteer" | "coordinator";
 
 const signingSteps: Array<{ id: SigningStepId }> = [
@@ -190,8 +187,6 @@ const signingSteps: Array<{ id: SigningStepId }> = [
   { id: "review" },
   { id: "done" }
 ];
-
-const defaultPublicGpsAdapter = new BrowserGPSAdapter();
 
 function isPublicFailureMessage(message: string) {
   return (
@@ -475,14 +470,6 @@ interface PublicExperienceCopy {
   campaignAtGlance: string;
   locationTitle: string;
   locationHelp: string;
-  useMyLocation: string;
-  enterManually: string;
-  locating: string;
-  locationReady: string;
-  locationPoor: string;
-  locationUnavailable: string;
-  locationAlreadyRequested: string;
-  accuracy: string;
   submitWorking: string;
   otpSending: string;
   otpVerifying: string;
@@ -512,15 +499,7 @@ const publicExperienceCopyEn: PublicExperienceCopy = {
   signNow: "SIGN NOW",
   campaignAtGlance: "Campaign at a glance",
   locationTitle: "Location (Optional)",
-  locationHelp: "Location is optional. Coordinates are never stored, logged, or shown publicly.",
-  useMyLocation: "Use My Location",
-  enterManually: "Enter Manually",
-  locating: "Checking location permission...",
-  locationReady: "Location detected. Review and edit the prefilled campaign area below.",
-  locationPoor: "Location accuracy is low. Please review every field or enter it manually.",
-  locationUnavailable: "Location could not be detected. Continue by entering it manually.",
-  locationAlreadyRequested: "Location was already requested in this signing session. Continue manually.",
-  accuracy: "Accuracy",
+  locationHelp: "Location is optional. Choose your administrative area using the fields below.",
   submitWorking: "Recording support...",
   otpSending: "Sending...",
   otpVerifying: "Verifying...",
@@ -568,15 +547,7 @@ const publicExperienceCopy: Record<Language, PublicExperienceCopy> = {
     signNow: "अभी हस्ताक्षर करें",
     campaignAtGlance: "अभियान एक नज़र में",
   locationTitle: "स्थान (वैकल्पिक)",
-    locationHelp: "स्थान वैकल्पिक है। निर्देशांक कभी संग्रहीत, लॉग या सार्वजनिक नहीं किए जाते।",
-    useMyLocation: "मेरा स्थान उपयोग करें",
-    enterManually: "मैन्युअल दर्ज करें",
-    locating: "स्थान अनुमति जाँची जा रही है...",
-    locationReady: "स्थान मिला। नीचे पहले से भरे अभियान क्षेत्र की समीक्षा और संपादन करें।",
-    locationPoor: "स्थान की सटीकता कम है। हर फ़ील्ड जाँचें या मैन्युअल दर्ज करें।",
-    locationUnavailable: "स्थान नहीं मिला। मैन्युअल रूप से दर्ज करके जारी रखें।",
-    locationAlreadyRequested: "इस हस्ताक्षर सत्र में स्थान पहले ही माँगा गया था। मैन्युअल रूप से जारी रखें।",
-    accuracy: "सटीकता",
+    locationHelp: "स्थान वैकल्पिक है। नीचे दिए गए फ़ील्ड से अपना प्रशासनिक स्थान चुनें।",
     submitWorking: "समर्थन दर्ज हो रहा है...",
     otpSending: "भेजा जा रहा है...",
     otpVerifying: "सत्यापित हो रहा है...",
@@ -621,15 +592,7 @@ const publicExperienceCopy: Record<Language, PublicExperienceCopy> = {
     signNow: "ଏବେ ସହି କରନ୍ତୁ",
     campaignAtGlance: "ଅଭିଯାନ ଏକ ନଜରରେ",
   locationTitle: "ସ୍ଥାନ (ବୈକଳ୍ପିକ)",
-    locationHelp: "ସ୍ଥାନ ବୈକଳ୍ପିକ। ସମନ୍ୱୟ କେବେ ସଂରକ୍ଷିତ, ଲଗ୍ କିମ୍ବା ସାର୍ବଜନୀନ ହୁଏ ନାହିଁ।",
-    useMyLocation: "ମୋ ସ୍ଥାନ ବ୍ୟବହାର କରନ୍ତୁ",
-    enterManually: "ନିଜେ ଲେଖନ୍ତୁ",
-    locating: "ସ୍ଥାନ ଅନୁମତି ଯାଞ୍ଚ ହେଉଛି...",
-    locationReady: "ସ୍ଥାନ ମିଳିଲା। ତଳେ ପୂର୍ବପୂରଣ ଅଭିଯାନ କ୍ଷେତ୍ର ସମୀକ୍ଷା ଏବଂ ସମ୍ପାଦନ କରନ୍ତୁ।",
-    locationPoor: "ସ୍ଥାନ ସଠିକତା କମ୍। ପ୍ରତ୍ୟେକ କ୍ଷେତ୍ର ଯାଞ୍ଚ କିମ୍ବା ନିଜେ ଲେଖନ୍ତୁ।",
-    locationUnavailable: "ସ୍ଥାନ ମିଳିଲା ନାହିଁ। ନିଜେ ଲେଖି ଜାରି ରଖନ୍ତୁ।",
-    locationAlreadyRequested: "ଏହି ସହି ସେସନରେ ସ୍ଥାନ ପୂର୍ବରୁ ଅନୁରୋଧ ହୋଇଛି। ନିଜେ ଲେଖନ୍ତୁ।",
-    accuracy: "ସଠିକତା",
+    locationHelp: "ସ୍ଥାନ ବୈକଳ୍ପିକ। ତଳେ ଥିବା କ୍ଷେତ୍ରଗୁଡ଼ିକରୁ ପ୍ରଶାସନିକ ସ୍ଥାନ ବାଛନ୍ତୁ।",
     submitWorking: "ସମର୍ଥନ ରେକର୍ଡ ହେଉଛି...",
     otpSending: "ପଠାଯାଉଛି...",
     otpVerifying: "ଯାଞ୍ଚ ହେଉଛି...",
@@ -720,7 +683,6 @@ export function PublicCampaignPage({
   onRefreshMovementRequests,
   onSubmitCoordinatorApplication,
   onStartNewJourney,
-  gpsAdapter = defaultPublicGpsAdapter,
   onSubmit
 }: PublicCampaignPageProps) {
   const { language, t } = useTranslation();
@@ -811,9 +773,15 @@ export function PublicCampaignPage({
     ? t("goudhanCampaign.locationHelp")
     : experienceCopy.locationHelp;
   const displayPublicMessage =
-    publicMessage === "consent_required" ? t("public.consentRequiredInline") : publicMessage;
+    publicMessage === "consent_required"
+      ? t("public.consentRequiredInline")
+      : publicMessage === "existing_supporter_duplicate"
+        ? t("public.existingSupporterDuplicate")
+        : publicMessage;
   const publicMessageIsError =
-    publicMessage === "consent_required" || isPublicFailureMessage(displayPublicMessage);
+    publicMessage === "consent_required" ||
+    publicMessage === "existing_supporter_duplicate" ||
+    isPublicFailureMessage(displayPublicMessage);
   const safeOtpMessage = getSafeOtpDisplayMessage(otpMessage, {
     hostname: typeof window === "undefined" ? "" : window.location.hostname,
     isDevelopment: import.meta.env.DEV,
@@ -919,9 +887,6 @@ export function PublicCampaignPage({
   const [sendingOtp, setSendingOtp] = useState(false);
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [locationRequested, setLocationRequested] = useState(false);
-  const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
-  const [locationMessage, setLocationMessage] = useState("");
   const [postSignPanel, setPostSignPanel] = useState<InvolvementPanel>("none");
   const [coordinatorLearnMore, setCoordinatorLearnMore] = useState(false);
   const [communicationConsent, setCommunicationConsent] = useState(false);
@@ -965,6 +930,7 @@ export function PublicCampaignPage({
   const publicMessageRef = useRef<HTMLParagraphElement>(null);
   const movementRequestResultRef = useRef<HTMLHeadingElement>(null);
   const previousWizardStepRef = useRef<SigningStepId>(wizardStep);
+  const resumeWizardStepRef = useRef<SigningStepId>("profile");
   const hasSignedCampaign = lastSignedSigner?.campaignId === campaign.id;
   const publicVerificationComplete = Boolean(
     publicForm.otpVerificationToken &&
@@ -1401,18 +1367,13 @@ export function PublicCampaignPage({
       setWizardStep("done");
       return;
     }
-    if (publicVerificationComplete && (wizardStep === "phone" || wizardStep === "otp")) {
-      setWizardStep("profile");
-      return;
-    }
-    if (
-      !hasSignedCampaign &&
-      !publicVerificationComplete &&
-      wizardStep !== "phone" &&
-      wizardStep !== "otp"
-    ) {
-      setWizardStep("phone");
-    }
+    const transition = transitionPublicSigningStep(
+      wizardStep,
+      publicVerificationComplete,
+      resumeWizardStepRef.current
+    );
+    resumeWizardStepRef.current = transition.resumeStep;
+    if (transition.step !== wizardStep) setWizardStep(transition.step);
   }, [hasSignedCampaign, publicVerificationComplete, wizardStep]);
 
   useEffect(() => {
@@ -1584,65 +1545,11 @@ export function PublicCampaignPage({
   }
 
   function handleStartNewJourney() {
+    resumeWizardStepRef.current = "profile";
     setCommunicationConsent(false);
     setAppealConsent(false);
     setCampaignConsent(false);
     onStartNewJourney();
-  }
-
-  async function requestSmartLocation() {
-    if (locationRequested) {
-      setLocationMessage(experienceCopy.locationAlreadyRequested);
-      return;
-    }
-    setLocationRequested(true);
-    setLocationMessage(experienceCopy.locating);
-    if (!gpsAdapter.isAvailable()) {
-      setLocationMessage(experienceCopy.locationUnavailable);
-      return;
-    }
-    try {
-      const reading = await gpsAdapter.requestPosition({
-        enableHighAccuracy: true,
-        timeoutMs: 10_000,
-        maximumAgeMs: 120_000
-      });
-      const accuracy = Math.round(reading.accuracyMeters);
-      setLocationAccuracy(accuracy);
-      const assignmentPrefill = {
-        country: publicForm.country || campaign.country || (isGlobalMode ? "" : "India"),
-        state: publicForm.state || campaign.state,
-        district: publicForm.district || campaign.district,
-        block: publicForm.block || campaign.block,
-        panchayat: publicForm.panchayat || campaign.panchayat,
-        postalCode: publicForm.postalCode || campaign.postalCode
-      };
-      setPublicForm(
-        applySignerLocationRestriction(
-          campaign,
-          {
-            ...publicForm,
-            ...assignmentPrefill,
-            locationReference: createObservedLocationReference(
-              assignmentPrefill,
-              "browser_gps",
-              [{
-                kind: "gps",
-                valueSnapshot: `${reading.latitude.toFixed(6)},${reading.longitude.toFixed(6)};accuracy=${accuracy}m`,
-                confidence: accuracy <= 50 ? 0.9 : accuracy <= 250 ? 0.65 : 0.35
-              }]
-            )
-          },
-          organization
-        )
-      );
-      setLocationMessage(
-        accuracy > 250 ? experienceCopy.locationPoor : experienceCopy.locationReady
-      );
-    } catch {
-      setLocationAccuracy(null);
-      setLocationMessage(experienceCopy.locationUnavailable);
-    }
   }
 
   async function copyReferralText(
@@ -2565,20 +2472,6 @@ export function PublicCampaignPage({
                   <strong>{locationSectionTitle}</strong>
                   <span>{locationSectionHelp}</span>
                 </div>
-                <div className="button-row">
-                  <button className="secondary-button" type="button" disabled={locationRequested} onClick={requestSmartLocation}>
-                    <MapPin size={17} /> {experienceCopy.useMyLocation}
-                  </button>
-                  <button className="secondary-button" type="button" onClick={() => setLocationMessage("")}>
-                    {experienceCopy.enterManually}
-                  </button>
-                </div>
-                {locationAccuracy !== null && (
-                  <span className={locationAccuracy > 250 ? "public-location-accuracy is-poor" : "public-location-accuracy"}>
-                    {experienceCopy.accuracy}: ±{locationAccuracy} m
-                  </span>
-                )}
-                {locationMessage && <p role="status">{locationMessage}</p>}
                 <PublicCampaignCanonicalLocationDisplay
                   campaignSlug={campaign.slug}
                   values={{

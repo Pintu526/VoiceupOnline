@@ -3,6 +3,27 @@ import type { blankSigner } from "./constants";
 export const PUBLIC_SIGNING_JOURNEY_VERSION = "public-signing-v2";
 const PUBLIC_SIGNING_STORAGE_PREFIX = "voiceup-public-signing-progress";
 
+export type PublicSigningStepId = "phone" | "otp" | "profile" | "address" | "review" | "done";
+
+export function transitionPublicSigningStep(
+  currentStep: PublicSigningStepId,
+  verificationComplete: boolean,
+  resumeStep: PublicSigningStepId
+): { step: PublicSigningStepId; resumeStep: PublicSigningStepId } {
+  if (verificationComplete && (currentStep === "phone" || currentStep === "otp")) {
+    return { step: resumeStep, resumeStep: "profile" };
+  }
+  if (
+    !verificationComplete &&
+    currentStep !== "phone" &&
+    currentStep !== "otp" &&
+    currentStep !== "done"
+  ) {
+    return { step: "phone", resumeStep: currentStep };
+  }
+  return { step: currentStep, resumeStep };
+}
+
 export function isValidPublicSignerEmail(email: string): boolean {
   const normalized = email.trim();
   return normalized.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);

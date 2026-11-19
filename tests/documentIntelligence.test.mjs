@@ -3,11 +3,11 @@ import test from "node:test";
 import {
   analyzeDocument,
   createDocumentLanguageRegistry,
-  createIndiaDocumentReferenceData,
   englishDocumentLanguagePack,
   extractStructuredDocumentFields,
   normalizeDocumentText
 } from "../src/documentIntelligence/index.ts";
+import { createIndiaDocumentReferenceData } from "../src/documentIntelligence/references/india.ts";
 
 const referenceData = createIndiaDocumentReferenceData();
 

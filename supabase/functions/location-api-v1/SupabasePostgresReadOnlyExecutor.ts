@@ -13,6 +13,10 @@ export class SupabasePostgresReadOnlyExecutor implements PostgresReadOnlyQueryEx
     this.pool = new Pool(connectionString, 1);
   }
 
+  async close(): Promise<void> {
+    await this.pool.end();
+  }
+
   async query<Row extends Record<string, unknown>>(
     statement: string,
     parameters: readonly unknown[]

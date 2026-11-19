@@ -62,6 +62,7 @@ import { PasswordField } from "../../ui/PasswordField";
 import { ReferralQrPreview } from "../../components/ReferralQrPreview";
 import { QrCodeGraphic } from "../../components/QrCodeGraphic";
 import { GrowthConfigurationStudio } from "../../growth/components/GrowthConfigurationStudio";
+import { CampaignCertificateSettingsPanel } from "../../certificates/CampaignCertificateSettingsPanel";
 import { categories } from "../../constants";
 import { createId } from "../../lib";
 import {
@@ -96,6 +97,7 @@ import {
 } from "../../utils/campaignAdminProvisioning";
 import type { CampaignEntitlements } from "../../entitlements";
 import { useTranslation } from "../../i18n";
+import { SupporterMediaModerationPanel } from "../../components/SupporterMediaModerationPanel";
 
 interface CampaignsTabProps {
   campaignDraft: Campaign | null;
@@ -2283,6 +2285,19 @@ export function CampaignsTab({
                     />
                   </Field>
                 </div>
+                {isCampaignAdminRoute && campaignFormMode === "edit" && campaignDraft && (
+                  <>
+                    <CampaignCertificateSettingsPanel
+                    campaign={campaignDraft}
+                    workspaceId={getCurrentWorkspaceId()}
+                  />
+                    <SupporterMediaModerationPanel
+                      workspaceId={getCurrentWorkspaceId()}
+                      campaignId={campaignDraft.id}
+                      campaignSlug={campaignDraft.slug}
+                    />
+                  </>
+                )}
               </div>
             )}
 

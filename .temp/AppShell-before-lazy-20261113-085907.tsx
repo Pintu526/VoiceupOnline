@@ -1,0 +1,1688 @@
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
+import { motion } from "framer-motion";
+import {
+  Archive,
+  BarChart3,
+  AlertTriangle,
+  Command,
+  Copy,
+  Crosshair,
+  FileScan,
+  FileText,
+  Globe2,
+  HandCoins,
+  Landmark,
+  Megaphone,
+  MessageCircle,
+  Moon,
+  Network,
+  Plus,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Sun,
+  TrendingUp,
+  Trash2,
+  UsersRound,
+  WalletCards
+} from "lucide-react";
+import type { Campaign, Organization } from "../types";
+import type { AuthorityRule, Signer, ScanReviewItem, AuditLogEntry, IntegrationSettings, CommercialPackage, ConfirmationQueueItem, ScanCaptureMetadata } from "../types";
+import type { LocationDeletions, LocationDeletions as LD, LocationOverrides } from "../geography";
+import { NavButton, type Tab } from "../components/NavButton";
+import { LanguageSwitcher } from "../i18n";
+import { CommandPalette } from "../components/CommandPalette";
+import { AppToast } from "../components/AppToast";
+import { DashboardTab } from "../pages/app/DashboardTab";
+import { VbossModulePlaceholder } from "../pages/app/VbossModulePlaceholder";
+import { CampaignsTab } from "../pages/app/CampaignsTab";
+import { ActivityTab } from "../pages/app/ActivityTab";
+import { SaasTab } from "../pages/app/SaasTab";
+import { IdeasTab } from "../pages/app/IdeasTab";
+import { PublicCampaignPage } from "../pages/PublicCampaignPage";
+import type { getCampaignMetrics } from "../lib";
+import type { BillingCadence, BillingPlan } from "../types";
+import type { LocationDeletionLevel, LocationWithPin } from "../geography";
+import type { ScanReviewItem as SRI } from "../types";
+import type { ScanApprovalCounts } from "../scanApproval";
+import type { FormEvent } from "react";
+import { blankSigner } from "../constants";
+import type { AiCampaignCopilotResult } from "../ai/types";
+import { createId } from "../lib";
+import { getCampaignAdminUrl, getCampaignPublicUrl } from "../utils/campaign";
+import { formatAuthorityDisplay, getAppealAuthority } from "../utils/authority";
+import { getCreateCampaignBlockReason } from "../utils/subscription";
+import { getCampaignEntitlements, type AddOnPurchaseRequest, type CampaignEntitlements, type FeatureKey } from "../entitlements";
+import { GROWTH_FEATURE_FLAGS } from "../growth/constants";
+import type { GrowthRuntimeState, GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";
+import type { SupporterGrowthPortalModel } from "../growth/tree";
+import { useTranslation } from "../i18n";
+import { isGoudhanProductionCampaign } from "../config/goudhanProduction";
+
+const MovementCrmTab = lazy(() =>
+  import("../pages/app/MovementCrmTab").then((module) => ({ default: module.MovementCrmTab }))
+);
+const CoordinatorNetworkTab = lazy(() =>
+  import("../pages/app/CoordinatorNetworkTab").then((module) => ({ default: module.CoordinatorNetworkTab }))
+);
+const GrowthDashboardTab = lazy(() =>
+  import("../pages/app/GrowthDashboardTab").then((module) => ({ default: module.GrowthDashboardTab }))
+);
+const CommandCenterTab = lazy(() =>
+  import("../pages/app/CommandCenterTab").then((module) => ({ default: module.CommandCenterTab }))
+);
+const ScansTab = lazy(() =>
+  import("../pages/app/ScansTab").then((module) => ({ default: module.ScansTab }))
+);
+const ReportsTab = lazy(() =>
+  import("../pages/app/ReportsTab").then((module) => ({ default: module.ReportsTab }))
+);
+const EngagementTab = lazy(() =>
+  import("../pages/app/EngagementTab").then((module) => ({ default: module.EngagementTab }))
+);
+const AiCampaignCopilot = lazy(() => import("../pages/app/AiCampaignCopilot"));
+
+type AiReviewState = Record<string, "accepted" | "rejected" | "editing">;
+
+function addDays(dateValue: string, days: number) {
+  const baseDate = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();
+  baseDate.setDate(baseDate.getDate() + days);
+  return baseDate.toISOString().slice(0, 10);
+}
+
+function slugifyCampaignTitle(value: string) {
+  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return slug || `ai-campaign-${Date.now()}`;
+}
+
+function campaignSnapshot(campaign: Campaign | null | undefined) {
+  return campaign ? JSON.stringify(campaign) : "";
+}
+
+function readStoredIdList(storageKey: string) {
+  try {
+    const storedValue = window.localStorage.getItem(storageKey);
+    const parsedValue = storedValue ? JSON.parse(storedValue) : [];
+    return Array.isArray(parsedValue)
+      ? parsedValue.filter((value): value is string => typeof value === "string")
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeStoredIdList(storageKey: string, ids: string[]) {
+  try {
+    window.localStorage.setItem(storageKey, JSON.stringify(ids));
+  } catch {
+    // Campaign switching should keep working even when localStorage is unavailable.
+  }
+}
+
+function getCampaignSelectorStatus(campaign: Campaign) {
+  if (campaign.archivedAt) return "Archived";
+  return campaign.status === "Closed" ? "Completed" : campaign.status;
+}
+
+function getCampaignSelectorStatusData(campaign: Campaign) {
+  return campaign.archivedAt || campaign.status === "Closed" ? "Closed" : campaign.status;
+}
+
+function getCampaignAuthorityText(campaign: Campaign, authorities: AuthorityRule[]) {
+  const authority = getAppealAuthority(campaign, authorities);
+  return formatAuthorityDisplay(authority);
+}
+
+function getErrorDescription(error: unknown) {
+  if (error instanceof Error && error.message) return error.message;
+  return "The action could not be completed. Please retry after checking the campaign fields and connection.";
+}
+
+function ModuleSkeleton({ label }: { label: string }) {
+  return (
+    <div className="module-skeleton" role="status" aria-live="polite">
+      <span className="skeleton-line short" />
+      <span className="skeleton-line" />
+      <span className="skeleton-line" />
+      <span className="skeleton-card" />
+      <strong>{label}</strong>
+    </div>
+  );
+}
+
+interface ToastState {
+  open: boolean;
+  title: string;
+  description: string;
+}
+
+interface AppShellProps {
+  // Navigation
+  activeTab: Tab;
+  setActiveTab: React.Dispatch<React.SetStateAction<Tab>>;
+  theme: "light" | "dark";
+  setTheme: React.Dispatch<React.SetStateAction<"light" | "dark">>;
+  commandOpen: boolean;
+  setCommandOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  globalSearch: string;
+  setGlobalSearch: React.Dispatch<React.SetStateAction<string>>;
+  toast: ToastState;
+  setToast: React.Dispatch<React.SetStateAction<ToastState>>;
+
+  // Campaign selection
+  campaigns: Campaign[];
+  activeCampaignId: string;
+  setActiveCampaignId: React.Dispatch<React.SetStateAction<string>>;
+  activeCampaign: Campaign | undefined;
+  campaignDraft: Campaign | null;
+  setCampaignDraft: React.Dispatch<React.SetStateAction<Campaign | null>>;
+  campaignFormMode: "create" | "edit";
+  setCampaignFormMode: React.Dispatch<React.SetStateAction<"create" | "edit">>;
+  isCampaignAdminRoute: boolean;
+  campaignAdminSessionEmail: string;
+  campaignAdminCampaignId: string;
+  isAppRoute: boolean;
+  canAccessPlatformAdmin: boolean;
+
+  // Core state
+  signers: Signer[];
+  growthRuntime: GrowthRuntimeState;
+  setGrowthRuntime: React.Dispatch<React.SetStateAction<GrowthRuntimeState>>;
+  authorities: AuthorityRule[];
+  setAuthorities: React.Dispatch<React.SetStateAction<AuthorityRule[]>>;
+  organization: Organization;
+  setOrganization: React.Dispatch<React.SetStateAction<Organization>>;
+  scanItems: ScanReviewItem[];
+  setScanItems: React.Dispatch<React.SetStateAction<ScanReviewItem[]>>;
+  confirmationQueue: ConfirmationQueueItem[];
+  auditLogs: AuditLogEntry[];
+  integrations: IntegrationSettings;
+  setIntegrations: React.Dispatch<React.SetStateAction<IntegrationSettings>>;
+  commercialPackages: CommercialPackage[];
+  setCommercialPackages: React.Dispatch<React.SetStateAction<CommercialPackage[]>>;
+  locationOverrides: LocationOverrides;
+  locationDeletions: LocationDeletions;
+
+  // Metrics / computed
+  metrics: ReturnType<typeof getCampaignMetrics>;
+  authorityMatch: { authority: AuthorityRule; score: number } | undefined;
+  dailyTotals: Record<string, number>;
+  weeklyTotals: Record<string, number>;
+  stateTotals: Record<string, number>;
+  districtTotals: Record<string, number>;
+  blockTotals: Record<string, number>;
+  panchayatTotals: Record<string, number>;
+  campaignSigners: Signer[];
+
+  // SaaS section
+  saasSection: "organization" | "usage" | "packages" | "integrations" | "plans" | "entitlements";
+  setSaasSection: React.Dispatch<
+    React.SetStateAction<"organization" | "usage" | "packages" | "integrations" | "plans" | "entitlements">
+  >;
+
+  // Public signing (preview tab)
+  publicForm: typeof blankSigner;
+  setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;
+  publicMessage: string;
+  lastSignedSigner: Signer | null;
+  growthSnapshot?: GrowthSupporterSnapshot;
+  growthPortal?: SupporterGrowthPortalModel;
+  otpInput: string;
+  setOtpInput: React.Dispatch<React.SetStateAction<string>>;
+  otpMessage: string;
+
+  // Scan
+  scanText: string;
+  setScanText: React.Dispatch<React.SetStateAction<string>>;
+  isScanning: boolean;
+  scanMessage: string;
+
+  // Engagement
+  broadcastMessage: string;
+  setBroadcastMessage: React.Dispatch<React.SetStateAction<string>>;
+  copiedMessage: string;
+
+  // CSV
+  locationCsvFile: File | null;
+  setLocationCsvFile: React.Dispatch<React.SetStateAction<File | null>>;
+  authorityCsvFile: File | null;
+  setAuthorityCsvFile: React.Dispatch<React.SetStateAction<File | null>>;
+  csvUploadMessage: string;
+  setCsvUploadMessage: React.Dispatch<React.SetStateAction<string>>;
+
+  // Backend status
+  backendMessage: string;
+
+  // Command palette items
+  filteredCommandItems: Array<{ label: string; detail: string; action: () => void }>;
+
+  // Handlers
+  onCreateCampaign: () => void;
+  onCloneCampaign: () => void;
+  onArchiveCampaign: () => void;
+  onDeleteCampaign: () => void;
+  onSaveCampaign: (event: FormEvent) => void;
+  onPublishCampaign: () => void;
+  onSubmitPublicSignature: (event: FormEvent) => void;
+  onStartPublicSigningJourney: () => void;
+  onSendOtp: () => void;
+  onVerifyOtp: () => import("../publicSigningJourney").PublicSigningVerificationOutcome | Promise<import("../publicSigningJourney").PublicSigningVerificationOutcome>;
+  onSavePublicDraft?: () => void | Promise<void>;
+  onPublicCommunicationConsentChange?: (granted: boolean) => void | Promise<void>;
+  onSubmitPublicCoordinatorApplication?: () => void | Promise<void>;
+  onGrowthShare: (share: GrowthShareContext) => void;
+  secureFieldUploadAvailable: boolean;
+  secureFieldUploadMessage: string;
+  onUploadScan: (file: File, metadata?: ScanCaptureMetadata) => Promise<boolean>;
+  onOpenPrivateScan: (scan: SRI) => Promise<string>;
+  onCreateManualScanItem: () => void;
+  onUpdateScanParsedSigner: (
+    scanId: string,
+    field: keyof SRI["parsedSigner"],
+    value: string
+  ) => void;
+  onApproveScan: (scan: SRI | SRI[]) => Promise<ScanApprovalCounts>;
+  onUpdateSignerStatus: (signerId: string, status: Signer["status"]) => void;
+  onAddAuthorityRule: () => void;
+  onAddAdminLocationOption: (values: LocationWithPin) => boolean | Promise<boolean>;
+  onRemoveAdminLocationOption: (values: LocationWithPin, level: LocationDeletionLevel) => void;
+  onUploadLocationCsv: (file: File) => void;
+  onUploadAuthorityCsv: (file: File) => void;
+  onUpdateCampaignMedia: (file: File) => void;
+  onUpdateCampaignDonationQr: (file: File) => void;
+  onProvisionCampaignAdmin: (email: string, password: string) => void | Promise<void>;
+  campaignAdminProvisioningPending: boolean;
+  campaignAdminProvisioningMessage: string;
+  onSelectSubscriptionPlan: (planName: BillingPlan) => void;
+  onStartOneDayTrial: () => void;
+  onActivateSubscriptionManually: () => void;
+  onMarkSubscriptionPastDue: () => void;
+  onCancelSubscription: () => void;
+  onApplyCommercialPackage: (pkg: CommercialPackage) => void;
+  onUpgradeSubscriptionPlan: (planName: BillingPlan) => void;
+  onDowngradeSubscriptionPlan: (planName: BillingPlan, effective?: "immediately" | "period_end") => void;
+  onRenewSubscriptionPeriod: (periodDays: number) => void;
+  onExtendSubscriptionPeriod: (extraDays: number) => void;
+  onSuspendSubscriptionWithReason: (reason: string) => void;
+  onReactivateSuspendedSubscription: () => void;
+  onCancelSubscriptionLifecycle: (atPeriodEnd: boolean) => void;
+  onChangeSubscriptionBillingCycle: (cadence: BillingCadence) => void;
+  onPurchaseEntitlementAddOn: (request: AddOnPurchaseRequest) => void;
+  onAuditIntegrationUpdate: () => void;
+  onCopyText: (text: string) => void;
+  onLogoutCampaignAdmin: () => void;
+  onLogoutAppAdmin: () => void;
+}
+
+export function AppShell({
+  activeTab,
+  setActiveTab,
+  theme,
+  setTheme,
+  commandOpen,
+  setCommandOpen,
+  globalSearch,
+  setGlobalSearch,
+  toast,
+  setToast,
+  campaigns,
+  activeCampaignId,
+  setActiveCampaignId,
+  activeCampaign,
+  campaignDraft,
+  setCampaignDraft,
+  campaignFormMode,
+  setCampaignFormMode,
+  isCampaignAdminRoute,
+  campaignAdminSessionEmail,
+  campaignAdminCampaignId,
+  isAppRoute,
+  canAccessPlatformAdmin,
+  signers,
+  growthRuntime,
+  setGrowthRuntime,
+  authorities,
+  setAuthorities,
+  organization,
+  setOrganization,
+  scanItems,
+  setScanItems,
+  confirmationQueue,
+  auditLogs,
+  integrations,
+  setIntegrations,
+  commercialPackages,
+  setCommercialPackages,
+  locationOverrides,
+  locationDeletions,
+  metrics,
+  authorityMatch,
+  dailyTotals,
+  weeklyTotals,
+  stateTotals,
+  districtTotals,
+  blockTotals,
+  panchayatTotals,
+  campaignSigners,
+  saasSection,
+  setSaasSection,
+  publicForm,
+  setPublicForm,
+  publicMessage,
+  lastSignedSigner,
+  growthSnapshot,
+  growthPortal,
+  otpInput,
+  setOtpInput,
+  otpMessage,
+  scanText,
+  setScanText,
+  isScanning,
+  scanMessage,
+  broadcastMessage,
+  setBroadcastMessage,
+  copiedMessage,
+  locationCsvFile,
+  setLocationCsvFile,
+  authorityCsvFile,
+  setAuthorityCsvFile,
+  csvUploadMessage,
+  setCsvUploadMessage,
+  backendMessage,
+  filteredCommandItems,
+  onCreateCampaign,
+  onCloneCampaign,
+  onArchiveCampaign,
+  onDeleteCampaign,
+  onSaveCampaign,
+  onPublishCampaign,
+  onSubmitPublicSignature,
+  onStartPublicSigningJourney,
+  onSendOtp,
+  onVerifyOtp,
+  onSavePublicDraft,
+  onPublicCommunicationConsentChange,
+  onSubmitPublicCoordinatorApplication,
+  onGrowthShare,
+  secureFieldUploadAvailable,
+  secureFieldUploadMessage,
+  onUploadScan,
+  onOpenPrivateScan,
+  onCreateManualScanItem,
+  onUpdateScanParsedSigner,
+  onApproveScan,
+  onUpdateSignerStatus,
+  onAddAuthorityRule,
+  onAddAdminLocationOption,
+  onRemoveAdminLocationOption,
+  onUploadLocationCsv,
+  onUploadAuthorityCsv,
+  onUpdateCampaignMedia,
+  onUpdateCampaignDonationQr,
+  onProvisionCampaignAdmin,
+  campaignAdminProvisioningPending,
+  campaignAdminProvisioningMessage,
+  onSelectSubscriptionPlan,
+  onStartOneDayTrial,
+  onActivateSubscriptionManually,
+  onMarkSubscriptionPastDue,
+  onCancelSubscription,
+  onApplyCommercialPackage,
+  onUpgradeSubscriptionPlan,
+  onDowngradeSubscriptionPlan,
+  onRenewSubscriptionPeriod,
+  onExtendSubscriptionPeriod,
+  onSuspendSubscriptionWithReason,
+  onReactivateSuspendedSubscription,
+  onCancelSubscriptionLifecycle,
+  onChangeSubscriptionBillingCycle,
+  onPurchaseEntitlementAddOn,
+  onAuditIntegrationUpdate,
+  onCopyText,
+  onLogoutCampaignAdmin,
+  onLogoutAppAdmin
+}: AppShellProps) {
+  const { t } = useTranslation();
+  const [aiCopilotOpen, setAiCopilotOpen] = useState(false);
+  const [aiDraftAppliedFocusKey, setAiDraftAppliedFocusKey] = useState(0);
+  const [aiUndoDraft, setAiUndoDraft] = useState<Campaign | null>(null);
+  const [operationNotice, setOperationNotice] = useState<{
+    title: string;
+    description: string;
+    actionLabel?: string;
+    onAction?: () => void;
+  } | null>(null);
+  const pinnedCampaignStorageKey = `voiceup-campaign-selector-pinned-${organization.id}`;
+  const recentCampaignStorageKey = `voiceup-campaign-selector-recent-${organization.id}`;
+  const [campaignSelectorOpen, setCampaignSelectorOpen] = useState(false);
+  const [campaignSelectorQuery, setCampaignSelectorQuery] = useState("");
+  const [pinnedCampaignIds, setPinnedCampaignIds] = useState<string[]>(() =>
+    readStoredIdList(pinnedCampaignStorageKey)
+  );
+  const [recentCampaignIds, setRecentCampaignIds] = useState<string[]>(() =>
+    readStoredIdList(recentCampaignStorageKey)
+  );
+  const campaignAuthorityTextById = useMemo(
+    () => new Map(campaigns.map((campaign) => [campaign.id, getCampaignAuthorityText(campaign, authorities)])),
+    [authorities, campaigns]
+  );
+  const savedCampaignSnapshot = campaignFormMode === "edit" ? campaignSnapshot(activeCampaign) : "";
+  const draftCampaignSnapshot = campaignSnapshot(campaignDraft);
+  const hasUnsavedCampaignChanges = Boolean(campaignDraft) && (
+    campaignFormMode === "create" || draftCampaignSnapshot !== savedCampaignSnapshot
+  );
+  const campaignCreationBlockReason = getCreateCampaignBlockReason(organization, campaigns);
+  const campaignCreationLocked = Boolean(campaignCreationBlockReason);
+  const canShowWorkspaceCreateActions = !isCampaignAdminRoute && activeTab === "dashboard";
+  // Single source of truth for feature availability: every gate below reads
+  // from the centralized entitlement engine (`Base Plan + Add-ons = Effective
+  // Entitlements`) instead of comparing `organization.plan` directly.
+  const campaignEntitlements = useMemo(() => getCampaignEntitlements(organization), [organization]);
+  const enabledFeatureKeys = new Set(organization.enabledFeatureKeys ?? []);
+  const hasWorkspaceFeature = (featureKey: string) =>
+    canAccessPlatformAdmin || campaignEntitlements.features[featureKey as FeatureKey] === true;
+  const canUseGrowthEngine =
+    hasWorkspaceFeature(GROWTH_FEATURE_FLAGS.growthEngine) ||
+    enabledFeatureKeys.has(GROWTH_FEATURE_FLAGS.legacyMovementCrm);
+  const isGoudhanExperience = isGoudhanProductionCampaign(activeCampaign, organization);
+  const showUnfinishedModules = !isGoudhanExperience;
+  const canUseReports = hasWorkspaceFeature("basic_reports") || hasWorkspaceFeature("advanced_reports");
+  const canUseAiCopilot = showUnfinishedModules && hasWorkspaceFeature("ai_copilot");
+
+  useEffect(() => {
+    if (!showUnfinishedModules) {
+      setAiCopilotOpen(false);
+      if (["fund", "prove", "growth", "scans", "ideas"].includes(activeTab)) {
+        setActiveTab("dashboard");
+      }
+    }
+  }, [activeTab, setActiveTab, showUnfinishedModules]);
+
+  useEffect(() => {
+    setPinnedCampaignIds(readStoredIdList(pinnedCampaignStorageKey));
+    setRecentCampaignIds(readStoredIdList(recentCampaignStorageKey));
+  }, [pinnedCampaignStorageKey, recentCampaignStorageKey]);
+
+  useEffect(() => {
+    const validCampaignIds = new Set(campaigns.map((campaign) => campaign.id));
+    writeStoredIdList(
+      pinnedCampaignStorageKey,
+      pinnedCampaignIds.filter((campaignId) => validCampaignIds.has(campaignId))
+    );
+  }, [campaigns, pinnedCampaignIds, pinnedCampaignStorageKey]);
+
+  useEffect(() => {
+    const validCampaignIds = new Set(campaigns.map((campaign) => campaign.id));
+    writeStoredIdList(
+      recentCampaignStorageKey,
+      recentCampaignIds.filter((campaignId) => validCampaignIds.has(campaignId)).slice(0, 6)
+    );
+  }, [campaigns, recentCampaignIds, recentCampaignStorageKey]);
+
+  const campaignSelectorSearchTerm = campaignSelectorQuery.trim().toLowerCase();
+  const visibleCampaigns = useMemo(() => {
+    if (!campaignSelectorSearchTerm) return campaigns;
+    return campaigns.filter((campaign) =>
+      [
+        campaign.title,
+        campaign.slug,
+        campaign.category,
+        campaign.status,
+        getCampaignSelectorStatus(campaign),
+        campaignAuthorityTextById.get(campaign.id),
+        campaign.location,
+        campaign.state,
+        campaign.district,
+        campaign.country
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(campaignSelectorSearchTerm)
+    );
+  }, [campaignAuthorityTextById, campaignSelectorSearchTerm, campaigns]);
+  const shouldWindowCampaignList = visibleCampaigns.length > 100;
+  const campaignGroupRenderLimit = shouldWindowCampaignList ? 80 : Number.POSITIVE_INFINITY;
+  const pinnedCampaignIdSet = useMemo(() => new Set(pinnedCampaignIds), [pinnedCampaignIds]);
+  const pinnedCampaigns = pinnedCampaignIds
+    .map((campaignId) => visibleCampaigns.find((campaign) => campaign.id === campaignId))
+    .filter((campaign): campaign is Campaign => Boolean(campaign));
+  const recentCampaigns = recentCampaignIds
+    .map((campaignId) => visibleCampaigns.find((campaign) => campaign.id === campaignId))
+    .filter((campaign): campaign is Campaign => Boolean(campaign));
+  const draftCampaigns = visibleCampaigns.filter(
+    (campaign) => campaign.status === "Draft" && getCampaignSelectorStatus(campaign) !== "Archived"
+  );
+  const publishedCampaigns = visibleCampaigns.filter(
+    (campaign) => campaign.status === "Published" && getCampaignSelectorStatus(campaign) !== "Archived"
+  );
+  const pausedCampaigns = visibleCampaigns.filter(
+    (campaign) => campaign.status === "Paused" && getCampaignSelectorStatus(campaign) !== "Archived"
+  );
+  const completedCampaigns = visibleCampaigns.filter(
+    (campaign) => campaign.status === "Closed" && !campaign.archivedAt
+  );
+  const archivedCampaigns = visibleCampaigns.filter(
+    (campaign) => Boolean(campaign.archivedAt)
+  );
+
+  function getLockedTabMessage(tab: Tab): string {
+    const messages: Partial<Record<Tab, string>> = {
+      command: t("settings.shell.locks.command"),
+      public: t("settings.shell.locks.public"),
+      movement: t("settings.shell.locks.movement"),
+      coordinators: t("settings.shell.locks.movement"),
+      fund: t("framework.placeholder.locked"),
+      prove: t("framework.placeholder.locked"),
+      growth: t("settings.shell.locks.growth"),
+      scans: t("settings.shell.locks.scans"),
+      reports: t("settings.shell.locks.reports"),
+      engagement: t("settings.shell.locks.engagement"),
+      activity: t("settings.shell.locks.activity"),
+      saas: t("settings.shell.locks.saas"),
+      ideas: t("settings.shell.locks.ideas")
+    };
+    return messages[tab] ?? t("settings.shell.locks.default");
+  }
+
+  function canAccessWorkspaceTab(tab: Tab): boolean {
+    if (!showUnfinishedModules && ["fund", "prove", "growth", "scans", "ideas"].includes(tab)) return false;
+    if (canAccessPlatformAdmin) return true;
+    if (tab === "dashboard" || tab === "command" || tab === "fund" || tab === "prove" || tab === "campaigns") return true;
+    if (tab === "public") return hasWorkspaceFeature("public_signing");
+    if (tab === "reports") return canUseReports;
+    if (tab === "movement") return hasWorkspaceFeature("movement_crm");
+    if (tab === "coordinators") return hasWorkspaceFeature("movement_crm");
+    if (tab === "growth") return canUseGrowthEngine;
+    if (tab === "scans") return hasWorkspaceFeature("field_collection");
+    if (tab === "engagement") return hasWorkspaceFeature("communication_hub");
+    if (tab === "activity") return hasWorkspaceFeature("roles");
+    if (tab === "saas" || tab === "ideas") return false;
+    return false;
+  }
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("ai") === "1") {
+      if (!canUseAiCopilot) {
+        setOperationNotice({
+          title: t("settings.shell.upgradeRequired"),
+          description: "AI Copilot is available on Growth, Pro Movement, or Enterprise plans."
+        });
+      } else if (campaignCreationBlockReason) {
+        setOperationNotice({
+          title: t("settings.shell.upgradeRequired"),
+          description: campaignCreationBlockReason
+        });
+      } else {
+        setAiCopilotOpen(true);
+      }
+      params.delete("ai");
+      const nextQuery = params.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash}`;
+      window.history.replaceState({}, "", nextUrl);
+    }
+  }, [campaignCreationBlockReason, canUseAiCopilot]);
+
+  function requestTabChange(tab: Tab) {
+    if (isCampaignAdminRoute && (tab === "saas" || tab === "ideas")) {
+      setOperationNotice({
+        title: t("settings.shell.platformAccessRequired"),
+        description: t("settings.shell.platformAccessHelp")
+      });
+      return;
+    }
+    if ((tab === "saas" || tab === "ideas") && !canAccessPlatformAdmin) {
+      setOperationNotice({
+          title: t("settings.shell.platformAccessRequired"),
+          description: t("settings.shell.platformAccessHelp")
+      });
+      return;
+    }
+    if (!canAccessWorkspaceTab(tab)) {
+      setOperationNotice({
+        title: t("settings.shell.upgradeRequired"),
+        description: getLockedTabMessage(tab)
+      });
+      setActiveTab("dashboard");
+      return;
+    }
+    if (
+      tab !== activeTab &&
+      activeTab === "campaigns" &&
+      hasUnsavedCampaignChanges &&
+      !window.confirm(t("campaignAdmin.confirm.leaveUnsaved"))
+    ) {
+      return;
+    }
+    setOperationNotice(null);
+    setActiveTab(tab);
+  }
+
+  useEffect(() => {
+    if (!canAccessWorkspaceTab(activeTab)) {
+      setOperationNotice({
+        title: "Upgrade plan required",
+        description: getLockedTabMessage(activeTab)
+      });
+      setActiveTab("dashboard");
+    }
+  }, [activeTab, canAccessPlatformAdmin, organization.enabledFeatureKeys, organization.plan, setActiveTab]);
+
+  function requestUpgradePlan() {
+    if (isCampaignAdminRoute) {
+      setOperationNotice({
+        title: t("settings.shell.platformAccessRequired"),
+        description: t("settings.shell.platformAccessHelp")
+      });
+      return;
+    }
+    if (canAccessPlatformAdmin) {
+      requestTabChange("saas");
+      return;
+    }
+    setOperationNotice({
+      title: "Upgrade plan required",
+      description:
+        campaignCreationBlockReason ||
+        "Upgrade the workspace plan before creating another campaign."
+    });
+  }
+
+  function requestAiCampaignCreation() {
+    if (isCampaignAdminRoute) {
+      setOperationNotice({
+        title: t("settings.shell.platformAccessRequired"),
+        description: t("settings.shell.platformAccessHelp")
+      });
+      return;
+    }
+    if (!canUseAiCopilot) {
+      setOperationNotice({
+        title: "Upgrade plan required",
+        description: "AI Copilot is available on Growth, Pro Movement, or Enterprise plans."
+      });
+      return;
+    }
+    if (campaignCreationLocked) {
+      requestUpgradePlan();
+      return;
+    }
+    setOperationNotice(null);
+    setAiCopilotOpen(true);
+  }
+
+  function requestCreateCampaign() {
+    if (isCampaignAdminRoute) return;
+    if (
+      activeTab === "campaigns" &&
+      hasUnsavedCampaignChanges &&
+      !window.confirm(t("campaignAdmin.confirm.startNewUnsaved"))
+    ) {
+      return;
+    }
+    setOperationNotice(null);
+    setCampaignSelectorOpen(false);
+    setCampaignSelectorQuery("");
+    setCommandOpen(false);
+    setGlobalSearch("");
+    setAiCopilotOpen(false);
+    onCreateCampaign();
+    if (campaignCreationBlockReason) {
+      setOperationNotice({
+        title: "Campaign creation unavailable",
+        description: campaignCreationBlockReason
+      });
+    }
+  }
+
+  function selectCampaign(campaignId: string) {
+    if (isCampaignAdminRoute) return;
+    const selectedCampaign = campaigns.find((campaign) => campaign.id === campaignId);
+    if (!selectedCampaign) return;
+    if (
+      hasUnsavedCampaignChanges &&
+      !window.confirm(t("campaignAdmin.confirm.switchUnsaved"))
+    ) {
+      return;
+    }
+    setCampaignFormMode("edit");
+    setActiveCampaignId(selectedCampaign.id);
+    setRecentCampaignIds((current) => [
+      selectedCampaign.id,
+      ...current.filter((currentCampaignId) => currentCampaignId !== selectedCampaign.id)
+    ].slice(0, 6));
+    setCampaignSelectorOpen(false);
+    setCampaignSelectorQuery("");
+  }
+
+  function requestOpenCampaignDashboard() {
+    if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.dashboardUnsaved"))) {
+      return;
+    }
+    setCampaignSelectorOpen(false);
+    setOperationNotice(null);
+    setActiveTab("dashboard");
+  }
+
+  function requestDuplicateCampaign() {
+    if (isCampaignAdminRoute) return;
+    if (!campaignDraft) return;
+    if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.duplicateUnsaved"))) {
+      return;
+    }
+    onCloneCampaign();
+    setCampaignSelectorOpen(false);
+  }
+
+  function requestArchiveCampaign() {
+    if (isCampaignAdminRoute) return;
+    if (campaignFormMode === "create" || !activeCampaign) return;
+    if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.archiveUnsaved"))) {
+      return;
+    }
+    if (!window.confirm(`${t("campaignAdmin.confirm.archive")} "${activeCampaign.title || t("campaignAdmin.common.thisCampaign")}"?`)) return;
+    onArchiveCampaign();
+    setCampaignSelectorOpen(false);
+  }
+
+  function requestDeleteCampaign() {
+    if (isCampaignAdminRoute) return;
+    if (campaignFormMode === "create" || !activeCampaign) return;
+    if (hasUnsavedCampaignChanges && !window.confirm(t("campaignAdmin.confirm.deleteUnsaved"))) {
+      return;
+    }
+    const campaignName = activeCampaign.title || t("campaignAdmin.common.thisCampaign");
+    if (!window.confirm(`${t("campaignAdmin.confirm.deletePrefix")} "${campaignName}" ${t("campaignAdmin.confirm.deleteSuffix")}`)) return;
+    onDeleteCampaign();
+    setCampaignSelectorOpen(false);
+  }
+
+  function togglePinnedCampaign(campaignId: string) {
+    setPinnedCampaignIds((current) =>
+      current.includes(campaignId)
+        ? current.filter((currentCampaignId) => currentCampaignId !== campaignId)
+        : [campaignId, ...current]
+    );
+  }
+
+  function renderCampaignSelectorItem(campaign: Campaign, groupName: string) {
+    const isSelected = campaignFormMode === "edit" && activeCampaignId === campaign.id;
+    const isPinned = pinnedCampaignIdSet.has(campaign.id);
+    const authorityText = campaignAuthorityTextById.get(campaign.id) || t("campaignAdmin.selector.authorityNotConfigured");
+    return (
+      <div className="campaign-switcher-item" key={`${groupName}-${campaign.id}`}>
+        <button
+          className={isSelected ? "selected" : ""}
+          type="button"
+          onClick={() => selectCampaign(campaign.id)}
+        >
+          <span>
+            <strong>{campaign.title || t("campaignAdmin.selector.untitled")}</strong>
+            <small>
+              {campaign.slug ? `/${campaign.slug}` : t("campaignAdmin.selector.noSlug")} Â· {authorityText}
+            </small>
+          </span>
+          <span className="status-pill" data-status={getCampaignSelectorStatusData(campaign)}>
+            {t(`campaignAdmin.status.${getCampaignSelectorStatus(campaign).toLowerCase()}`)}
+          </span>
+        </button>
+        <button
+          className={isPinned ? "campaign-pin-button active" : "campaign-pin-button"}
+          type="button"
+          aria-label={t(isPinned ? "campaignAdmin.selector.removeFavourite" : "campaignAdmin.selector.favourite")}
+          onClick={() => togglePinnedCampaign(campaign.id)}
+        >
+          <Star size={15} />
+        </button>
+      </div>
+    );
+  }
+
+  function renderCampaignSelectorGroup(title: string, groupCampaigns: Campaign[]) {
+    if (groupCampaigns.length === 0) return null;
+    const renderedCampaigns = groupCampaigns.slice(0, campaignGroupRenderLimit);
+    return (
+      <section className="campaign-switcher-group" aria-label={title}>
+        <div className="campaign-switcher-group-header">
+          <span>{title}</span>
+          <small>{groupCampaigns.length}</small>
+        </div>
+        {renderedCampaigns.map((campaign) => renderCampaignSelectorItem(campaign, title))}
+        {renderedCampaigns.length < groupCampaigns.length && (
+          <p className="campaign-switcher-window-note">
+            {t("campaignAdmin.selector.showingFirst")} {renderedCampaigns.length} {t("campaignAdmin.selector.of")} {groupCampaigns.length}. {t("campaignAdmin.selector.narrowResults")}
+          </p>
+        )}
+      </section>
+    );
+  }
+
+  function handleSafeSaveCampaign(event: FormEvent) {
+    setOperationNotice(null);
+    try {
+      onSaveCampaign(event);
+    } catch (error) {
+      event.preventDefault();
+      setOperationNotice({
+        title: "Campaign save did not complete",
+        description: getErrorDescription(error),
+        actionLabel: "Review campaign",
+        onAction: () => requestTabChange("campaigns")
+      });
+    }
+  }
+
+  function handleSafePublishCampaign() {
+    setOperationNotice(null);
+    try {
+      onPublishCampaign();
+    } catch (error) {
+      setOperationNotice({
+        title: "Publish did not complete",
+        description: getErrorDescription(error),
+        actionLabel: "Retry publish",
+        onAction: handleSafePublishCampaign
+      });
+    }
+  }
+
+  function applyAiDraftToCampaign(
+    aiResult: AiCampaignCopilotResult,
+    reviewState: AiReviewState
+  ) {
+    if (!campaignDraft) return;
+    setAiUndoDraft(campaignDraft);
+    const isRejected = (section: string) => reviewState[section] === "rejected";
+    const objectiveText = aiResult.draft.objectives.map((item) => `- ${item}`).join("\n");
+    const volunteerText = aiResult.draft.volunteerPlan.map((item) => `- ${item}`).join("\n");
+    const appealSections = [
+      !isRejected("Campaign Title") ? `Subtitle:\n${aiResult.draft.subtitle}` : "",
+      !isRejected("Full Description") ? aiResult.draft.fullDescription : campaignDraft.appealContent,
+      !isRejected("Full Description") ? `Problem statement:\n${aiResult.draft.problemStatement}` : "",
+      !isRejected("Objectives") ? `Objectives:\n${objectiveText}` : "",
+      !isRejected("Full Description") ? `Expected outcome:\n${aiResult.draft.expectedOutcome}` : "",
+      !isRejected("Authority") ? `Suggested authority:\n${aiResult.draft.suggestedAuthority}` : "",
+      !isRejected("Summary") ? `Suggested tags:\n${aiResult.draft.suggestedTags.join(", ")}` : "",
+      !isRejected("Summary") ? `Suggested banner style:\n${aiResult.draft.suggestedBannerStyle}` : "",
+      !isRejected("Summary") ? `Suggested hero image prompt:\n${aiResult.draft.suggestedHeroImagePrompt}` : "",
+      !isRejected("Volunteer Plan") ? `Volunteer plan:\n${volunteerText}` : "",
+      !isRejected("Press Release") ? `Press release:\n${aiResult.draft.pressRelease}` : ""
+    ].filter(Boolean).join("\n\n");
+
+    const newCampaignId = createId("cmp");
+    const newSlug = `${slugifyCampaignTitle(aiResult.draft.title)}-${Date.now()}`;
+    const nextDraft: Campaign = {
+      ...campaignDraft,
+      id: newCampaignId,
+      slug: newSlug,
+      status: "Draft",
+      title: isRejected("Campaign Title") ? campaignDraft.title : aiResult.draft.title,
+      description: isRejected("Summary") ? campaignDraft.description : aiResult.draft.summary,
+      appealContent: appealSections || campaignDraft.appealContent,
+      category: aiResult.draft.suggestedCategory,
+      goal: campaignDraft.goalLockedBySaas ? campaignDraft.goal : aiResult.draft.suggestedTarget,
+      endDate: campaignDraft.datesLockedBySaas
+        ? campaignDraft.endDate
+        : addDays(campaignDraft.startDate, aiResult.draft.suggestedDurationDays),
+      requiredFields: campaignDraft.requiredFieldsLockedBySaas
+        ? campaignDraft.requiredFields
+        : Array.from(new Set(aiResult.draft.suggestedSupporterFields)),
+      socialShareText: isRejected("Social Posts") ? campaignDraft.socialShareText : aiResult.draft.whatsappMessage,
+      thankYouMessage: isRejected("Social Posts") ? campaignDraft.thankYouMessage : aiResult.draft.whatsappMessage,
+      participantUpdateMessage: isRejected("Social Posts")
+        ? campaignDraft.participantUpdateMessage
+        : aiResult.draft.linkedInPost,
+      qrLabel: isRejected("Press Release") ? campaignDraft.qrLabel : aiResult.draft.qrPosterHeadline,
+      shareUrl: getCampaignPublicUrl(organization, { slug: newSlug }),
+      adminUrl: getCampaignAdminUrl(organization, { slug: newSlug })
+    };
+
+    setCampaignDraft(nextDraft);
+    setCampaignFormMode("create");
+    setAiDraftAppliedFocusKey((current) => current + 1);
+    setActiveTab("campaigns");
+    setAiCopilotOpen(false);
+    setToast({
+      open: true,
+      title: "AI draft applied",
+      description: "AI draft applied. Review and save your campaign."
+    });
+  }
+
+  function applyAiSectionToCampaign(aiResult: AiCampaignCopilotResult, section: string) {
+    if (!campaignDraft) return;
+    setAiUndoDraft(campaignDraft);
+    const nextDraft: Campaign = { ...campaignDraft };
+    if (section === "Campaign Title") {
+      nextDraft.title = aiResult.draft.title;
+      nextDraft.appealContent = [`Subtitle:\n${aiResult.draft.subtitle}`, nextDraft.appealContent].filter(Boolean).join("\n\n");
+    } else if (section === "Summary") {
+      nextDraft.description = aiResult.draft.summary;
+    } else if (section === "Full Description") {
+      nextDraft.appealContent = [
+        aiResult.draft.fullDescription,
+        `Problem statement:\n${aiResult.draft.problemStatement}`,
+        `Expected outcome:\n${aiResult.draft.expectedOutcome}`
+      ].join("\n\n");
+    } else if (section === "Objectives") {
+      nextDraft.appealContent = [
+        nextDraft.appealContent,
+        `Objectives:\n${aiResult.draft.objectives.map((item) => `- ${item}`).join("\n")}`
+      ].filter(Boolean).join("\n\n");
+    } else if (section === "Authority") {
+      nextDraft.category = aiResult.draft.suggestedCategory;
+      nextDraft.goal = nextDraft.goalLockedBySaas ? nextDraft.goal : aiResult.draft.suggestedTarget;
+    } else if (section === "Social Posts") {
+      nextDraft.socialShareText = aiResult.draft.whatsappMessage;
+      nextDraft.thankYouMessage = aiResult.draft.whatsappMessage;
+      nextDraft.participantUpdateMessage = aiResult.draft.linkedInPost;
+    } else if (section === "Volunteer Plan") {
+      nextDraft.appealContent = [
+        nextDraft.appealContent,
+        `Volunteer plan:\n${aiResult.draft.volunteerPlan.map((item) => `- ${item}`).join("\n")}`
+      ].filter(Boolean).join("\n\n");
+    } else if (section === "Press Release") {
+      nextDraft.qrLabel = aiResult.draft.qrPosterHeadline;
+      nextDraft.appealContent = [nextDraft.appealContent, `Press release:\n${aiResult.draft.pressRelease}`].filter(Boolean).join("\n\n");
+    }
+    setCampaignDraft(nextDraft);
+    setAiDraftAppliedFocusKey((current) => current + 1);
+    setActiveTab("campaigns");
+    setToast({
+      open: true,
+      title: "AI section applied",
+      description: `${section} was applied to the current draft.`
+    });
+  }
+
+  function undoLastAiApply() {
+    if (!aiUndoDraft) return;
+    setCampaignDraft(aiUndoDraft);
+    setCampaignFormMode("create");
+    setActiveTab("campaigns");
+    setAiUndoDraft(null);
+    setToast({
+      open: true,
+      title: "AI apply undone",
+      description: "The previous campaign draft has been restored."
+    });
+  }
+
+  return (
+    <>
+      <CommandPalette
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+        query={globalSearch}
+        setQuery={setGlobalSearch}
+        items={filteredCommandItems}
+      />
+      <Dialog.Root open={campaignSelectorOpen} onOpenChange={setCampaignSelectorOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="command-overlay" />
+          <Dialog.Content className="campaign-switcher-dialog" aria-label={t("campaignAdmin.selector.aria")}>
+            <div className="command-search campaign-switcher-search">
+              <Search size={18} />
+              <input
+                autoFocus
+                aria-label={t("campaignAdmin.selector.searchAria")}
+                placeholder={t("campaignAdmin.selector.searchPlaceholder")}
+                value={campaignSelectorQuery}
+                onChange={(event) => setCampaignSelectorQuery(event.target.value)}
+              />
+              <kbd>Esc</kbd>
+            </div>
+            {!isCampaignAdminRoute && <div className="campaign-switcher-actions">
+              {campaignFormMode === "create" && campaignDraft && (
+                <button
+                  className="campaign-switcher-draft-card"
+                  type="button"
+                  onClick={() => setCampaignSelectorOpen(false)}
+                >
+                  <span className="eyebrow">{t("campaignAdmin.selector.currentDraft")}</span>
+                  <strong>{campaignDraft.title || t("campaignAdmin.selector.newUnsaved")}</strong>
+                  <small>{t("campaignAdmin.selector.separateId")}</small>
+                </button>
+              )}
+              <button className="secondary-button" type="button" onClick={requestCreateCampaign}>
+                <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
+              </button>
+              <div className="campaign-manager-button-row" aria-label={t("campaignAdmin.actions.aria")}>
+                <button className="secondary-button" type="button" onClick={requestDuplicateCampaign} disabled={!campaignDraft}>
+                  <Copy size={16} /> {t("campaignAdmin.actions.duplicate")}
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={requestArchiveCampaign}
+                  disabled={campaignFormMode === "create" || !activeCampaign}
+                >
+                  <Archive size={16} /> {t("campaignAdmin.actions.archive")}
+                </button>
+                <button
+                  className="secondary-button danger-action"
+                  type="button"
+                  onClick={requestDeleteCampaign}
+                  disabled={campaignFormMode === "create" || !activeCampaign}
+                >
+                  <Trash2 size={16} /> {t("campaignAdmin.actions.delete")}
+                </button>
+                <button className="secondary-button" type="button" onClick={requestOpenCampaignDashboard}>
+                  <BarChart3 size={16} /> {t("campaignAdmin.actions.openDashboard")}
+                </button>
+              </div>
+            </div>}
+            {shouldWindowCampaignList && (
+              <div className="campaign-switcher-performance-note" role="status">
+                {t("campaignAdmin.selector.largeWorkspace")}
+              </div>
+            )}
+            <div className="campaign-switcher-list">
+              {campaigns.length === 0 ? (
+                <div className="command-empty">{t("campaignAdmin.selector.empty")}</div>
+              ) : visibleCampaigns.length === 0 ? (
+                <div className="command-empty">{t("campaignAdmin.selector.noMatch")}</div>
+              ) : (
+                <>
+                  {!campaignSelectorSearchTerm && renderCampaignSelectorGroup(t("campaignAdmin.selector.favourites"), pinnedCampaigns)}
+                  {!campaignSelectorSearchTerm && renderCampaignSelectorGroup(t("campaignAdmin.selector.recent"), recentCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.drafts"), draftCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.published"), publishedCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.paused"), pausedCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.completed"), completedCampaigns)}
+                  {renderCampaignSelectorGroup(t("campaignAdmin.selector.archived"), archivedCampaigns)}
+                </>
+              )}
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <div className="app-shell">
+        <aside className="sidebar">
+          <div className="brand">
+  <div className="brand-mark">
+    <Megaphone size={24} />
+  </div>
+  <div>
+    <strong>VoiceUp Global</strong>
+    <span>{t("campaignAdmin.shell.tagline")}</span>
+  </div>
+</div>
+          <nav className="nav">
+            <span className="nav-section-label">{t("framework.nav.section")}</span>
+            <NavButton icon={<Crosshair />} label={t("framework.nav.commandCenter")} tab="command" activeTab={activeTab} onClick={requestTabChange} />
+            <NavButton icon={<Network />} label={t("framework.nav.organize")} tab="coordinators" activeTab={activeTab} onClick={requestTabChange} />
+            <NavButton icon={<Megaphone />} label={t("framework.nav.plan")} tab="campaigns" activeTab={activeTab} onClick={requestTabChange} />
+            {hasWorkspaceFeature("public_signing") && (
+              <NavButton icon={<Globe2 />} label={t("framework.nav.act")} tab="public" activeTab={activeTab} onClick={requestTabChange} />
+            )}
+            {showUnfinishedModules && <NavButton icon={<HandCoins />} label={t("framework.nav.fund")} tab="fund" activeTab={activeTab} onClick={requestTabChange} />}
+            {showUnfinishedModules && <NavButton icon={<Landmark />} label={t("framework.nav.prove")} tab="prove" activeTab={activeTab} onClick={requestTabChange} />}
+            {showUnfinishedModules && canUseGrowthEngine && (
+              <NavButton icon={<TrendingUp />} label={t("framework.nav.grow")} tab="growth" activeTab={activeTab} onClick={requestTabChange} />
+            )}
+            {!isCampaignAdminRoute && canAccessPlatformAdmin && (
+              <NavButton icon={<WalletCards />} label={t("framework.nav.settings")} tab="saas" activeTab={activeTab} onClick={requestTabChange} />
+            )}
+            <span className="nav-section-label">{t("framework.nav.connectedModules")}</span>
+            <NavButton
+              icon={<BarChart3 />}
+              label={t("campaignAdmin.nav.dashboard")}
+              tab="dashboard"
+              activeTab={activeTab}
+              onClick={requestTabChange}
+            />
+            {hasWorkspaceFeature("movement_crm") && (
+              <NavButton
+                icon={<UsersRound />}
+                label={t("campaignAdmin.nav.movementCrm")}
+                tab="movement"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {showUnfinishedModules && hasWorkspaceFeature("field_collection") && (
+              <NavButton
+                icon={<FileScan />}
+                label={t("campaignAdmin.nav.fieldCollection")}
+                tab="scans"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {canUseReports && (
+              <NavButton
+                icon={<FileText />}
+                label={t("campaignAdmin.nav.reports")}
+                tab="reports"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {hasWorkspaceFeature("communication_hub") && (
+              <NavButton
+                icon={<MessageCircle />}
+                label={t("campaignAdmin.nav.engagement")}
+                tab="engagement"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {hasWorkspaceFeature("roles") && (
+              <NavButton
+                icon={<ShieldCheck />}
+                label={t("campaignAdmin.nav.activity")}
+                tab="activity"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
+            {showUnfinishedModules && !isCampaignAdminRoute && canAccessPlatformAdmin && (
+              <>
+                <NavButton
+                  icon={<Sparkles />}
+                  label={t("settings.shell.featureIdeas")}
+                  tab="ideas"
+                  activeTab={activeTab}
+                  onClick={requestTabChange}
+                />
+              </>
+            )}
+          </nav>
+          <div className="sidebar-card">
+            <span className="eyebrow">{t("campaignAdmin.shell.currentPlan")}</span>
+            <strong>{organization.plan}</strong>
+            <small>{organization.monthlySignatureLimit.toLocaleString()} {t("campaignAdmin.shell.signaturesPerMonth")}</small>
+            <small>{backendMessage}</small>
+          </div>
+        </aside>
+
+        <motion.main
+          className="main"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <header className="topbar">
+            <div className="topbar-context">
+              <span className="eyebrow">
+                {isCampaignAdminRoute
+                  ? t("campaignAdmin.shell.administration")
+                  : activeTab === "saas"
+                    ? t("settings.shell.saasAdministration")
+                    : t("campaignAdmin.shell.selectedCampaign")}
+              </span>
+              {isCampaignAdminRoute ? (
+                <strong>
+                  {activeCampaign?.title}
+                  {activeCampaign?.slug ? <small>/{activeCampaign.slug}</small> : null}
+                </strong>
+              ) : (
+                <button
+                  className="campaign-switcher-trigger"
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded={campaignSelectorOpen}
+                  onClick={() => setCampaignSelectorOpen(true)}
+                >
+                  <span>{campaignFormMode === "create" ? "New draft" : activeCampaign ? getCampaignSelectorStatus(activeCampaign) : "Campaign Manager"}</span>
+                  <strong>
+                    {campaignFormMode === "create"
+                      ? campaignDraft?.title || "New unsaved campaign"
+                      : activeCampaign?.title || "No campaign yet"}
+                  </strong>
+                  <small>
+                    {campaignFormMode === "create"
+                      ? "Will save as a separate campaign"
+                      : activeCampaign?.slug
+                        ? `/${activeCampaign.slug}`
+                        : "Search or create a campaign"}
+                  </small>
+                </button>
+              )}
+            </div>
+            {isCampaignAdminRoute ? (
+              <div className="campaign-admin-header-actions">
+                <dl className="campaign-admin-session-context" aria-label="Campaign Admin session details">
+                  <div>
+                    <dt>Campaign Admin</dt>
+                    <dd>{campaignAdminSessionEmail}</dd>
+                  </div>
+                  <div>
+                    <dt>Campaign ID</dt>
+                    <dd>{campaignAdminCampaignId}</dd>
+                  </div>
+                </dl>
+                <div className="button-row">
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={onLogoutCampaignAdmin}
+                  >
+                    {t("campaignAdmin.actions.logout")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="button-row">
+                {canShowWorkspaceCreateActions &&
+                  (campaignCreationLocked ? (
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={requestUpgradePlan}
+                    >
+                      <WalletCards size={18} /> {t("settings.shell.upgradePlan")}
+                    </button>
+                  ) : (
+                    <>
+                      {canUseAiCopilot && (
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={requestAiCampaignCreation}
+                        >
+                          <Sparkles size={18} /> {t("campaignAdmin.studio.createWithAi")}
+                        </button>
+                      )}
+                      <button
+                        className="secondary-button"
+                        type="button"
+                        onClick={requestCreateCampaign}
+                      >
+                        <Plus size={18} /> {t("campaignAdmin.actions.newCampaign")}
+                      </button>
+                    </>
+                  ))}
+                <button
+                  className="secondary-button icon-button"
+                  type="button"
+                  onClick={() => setCommandOpen(true)}
+                  title={t("settings.shell.commandPaletteTitle")}
+                  aria-label={t("settings.shell.commandPalette")}
+                >
+                  <Command size={18} />
+                </button>
+                {/* Language selector for quick access */}
+                <div style={{ display: "flex", alignItems: "center", marginLeft: 8 }}>
+                  <LanguageSwitcher />
+                </div>
+                <button
+                  className="secondary-button icon-button"
+                  type="button"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  title={t("settings.shell.toggleTheme")}
+                  aria-label={t("settings.shell.toggleColorTheme")}
+                >
+                  {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+                </button>
+                {isAppRoute && (
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={onLogoutAppAdmin}
+                  >
+                    {t("settings.shell.logout")}
+                  </button>
+                )}
+              </div>
+            )}
+          </header>
+
+          {activeTab === "dashboard" && (
+            <DashboardTab
+              activeCampaign={activeCampaign}
+              campaigns={campaigns}
+              metrics={metrics}
+              authorityMatch={authorityMatch}
+              dailyTotals={dailyTotals}
+              organization={organization}
+              onCreateCampaign={requestCreateCampaign}
+              onOpenSubscription={requestUpgradePlan}
+              onOpenAiCopilot={requestAiCampaignCreation}
+              onOpenCampaignAdmin={() => requestTabChange("campaigns")}
+              onOpenPublicCampaign={() => requestTabChange("public")}
+              onOpenReports={() => requestTabChange("reports")}
+              onOpenOrganise={() => requestTabChange("coordinators")}
+              createCampaignBlockReason={campaignCreationBlockReason}
+              canUseAiCopilot={canUseAiCopilot}
+              onUpgradePlan={requestUpgradePlan}
+              isCampaignAdminRoute={isCampaignAdminRoute}
+            />
+          )}
+
+          {activeTab === "command" && (
+            <Suspense fallback={<ModuleSkeleton label="Loading Command Center" />}>
+              <CommandCenterTab
+                activeCampaign={activeCampaign}
+                campaigns={campaigns}
+                campaignSigners={campaignSigners}
+                signers={signers}
+                authorities={authorities}
+                scanItems={scanItems}
+                organization={organization}
+                integrations={integrations}
+                metrics={metrics}
+                authorityMatch={authorityMatch}
+                stateTotals={stateTotals}
+                districtTotals={districtTotals}
+                blockTotals={blockTotals}
+                panchayatTotals={panchayatTotals}
+                onOpenCampaigns={() => requestTabChange("campaigns")}
+                onOpenFieldCollection={() => requestTabChange("scans")}
+                onOpenEngagement={() => requestTabChange("engagement")}
+                onOpenAuthorities={() => requestTabChange("campaigns")}
+                onOpenSaas={() => requestTabChange("saas")}
+                onOpenMovement={() => requestTabChange("movement")}
+                onOpenActivity={() => requestTabChange("activity")}
+                onOpenFund={() => requestTabChange("fund")}
+                onOpenProve={() => requestTabChange("prove")}
+                canOpenModule={(module) =>
+                  module.action === "aiCopilot"
+                    ? canUseAiCopilot && !campaignCreationBlockReason
+                    : Boolean(
+                        module.tab &&
+                        !(isCampaignAdminRoute && (module.tab === "saas" || module.tab === "ideas")) &&
+                        canAccessWorkspaceTab(module.tab)
+                      )
+                }
+                onNavigateModule={(module) => {
+                  if (module.action === "aiCopilot") {
+                    requestAiCampaignCreation();
+                  } else if (module.tab) {
+                    requestTabChange(module.tab);
+                  }
+                }}
+                canAccessPlatformAdmin={canAccessPlatformAdmin}
+                showUnfinishedModules={showUnfinishedModules}
+              />
+            </Suspense>
+          )}
+
+          {operationNotice && (
+            <div className="operation-safety-banner" role="alert">
+              <AlertTriangle size={20} />
+              <div>
+                <strong>{operationNotice.title}</strong>
+                <p>{operationNotice.description}</p>
+              </div>
+              {operationNotice.actionLabel && operationNotice.onAction && (
+                <button className="secondary-button" type="button" onClick={operationNotice.onAction}>
+                  {operationNotice.actionLabel}
+                </button>
+              )}
+            </div>
+          )}
+
+          {activeTab === "campaigns" && (
+            <CampaignsTab
+              campaignDraft={campaignDraft}
+              activeCampaign={activeCampaign}
+              setCampaignDraft={setCampaignDraft}
+              campaignFormMode={campaignFormMode}
+              setCampaignFormMode={setCampaignFormMode}
+              authorities={authorities}
+              setAuthorities={setAuthorities}
+              auditLogs={auditLogs}
+              organization={organization}
+              isCampaignAdminRoute={isCampaignAdminRoute}
+              locationOverrides={locationOverrides}
+              locationDeletions={locationDeletions}
+              locationCsvFile={locationCsvFile}
+              setLocationCsvFile={setLocationCsvFile}
+              authorityCsvFile={authorityCsvFile}
+              setAuthorityCsvFile={setAuthorityCsvFile}
+              csvUploadMessage={csvUploadMessage}
+              setCsvUploadMessage={setCsvUploadMessage}
+              onSaveCampaign={handleSafeSaveCampaign}
+              onPublishCampaign={handleSafePublishCampaign}
+              onCloneCampaign={onCloneCampaign}
+              onArchiveCampaign={onArchiveCampaign}
+              onOpenAiCopilot={requestAiCampaignCreation}
+              aiDraftAppliedFocusKey={aiDraftAppliedFocusKey}
+              onAddAuthorityRule={onAddAuthorityRule}
+              onAddAdminLocationOption={onAddAdminLocationOption}
+              onRemoveAdminLocationOption={onRemoveAdminLocationOption}
+              onUploadLocationCsv={onUploadLocationCsv}
+              onUploadAuthorityCsv={onUploadAuthorityCsv}
+              onUpdateCampaignMedia={onUpdateCampaignMedia}
+              onUpdateCampaignDonationQr={onUpdateCampaignDonationQr}
+              onProvisionCampaignAdmin={onProvisionCampaignAdmin}
+              campaignAdminProvisioningPending={campaignAdminProvisioningPending}
+              campaignAdminProvisioningMessage={campaignAdminProvisioningMessage}
+              campaignEntitlements={campaignEntitlements}
+              onNavigateToUpgrade={() => setActiveTab("saas")}
+            />
+          )}
+
+          {activeTab === "public" &&
+            hasWorkspaceFeature("public_signing") &&
+            (activeCampaign ? (
+              <div className="public-only-shell">
+                <PublicCampaignPage
+                  campaign={activeCampaign}
+                  organization={organization}
+                  metrics={metrics}
+                  authority={authorityMatch?.authority}
+                  authorities={authorities}
+                  campaignSigners={campaignSigners}
+                  publicForm={publicForm}
+                  setPublicForm={setPublicForm}
+                  publicMessage={publicMessage}
+                  lastSignedSigner={lastSignedSigner}
+                  growthSnapshot={growthSnapshot}
+                  growthPortal={growthPortal}
+                  otpInput={otpInput}
+                  setOtpInput={setOtpInput}
+                  otpMessage={otpMessage}
+                  onStartNewJourney={onStartPublicSigningJourney}
+                  onSendOtp={onSendOtp}
+                  onVerifyOtp={onVerifyOtp}
+                  onSaveDraft={onSavePublicDraft}
+                  onCommunicationConsentChange={onPublicCommunicationConsentChange}
+                  onSubmitCoordinatorApplication={onSubmitPublicCoordinatorApplication}
+                  onGrowthShare={onGrowthShare}
+                  locationOverrides={locationOverrides}
+                  locationDeletions={locationDeletions}
+                  onSubmit={onSubmitPublicSignature}
+                />
+              </div>
+            ) : (
+              <div className="empty-state compact-empty">
+                <span className="eyebrow">{t("campaignAdmin.empty.noData")}</span>
+                <h2>{t("campaignAdmin.empty.noPublicCampaign")}</h2>
+                <p>
+                  Create and publish a campaign before collecting signatures from the public page.
+                </p>
+              </div>
+            ))}
+
+          {activeTab === "movement" && hasWorkspaceFeature("movement_crm") && (
+            <Suspense fallback={<ModuleSkeleton label="Loading Movement CRM" />}>
+              <MovementCrmTab
+                campaigns={campaigns}
+                activeCampaign={activeCampaign}
+                signers={signers}
+                campaignSigners={campaignSigners}
+                scanItems={scanItems}
+                authorities={authorities}
+              />
+            </Suspense>
+          )}
+
+          {activeTab === "coordinators" && hasWorkspaceFeature("movement_crm") && (
+            <>
+              {showUnfinishedModules && <VbossModulePlaceholder
+                moduleName={t("framework.organize.title")}
+                purpose={t("framework.organize.purpose")}
+                sections={[
+                  { name: t("framework.organize.organization"), purpose: t("framework.organize.organizationPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.organizationFuture") },
+                  { name: t("framework.organize.hierarchy"), purpose: t("framework.organize.hierarchyPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.hierarchyFuture") },
+                  { name: t("framework.organize.roles"), purpose: t("framework.organize.rolesPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.rolesFuture") },
+                  { name: t("framework.organize.invitations"), purpose: t("framework.organize.invitationsPurpose"), connected: t("framework.organize.connected"), future: t("framework.organize.invitationsFuture") }
+                ]}
+              />}
+              <Suspense fallback={<ModuleSkeleton label="Loading Coordinator Network" />}>
+                <CoordinatorNetworkTab campaigns={campaigns} activeCampaign={activeCampaign} locationOverrides={locationOverrides} locationDeletions={locationDeletions} />
+              </Suspense>
+            </>
+          )}
+
+          {showUnfinishedModules && activeTab === "fund" && (
+            <VbossModulePlaceholder
+              moduleName={t("framework.fund.title")}
+              purpose={t("framework.fund.purpose")}
+              sections={[
+                { name: t("framework.fund.budget"), purpose: t("framework.fund.budgetPurpose"), connected: t("framework.fund.connected"), future: t("framework.fund.budgetFuture") },
+                { name: t("framework.fund.contributions"), purpose: t("framework.fund.contributionsPurpose"), connected: t("framework.fund.connected"), future: t("framework.fund.contributionsFuture") },
+                { name: t("framework.fund.reconciliation"), purpose: t("framework.fund.reconciliationPurpose"), connected: t("framework.fund.connected"), future: t("framework.fund.reconciliationFuture") }
+              ]}
+            />
+          )}
+
+          {showUnfinishedModules && activeTab === "prove" && (
+            <VbossModulePlaceholder
+              moduleName={t("framework.prove.title")}
+              purpose={t("framework.prove.purpose")}
+              sections={[
+                { name: t("framework.prove.evidence"), purpose: t("framework.prove.evidencePurpose"), connected: t("framework.prove.connected"), future: t("framework.prove.evidenceFuture") },
+                { name: t("framework.prove.timeline"), purpose: t("framework.prove.timelinePurpose"), connected: t("framework.prove.connected"), future: t("framework.prove.timelineFuture") },
+                { name: t("framework.prove.audit"), purpose: t("framework.prove.auditPurpose"), connected: t("framework.prove.connected"), future: t("framework.prove.auditFuture") }
+              ]}
+            />
+          )}
+
+          {showUnfinishedModules && activeTab === "growth" && canUseGrowthEngine && (
+            <Suspense fallback={<ModuleSkeleton label="Loading Growth Engine" />}>
+              <GrowthDashboardTab
+                campaigns={campaigns}
+                activeCampaign={activeCampaign}
+                organization={organization}
+                signers={signers}
+                campaignSigners={campaignSigners}
+                growthRuntime={growthRuntime}
+                onGrowthRuntimeChange={setGrowthRuntime}
+              />
+            </Suspense>
+          )}
+
+          {showUnfinishedModules && activeTab === "scans" && hasWorkspaceFeature("field_collection") && (
+            <Suspense fallback={<ModuleSkeleton label="Loading Field Collection" />}>
+              <ScansTab
+                activeCampaign={activeCampaign}
+                scanItems={scanItems}
+                campaignSigners={campaignSigners}
+                setScanItems={setScanItems}
+                confirmationQueue={confirmationQueue}
+                scanText={scanText}
+                setScanText={setScanText}
+                isScanning={isScanning}
+                scanMessage={scanMessage}
+                secureFieldUploadAvailable={secureFieldUploadAvailable}
+                secureFieldUploadMessage={secureFieldUploadMessage}
+                onUploadScan={onUploadScan}
+                onOpenPrivateScan={onOpenPrivateScan}
+                onCreateManualScanItem={onCreateManualScanItem}
+                onUpdateScanParsedSigner={onUpdateScanParsedSigner}
+                onApproveScan={onApproveScan}
+              />
+            </Suspense>
+          )}
+
+          {activeTab === "reports" && canUseReports && (
+            <Suspense fallback={<ModuleSkeleton label="Loading Reports" />}>
+              <ReportsTab
+                activeCampaign={activeCampaign}
+                campaigns={campaigns}
+                organization={organization}
+                signers={signers}
+                scanItems={scanItems}
+                integrations={integrations}
+                campaignSigners={campaignSigners}
+                metrics={metrics}
+                authorityMatch={authorityMatch}
+                dailyTotals={dailyTotals}
+                weeklyTotals={weeklyTotals}
+                stateTotals={stateTotals}
+                districtTotals={districtTotals}
+                blockTotals={blockTotals}
+                panchayatTotals={panchayatTotals}
+                onUpdateSignerStatus={onUpdateSignerStatus}
+              />
+            </Suspense>
+          )}
+
+          {activeTab === "engagement" && hasWorkspaceFeature("communication_hub") && (
+            <Suspense fallback={<ModuleSkeleton label="Loading Communication Hub" />}>
+              <EngagementTab
+                activeCampaign={activeCampaign}
+                organization={organization}
+                integrations={integrations}
+                campaignSigners={campaignSigners}
+                metrics={metrics}
+                broadcastMessage={broadcastMessage}
+                setBroadcastMessage={setBroadcastMessage}
+                copiedMessage={copiedMessage}
+                onCopyText={onCopyText}
+              />
+            </Suspense>
+          )}
+
+          {activeTab === "activity" && hasWorkspaceFeature("roles") && <ActivityTab auditLogs={auditLogs} />}
+
+          {activeTab === "saas" && canAccessPlatformAdmin && (
+            <SaasTab
+              saasSection={saasSection}
+              setSaasSection={setSaasSection}
+              organization={organization}
+              setOrganization={setOrganization}
+              campaigns={campaigns}
+              activeCampaign={activeCampaign}
+              signers={signers}
+              scanItems={scanItems}
+              commercialPackages={commercialPackages}
+              setCommercialPackages={setCommercialPackages}
+              integrations={integrations}
+              setIntegrations={setIntegrations}
+              locationOverrides={locationOverrides}
+              locationDeletions={locationDeletions}
+              onSelectSubscriptionPlan={onSelectSubscriptionPlan}
+              onStartOneDayTrial={onStartOneDayTrial}
+              onActivateSubscriptionManually={onActivateSubscriptionManually}
+              onMarkSubscriptionPastDue={onMarkSubscriptionPastDue}
+              onCancelSubscription={onCancelSubscription}
+              onApplyCommercialPackage={onApplyCommercialPackage}
+              onUpgradeSubscriptionPlan={onUpgradeSubscriptionPlan}
+              onDowngradeSubscriptionPlan={onDowngradeSubscriptionPlan}
+              onRenewSubscriptionPeriod={onRenewSubscriptionPeriod}
+              onExtendSubscriptionPeriod={onExtendSubscriptionPeriod}
+              onSuspendSubscriptionWithReason={onSuspendSubscriptionWithReason}
+              onReactivateSuspendedSubscription={onReactivateSuspendedSubscription}
+              onCancelSubscriptionLifecycle={onCancelSubscriptionLifecycle}
+              onChangeSubscriptionBillingCycle={onChangeSubscriptionBillingCycle}
+              onPurchaseEntitlementAddOn={onPurchaseEntitlementAddOn}
+              onAuditIntegrationUpdate={onAuditIntegrationUpdate}
+            />
+          )}
+
+          {showUnfinishedModules && activeTab === "ideas" && canAccessPlatformAdmin && <IdeasTab />}
+        </motion.main>
+      </div>
+      {aiCopilotOpen && (
+        <Suspense fallback={<div className="empty-state compact-empty">{t("campaignAdmin.common.loadingAi")}</div>}>
+          <AiCampaignCopilot
+            campaignDraft={campaignDraft}
+            onApplyAiDraft={applyAiDraftToCampaign}
+            onApplyAiSection={applyAiSectionToCampaign}
+            onUndoAiApply={undoLastAiApply}
+            canUndoAiApply={Boolean(aiUndoDraft)}
+            onClose={() => setAiCopilotOpen(false)}
+          />
+        </Suspense>
+      )}
+      <AppToast toast={toast} setToast={setToast} />
+    </>
+  );
+}

@@ -3,10 +3,6 @@ import { logDocumentIntelligenceStage } from "./diagnostics.ts";
 import { analyzeDocumentImageQuality } from "./imageQuality.ts";
 import { analyzeDocument } from "./pipeline.ts";
 import { tesseractOcrProvider } from "./providers/tesseract.ts";
-import {
-  createCanonicalIndiaDocumentReferenceData,
-  createIndiaDocumentReferenceData
-} from "./references/india.ts";
 import type { CanonicalLocationCatalogReader } from "../businessOs/location/ui/CanonicalLocationUiModel.ts";
 import {
   getCameraRecommendationReasons,
@@ -24,6 +20,10 @@ export async function analyzeBusinessOsDocument(
   diagnosticId: string,
   canonicalLocationReader?: CanonicalLocationCatalogReader
 ): Promise<BusinessOsDocumentAnalysis> {
+  // Loaded on demand: references/india.ts pulls in the 20 MB Odisha LGD dataset,
+  // which must never be part of the initial page load.
+  const { createCanonicalIndiaDocumentReferenceData, createIndiaDocumentReferenceData } =
+    await import("./references/india.ts");
   let referenceData = createIndiaDocumentReferenceData();
   if (canonicalLocationReader) {
     try {

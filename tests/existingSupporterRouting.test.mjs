@@ -28,11 +28,24 @@ test("Journey A keeps the established on-screen OTP path", () => {
   assert.doesNotMatch(edge, /mutate_voiceup_public_participation_screen_safe/);
 });
 
-test("public mobile precheck is debounced and never blocks screen OTP", () => {
+test("public mobile precheck is debounced and must complete before screen OTP", () => {
   assert.match(page, /precheckPublicSupporterRouting\(campaign\.slug, publicForm\.phone\)/);
   assert.match(page, /setTimeout\(\(\) =>[\s\S]*450\)/);
-  assert.match(page, /Precheck failure never blocks the established screen-OTP journey/);
+  assert.match(page, /supporterRoutingChecking \|\| supporterRoutingError \|\| !phoneReady/);
+  assert.match(page, /setSupporterRoutingAttempt\(\(current\) => current \+ 1\)/);
   assert.match(page, /await onSendOtp\(\)/);
+});
+
+test("header always offers the existing privacy-safe Sign In path without changing phone OTP", () => {
+  const phoneStep = page.slice(
+    page.indexOf('{wizardStep === "phone"'),
+    page.indexOf('{wizardStep === "otp"')
+  );
+  assert.match(page, /aria-controls="gsaa-header-auth-popover"[\s\S]*?setAuthPopoverOpen/);
+  assert.match(page, /className="gsaa-auth-popover"[\s\S]*?<CampaignInlineAuthPanel/);
+  assert.match(page, /t\("account\.login\.campaignSignIn"\)/);
+  assert.doesNotMatch(phoneStep, /(?:supporterRoutingPrecheck|hasSignedCampaign)[\s\S]{0,200}setParticipationMode\("sign_in"\)/);
+  assert.match(phoneStep, /handleSendOtpWizard/);
 });
 
 test("anonymous response is route-neutral and exposes only an opaque token", () => {
@@ -106,8 +119,11 @@ test("RLS and grants keep routing internals inaccessible to browser roles", () =
   assert.match(migration, /voiceup_resolve_authenticated_supporter_routing[\s\S]*to authenticated/);
 });
 
-test("registration and sign-in reuse VoiceUp Auth rather than a parallel identity", () => {
-  assert.match(inlineAuth, /registerSupporterWithEmailForContext/);
+test("pre-sign campaign access reuses VoiceUp Auth without offering account creation", () => {
+  assert.match(inlineAuth, /creatingAccount && !activationPending/);
+  assert.match(inlineAuth, /registerSupporterWithEmailForContext\(email, password, returnPath\)/);
+  assert.match(inlineAuth, /useState\(initialRoute === "historical_signature"\)/);
+  assert.doesNotMatch(inlineAuth, /method === "register"/);
   assert.match(inlineAuth, /loginSupporterWithEmail/);
   assert.match(inlineAuth, /requestSupporterEmailOtp/);
   assert.doesNotMatch(edge, /auth\.admin\.createUser|createUser\(/);

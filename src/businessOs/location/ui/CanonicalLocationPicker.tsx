@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
   createUnverifiedCustomLocation,
   type CanonicalLocationCatalogReader,
@@ -49,9 +49,15 @@ export function CanonicalLocationPicker({
   const [activeCandidateIndex, setActiveCandidateIndex] = useState(0);
   const { state, actions } = useCanonicalLocationUi({ client, rootNodeId, resultLimit, disabled });
 
+  const onChangeRef = useRef(onChange);
+
   useEffect(() => {
-    onChange?.(state.selection);
-  }, [onChange, state.selection]);
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    onChangeRef.current?.(state.selection);
+  }, [state.selection]);
 
   useEffect(() => {
     setActiveCandidateIndex(0);

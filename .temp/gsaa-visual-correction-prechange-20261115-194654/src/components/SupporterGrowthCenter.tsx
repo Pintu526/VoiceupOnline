@@ -1,0 +1,275 @@
+import { useState } from "react";
+import {
+  Award,
+  BadgeCheck,
+  BriefcaseBusiness,
+  Copy,
+  HeartHandshake,
+  Landmark,
+  LayoutDashboard,
+  Mail,
+  Share2,
+  ShoppingBasket,
+  Sparkles,
+  Users
+} from "lucide-react";
+import type { Language } from "../i18n";
+import type { SupporterDashboardModel } from "../accountAccess";
+import { ReferralQrPreview } from "./ReferralQrPreview";
+
+interface SupporterGrowthCenterProps {
+  language: Language;
+  dashboard: SupporterDashboardModel;
+  dashboardPath: string;
+  referralUrl: string;
+  approvedVolunteer: boolean;
+  authorizedCoordinator: boolean;
+}
+
+const copy = {
+  en: {
+    eyebrow: "Verified supporter workspace",
+    title: "Supporter Growth & Action Center",
+    welcome: "Your support is verified. Keep the movement growing from one secure place.",
+    contribution: "My contribution",
+    campaign: "Campaign",
+    status: "Status",
+    signed: "Support recorded",
+    dashboard: "My Dashboard",
+    certificates: "My Certificates",
+    invite: "Invite supporters",
+    inviteHelp: "Your personal link preserves referral attribution when it is shared.",
+    copyLink: "Copy referral link",
+    copied: "Copied",
+    whatsapp: "WhatsApp",
+    email: "Email",
+    share: "Share",
+    metrics: "Growth metrics",
+    metricsUnavailable: "Verified referral totals are not available in this public view. Open your dashboard for account-authorized network information.",
+    pathway: "Growth pathway",
+    pathwayHelp: "Supporter → volunteer application → coordinator consideration. Volunteer and coordinator access always requires review and approval.",
+    volunteer: "Volunteer",
+    coordinator: "Coordinator",
+    approved: "Approved",
+    authorized: "Authorized",
+    notAssigned: "Not assigned",
+    requestStatus: "Application status",
+    noRequest: "No application recorded",
+    promotionsEyebrow: "VoiceUp Business OS",
+    promotionsTitle: "More ways to participate — coming soon",
+    comingSoon: "Coming Soon"
+  },
+  hi: {
+    eyebrow: "सत्यापित समर्थक कार्यक्षेत्र",
+    title: "समर्थक विकास और कार्य केंद्र",
+    welcome: "आपका समर्थन सत्यापित है। एक सुरक्षित स्थान से आंदोलन को आगे बढ़ाएँ।",
+    contribution: "मेरा योगदान",
+    campaign: "अभियान",
+    status: "स्थिति",
+    signed: "समर्थन दर्ज है",
+    dashboard: "मेरा डैशबोर्ड",
+    certificates: "मेरे प्रमाणपत्र",
+    invite: "समर्थकों को आमंत्रित करें",
+    inviteHelp: "आपका व्यक्तिगत लिंक साझा होने पर रेफ़रल श्रेय सुरक्षित रखता है।",
+    copyLink: "रेफ़रल लिंक कॉपी करें",
+    copied: "कॉपी हुआ",
+    whatsapp: "व्हाट्सऐप",
+    email: "ईमेल",
+    share: "साझा करें",
+    metrics: "विकास आँकड़े",
+    metricsUnavailable: "सत्यापित रेफ़रल की संख्या इस सार्वजनिक दृश्य में उपलब्ध नहीं है। अधिकृत नेटवर्क जानकारी के लिए अपना डैशबोर्ड खोलें।",
+    pathway: "विकास मार्ग",
+    pathwayHelp: "समर्थक → स्वयंसेवक आवेदन → समन्वयक विचार। स्वयंसेवक और समन्वयक पहुँच के लिए हमेशा समीक्षा और स्वीकृति आवश्यक है।",
+    volunteer: "स्वयंसेवक",
+    coordinator: "समन्वयक",
+    approved: "स्वीकृत",
+    authorized: "अधिकृत",
+    notAssigned: "नियुक्त नहीं",
+    requestStatus: "आवेदन स्थिति",
+    noRequest: "कोई आवेदन दर्ज नहीं",
+    promotionsEyebrow: "VoiceUp Business OS",
+    promotionsTitle: "भागीदारी के और अवसर — जल्द आ रहे हैं",
+    comingSoon: "जल्द आ रहा है"
+  },
+  or: {
+    eyebrow: "ଯାଞ୍ଚ ହୋଇଥିବା ସମର୍ଥକ କାର୍ଯ୍ୟକ୍ଷେତ୍ର",
+    title: "ସମର୍ଥକ ବିକାଶ ଓ କାର୍ଯ୍ୟ କେନ୍ଦ୍ର",
+    welcome: "ଆପଣଙ୍କ ସମର୍ଥନ ଯାଞ୍ଚ ହୋଇଛି। ଗୋଟିଏ ସୁରକ୍ଷିତ ସ୍ଥାନରୁ ଆନ୍ଦୋଳନକୁ ଆଗକୁ ନିଅନ୍ତୁ।",
+    contribution: "ମୋର ଅବଦାନ",
+    campaign: "ଅଭିଯାନ",
+    status: "ସ୍ଥିତି",
+    signed: "ସମର୍ଥନ ରେକର୍ଡ ହୋଇଛି",
+    dashboard: "ମୋ ଡ୍ୟାସବୋର୍ଡ",
+    certificates: "ମୋ ପ୍ରମାଣପତ୍ର",
+    invite: "ସମର୍ଥକଙ୍କୁ ଆମନ୍ତ୍ରଣ କରନ୍ତୁ",
+    inviteHelp: "ଆପଣଙ୍କ ବ୍ୟକ୍ତିଗତ ଲିଙ୍କ ସେୟାର ହେଲେ ରେଫରାଲ୍ ଶ୍ରେୟ ସୁରକ୍ଷିତ ରହେ।",
+    copyLink: "ରେଫରାଲ୍ ଲିଙ୍କ କପି କରନ୍ତୁ",
+    copied: "କପି ହେଲା",
+    whatsapp: "ହ୍ୱାଟସଆପ୍",
+    email: "ଇମେଲ୍",
+    share: "ସେୟାର",
+    metrics: "ବିକାଶ ମାପକ",
+    metricsUnavailable: "ଯାଞ୍ଚ ହୋଇଥିବା ରେଫରାଲ୍ ସଂଖ୍ୟା ଏହି ସାର୍ବଜନୀନ ଦୃଶ୍ୟରେ ଉପଲବ୍ଧ ନୁହେଁ। ଅଧିକୃତ ନେଟୱର୍କ ସୂଚନା ପାଇଁ ଡ୍ୟାସବୋର୍ଡ ଖୋଲନ୍ତୁ।",
+    pathway: "ବିକାଶ ପଥ",
+    pathwayHelp: "ସମର୍ଥକ → ସ୍ୱେଚ୍ଛାସେବୀ ଆବେଦନ → ସମନ୍ୱୟକ ବିଚାର। ସ୍ୱେଚ୍ଛାସେବୀ ଓ ସମନ୍ୱୟକ ପ୍ରବେଶ ପାଇଁ ସମୀକ୍ଷା ଏବଂ ଅନୁମୋଦନ ଆବଶ୍ୟକ।",
+    volunteer: "ସ୍ୱେଚ୍ଛାସେବୀ",
+    coordinator: "ସମନ୍ୱୟକ",
+    approved: "ଅନୁମୋଦିତ",
+    authorized: "ଅଧିକୃତ",
+    notAssigned: "ନିଯୁକ୍ତ ନୁହେଁ",
+    requestStatus: "ଆବେଦନ ସ୍ଥିତି",
+    noRequest: "କୌଣସି ଆବେଦନ ରେକର୍ଡ ହୋଇନାହିଁ",
+    promotionsEyebrow: "VoiceUp Business OS",
+    promotionsTitle: "ଅଂଶଗ୍ରହଣର ଆହୁରି ସୁଯୋଗ — ଶୀଘ୍ର ଆସୁଛି",
+    comingSoon: "ଶୀଘ୍ର ଆସୁଛି"
+  }
+} as const;
+
+const promotions = [
+  {
+    name: "Goudhan Marketplace",
+    description: {
+      en: "Cow products, dairy and trusted rural marketplace connections.",
+      hi: "गो-उत्पाद, डेयरी और विश्वसनीय ग्रामीण बाज़ार संपर्क।",
+      or: "ଗୋ-ଉତ୍ପାଦ, ଦୁଗ୍ଧ ଏବଂ ବିଶ୍ୱସନୀୟ ଗ୍ରାମୀଣ ବଜାର ସଂଯୋଗ।"
+    },
+    icon: ShoppingBasket
+  },
+  {
+    name: "PanditOnline",
+    description: {
+      en: "Professional religious services with trusted discovery and coordination.",
+      hi: "विश्वसनीय खोज और समन्वय के साथ पेशेवर धार्मिक सेवाएँ।",
+      or: "ବିଶ୍ୱସନୀୟ ସନ୍ଧାନ ଓ ସମନ୍ୱୟ ସହିତ ବୃତ୍ତିଗତ ଧାର୍ମିକ ସେବା।"
+    },
+    icon: Landmark
+  },
+  {
+    name: "Organic Food Catering",
+    description: {
+      en: "Organic catering discovery for communities, events and responsible food networks.",
+      hi: "समुदायों, आयोजनों और जिम्मेदार खाद्य नेटवर्क के लिए जैविक कैटरिंग खोज।",
+      or: "ସମୁଦାୟ, କାର୍ଯ୍ୟକ୍ରମ ଓ ଦାୟିତ୍ୱଶୀଳ ଖାଦ୍ୟ ନେଟୱର୍କ ପାଇଁ ଜୈବିକ କ୍ୟାଟରିଂ ସନ୍ଧାନ।"
+    },
+    icon: HeartHandshake
+  }
+] as const;
+
+export function SupporterGrowthCenter({
+  language,
+  dashboard,
+  dashboardPath,
+  referralUrl,
+  approvedVolunteer,
+  authorizedCoordinator
+}: SupporterGrowthCenterProps) {
+  const text = copy[language];
+  const [copied, setCopied] = useState(false);
+  const volunteerRequest = dashboard.participationRequests.find((item) => item.type === "volunteer");
+  const coordinatorRequest = dashboard.participationRequests.find((item) => item.type === "coordinator");
+  const certificatePath = `${dashboardPath}#certificates`;
+  const networkPath = `${dashboardPath}#network`;
+
+  async function copyReferralLink() {
+    try {
+      await navigator.clipboard.writeText(referralUrl);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  async function shareReferralLink() {
+    if (!navigator.share) return;
+    try {
+      await navigator.share({
+        title: dashboard.campaign.title,
+        text: text.inviteHelp,
+        url: referralUrl
+      });
+    } catch {
+      // Native share cancellation is not an error state.
+    }
+  }
+
+  return (
+    <section className="gsaa-growth-center" aria-labelledby="gsaa-growth-center-title">
+      <header className="gsaa-growth-center-hero">
+        <div>
+          <span className="eyebrow"><BadgeCheck size={16} /> {text.eyebrow}</span>
+          <h2 id="gsaa-growth-center-title">{text.title}</h2>
+          <p>{text.welcome}</p>
+        </div>
+        <div className="gsaa-growth-center-hero-actions">
+          <a className="primary-link-button" href={dashboardPath}><LayoutDashboard size={17} /> {text.dashboard}</a>
+          <a className="secondary-link-button" href={certificatePath}><Award size={17} /> {text.certificates}</a>
+        </div>
+      </header>
+
+      <div className="gsaa-growth-grid">
+        <article className="gsaa-growth-card gsaa-growth-contribution">
+          <span className="eyebrow">{text.contribution}</span>
+          <h3>{dashboard.supporter.name || dashboard.campaign.title}</h3>
+          <dl>
+            <div><dt>{text.campaign}</dt><dd>{dashboard.campaign.title}</dd></div>
+            <div><dt>{text.status}</dt><dd><BadgeCheck size={15} /> {text.signed}</dd></div>
+          </dl>
+        </article>
+
+        <article className="gsaa-growth-card gsaa-growth-invite">
+          <span className="eyebrow"><Users size={15} /> {text.invite}</span>
+          <p>{text.inviteHelp}</p>
+          {referralUrl ? (
+            <>
+              <div className="gsaa-growth-share-actions">
+                <button type="button" className="primary-button" onClick={() => void copyReferralLink()}>
+                  <Copy size={16} /> {copied ? text.copied : text.copyLink}
+                </button>
+                <a className="secondary-link-button" href={`https://wa.me/?text=${encodeURIComponent(`${dashboard.campaign.title}\n${referralUrl}`)}`} target="_blank" rel="noopener noreferrer">{text.whatsapp}</a>
+                <a className="secondary-link-button" href={`mailto:?subject=${encodeURIComponent(dashboard.campaign.title)}&body=${encodeURIComponent(referralUrl)}`}><Mail size={16} /> {text.email}</a>
+                {typeof navigator !== "undefined" && "share" in navigator && (
+                  <button type="button" className="secondary-button" onClick={() => void shareReferralLink()}><Share2 size={16} /> {text.share}</button>
+                )}
+              </div>
+              <ReferralQrPreview value={referralUrl} label={text.invite} caption={dashboard.campaign.title} compact />
+            </>
+          ) : <p className="info-message">{text.metricsUnavailable}</p>}
+        </article>
+
+        <article className="gsaa-growth-card gsaa-growth-metrics">
+          <span className="eyebrow"><Sparkles size={15} /> {text.metrics}</span>
+          <p>{text.metricsUnavailable}</p>
+          <a href={networkPath}>{text.dashboard}</a>
+        </article>
+
+        <article className="gsaa-growth-card gsaa-growth-pathway">
+          <span className="eyebrow"><BriefcaseBusiness size={15} /> {text.pathway}</span>
+          <p>{text.pathwayHelp}</p>
+          <div className="gsaa-growth-role-statuses">
+            <div><strong>{text.volunteer}</strong><span>{approvedVolunteer ? text.approved : volunteerRequest ? `${text.requestStatus}: ${volunteerRequest.status}` : text.noRequest}</span></div>
+            <div><strong>{text.coordinator}</strong><span>{authorizedCoordinator ? text.authorized : coordinatorRequest ? `${text.requestStatus}: ${coordinatorRequest.status}` : text.notAssigned}</span></div>
+          </div>
+          <a href={networkPath}>{text.dashboard}</a>
+        </article>
+      </div>
+
+      <section className="gsaa-growth-promotions" aria-labelledby="gsaa-growth-promotions-title">
+        <span className="eyebrow">{text.promotionsEyebrow}</span>
+        <h3 id="gsaa-growth-promotions-title">{text.promotionsTitle}</h3>
+        <div className="gsaa-growth-promotion-grid">
+          {promotions.map((promotion) => {
+            const Icon = promotion.icon;
+            return (
+              <article key={promotion.name}>
+                <span className="gsaa-growth-promotion-icon"><Icon size={23} /></span>
+                <span className="coming-soon-badge">{text.comingSoon}</span>
+                <h4>{promotion.name}</h4>
+                <p>{promotion.description[language]}</p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    </section>
+  );
+}

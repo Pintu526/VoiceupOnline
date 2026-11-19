@@ -1,0 +1,20 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+const page = readFileSync(new URL("../src/pages/PublicCampaignPage.tsx", import.meta.url), "utf8");
+
+test("screen OTP uses server precheck route and never asks for redundant choice", () => {
+  assert.match(page, /const route = supporterRoutingPrecheck\?\.supporterRoute/);
+  assert.match(page, /route === "existing_account" \|\| route === "historical_signature" \|\| route === "ambiguous"/);
+  assert.match(page, /applyVerificationOutcome\("secure_access_required"\)/);
+  assert.match(page, /if \(route !== "new_number"\) \{[\s\S]*setVerificationOutcome\("lookup_unavailable"\)/);
+  assert.match(page, /if \(outcome === "new_supporter"\) \{[\s\S]*setWizardStep\("profile"\)/);
+  assert.match(page, /initialMode=\{supporterRoutingPrecheck\?\.supporterRoute === "historical_signature" \? "create_account" : "sign_in"\}/);
+  assert.doesNotMatch(page, /Have you supported this campaign before\?/);
+  assert.doesNotMatch(page, /Continue as new supporter/);
+});
+
+test("server-confirmed duplicate still redirects to sign-in", () => {
+  assert.match(page, /publicMessage !== "existing_supporter_duplicate"\) return/);
+  assert.match(page, /setVerificationOutcome\("secure_access_required"\)/);
+});

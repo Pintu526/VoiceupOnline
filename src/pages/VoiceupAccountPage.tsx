@@ -2,10 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BriefcaseBusiness,
-  CheckCircle2,
-  Copy,
   LogOut,
-  MapPin,
   Megaphone,
   ShieldCheck,
   UserRound,
@@ -26,6 +23,7 @@ import {
   type VoiceupAccessManifest
 } from "../accountAccess.ts";
 import { getCurrentSupporterIdentity, logoutSupporter } from "../supporterAuth.ts";
+import { SupporterDashboardV2 } from "./SupporterDashboardV2";
 
 interface VoiceupAccountPageProps {
   supporterAccountId?: string;
@@ -45,7 +43,6 @@ export function VoiceupAccountPage({ supporterAccountId }: VoiceupAccountPagePro
   const [dashboard, setDashboard] = useState<SupporterDashboardModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -90,12 +87,7 @@ export function VoiceupAccountPage({ supporterAccountId }: VoiceupAccountPagePro
   }, [supporterAccountId, t]);
 
   const destinations = useMemo(() => manifest ? getAuthorizedDestinations(manifest) : [], [manifest]);
-  const currentVolunteer = dashboard && manifest
-    ? manifest.volunteerAssignments.find((item) => item.accountId === dashboard.account.accountId)
-    : undefined;
-  const currentCoordinator = dashboard && manifest
-    ? manifest.coordinatorBindings.find((item) => item.workspaceId === dashboard.account.workspaceId)
-    : undefined;
+  const supporterLocation = dashboard ? compactLocation(dashboard.supporter.location) : "";
 
   function openDestination(destination: AccessDestination) {
     if (!manifest) return;
@@ -107,17 +99,6 @@ export function VoiceupAccountPage({ supporterAccountId }: VoiceupAccountPagePro
   async function signOut() {
     await logoutSupporter();
     window.location.assign("/login");
-  }
-
-  async function copyReferralLink() {
-    if (!dashboard?.referralPath) return;
-    try {
-      await navigator.clipboard.writeText(new URL(dashboard.referralPath, window.location.origin).toString());
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setCopied(false);
-    }
   }
 
   if (loading) {
@@ -140,11 +121,11 @@ export function VoiceupAccountPage({ supporterAccountId }: VoiceupAccountPagePro
   }
 
   return (
-    <main className="account-shell">
-      <header className="account-header">
+    <main className="account-shell account-supporter-v2-shell">
+      <header className="account-header account-supporter-v2-header">
         <a className="brand" href="/account" aria-label="VoiceUp account">
           <span className="brand-mark"><Megaphone size={22} /></span>
-          <span><strong>VoiceUp</strong><small>Business OS</small></span>
+          <span><strong>VoiceUp</strong><small>{t("account.dashboard.portal.productName")}</small></span>
         </a>
         <div className="account-header-actions">
           <LanguageSwitcher />
@@ -156,81 +137,14 @@ export function VoiceupAccountPage({ supporterAccountId }: VoiceupAccountPagePro
       </header>
 
       {dashboard ? (
-        <section className="account-dashboard" aria-labelledby="supporter-dashboard-title">
-          <div className="account-dashboard-hero">
-            <div>
-              <span className="eyebrow">{t("account.dashboard.supporterEyebrow")}</span>
-              <h1 id="supporter-dashboard-title">{dashboard.supporter.name || t("account.dashboard.supporter")}</h1>
-              <p>{dashboard.campaign.title}</p>
-            </div>
-            <div className="account-role-badges" aria-label={t("account.dashboard.roles")}>
-              <span><CheckCircle2 size={15} /> {t("account.dashboard.supporter")}</span>
-              {currentVolunteer && <span><UsersRound size={15} /> {t("account.dashboard.volunteer")}</span>}
-              {currentCoordinator && <span><BriefcaseBusiness size={15} /> {t("account.dashboard.coordinator")}</span>}
-            </div>
-          </div>
-
-          <div className="account-dashboard-grid">
-            <article className="account-panel">
-              <h2><UserRound size={20} /> {t("account.dashboard.profile")}</h2>
-              <dl className="account-profile-list">
-                <div><dt>{t("account.dashboard.supporterId")}</dt><dd><code>{dashboard.supporter.id}</code></dd></div>
-                <div><dt>{t("account.dashboard.signingEmail")}</dt><dd>{dashboard.supporter.email}</dd></div>
-                <div><dt>{t("account.dashboard.accountEmail")}</dt><dd>{manifest.user.email}</dd></div>
-                <div><dt>{t("account.dashboard.signedAt")}</dt><dd>{dashboard.supporter.signedAt ? new Date(dashboard.supporter.signedAt).toLocaleString() : "—"}</dd></div>
-                <div><dt>{t("account.dashboard.status")}</dt><dd>{dashboard.supporter.status || "—"}</dd></div>
-              </dl>
-            </article>
-
-            <article className="account-panel">
-              <h2><MapPin size={20} /> {t("account.dashboard.location")}</h2>
-              <p>{compactLocation(dashboard.supporter.location) || t("account.dashboard.locationUnavailable")}</p>
-              <h3>{t("account.dashboard.workspace")}</h3>
-              <p>{dashboard.workspace.name}</p>
-            </article>
-
-            <article className="account-panel account-referral-panel">
-              <h2>{t("account.dashboard.referral")}</h2>
-              <strong className="account-referral-code">{dashboard.supporter.referralCode || "—"}</strong>
-              <p>{t("account.dashboard.referralHelp")}</p>
-              <div className="account-card-actions">
-                {dashboard.referralPath && (
-                  <a className="primary-link-button" href={dashboard.referralPath}>
-                    {t("account.dashboard.openReferral")} <ArrowRight size={16} />
-                  </a>
-                )}
-                {dashboard.referralPath && (
-                  <button className="secondary-button" type="button" onClick={() => void copyReferralLink()}>
-                    <Copy size={16} /> {copied ? t("account.dashboard.copied") : t("account.dashboard.copy")}
-                  </button>
-                )}
-                {dashboard.campaignPath && (
-                  <a className="secondary-link-button" href={dashboard.campaignPath}>{t("account.dashboard.openCampaign")}</a>
-                )}
-              </div>
-            </article>
-
-            <article className="account-panel">
-              <h2>{t("account.dashboard.participation")}</h2>
-              {dashboard.participationRequests.length ? (
-                <div className="account-request-list">
-                  {dashboard.participationRequests.map((request) => (
-                    <div key={request.requestId}>
-                      <strong>{t(request.type === "volunteer" ? "account.dashboard.volunteer" : "account.dashboard.coordinator")}</strong>
-                      <span>{request.status}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : <p>{t("account.dashboard.noParticipation")}</p>}
-            </article>
-          </div>
-
-          {destinations.length > 1 && (
-            <button className="secondary-button" type="button" onClick={() => window.location.assign("/account")}>
-              {t("account.dashboard.switchWorkspace")}
-            </button>
-          )}
-        </section>
+        <SupporterDashboardV2
+          key={dashboard.account.accountId}
+          dashboard={dashboard}
+          manifest={manifest}
+          supporterLocation={supporterLocation}
+          authorizedDestinationCount={destinations.length}
+          onSwitchWorkspace={() => window.location.assign("/account")}
+        />
       ) : (
         <section className="account-switcher" aria-labelledby="account-switcher-title">
           <span className="eyebrow">{t("account.dashboard.authorizedAccess")}</span>

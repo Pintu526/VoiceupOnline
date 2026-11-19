@@ -222,6 +222,17 @@ export interface SupporterAccountClaimGrant {
   expiresAt: string;
 }
 
+export type ParticipationReceiptStatus =
+  | "sent"
+  | "queued"
+  | "failed"
+  | "not_requested"
+  | "unavailable";
+
+export interface ParticipationReceiptResult {
+  status: ParticipationReceiptStatus;
+}
+
 export interface PublicParticipationResult {
   action: PublicParticipationAction;
   signer: Signer | null;
@@ -231,6 +242,7 @@ export interface PublicParticipationResult {
   message: string;
   metrics: PublicCampaignPayload["metrics"];
   supporterAccountClaimGrant?: SupporterAccountClaimGrant;
+  participationReceipt?: ParticipationReceiptResult;
 }
 
 export interface OtpRequestResult {
@@ -355,6 +367,11 @@ if (supabase) {
       setPasswordRecoverySession("");
     }
   });
+}
+
+/** Shared Supabase transport for opt-in GauPoints read-only RPCs. */
+export function getGauPointsClient() {
+  return supabase;
 }
 
 export const isSupabaseAuthAvailable = Boolean(supabase);
@@ -2111,6 +2128,7 @@ export async function submitPublicSignatureSecure(
   message: string;
   metrics: PublicCampaignPayload["metrics"];
   supporterAccountClaimGrant?: SupporterAccountClaimGrant;
+  participationReceipt?: ParticipationReceiptResult;
 }> {
   const result = await mutatePublicParticipation({
     slug,
@@ -2125,7 +2143,8 @@ export async function submitPublicSignatureSecure(
     signer: result.signer,
     message: result.message,
     metrics: result.metrics,
-    supporterAccountClaimGrant: result.supporterAccountClaimGrant
+    supporterAccountClaimGrant: result.supporterAccountClaimGrant,
+    participationReceipt: result.participationReceipt
   };
 }
 

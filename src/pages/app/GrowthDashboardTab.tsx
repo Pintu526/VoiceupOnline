@@ -12,7 +12,7 @@ import {
   Trophy,
   UsersRound
 } from "lucide-react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import type { Campaign, Organization, Signer } from "../../types";
 import type { GrowthTrendPoint, LeaderboardEntry } from "../../growth";
 import type { GrowthRuntimeState } from "../../growth/lifecycle";
@@ -26,6 +26,8 @@ import { buildMerchantDashboardModel } from "../../growth/merchant";
 import { buildRewardCenterModel } from "../../growth/rewards";
 import { applyRewardRuntimeAction, type RewardRuntimeAction } from "../../growth/rewards/rewardRuntimeService";
 import { useTranslation } from "../../i18n/useTranslation";
+import { getAuthContext, getGauPointsClient } from "../../backend";
+import { GauPointsAdminPanel } from "../../growth/gauPoints/GauPointsAdminPanel";
 
 const MerchantDashboard = lazy(() => import("../../growth/merchant/components/MerchantDashboard"));
 
@@ -116,6 +118,26 @@ function GrowthDashboardContent({
 }) {
   const { t } = useTranslation();
   const { dashboardModel: model } = useGrowth();
+  const [gauPointsWorkspaceId, setGauPointsWorkspaceId] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setGauPointsWorkspaceId("");
+
+    getAuthContext()
+      .then((context) => {
+        if (active && context.workspaceMember && context.workspaceId) {
+          setGauPointsWorkspaceId(context.workspaceId);
+        }
+      })
+      .catch(() => {
+        if (active) setGauPointsWorkspaceId("");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
   const campaignWallets = (growthRuntime?.wallets ?? []).filter((wallet) =>
     activeCampaignId ? wallet.campaignId === activeCampaignId : true
   );
@@ -175,6 +197,14 @@ function GrowthDashboardContent({
   return (
     <section className="page-stack growth-dashboard">
       <CampaignEngagementHub viewModel={engagementViewModel} />
+      {getGauPointsClient() && activeCampaignId && (
+        <GauPointsAdminPanel
+          client={getGauPointsClient()!}
+          workspaceId={gauPointsWorkspaceId}
+          campaignId={activeCampaignId}
+          enabled={import.meta.env.DEV && import.meta.env.VITE_GAUPOINTS_READ_ONLY === "true" && Boolean(gauPointsWorkspaceId)}
+        />
+      )}
       <Panel title={t("growth.dashboard.title")} icon={<TrendingUp />}>
         <div className="growth-hero">
           <div>

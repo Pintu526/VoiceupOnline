@@ -1,7 +1,10 @@
 import { getSupporterAuthClient } from "./supporterAuth.ts";
 import type { SupporterAccountClaimGrant } from "./supporterAccountClaim.ts";
 
+export type PublicSupporterPrecheckRoute = "new_number" | "existing_account" | "historical_signature" | "ambiguous";
+
 export interface PublicSupporterRoutingPrecheck {
+  supporterRoute?: PublicSupporterPrecheckRoute;
   routingToken: string;
   expiresAt: string;
 }
@@ -32,6 +35,7 @@ type InvokeResponse = {
   routingToken?: string;
   expiresAt?: string;
   route?: AuthenticatedSupporterRoute;
+  supporterRoute?: PublicSupporterPrecheckRoute;
   accountId?: string;
   claimGrant?: SupporterAccountClaimGrant;
   error?: string;
@@ -70,7 +74,7 @@ export async function precheckPublicSupporterRouting(
   if (error || data?.error || !isRoutingToken(data?.routingToken) || !data?.expiresAt) {
     throw new SupporterRoutingError(data?.code ?? "routing_unavailable");
   }
-  return { routingToken: data.routingToken, expiresAt: data.expiresAt };
+  return { routingToken: data.routingToken, expiresAt: data.expiresAt, supporterRoute: data.supporterRoute };
 }
 
 export async function resolveAuthenticatedSupporterRouting(
@@ -129,7 +133,7 @@ export function readSupporterRoutingPrecheck(
       window.sessionStorage.removeItem(key);
       return null;
     }
-    return { routingToken: parsed.routingToken, expiresAt: parsed.expiresAt };
+    return { routingToken: parsed.routingToken, expiresAt: parsed.expiresAt, supporterRoute: parsed.supporterRoute };
   } catch {
     window.sessionStorage.removeItem(key);
     return null;

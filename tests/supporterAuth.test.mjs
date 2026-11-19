@@ -8,7 +8,8 @@ import {
   getCurrentSupporterIdentity,
   loginSupporterWithEmail,
   logoutSupporter,
-  registerSupporterWithEmail
+  registerSupporterWithEmail,
+  requestSupporterEmailOtp
 } from "../src/supporterAuth.ts";
 
 function fakeClient(overrides = {}) {
@@ -70,6 +71,15 @@ test("supporter registration requests email confirmation without creating an act
     options: { emailRedirectTo: "https://gaumata.cloud/supporter-email-confirmed.html" }
   }]);
   assert.deepEqual(calls.signOut, []);
+});
+
+test("email OTP account creation is explicit and existing-account login remains the default", async () => {
+  const requests = [];
+  const client = { auth: { signInWithOtp: async (payload) => { requests.push(payload); return { error: null }; } } };
+  await requestSupporterEmailOtp("new@example.com", "/login", "https://voiceup.test", client);
+  await requestSupporterEmailOtp("new@example.com", "/login", "https://voiceup.test", client, true);
+  assert.equal(requests[0].options.shouldCreateUser, false);
+  assert.equal(requests[1].options.shouldCreateUser, true);
 });
 
 test("registration fails closed when Supabase email confirmation is disabled", async () => {

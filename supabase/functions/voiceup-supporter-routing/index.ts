@@ -95,7 +95,8 @@ Deno.serve(async (req) => {
         ok: true,
         routingToken: data.routingToken,
         expiresAt: data.expiresAt,
-        message: "You can continue verification or use secure VoiceUp account access."
+        supporterRoute: data.supporterRoute,
+        message: "Phone number checked for this campaign."
       });
     }
 

@@ -13,4 +13,3 @@ export * from "./selection.ts";
 export * from "./pipeline.ts";
 export * from "./defaultPipeline.ts";
 export * from "./providers/tesseract.ts";
-export * from "./references/india.ts";

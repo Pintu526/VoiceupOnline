@@ -1,0 +1,11 @@
+﻿modified:
+src/components/indiaLocationOptions.ts
+src/documentIntelligence/defaultPipeline.ts
+src/documentIntelligence/index.ts
+src/pages/PublicCampaignPage.tsx
+tests/documentIntelligence.test.mjs
+created:
+src/components/IndiaLocationFieldsLazy.tsx
+src/components/indiaLocationCatalogResolver.ts
+tests/initialBundleGeography.test.mjs
+scripts/verify-initial-bundle.mjs

@@ -78,6 +78,18 @@ export function getIsVoiceupAccountRoute(): boolean {
     || Boolean(getSupporterAccountDashboardId());
 }
 
+export interface CertificateVerificationRoute {
+  certificateId: string;
+  verificationReference: string;
+}
+
+export function getCertificateVerificationRoute(): CertificateVerificationRoute | null {
+  if (typeof window === "undefined") return null;
+  const certificateId = window.location.pathname.match(/^\/certificates\/verify\/([A-Za-z0-9_-]{3,120})\/?$/)?.[1] ?? "";
+  const verificationReference = new URLSearchParams(window.location.search).get("ref")?.trim() ?? "";
+  return certificateId ? { certificateId, verificationReference } : null;
+}
+
 export function getLegalPage(): "privacy" | "terms" | "refund" | "data-deletion" | null {
   if (typeof window === "undefined") return null;
   const path = window.location.pathname.replace(/^\//, "");
@@ -96,6 +108,11 @@ export function getIsLandingPageRoute(): boolean {
   if (typeof window === "undefined") return false;
   const pathname = window.location.pathname;
   return pathname === "/" || pathname === "";
+}
+
+export function getIsCampaignOsRoute(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.location.pathname.replace(/\/$/, "").toLowerCase() === "/campaignos";
 }
 
 export function getIsStartRoute(): boolean {

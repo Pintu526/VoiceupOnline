@@ -59,6 +59,7 @@ test("only authorized Location closure consumers import the persistence contract
     "src/coordinators/types.ts",
     "src/geography.ts",
     "src/lib.ts",
+    "src/locationManagement.ts",
     "src/pages/PublicCampaignPage.tsx",
     "src/pages/app/CampaignsTab.tsx",
     "src/pages/app/CoordinatorNetworkTab.tsx",

@@ -328,7 +328,30 @@ export type SignerRequiredField = keyof Pick<
   | "panchayat"
 >;
 
+/**
+ * Optional, additive multilingual campaign content.
+ * Existing Campaign fields remain authoritative for legacy records.
+ * Missing translations must not overwrite stored campaign content.
+ */
+export interface CampaignLocalizedContent {
+  title?: string;
+  description?: string;
+  appealContent?: string;
+  consentText?: string;
+  donationCaption?: string;
+  socialShareText?: string;
+  thankYouMessage?: string;
+  participantUpdateMessage?: string;
+  qrLabel?: string;
+}
+
+export type CampaignContentLanguage = "en" | "hi" | "or";
+
+export type CampaignLocalizedContentMap =
+  Partial<Record<CampaignContentLanguage, CampaignLocalizedContent>>;
 export interface Campaign {
+  /** Optional language-specific content; absent on legacy campaigns. */
+  localizedContent?: CampaignLocalizedContentMap;
   id: string;
   title: string;
   slug: string;

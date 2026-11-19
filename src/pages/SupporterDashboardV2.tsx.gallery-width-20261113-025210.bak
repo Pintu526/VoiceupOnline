@@ -1,0 +1,583 @@
+import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent, type FormEvent } from "react";
+import {
+  Activity,
+  ArrowLeft,
+  ArrowRight,
+  Award,
+  BriefcaseBusiness,
+  CheckCircle2,
+  CircleHelp,
+  Copy,
+  Gift,
+  Home,
+  Image,
+  Camera,
+  Link2,
+  LockKeyhole,
+  MapPin,
+  Megaphone,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+  UsersRound
+} from "lucide-react";
+import type { Language } from "../i18n";
+import { listSupporterMedia, submitSupporterMedia, manageSupporterMedia, getSupporterProfilePhoto, saveSupporterProfilePhoto, type SupporterMediaGalleryItem } from "../supporterMedia.ts";
+import { useTranslation } from "../i18n/useTranslation";
+import type { SupporterDashboardModel, VoiceupAccessManifest } from "../accountAccess.ts";
+import { PublicSupporterPhoto, type PublicSupporterPhotoCopy } from "../components/PublicSupporterPhoto";
+import { MyCertificatesPanel } from "../certificates/MyCertificatesPanel";
+
+const portalSections = [
+  { id: "home", labelKey: "account.dashboard.portal.home", icon: Home },
+  { id: "certificates", labelKey: "account.dashboard.portal.certificates", icon: Award },
+  { id: "rewards", labelKey: "account.dashboard.portal.rewards", icon: Gift },
+  { id: "network", labelKey: "account.dashboard.portal.network", icon: UsersRound },
+  { id: "media", labelKey: "account.dashboard.portal.media", icon: Image },
+  { id: "help", labelKey: "account.dashboard.portal.help", icon: CircleHelp }
+] as const;
+
+type PortalSectionId = (typeof portalSections)[number]["id"];
+
+interface SupporterDashboardV2Props {
+  dashboard: SupporterDashboardModel;
+  manifest: VoiceupAccessManifest;
+  supporterLocation: string;
+  authorizedDestinationCount: number;
+  onSwitchWorkspace: () => void;
+}
+
+function readPortalSectionHash(): PortalSectionId {
+  if (typeof window === "undefined") return "home";
+  const requested = window.location.hash.replace(/^#/, "");
+  return portalSections.find((section) => section.id === requested)?.id ?? "home";
+}
+
+function dateLocale(language: Language): string {
+  if (language === "hi") return "hi-IN";
+  if (language === "or") return "or-IN";
+  return "en-IN";
+}
+
+function formatSupportDate(value: string, language: Language, fallback: string): string {
+  if (!value) return fallback;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  return new Intl.DateTimeFormat(dateLocale(language), { dateStyle: "medium" }).format(parsed);
+}
+
+export function SupporterDashboardV2({
+  dashboard,
+  manifest,
+  supporterLocation,
+  authorizedDestinationCount,
+  onSwitchWorkspace
+}: SupporterDashboardV2Props) {
+  const { language, t } = useTranslation();
+  const [activeSection, setActiveSection] = useState<PortalSectionId>(readPortalSectionHash);
+  const [copied, setCopied] = useState(false);
+  const [mediaItems, setMediaItems] = useState<SupporterMediaGalleryItem[]>([]);
+  const [mediaBusy, setMediaBusy] = useState(false);
+  const [mediaFilter, setMediaFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [mediaProgress, setMediaProgress] = useState("");
+  const [mediaError, setMediaError] = useState("");
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [mediaCaption, setMediaCaption] = useState("");
+  const [mediaConsent, setMediaConsent] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [profilePhotoEditorOpen, setProfilePhotoEditorOpen] = useState(false);
+  const [profilePhotoError, setProfilePhotoError] = useState("");
+  useEffect(() => {
+    let active = true;
+    setProfilePhotoUrl(null);
+    getSupporterProfilePhoto(dashboard.account.accountId)
+      .then((url) => { if (active) setProfilePhotoUrl(url); })
+      .catch((error: unknown) => { if (active) setProfilePhotoError(String(error)); });
+    return () => { active = false; };
+  }, [dashboard.account.accountId]);
+  const profileCopy: PublicSupporterPhotoCopy = {
+    title: "Profile photo", help: "Choose, crop and confirm your profile photo",
+    selfie: "Take selfie", rearCamera: "Rear camera", choosePhoto: "Choose photo",
+    skip: "Cancel", retake: "Choose again", rotate: "Rotate", crop: "Crop / zoom",
+    lighting: "Use a clear photo of your face. You can change it later.",
+    upload: "Confirm & save", uploading: "Saving...", uploaded: "Photo saved",
+    invalidImage: "Please select an image smaller than 5 MB.",
+    uploadFailed: "Could not save profile photo."
+  };
+
+
+  useEffect(() => {
+    if (activeSection !== "media") return;
+    let alive = true;
+    setMediaBusy(true);
+    listSupporterMedia(dashboard.account.accountId)
+      .then((items) => { if (alive) { setMediaItems(items); setMediaError(""); } })
+      .catch((error: unknown) => { if (alive) setMediaError(String(error)); })
+      .finally(() => { if (alive) setMediaBusy(false); });
+    return () => { alive = false; };
+  }, [activeSection, dashboard.account.accountId]);
+
+  async function handleMediaSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!mediaFile || !mediaConsent || mediaBusy) return;
+    setMediaBusy(true);
+    setMediaError("");
+    setMediaProgress("Uploading and submitting for review…");
+    try {
+      await submitSupporterMedia(dashboard.account.accountId, mediaFile, mediaCaption, mediaConsent);
+      setMediaItems(await listSupporterMedia(dashboard.account.accountId));
+      setMediaFile(null);
+      setMediaCaption("");
+      setMediaConsent(false);
+      const input = document.getElementById("supporter-media-file") as HTMLInputElement | null;
+      if (input) input.value = "";
+    } catch (error) {
+      setMediaError(String(error));
+    } finally {
+      setMediaBusy(false);
+      setMediaProgress("");
+    }
+  }
+
+  async function handleMediaAction(item: SupporterMediaGalleryItem, action: "download_media" | "share_media" | "delete_media") {
+    if (mediaBusy) return;
+    if (action === "delete_media" && !window.confirm("Delete this submission from your gallery? This cannot be undone.")) return;
+    setMediaBusy(true); setMediaError("");
+    try {
+      const result = await manageSupporterMedia(dashboard.account.accountId, item.id, action);
+      if (action === "delete_media") {
+        setMediaItems((current) => current.filter((entry) => entry.id !== item.id));
+        if (result.storageCleanupPending) setMediaError("Removed from gallery; storage cleanup requires administrator attention.");
+      } else if (action === "share_media" && typeof result.code === "string" && /^[0-9a-f]{24}$/.test(result.code)) {
+        const shareUrl = `${window.location.origin}/m/${result.code}`;
+        if (navigator.share) {
+          try { await navigator.share({ title: item.caption || "VoiceUp campaign media", url: shareUrl }); }
+          catch (error) { if ((error as Error)?.name !== "AbortError") throw error; }
+        } else {
+          await navigator.clipboard.writeText(shareUrl);
+          window.alert("VoiceUp media link copied.");
+        }
+      } else if (typeof result.url === "string") {
+        if (action === "download_media") {
+          const link = document.createElement("a");
+          link.href = result.url; link.target = "_blank"; link.rel = "noopener noreferrer";
+          link.download = item.mediaType === "photo" ? "campaign-photo" : "campaign-video";
+          document.body.appendChild(link); link.click(); link.remove();
+        }
+      }
+    } catch (error) { setMediaError(String(error)); }
+    finally { setMediaBusy(false); }
+  }
+
+  useEffect(() => {
+    const onHashChange = () => setActiveSection(readPortalSectionHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  const currentVolunteer = manifest.volunteerAssignments.find(
+    (item) => item.accountId === dashboard.account.accountId
+  );
+  const currentCoordinator = manifest.coordinatorBindings.find((item) => (
+    item.workspaceId === dashboard.account.workspaceId
+    && item.campaignIds.includes(dashboard.campaign.id)
+  ));
+  const authorizedRoleCount = 1 + Number(Boolean(currentVolunteer)) + Number(Boolean(currentCoordinator));
+  const supportDate = formatSupportDate(
+    dashboard.supporter.signedAt,
+    language,
+    t("account.dashboard.portal.notAvailable")
+  );
+  function selectPortalSection(sectionId: PortalSectionId) {
+    setActiveSection(sectionId);
+    const nextUrl = `${window.location.pathname}${window.location.search}#${sectionId}`;
+    window.history.replaceState(null, "", nextUrl);
+  }
+
+  function handleSectionKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
+    let nextIndex = currentIndex;
+    if (event.key === "ArrowRight") nextIndex = (currentIndex + 1) % portalSections.length;
+    else if (event.key === "ArrowLeft") nextIndex = (currentIndex - 1 + portalSections.length) % portalSections.length;
+    else if (event.key === "Home") nextIndex = 0;
+    else if (event.key === "End") nextIndex = portalSections.length - 1;
+    else return;
+    event.preventDefault();
+    const nextSection = portalSections[nextIndex];
+    selectPortalSection(nextSection.id);
+    document.getElementById(`account-supporter-v2-tab-${nextSection.id}`)?.focus();
+  }
+
+  async function copyReferralLink() {
+    if (!dashboard.referralPath) return;
+    try {
+      await navigator.clipboard.writeText(new URL(dashboard.referralPath, window.location.origin).toString());
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <section className="account-dashboard account-supporter-v2" aria-labelledby="account-supporter-v2-title">
+      <div className="account-supporter-v2-hero" style={{ minHeight: 0, padding: "22px 28px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
+        <div className="account-supporter-v2-welcome" style={{ flex: "1 1 320px", minWidth: 0 }}>
+          <span className="eyebrow">{t("account.dashboard.portal.eyebrow")}</span>
+          <h1 id="account-supporter-v2-title" style={{ fontSize: "clamp(1.5rem, 3vw, 2.3rem)", lineHeight: 1.15, margin: "6px 0" }}>
+            {t("account.dashboard.portal.welcome")}, {dashboard.supporter.name || t("account.dashboard.supporter")}
+          </h1>
+          <p style={{ margin: "4px 0 12px", maxWidth: 620 }}>{t("account.dashboard.portal.welcomeHelp")}</p>
+          <div className="account-supporter-v2-campaign-context">
+            <Megaphone size={18} aria-hidden="true" />
+            <span><small>{t("account.dashboard.portal.campaign")}</small><strong>{dashboard.campaign.title}</strong></span>
+          </div>
+        </div>
+        <div className="supporter-profile-photo-control" style={{ display: "grid", justifyItems: "center", gap: 8, padding: 4, flex: "0 0 auto" }}>
+          {profilePhotoUrl ? (
+            <img src={profilePhotoUrl} alt="Your profile" style={{ width: 92, height: 92, borderRadius: "50%", objectFit: "cover", border: "3px solid currentColor" }} />
+          ) : (
+            <div aria-label="Profile photo not set" style={{ width: 92, height: 92, borderRadius: "50%", display: "grid", placeItems: "center", background: "#e9eef5", color: "#41536b" }}><UserRound size={44} /></div>
+          )}
+          <button type="button" className="secondary-button" onClick={() => setProfilePhotoEditorOpen((value) => !value)}>
+            <Camera size={16} /> {profilePhotoUrl ? "Change photo" : "Add profile photo"}
+          </button>
+        </div>
+        <div className="account-supporter-v2-hero-side" style={{ display: "flex", flexDirection: "column", gap: 10, justifyContent: "center", alignItems: "flex-start", flex: "0 0 auto" }}>
+          <div className="account-role-badges" aria-label={t("account.dashboard.roles")}>
+            <span><CheckCircle2 size={15} /> {t("account.dashboard.supporter")}</span>
+            {currentVolunteer && <span><UsersRound size={15} /> {t("account.dashboard.volunteer")}</span>}
+            {currentCoordinator && <span><BriefcaseBusiness size={15} /> {t("account.dashboard.coordinator")}</span>}
+          </div>
+          {dashboard.campaignPath && (
+            <a className="account-supporter-v2-hero-action" href={dashboard.campaignPath}>
+              <ArrowLeft size={17} /> {t("account.dashboard.portal.backCampaign")}
+            </a>
+          )}
+        </div>
+      </div>
+      {profilePhotoEditorOpen && (
+        <div role="presentation" style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(9, 19, 40, .78)", display: "grid", placeItems: "center", padding: 16, overflowY: "auto" }}>
+          <div role="dialog" aria-modal="true" aria-label="Edit supporter profile photo" className="account-panel" style={{ background: "#fff", color: "#16243a", width: "min(100%, 580px)", maxHeight: "calc(100dvh - 32px)", overflowY: "auto", padding: "20px 24px", borderRadius: 18, boxShadow: "0 20px 80px rgba(0,0,0,.35)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12 }}>
+              <strong style={{ fontSize: "1.2rem" }}>Your profile photo</strong>
+              <button type="button" className="secondary-button" onClick={() => setProfilePhotoEditorOpen(false)} aria-label="Close photo editor">Close</button>
+            </div>
+            <PublicSupporterPhoto
+              copy={profileCopy}
+              onSkip={() => setProfilePhotoEditorOpen(false)}
+              onUpload={async (file) => {
+                const url = await saveSupporterProfilePhoto(dashboard.account.accountId, file);
+                setProfilePhotoUrl(url);
+                setProfilePhotoError("");
+                setProfilePhotoEditorOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
+      {profilePhotoError && <p role="alert" className="info-message">{profilePhotoError}</p>}
+      <div className="account-supporter-v2-nav-shell">
+        <nav className="account-supporter-v2-nav" aria-label={t("account.dashboard.portal.sectionsLabel")} role="tablist">
+          {portalSections.map((section, index) => {
+            const SectionIcon = section.icon;
+            const selected = activeSection === section.id;
+            return (
+              <button
+                id={`account-supporter-v2-tab-${section.id}`}
+                key={section.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls={`account-supporter-v2-panel-${section.id}`}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => selectPortalSection(section.id)}
+                onKeyDown={(event) => handleSectionKeyDown(event, index)}
+              >
+                <SectionIcon size={18} aria-hidden="true" />
+                <span>{t(section.labelKey)}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div
+        id={`account-supporter-v2-panel-${activeSection}`}
+        className="account-supporter-v2-panel"
+        role="tabpanel"
+        aria-labelledby={`account-supporter-v2-tab-${activeSection}`}
+        tabIndex={0}
+      >
+        {activeSection === "home" && (
+          <div className="supporter-home">
+            <div className="supporter-section-heading">
+              <div>
+                <span className="eyebrow">{t("account.dashboard.portal.homeEyebrow")}</span>
+                <h2>{t("account.dashboard.portal.homeTitle")}</h2>
+                <p>{t("account.dashboard.portal.homeHelp")}</p>
+              </div>
+              <button className="secondary-button" type="button" onClick={() => selectPortalSection("certificates")}>
+                <Award size={17} /> {t("account.dashboard.portal.viewCertificates")}
+              </button>
+            </div>
+
+            <div className="supporter-impact-grid" aria-label={t("account.dashboard.portal.impactTitle")}>
+              <article>
+                <span><CheckCircle2 size={18} /> {t("account.dashboard.portal.supportStatus")}</span>
+                <strong>{dashboard.supporter.signedAt ? t("account.dashboard.portal.recorded") : t("account.dashboard.portal.pending")}</strong>
+                <small>{supportDate}</small>
+              </article>
+              <article>
+                <span><Megaphone size={18} /> {t("account.dashboard.portal.linkedCampaigns")}</span>
+                <strong>1</strong>
+                <small>{dashboard.campaign.title}</small>
+              </article>
+              <article>
+                <span><ShieldCheck size={18} /> {t("account.dashboard.portal.authorizedRoles")}</span>
+                <strong>{authorizedRoleCount}</strong>
+                <small>{t("account.dashboard.portal.serverConfirmed")}</small>
+              </article>
+              <article>
+                <span><Activity size={18} /> {t("account.dashboard.portal.requests")}</span>
+                <strong>{dashboard.participationRequests.length}</strong>
+                <small>{t("account.dashboard.portal.requestHelp")}</small>
+              </article>
+            </div>
+
+            <div className="supporter-home-grid">
+              <article className="account-panel supporter-next-action">
+                <span className="eyebrow">{t("account.dashboard.portal.nextAction")}</span>
+                <Sparkles size={28} aria-hidden="true" />
+                <h2>{t("account.dashboard.portal.keepCampaignMoving")}</h2>
+                <p>{t("account.dashboard.portal.nextActionHelp")}</p>
+                <div className="account-card-actions">
+                  {dashboard.campaignPath && (
+                    <a className="primary-link-button" href={dashboard.campaignPath}>
+                      {t("account.dashboard.portal.backCampaign")} <ArrowRight size={16} />
+                    </a>
+                  )}
+                  {dashboard.referralPath && (
+                    <a className="secondary-link-button" href={dashboard.referralPath}>
+                      {t("account.dashboard.openReferral")}
+                    </a>
+                  )}
+                </div>
+              </article>
+
+              <article className="account-panel supporter-journey-card">
+                <h2><Activity size={20} /> {t("account.dashboard.portal.journeyTitle")}</h2>
+                <p>{t("account.dashboard.portal.journeyHelp")}</p>
+                <ol className="supporter-journey-list">
+                  <li className="is-complete">
+                    <CheckCircle2 size={18} />
+                    <span><strong>{t("account.dashboard.portal.accountLinked")}</strong><small>{t("account.dashboard.portal.accountLinkedHelp")}</small></span>
+                  </li>
+                  <li className={dashboard.supporter.signedAt ? "is-complete" : ""}>
+                    <CheckCircle2 size={18} />
+                    <span><strong>{t("account.dashboard.portal.supportRecorded")}</strong><small>{supportDate}</small></span>
+                  </li>
+                  <li className={currentVolunteer || currentCoordinator || dashboard.participationRequests.length ? "is-current" : ""}>
+                    <UsersRound size={18} />
+                    <span>
+                      <strong>{t("account.dashboard.portal.communityRole")}</strong>
+                      <small>{currentVolunteer || currentCoordinator
+                        ? t("account.dashboard.portal.roleApproved")
+                        : dashboard.participationRequests.length
+                          ? t("account.dashboard.portal.rolePending")
+                          : t("account.dashboard.portal.roleOptional")}</small>
+                    </span>
+                  </li>
+                </ol>
+              </article>
+
+              <article className="account-panel">
+                <h2><UserRound size={20} /> {t("account.dashboard.profile")}</h2>
+                <dl className="account-profile-list">
+                  <div><dt>{t("account.dashboard.supporterId")}</dt><dd><code>{dashboard.supporter.id}</code></dd></div>
+                  <div><dt>{t("account.dashboard.signingEmail")}</dt><dd>{dashboard.supporter.email || t("account.dashboard.portal.notAvailable")}</dd></div>
+                  <div><dt>{t("account.dashboard.accountEmail")}</dt><dd>{manifest.user.email}</dd></div>
+                  <div><dt>{t("account.dashboard.signedAt")}</dt><dd>{supportDate}</dd></div>
+                  <div><dt>{t("account.dashboard.status")}</dt><dd>{dashboard.supporter.status || t("account.dashboard.portal.notAvailable")}</dd></div>
+                </dl>
+              </article>
+
+              <article className="account-panel">
+                <h2><MapPin size={20} /> {t("account.dashboard.location")}</h2>
+                <p>{supporterLocation || t("account.dashboard.locationUnavailable")}</p>
+                <h3>{t("account.dashboard.workspace")}</h3>
+                <p>{dashboard.workspace.name}</p>
+                <h3>{t("account.dashboard.portal.campaignStatus")}</h3>
+                <p>{dashboard.campaign.status || t("account.dashboard.portal.notAvailable")}</p>
+              </article>
+            </div>
+          </div>
+        )}
+
+        {activeSection === "certificates" && <MyCertificatesPanel manifest={manifest} />}
+
+        {activeSection === "rewards" && (
+          <section className="supporter-bounded-section" aria-labelledby="supporter-rewards-title">
+            <Gift size={34} aria-hidden="true" />
+            <span className="eyebrow">{t("account.dashboard.portal.rewards")}</span>
+            <h2 id="supporter-rewards-title">{t("account.dashboard.portal.rewardsTitle")}</h2>
+            <p>{t("account.dashboard.portal.rewardsUnavailable")}</p>
+            <div className="supporter-trust-note"><LockKeyhole size={18} /><span>{t("account.dashboard.portal.rewardsSecurity")}</span></div>
+          </section>
+        )}
+
+        {activeSection === "network" && (
+          <section className="supporter-network-section" aria-labelledby="supporter-network-title">
+            <div className="supporter-section-heading">
+              <div>
+                <span className="eyebrow">{t("account.dashboard.portal.network")}</span>
+                <h2 id="supporter-network-title">{t("account.dashboard.portal.networkTitle")}</h2>
+                <p>{t("account.dashboard.portal.networkHelp")}</p>
+              </div>
+            </div>
+            <div className="account-dashboard-grid">
+              <article className="account-panel account-referral-panel">
+                <h2><Link2 size={20} /> {t("account.dashboard.referral")}</h2>
+                <strong className="account-referral-code">{dashboard.supporter.referralCode || t("account.dashboard.portal.notAvailable")}</strong>
+                <p>{t("account.dashboard.referralHelp")}</p>
+                <div className="account-card-actions">
+                  {dashboard.referralPath && <a className="primary-link-button" href={dashboard.referralPath}>{t("account.dashboard.openReferral")} <ArrowRight size={16} /></a>}
+                  {dashboard.referralPath && <button className="secondary-button" type="button" onClick={() => void copyReferralLink()}><Copy size={16} /> {copied ? t("account.dashboard.copied") : t("account.dashboard.copy")}</button>}
+                </div>
+              </article>
+              <article className="account-panel">
+                <h2><UsersRound size={20} /> {t("account.dashboard.participation")}</h2>
+                {dashboard.participationRequests.length ? (
+                  <div className="account-request-list">
+                    {dashboard.participationRequests.map((request) => (
+                      <div key={request.requestId}>
+                        <strong>{t(request.type === "volunteer" ? "account.dashboard.volunteer" : "account.dashboard.coordinator")}</strong>
+                        <span>{request.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : <p>{t("account.dashboard.noParticipation")}</p>}
+              </article>
+            </div>
+          </section>
+        )}
+
+        {activeSection === "media" && (
+          <section className="supporter-bounded-section" aria-labelledby="supporter-media-title">
+            <Image size={34} aria-hidden="true" />
+            <span className="eyebrow">{t("account.dashboard.portal.media")}</span>
+            <h2 id="supporter-media-title">{t("account.dashboard.portal.mediaTitle")}</h2>
+            <p>Share campaign photographs or videos for review. Submissions remain private and pending until moderated.</p>
+            <form onSubmit={handleMediaSubmit} className="account-panel" style={{ display: "grid", gap: 12 }}>
+              <label htmlFor="supporter-media-file">Photo or video (JPEG/PNG/WebP up to 5 MB; MP4/WebM up to 25 MB)</label>
+              <input id="supporter-media-file" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm"
+                onChange={(event) => setMediaFile(event.target.files?.[0] ?? null)} required />
+              <label htmlFor="supporter-media-caption">Caption (optional)</label>
+              <textarea id="supporter-media-caption" maxLength={500} value={mediaCaption}
+                onChange={(event) => setMediaCaption(event.target.value)} rows={2} />
+              <label><input type="checkbox" checked={mediaConsent}
+                onChange={(event) => setMediaConsent(event.target.checked)} /> I confirm I have permission to share this media for campaign review.</label>
+              <button className="primary-link-button" type="submit" disabled={!mediaFile || !mediaConsent || mediaBusy}>
+                {mediaBusy ? "Processing…" : "Submit for review"}
+              </button>
+            </form>
+            {mediaError && <p role="alert">Media service: {mediaError}</p>}
+            {mediaProgress && <p role="status">{mediaProgress}</p>}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",margin:"28px 0 16px"}}>
+              <div>
+                <h3 style={{margin:0,fontSize:"1.35rem"}}>My media gallery</h3>
+                <p style={{margin:"5px 0 0",opacity:.75}}>{mediaItems.length} submission{mediaItems.length === 1 ? "" : "s"} · Approved media can be shared publicly</p>
+              </div>
+              <div role="group" aria-label="Filter submissions" style={{display:"flex",flexWrap:"wrap",gap:6,padding:5,borderRadius:16,background:"var(--surface-muted, #eef2f6)"}}>
+                {(["all","approved","pending","rejected"] as const).map(status => {
+                  const count = status === "all" ? mediaItems.length : mediaItems.filter(item => item.moderationStatus === status).length;
+                  return <button key={status} type="button" aria-pressed={mediaFilter === status}
+                    onClick={() => setMediaFilter(status)}
+                    style={{border:0,borderRadius:12,padding:"9px 12px",cursor:"pointer",fontWeight:700,background:mediaFilter === status ? "#173c59" : "transparent",color:mediaFilter === status ? "#fff" : "inherit"}}>
+                    {status[0].toUpperCase()+status.slice(1)} <span style={{opacity:.75}}>({count})</span>
+                  </button>;
+                })}
+              </div>
+            </div>
+            {mediaBusy && <p role="status">Processing media…</p>}
+            {!mediaBusy && mediaItems.length === 0 && <p>No media submitted yet. Add a photo or video above to get started.</p>}
+            {mediaItems.length > 0 && mediaItems.filter(item => mediaFilter === "all" || item.moderationStatus === mediaFilter).length === 0 &&
+              <p role="status">No {mediaFilter} submissions yet.</p>}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 280px), 1fr))",gap:18}}>
+              {mediaItems.filter(item => mediaFilter === "all" || item.moderationStatus === mediaFilter).map(item => {
+                const approved = item.moderationStatus === "approved";
+                const statusColor = approved ? "#087a53" : item.moderationStatus === "rejected" ? "#ad3442" : "#9a6107";
+                return <article key={item.id} style={{overflow:"hidden",borderRadius:20,background:"var(--surface, #fff)",border:"1px solid rgba(127,145,160,.22)",boxShadow:"0 8px 24px rgba(17,42,65,.08)"}}>
+                  <div style={{position:"relative",background:"#14283b",minHeight:190,display:"grid",placeItems:"center"}}>
+                    {item.url ? item.mediaType === "photo"
+                      ? <a href={item.url} target="_blank" rel="noopener noreferrer" aria-label="Open full-size photo" style={{display:"block",width:"100%"}}>
+                          <img src={item.url} alt={item.caption || "Campaign submission"} loading="lazy" style={{width:"100%",height:210,objectFit:"cover",display:"block"}} />
+                        </a>
+                      : <video src={item.url} controls preload="metadata" playsInline aria-label={item.caption || "Campaign video"} style={{width:"100%",height:210,objectFit:"contain",display:"block"}} />
+                      : <div style={{color:"#dbe6ee",padding:20,textAlign:"center"}}><Image size={36} aria-hidden="true" /><p>Preview unavailable</p></div>}
+                    <span style={{position:"absolute",top:12,left:12,padding:"6px 11px",borderRadius:99,background:statusColor,color:"white",fontSize:12,fontWeight:800,textTransform:"capitalize",boxShadow:"0 2px 9px #0003"}}>
+                      {item.moderationStatus}
+                    </span>
+                    <span style={{position:"absolute",top:12,right:12,padding:"6px 10px",borderRadius:99,background:"#14283bdc",color:"white",fontSize:12,fontWeight:700}}>
+                      {item.mediaType === "photo" ? "PHOTO" : "VIDEO"}
+                    </span>
+                  </div>
+                  <div style={{padding:16}}>
+                    <p style={{fontWeight:750,fontSize:"1rem",margin:"0 0 10px",overflowWrap:"anywhere"}}>{item.caption || "Campaign submission"}</p>
+                    {item.moderationStatus === "rejected" && item.rejectionReason &&
+                      <p role="status" style={{fontSize:13,color:"#ad3442",margin:"0 0 12px"}}>Reason: {item.rejectionReason}</p>}
+                    <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {approved && <button type="button" disabled={mediaBusy} onClick={() => void handleMediaAction(item,"share_media")}
+                        style={{display:"inline-flex",alignItems:"center",gap:6,border:0,borderRadius:11,padding:"10px 14px",background:"#087a53",color:"#fff",fontWeight:700,cursor:"pointer"}}>
+                        <Link2 size={16} aria-hidden="true" /> Share
+                      </button>}
+                      <button type="button" disabled={mediaBusy} onClick={() => void handleMediaAction(item,"download_media")}
+                        style={{border:"1px solid #b8c7d3",borderRadius:11,padding:"10px 14px",background:"transparent",color:"inherit",fontWeight:700,cursor:"pointer"}}>Download</button>
+                      <button type="button" disabled={mediaBusy} onClick={() => void handleMediaAction(item,"delete_media")}
+                        style={{border:"1px solid #e9b9be",borderRadius:11,padding:"10px 14px",background:"transparent",color:"#ad3442",fontWeight:700,cursor:"pointer"}}>Delete</button>
+                    </div>
+                  </div>
+                </article>;
+              })}
+            </div>
+
+            {dashboard.campaignPath && <a className="secondary-link-button" href={dashboard.campaignPath}>{t("account.dashboard.portal.openCampaignMedia")} <ArrowRight size={16} /></a>}
+          </section>
+        )}
+
+        {activeSection === "help" && (
+          <section className="supporter-help-section" aria-labelledby="supporter-help-title">
+            <div className="supporter-section-heading">
+              <div>
+                <span className="eyebrow">{t("account.dashboard.portal.help")}</span>
+                <h2 id="supporter-help-title">{t("account.dashboard.portal.helpTitle")}</h2>
+                <p>{t("account.dashboard.portal.helpHelp")}</p>
+              </div>
+            </div>
+            <div className="account-dashboard-grid">
+              <article className="account-panel">
+                <h2><Megaphone size={20} /> {t("account.dashboard.portal.officialCampaign")}</h2>
+                <p><strong>{dashboard.campaign.title}</strong></p>
+                <p>{t("account.dashboard.portal.officialUpdatesUnavailable")}</p>
+                {dashboard.campaignPath && <a className="primary-link-button" href={dashboard.campaignPath}>{t("account.dashboard.portal.backCampaign")} <ArrowRight size={16} /></a>}
+              </article>
+              <article className="account-panel">
+                <h2><ShieldCheck size={20} /> {t("account.dashboard.portal.accountHelpTitle")}</h2>
+                <p>{t("account.dashboard.portal.accountHelp")}</p>
+                <dl className="account-profile-list">
+                  <div><dt>{t("account.dashboard.accountEmail")}</dt><dd>{manifest.user.email}</dd></div>
+                  <div><dt>{t("account.dashboard.workspace")}</dt><dd>{dashboard.workspace.name}</dd></div>
+                </dl>
+              </article>
+            </div>
+          </section>
+        )}
+      </div>
+
+      {authorizedDestinationCount > 1 && (
+        <button className="secondary-button supporter-workspace-switch" type="button" onClick={onSwitchWorkspace}>
+          {t("account.dashboard.switchWorkspace")}
+        </button>
+      )}
+    </section>
+  );
+}

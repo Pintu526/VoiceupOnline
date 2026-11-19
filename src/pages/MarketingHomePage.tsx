@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
+  ArrowRight,
   Building2,
   Bolt,
   ChevronDown,
@@ -25,6 +26,7 @@ import {
 import { MarketingApplicationGateways } from "./MarketingGateways";
 import { marketingApplicationDefinitions, type MarketingApplicationKey } from "./marketingApplications";
 import {
+  BusinessApplicationDirectory,
   BusinessApplicationCarousel,
   BusinessOsHeroCards,
   BusinessOsLifecycle,
@@ -279,16 +281,25 @@ export function MarketingHomePage({
           <span className="eyebrow">{t("landing.businessOs.hero.eyebrow")}</span>
           <h1>{t("landing.businessOs.hero.title")}</h1>
           <p className="business-os-hero-tagline">{t("landing.businessOs.hero.tagline")}</p>
+          <p className="business-os-hero-description">{t("landing.businessOs.hero.description")}</p>
           <div className="business-os-hero-lines">
             <span>{t("landing.businessOs.hero.lines.organise")}</span>
             <span>{t("landing.businessOs.hero.lines.launch")}</span>
             <span>{t("landing.businessOs.hero.lines.operate")}</span>
             <span>{t("landing.businessOs.hero.lines.impact")}</span>
           </div>
+          <div className="business-os-hero-actions" aria-label={t("landing.businessOs.directory.entryPoints")}>
+            <a className="business-os-hero-primary" href="/CampaignOS">
+              {t("landing.businessOs.directory.openWorkspace")} <ArrowRight size={17} />
+            </a>
+            <a href="/applications">{t("landing.businessOs.directory.exploreApplications")}</a>
+            <a href="/admin">{t("landing.businessOs.directory.adminEntry")}</a>
+          </div>
           <BusinessOsHeroCards t={t} />
         </motion.div>
       </section>
 
+      <BusinessApplicationDirectory applications={landingApplications} t={t} />
       <BusinessOsLifecycle t={t} />
       <BusinessApplicationCarousel
         applications={landingApplications}

@@ -41,7 +41,9 @@ import { CampaignsTab } from "../pages/app/CampaignsTab";
 import { ActivityTab } from "../pages/app/ActivityTab";
 import { SaasTab } from "../pages/app/SaasTab";
 import { IdeasTab } from "../pages/app/IdeasTab";
-import { PublicCampaignPage } from "../pages/PublicCampaignPage";
+const PublicCampaignPage = lazy(async () => ({
+  default: (await import("../pages/PublicCampaignPage")).PublicCampaignPage
+}));
 import type { getCampaignMetrics } from "../lib";
 import type { BillingCadence, BillingPlan } from "../types";
 import type { LocationDeletionLevel, LocationWithPin } from "../geography";
@@ -69,6 +71,9 @@ const CoordinatorNetworkTab = lazy(() =>
 );
 const GrowthDashboardTab = lazy(() =>
   import("../pages/app/GrowthDashboardTab").then((module) => ({ default: module.GrowthDashboardTab }))
+);
+const GauPointsDashboardPreview = lazy(() =>
+  import("../growth/gauPoints/GauPointsDashboardPreview").then((module) => ({ default: module.GauPointsDashboardPreview }))
 );
 const CommandCenterTab = lazy(() =>
   import("../pages/app/CommandCenterTab").then((module) => ({ default: module.CommandCenterTab }))
@@ -268,7 +273,7 @@ interface AppShellProps {
   onSubmitPublicSignature: (event: FormEvent) => void;
   onStartPublicSigningJourney: () => void;
   onSendOtp: () => void;
-  onVerifyOtp: () => void;
+  onVerifyOtp: () => import("../publicSigningJourney").PublicSigningVerificationOutcome | Promise<import("../publicSigningJourney").PublicSigningVerificationOutcome>;
   onSavePublicDraft?: () => void | Promise<void>;
   onPublicCommunicationConsentChange?: (granted: boolean) => void | Promise<void>;
   onSubmitPublicCoordinatorApplication?: () => void | Promise<void>;
@@ -490,6 +495,8 @@ export function AppShell({
   const showUnfinishedModules = !isGoudhanExperience;
   const canUseReports = hasWorkspaceFeature("basic_reports") || hasWorkspaceFeature("advanced_reports");
   const canUseAiCopilot = showUnfinishedModules && hasWorkspaceFeature("ai_copilot");
+  const gauPointsReadOnlyEnabled =
+    import.meta.env.DEV && import.meta.env.VITE_GAUPOINTS_READ_ONLY === "true";
 
   useEffect(() => {
     if (!showUnfinishedModules) {
@@ -499,6 +506,12 @@ export function AppShell({
       }
     }
   }, [activeTab, setActiveTab, showUnfinishedModules]);
+
+  useEffect(() => {
+    if (activeTab === "gaupoints" && (!gauPointsReadOnlyEnabled || !activeCampaign?.id)) {
+      setActiveTab("dashboard");
+    }
+  }, [activeCampaign?.id, activeTab, gauPointsReadOnlyEnabled, setActiveTab]);
 
   useEffect(() => {
     setPinnedCampaignIds(readStoredIdList(pinnedCampaignStorageKey));
@@ -576,6 +589,7 @@ export function AppShell({
       fund: t("framework.placeholder.locked"),
       prove: t("framework.placeholder.locked"),
       growth: t("settings.shell.locks.growth"),
+      gaupoints: "GauPoints is available only in Development read-only mode.",
       scans: t("settings.shell.locks.scans"),
       reports: t("settings.shell.locks.reports"),
       engagement: t("settings.shell.locks.engagement"),
@@ -588,6 +602,7 @@ export function AppShell({
 
   function canAccessWorkspaceTab(tab: Tab): boolean {
     if (!showUnfinishedModules && ["fund", "prove", "growth", "scans", "ideas"].includes(tab)) return false;
+    if (tab === "gaupoints") return gauPointsReadOnlyEnabled && Boolean(activeCampaign?.id);
     if (canAccessPlatformAdmin) return true;
     if (tab === "dashboard" || tab === "command" || tab === "fund" || tab === "prove" || tab === "campaigns") return true;
     if (tab === "public") return hasWorkspaceFeature("public_signing");
@@ -1134,6 +1149,15 @@ export function AppShell({
               activeTab={activeTab}
               onClick={requestTabChange}
             />
+            {gauPointsReadOnlyEnabled && activeCampaign?.id && (
+              <NavButton
+                icon={<Star />}
+                label="GauPoints"
+                tab="gaupoints"
+                activeTab={activeTab}
+                onClick={requestTabChange}
+              />
+            )}
             {hasWorkspaceFeature("movement_crm") && (
               <NavButton
                 icon={<UsersRound />}
@@ -1353,6 +1377,12 @@ export function AppShell({
             />
           )}
 
+          {activeTab === "gaupoints" && gauPointsReadOnlyEnabled && activeCampaign?.id && (
+            <Suspense fallback={<ModuleSkeleton label="Loading GauPoints" />}>
+              <GauPointsDashboardPreview campaignId={activeCampaign.id} />
+            </Suspense>
+          )}
+
           {activeTab === "command" && (
             <Suspense fallback={<ModuleSkeleton label="Loading Command Center" />}>
               <CommandCenterTab
@@ -1461,7 +1491,8 @@ export function AppShell({
             hasWorkspaceFeature("public_signing") &&
             (activeCampaign ? (
               <div className="public-only-shell">
-                <PublicCampaignPage
+                <Suspense fallback={<div className="public-only-shell">Loading campaign...</div>}>
+<PublicCampaignPage
                   campaign={activeCampaign}
                   organization={organization}
                   metrics={metrics}
@@ -1488,6 +1519,7 @@ export function AppShell({
                   locationDeletions={locationDeletions}
                   onSubmit={onSubmitPublicSignature}
                 />
+</Suspense>
               </div>
             ) : (
               <div className="empty-state compact-empty">

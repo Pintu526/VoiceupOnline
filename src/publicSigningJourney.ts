@@ -5,22 +5,20 @@ const PUBLIC_SIGNING_STORAGE_PREFIX = "voiceup-public-signing-progress";
 
 export type PublicSigningStepId = "phone" | "otp" | "profile" | "address" | "review" | "done";
 
+export type PublicSigningVerificationOutcome =
+  | "new_supporter"
+  | "returning_supporter"
+  | "secure_access_required"
+  | "lookup_unavailable"
+  | "stale";
+
 export function transitionPublicSigningStep(
   currentStep: PublicSigningStepId,
-  verificationComplete: boolean,
+  _verificationComplete: boolean,
   resumeStep: PublicSigningStepId
 ): { step: PublicSigningStepId; resumeStep: PublicSigningStepId } {
-  if (verificationComplete && (currentStep === "phone" || currentStep === "otp")) {
-    return { step: resumeStep, resumeStep: "profile" };
-  }
-  if (
-    !verificationComplete &&
-    currentStep !== "phone" &&
-    currentStep !== "otp" &&
-    currentStep !== "done"
-  ) {
-    return { step: "phone", resumeStep: currentStep };
-  }
+  // Step changes are user actions. Verification state may enable an action,
+  // but must never move or reset a partially completed signing journey.
   return { step: currentStep, resumeStep };
 }
 

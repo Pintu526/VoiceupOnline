@@ -366,6 +366,20 @@ export class CanonicalLocationUiController {
     return await this.resolve(operation.query);
   }
 
+  reactivate(): void {
+    if (!this.disposed) return;
+    this.disposed = false;
+    this.update({
+      ...this.state,
+      status: "idle",
+      root: null,
+      selection: [],
+      branches: [],
+      resolution: { status: "idle" },
+      error: null,
+      requiresReselection: false
+    });
+  }
   dispose(): void {
     this.disposed = true;
     this.navigationEpoch += 1;

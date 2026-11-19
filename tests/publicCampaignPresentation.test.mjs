@@ -106,8 +106,8 @@ test("Indian mobile client validation rejects invalid prefixes and incomplete va
 });
 
 test("incomplete premium mobile cannot trigger the OTP network workflow", () => {
-  assert.match(pageSource, /if \(sendingOtp \|\| !phoneReady\) return;/);
-  assert.match(pageSource, /disabled=\{sendingOtp \|\| !phoneReady\}/);
+  assert.match(pageSource, /if \(sendingOtp \|\| supporterRoutingChecking \|\| supporterRoutingError \|\| !phoneReady\) return;/);
+  assert.match(pageSource, /disabled=\{sendingOtp \|\| supporterRoutingChecking \|\| supporterRoutingError \|\| !phoneReady\}/);
   assert.match(pageSource, /premiumPresentation\s*\?\s*indianMobile\.valid/);
 });
 
@@ -127,12 +127,19 @@ test("phone OTP may resume only after verification while screen OTP skips resume
   const verifyEnd = appSource.indexOf("\n  async function", verifyStart + 1);
   const verifySource = appSource.slice(verifyStart, verifyEnd);
   assert.match(verifySource, /await verifyPublicOtp/);
-  assert.match(verifySource, /action:\s*"resume_verified_supporter"/);
-  assert.match(verifySource, /result\.verificationMethod !== "screen_otp"/);
-  assert.ok(
-    verifySource.indexOf("await verifyPublicOtp") <
-      verifySource.indexOf('action: "resume_verified_supporter"')
-  );
+  // Screen OTP permits new signing but never resumes an account; unverified non-screen proof remains blocked.
+  assert.match(verifySource, /result\.verificationMethod === "screen_otp"[\s\S]*return "new_supporter";/);
+  // Anonymous precheck cannot reveal account or participation status.
+  assert.doesNotMatch(pageSource, /supporterRoutingPrecheck\?\.supporterRoute/);
+  assert.match(pageSource, /routingToken=\{supporterRoutingPrecheck\?\.routingToken\}/);
+  assert.match(pageSource, /applyVerificationOutcome\(outcome\)/);
+  assert.match(verifySource, /result\.phoneOwnershipVerified !== true[\s\S]*return "secure_access_required";[\s\S]*return resolveVerifiedPublicSupporter\(phone, result\.verificationToken\)/);
+  assert.ok(verifySource.indexOf("await verifyPublicOtp") < verifySource.indexOf("return resolveVerifiedPublicSupporter"));
+  const resolverStart = appSource.indexOf("async function resolveVerifiedPublicSupporter(");
+  const resolverEnd = appSource.indexOf("\n  async function", resolverStart + 1);
+  const resolverSource = appSource.slice(resolverStart, resolverEnd);
+  assert.ok(resolverStart >= 0 && resolverEnd > resolverStart);
+  assert.match(resolverSource, /action:\s*"resume_verified_supporter"/);
 });
 
 test("already-signed continuation does not submit a second signature", () => {

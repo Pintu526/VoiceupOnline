@@ -41,6 +41,8 @@ function publicError(code: string) {
     invalid_phone: { status: 400, message: "Enter a valid phone number." },
     invalid_email: { status: 400, message: "Enter a valid email address." },
     invalid_idempotency_key: { status: 400, message: "Refresh the page and retry this action." },
+    invalid_referral: { status: 400, message: "Enter a valid existing supporter mobile number or referral code." },
+    self_referral: { status: 400, message: "You cannot refer yourself." },
     otp_verification_required: { status: 401, message: "Complete verification with a fresh code before continuing." },
     screen_verification_submit_required: { status: 401, message: "Complete a new campaign support submission before continuing." },
     screen_verification_existing_supporter: { status: 409, message: "Support cannot be added again with this mobile number." },
@@ -341,9 +343,79 @@ async function invokeMutation(
       };
     }
   }
+  if (action === "submit_support" && data?.signer?.id) {
+    const participationReceipt = await queueParticipationReceipt(
+      admin,
+      resolved.row.workspace_id,
+      resolved.row.campaign_id,
+      data.signer.id,
+      idempotencyKey
+    );
+    responseData = { ...responseData, participationReceipt };
+  }
   return { data: responseData };
 }
 
+async function queueParticipationReceipt(
+  admin: any,
+  workspaceId: string,
+  campaignId: string,
+  supporterId: string,
+  idempotencyKey: string
+): Promise<{ status: string; receiptId?: string }> {
+  try {
+    const { data, error } = await admin.rpc(
+      "voiceup_enqueue_participation_email_receipt",
+      {
+        p_workspace_id: workspaceId,
+        p_campaign_id: campaignId,
+        p_supporter_id: supporterId,
+        p_signing_idempotency_key: idempotencyKey
+      }
+    );
+
+    if (error || !data || typeof data.status !== "string") {
+      return { status: "queued" };
+    }
+
+    const status = data.status;
+    const receiptId = typeof data.receiptId === "string"
+      ? data.receiptId
+      : undefined;
+
+    if (status !== "queued" || !receiptId) {
+      return { status };
+    }
+
+    const secret = Deno.env.get("VOICEUP_RECEIPT_WORKER_SECRET") ?? "";
+    const projectUrl = (Deno.env.get("SUPABASE_URL") ?? "").trim().replace(/\/+$/, "");
+
+    if (
+      secret.length < 32
+      || projectUrl !== "https://ravweavcfrpiykfgtmbf.supabase.co"
+    ) {
+      return { status: "queued", receiptId };
+    }
+
+    try {
+      await fetch(`${projectUrl}/functions/v1/voiceup-participation-receipts`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${secret}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ receiptId, limit: 1 }),
+        signal: AbortSignal.timeout(1500)
+      });
+    } catch {
+      return { status: "queued" };
+    }
+
+    return { status: "queued", receiptId };
+  } catch {
+    return { status: "queued" };
+  }
+}
 async function authorizeParticipationRequest(
   admin: any,
   resolved: any,

@@ -8,7 +8,9 @@ import {
   getAuthorizedDestinations,
   loadOwnedSupporterDashboard,
   loadVoiceupAccessManifest,
+  sanitizeOptionalSupporterProfilePatch,
   resolveAutomaticDestination,
+  updateOwnedSupporterProfile,
   writeUnifiedLoginHandoff
 } from "../src/accountAccess.ts";
 import {
@@ -221,6 +223,29 @@ test("owner dashboard RPC receives only the opaque account id and rejects malfor
   assert.equal(unused.calls.length, 0);
 });
 
+test("optional profile update sends only sanitized fields with owner account and retry id", async () => {
+  const accountId = "11111111-1111-4111-8111-111111111111";
+  const requestId = "22222222-2222-4222-8222-222222222222";
+  const calls = [];
+  const client = { rpc: async (name, parameters) => {
+    calls.push({ name, parameters });
+    return { data: { updated: true, accountId }, error: null };
+  } };
+  await updateOwnedSupporterProfile(accountId, { address: "  Main Road  ", ward: "" }, requestId, client);
+  assert.deepEqual(calls, [{
+    name: "voiceup_update_owned_supporter_profile",
+    parameters: { p_account_id: accountId, p_profile_patch: { address: "Main Road", ward: null }, p_request_id: requestId }
+  }]);
+  assert.throws(() => sanitizeOptionalSupporterProfilePatch({ address: "x".repeat(501) }));
+});
+
+test("supporter dashboard keeps location hierarchy read-only and exposes no profile update action", () => {
+  const source = readFileSync(new URL("../src/pages/VoiceupAccountPage.tsx", import.meta.url), "utf8");
+  assert.match(source, /compactLocation\(dashboard\.supporter\.location\)/);
+  assert.doesNotMatch(source, /updateOwnedSupporterProfile|Save optional details|Complete Your Profile/);
+  assert.doesNotMatch(source, /Profile details could not be saved/);
+});
+
 test("campaign handoff is short-lived, exact-context, token-free, and single-use", () => {
   const storage = new Map();
   globalThis.window = {
@@ -265,6 +290,6 @@ test("claim UI keeps signing and account email separate and redirects only after
   assert.match(source, /copy\.signingEmail/u);
   assert.match(source, /copy\.accountEmail/u);
   assert.match(source, /finishLink\(await claimSupporterAccount\(grant\), true\)/u);
-  assert.match(source, /window\.location\.assign\(`\/account\/supporter\//u);
+  assert.match(source, /target="_blank" rel="noopener noreferrer"/u);
   assert.doesNotMatch(source, /claim.*(?:localStorage|sessionStorage|URLSearchParams)/isu);
 });

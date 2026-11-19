@@ -14,7 +14,9 @@ export type SupporterAuthErrorCode =
   | "supporter_email_not_confirmed"
   | "supporter_otp_request_failed"
   | "supporter_otp_verification_failed"
-  | "supporter_recovery_request_failed";
+  | "supporter_recovery_request_failed"
+  | "supporter_recovery_verification_failed"
+  | "supporter_recovery_update_failed";
 
 export class SupporterAuthError extends Error {
   readonly code: SupporterAuthErrorCode;
@@ -30,6 +32,7 @@ export interface SupporterAuthUser {
   id: string;
   email?: string;
   email_confirmed_at?: string | null;
+  user_metadata?: Record<string, unknown>;
 }
 
 export interface SupporterAuthSession {
@@ -46,15 +49,16 @@ export interface SupporterAuthClient {
       data: { user: SupporterAuthUser | null; session: SupporterAuthSession | null };
       error: unknown | null;
     }>;
+    signInWithOAuth(input: { provider: "google"; options: { redirectTo: string } }): Promise<{ data: unknown; error: unknown | null }>;
     signInWithPassword(input: { email: string; password: string }): Promise<{
       data: { user: SupporterAuthUser | null; session: SupporterAuthSession | null };
       error: unknown | null;
     }>;
     signInWithOtp(input: {
       email: string;
-      options: { emailRedirectTo: string; shouldCreateUser: false };
+      options: { emailRedirectTo: string; shouldCreateUser: boolean };
     }): Promise<{ data: unknown | null; error: unknown | null }>;
-    verifyOtp(input: { email: string; token: string; type: "email" }): Promise<{
+    verifyOtp(input: { email: string; token: string; type: "email" | "recovery" | "signup" }): Promise<{
       data: { user: SupporterAuthUser | null; session: SupporterAuthSession | null };
       error: unknown | null;
     }>;
@@ -64,6 +68,10 @@ export interface SupporterAuthClient {
         session: SupporterAuthSession | null;
         redirectType?: string | null;
       };
+      error: unknown | null;
+    }>;
+    setSession(input: { access_token: string; refresh_token: string }): Promise<{
+      data: { session: SupporterAuthSession | null };
       error: unknown | null;
     }>;
     getSession(): Promise<{
@@ -95,6 +103,7 @@ export interface SupporterAuthClient {
 export interface SupporterIdentity {
   id: string;
   email: string;
+  name?: string;
 }
 
 export interface SupporterRegistrationResult {
@@ -237,21 +246,28 @@ export async function getCurrentSupporterIdentity(
     await clearLocalSupporterSession(client);
     return null;
   }
-  return { id: user.id, email: normalizeEmail(user.email) };
+  const metadata = user.user_metadata;
+  const name = typeof metadata?.full_name === "string"
+    ? metadata.full_name.trim()
+    : typeof metadata?.name === "string"
+      ? metadata.name.trim()
+      : "";
+  return { id: user.id, email: normalizeEmail(user.email), name };
 }
 
 export async function requestSupporterEmailOtp(
   email: string,
   returnPath = "/login",
   origin = window.location.origin,
-  client = getSupporterAuthClient()
+  client = getSupporterAuthClient(),
+  allowAccountCreation = false
 ): Promise<void> {
   const normalizedEmail = normalizeEmail(email);
   const { error } = await client.auth.signInWithOtp({
     email: normalizedEmail,
     options: {
       emailRedirectTo: confirmationRedirectUrl(origin, returnPath),
-      shouldCreateUser: false
+      shouldCreateUser: allowAccountCreation
     }
   });
   if (error) throw new SupporterAuthError("supporter_otp_request_failed");
@@ -278,6 +294,25 @@ export async function verifySupporterEmailOtp(
   return { id: data.user.id, email: normalizeEmail(data.user.email) };
 }
 
+/** Confirm an email/password signup with the code from the Confirm signup template. */
+export async function verifySupporterSignupOtp(
+  email: string,
+  token: string,
+  client = getSupporterAuthClient()
+): Promise<SupporterIdentity> {
+  const normalizedToken = token.trim();
+  if (!/^\d{6,10}$/.test(normalizedToken)) {
+    throw new SupporterAuthError("supporter_otp_verification_failed");
+  }
+  const { data, error } = await client.auth.verifyOtp({
+    email: normalizeEmail(email), token: normalizedToken, type: "signup"
+  });
+  if (error || !data.session || !data.user?.id || !data.user.email || !data.user.email_confirmed_at) {
+    throw new SupporterAuthError("supporter_otp_verification_failed");
+  }
+  return { id: data.user.id, email: normalizeEmail(data.user.email) };
+}
+
 export async function requestSupporterPasswordRecovery(
   email: string,
   origin = window.location.origin,
@@ -287,6 +322,38 @@ export async function requestSupporterPasswordRecovery(
     redirectTo: passwordResetRedirectUrl(origin)
   });
   if (error) throw new SupporterAuthError("supporter_recovery_request_failed");
+}
+
+export async function completeSupporterPasswordRecovery(
+  email: string,
+  token: string,
+  newPassword: string,
+  client = getSupporterAuthClient()
+): Promise<void> {
+  const normalizedEmail = normalizeEmail(email);
+  const normalizedToken = token.trim();
+  if (!/^\d{6,10}$/.test(normalizedToken) || newPassword.length < 12) {
+    throw new SupporterAuthError("supporter_recovery_verification_failed");
+  }
+  // Only a successful recovery-type OTP can authorize a password update.
+  const { data, error } = await client.auth.verifyOtp({
+    email: normalizedEmail, token: normalizedToken, type: "recovery"
+  });
+  if (error || !data.session || !data.user?.id ||
+      normalizeEmail(data.user.email ?? "") !== normalizedEmail) {
+    throw new SupporterAuthError("supporter_recovery_verification_failed");
+  }
+  try {
+    const { data: verified, error: verifyError } = await client.auth.getUser();
+    if (verifyError || verified.user?.id !== data.user.id ||
+        normalizeEmail(verified.user.email ?? "") !== normalizedEmail) {
+      throw new SupporterAuthError("supporter_recovery_verification_failed");
+    }
+    const { error: updateError } = await client.auth.updateUser({ password: newPassword });
+    if (updateError) throw new SupporterAuthError("supporter_recovery_update_failed");
+  } finally {
+    await clearLocalSupporterSession(client);
+  }
 }
 
 export async function logoutSupporter(client = getSupporterAuthClient()): Promise<void> {

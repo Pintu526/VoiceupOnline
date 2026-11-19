@@ -118,7 +118,8 @@ export type AccountAccessErrorCode =
   | "email_confirmation_required"
   | "access_manifest_unavailable"
   | "supporter_dashboard_not_authorized"
-  | "supporter_dashboard_unavailable";
+  | "supporter_dashboard_unavailable"
+  | "supporter_profile_update_failed";
 
 export class AccountAccessError extends Error {
   readonly code: AccountAccessErrorCode;
@@ -339,6 +340,72 @@ export async function loadOwnedSupporterDashboard(
   return dashboard;
 }
 
+export const OPTIONAL_SUPPORTER_PROFILE_FIELDS = [
+  "address", "whatsappNumber", "telegramHandle", "country", "state", "district",
+  "block", "panchayat", "village", "ward", "postalCode"
+] as const;
+
+export type OptionalSupporterProfileField = typeof OPTIONAL_SUPPORTER_PROFILE_FIELDS[number];
+export type OptionalSupporterProfilePatch = Partial<Record<OptionalSupporterProfileField, string | null>>;
+
+const optionalProfileLimits: Record<OptionalSupporterProfileField, number> = {
+  address: 500,
+  whatsappNumber: 32,
+  telegramHandle: 80,
+  country: 120,
+  state: 160,
+  district: 160,
+  block: 160,
+  panchayat: 160,
+  village: 160,
+  ward: 160,
+  postalCode: 20
+};
+
+export function sanitizeOptionalSupporterProfilePatch(
+  value: OptionalSupporterProfilePatch
+): OptionalSupporterProfilePatch {
+  const sanitized: OptionalSupporterProfilePatch = {};
+  for (const field of OPTIONAL_SUPPORTER_PROFILE_FIELDS) {
+    if (!Object.prototype.hasOwnProperty.call(value, field)) continue;
+    const candidate = value[field];
+    if (candidate === null) {
+      sanitized[field] = null;
+      continue;
+    }
+    if (typeof candidate !== "string") throw new AccountAccessError("supporter_profile_update_failed");
+    const text = candidate.trim();
+    if (text.length > optionalProfileLimits[field]) {
+      throw new AccountAccessError("supporter_profile_update_failed");
+    }
+    sanitized[field] = text || null;
+  }
+  if (Object.keys(sanitized).length === 0) {
+    throw new AccountAccessError("supporter_profile_update_failed");
+  }
+  return sanitized;
+}
+
+export async function updateOwnedSupporterProfile(
+  accountId: string,
+  profilePatch: OptionalSupporterProfilePatch,
+  requestId: string,
+  client = rpcClient()
+): Promise<void> {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuid.test(accountId) || !uuid.test(requestId)) {
+    throw new AccountAccessError("supporter_profile_update_failed");
+  }
+  const { data, error } = await client.rpc("voiceup_update_owned_supporter_profile", {
+    p_account_id: accountId,
+    p_profile_patch: sanitizeOptionalSupporterProfilePatch(profilePatch),
+    p_request_id: requestId
+  });
+  if (error || !isRecord(data) || data.updated !== true || stringValue(data.accountId) !== accountId) {
+    throw mapRpcError(error, "supporter_profile_update_failed");
+  }
+}
+
 export interface AccessDestination {
   id: string;
   kind: "platform" | "workspace" | "campaign_admin" | "supporter" | "coordinator";
@@ -520,6 +587,15 @@ export function resolveCampaignAutomaticDestination(
   context: CampaignAuthContext
 ): CampaignAccessDestination | null {
   return getCampaignAuthorizedDestinations(manifest, context)[0] ?? null;
+}
+
+/** Restrict automatic supporter-entry routing to an owned supporter record. */
+export function resolveCampaignSupporterDestination(
+  manifest: VoiceupAccessManifest,
+  context: CampaignAuthContext
+): CampaignAccessDestination | null {
+  return getCampaignAuthorizedDestinations(manifest, context)
+    .find((destination) => destination.kind === "supporter") ?? null;
 }
 
 const selectedWorkspaceKey = "voiceup-customer-workspace-v1";

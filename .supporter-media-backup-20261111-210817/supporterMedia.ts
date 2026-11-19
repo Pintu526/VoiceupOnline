@@ -1,0 +1,74 @@
+import { getSupporterAuthClient, getCurrentSupporterIdentity } from "./supporterAuth.ts";
+
+export interface SupporterMediaItem {
+  id: string;
+  supporter_account_id: string;
+  workspace_id: string;
+  campaign_id: string;
+  supporter_id: string;
+  storage_bucket: string;
+  storage_path: string | null;
+  media_type: "photo" | "video";
+  caption: string;
+  consent_given: boolean;
+  consent_at: string | null;
+  moderation_status: "pending" | "approved" | "rejected";
+  created_at: string;
+  updated_at: string;
+}
+
+export async function loadOwnSupporterMedia(
+  supporterAccountId: string
+): Promise<SupporterMediaItem[]> {
+  const identity = await getCurrentSupporterIdentity();
+
+  if (!identity) {
+    throw new Error("supporter_media_authentication_required");
+  }
+
+  const client = getSupporterAuthClient() as unknown as {
+    from(table: string): {
+      select(columns: string): {
+        eq(column: string, value: string): {
+          maybeSingle(): Promise<{
+            data: { id: string } | null;
+            error: unknown | null;
+          }>;
+          order(column: string, options: { ascending: boolean }): {
+            limit(count: number): Promise<{
+              data: SupporterMediaItem[] | null;
+              error: unknown | null;
+            }>;
+          };
+        };
+      };
+    };
+  };
+
+  const { data: ownership, error: ownershipError } = await client
+    .from("voiceup_supporter_accounts")
+    .select("id")
+    .eq("id", supporterAccountId)
+    .maybeSingle();
+
+  if (ownershipError || !ownership) {
+    throw new Error("supporter_media_not_authorized");
+  }
+
+  const { data, error } = await client
+    .from("voiceup_supporter_media")
+    .select(
+      "id,supporter_account_id,workspace_id,campaign_id,supporter_id," +
+      "storage_bucket,storage_path,media_type,caption,consent_given," +
+      "consent_at,moderation_status,created_at,updated_at"
+    )
+    .eq("supporter_account_id", supporterAccountId)
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    throw new Error("supporter_media_read_failed");
+  }
+
+  return (data ?? []) as SupporterMediaItem[];
+}

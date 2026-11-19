@@ -1,0 +1,95 @@
+/* GSAA V3 header: premium header is a sibling of the campaign grid. */
+.gsaa-v3-fixed-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 253, 248, .97);
+  border-bottom: 1px solid #e9dfd1;
+  box-shadow: 0 4px 22px rgba(42, 27, 24, .10);
+  backdrop-filter: blur(12px);
+}
+.gsaa-v3-fixed-header-inner {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 10px clamp(12px, 2vw, 28px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+.gsaa-v3-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+.gsaa-v3-header-brand img { width: 44px; height: 44px; object-fit: contain; flex: none; }
+.gsaa-v3-header-brand strong {
+  min-width: 0;
+  font-size: clamp(13px, 1.15vw, 18px);
+  line-height: 1.3;
+  color: #64151b;
+  overflow-wrap: anywhere;
+}
+.gsaa-v3-fixed-header .public-page-language-toolbar {
+  position: static !important;
+  inset: auto !important;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  flex: 0 1 auto;
+  min-width: 0;
+  width: auto !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.gsaa-v3-fixed-header .public-campaign-session-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.gsaa-v3-fixed-header .gsaa-v3-account-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 220px;
+  line-height: 1.25;
+}
+.gsaa-v3-account-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #657186; }
+.gsaa-v3-account-name { font-size: 14px; color: #18253b; overflow-wrap: anywhere; }
+.gsaa-v3-account-email { font-size: 11px; color: #526078; overflow-wrap: anywhere; }
+.gsaa-v3-account-status { display: flex; align-items: flex-start; gap: 10px; margin: 12px 0; padding: 12px 14px; border: 1px solid #c7dfd1; border-radius: 12px; background: #f4fbf7; color: #1d5137; font-size: 14px; }
+.gsaa-v3-account-status svg { flex: none; }
+/* Keep non-premium account controls in their existing page context. */
+.public-campaign-v2:not([data-premium-presentation]) > .public-page-language-toolbar .gsaa-v3-account-identity {
+  display: flex; flex-direction: column; min-width: 0;
+}
+@media (max-width: 900px) {
+  .gsaa-v3-fixed-header-inner { flex-wrap: wrap; gap: 8px; }
+  .gsaa-v3-header-brand { flex: 1 1 100%; }
+  .gsaa-v3-header-brand img { width: 36px; height: 36px; }
+  .gsaa-v3-fixed-header .public-page-language-toolbar { width: 100% !important; justify-content: space-between; }
+}
+@media (max-width: 480px) {
+  .gsaa-v3-fixed-header-inner { padding: 7px 10px; }
+  .gsaa-v3-header-brand strong { font-size: 13px; }
+  .gsaa-v3-fixed-header .public-campaign-session-actions { justify-content: flex-start; }
+  .gsaa-v3-fixed-header .gsaa-v3-account-identity { max-width: 100%; flex: 1 1 100%; }
+  .gsaa-v3-fixed-header .public-page-language-toolbar { align-items: flex-start; }
+}

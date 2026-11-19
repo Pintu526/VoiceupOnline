@@ -33,7 +33,11 @@ export function usePublicCampaignLocationCatalog(
       return;
     }
     let cancelled = false;
-    setCatalog({ status: "loading", locations: [] });
+    setCatalog((current) =>
+      current.locations.length > 0
+        ? current
+        : { status: "loading", locations: [] }
+    );
 
     async function loadCatalog() {
       try {
@@ -68,8 +72,11 @@ export function usePublicCampaignLocationCatalog(
       }
     }
 
-    void loadCatalog();
-    return () => { cancelled = true; };
+    const timer = window.setTimeout(() => void loadCatalog(), 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [campaignSlug, selectedPath.state, selectedPath.district, selectedPath.block, selectedPath.panchayat]);
 
   return catalog;

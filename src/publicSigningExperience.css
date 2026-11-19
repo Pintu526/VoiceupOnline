@@ -231,6 +231,23 @@
   width: 56px;
 }
 
+.public-success-celebration-animation {
+  display: flex;
+  justify-content: center;
+  margin: 2px auto;
+  max-width: 100%;
+  pointer-events: none;
+  width: 100%;
+}
+
+.public-success-celebration-animation img {
+  display: block;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  width: min(240px, 72vw);
+}
+
 .public-premium-success h3,
 .public-celebration h4,
 .public-request-result h5 {
@@ -532,6 +549,10 @@
 @media (prefers-reduced-motion: reduce) {
   .public-success-mark {
     animation: none;
+  }
+
+  .public-success-celebration-animation {
+    display: none;
   }
 }
 
@@ -3098,3 +3119,218 @@ html[lang="or"] .public-campaign-v2[data-premium-presentation="premium-national"
   }
 }
 
+/* VOICEUP PREMIUM HEADER COMPACT V1
+   Desktop-only visual spacing refinement.
+   No layout, media, content, or signing behavior changes.
+*/
+@media (min-width: 1101px) {
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero {
+    padding: 12px 18px;
+    gap: 6px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero-surface,
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero-main {
+    gap: 6px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand {
+    gap: 2px;
+    margin-bottom: 3px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero h1 {
+    font-size: clamp(1.65rem, 2.7vw, 2.2rem);
+    line-height: 1.15;
+    margin: 0 0 4px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-identity {
+    margin-bottom: 3px;
+    gap: 7px;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-summary {
+    line-height: 1.4;
+  }
+}
+
+/* VOICEUP PREMIUM HEADER REFINEMENT V2 */
+@media (min-width: 1101px) {
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero {
+    padding: 9px 16px;
+    gap: 4px;
+  }
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero-surface,
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero-main {
+    gap: 4px;
+  }
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand {
+    margin-bottom: 0;
+    gap: 1px;
+  }
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-brand img {
+    width: 54px;
+    height: 54px;
+  }
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-campaign-v2-hero h1 {
+    font-size: clamp(1.65rem, 2.6vw, 2.15rem);
+    line-height: 1.12;
+    margin: 0 0 2px;
+  }
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-identity {
+    gap: 5px;
+    margin-bottom: 1px;
+  }
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-summary {
+    line-height: 1.32;
+  }
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-subtitle,
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-premium-invocation {
+    line-height: 1.3;
+  }
+}
+
+/* VOICEUP GSAA SIGNING PANEL V3
+   Scoped visual refinement; preserve all wizard controls.
+*/
+.public-campaign-v2[data-premium-presentation="premium-national"]
+.public-campaign-v2-signing-panel .wizard-header {
+  padding: 9px 12px;
+  margin-bottom: 7px;
+  border-radius: 12px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"]
+.public-campaign-v2-signing-panel .wizard-header > p {
+  margin: 3px 0;
+  line-height: 1.4;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"]
+.public-campaign-v2-signing-panel .wizard-header > strong {
+  display: block;
+  line-height: 1.35;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"]
+.public-campaign-v2-signing-panel .wizard-steps {
+  gap: 4px;
+  margin-block: 7px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"]
+.public-campaign-v2-signing-panel .wizard-step {
+  padding: 6px 4px;
+}
+
+.public-campaign-v2[data-premium-presentation="premium-national"]
+.public-campaign-v2-signing-panel :is(button, input, select, textarea, a):focus-visible {
+  outline: 3px solid #b7791f;
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .public-campaign-v2[data-premium-presentation="premium-national"]
+  .public-campaign-v2-signing-panel .wizard-steps {
+    gap: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-campaign-v2[data-premium-presentation="premium-national"]
+  .public-campaign-v2-signing-panel *,
+  .public-campaign-v2[data-premium-presentation="premium-national"]
+  .public-campaign-v2-signing-panel *::before,
+  .public-campaign-v2[data-premium-presentation="premium-national"]
+  .public-campaign-v2-signing-panel *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* VOICEUP GSAA V3 DESKTOP SCROLL FIX
+   Let the premium signing panel grow with page content.
+   Preserve mobile layout and existing signing functionality.
+*/
+@media (min-width: 1101px) {
+  .public-campaign-v2[data-premium-presentation="premium-national"]
+  > .public-campaign-v2-signing-panel {
+    align-self: start;
+    min-height: 0;
+  }
+
+  .public-campaign-v2[data-premium-presentation="premium-national"]
+  > .public-campaign-v2-signing-panel > .panel {
+    position: relative;
+    inset: auto;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+}
+/* GSAA desktop story and signing layout. */
+@media (min-width: 1101px) {
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"].public-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
+    grid-template-areas: "story signup";
+    grid-template-rows: auto;
+    align-items: start;
+    gap: 14px 18px;
+  }
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] > .public-story-column {
+    display: grid;
+    grid-area: story;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    grid-template-areas: "header header" "cards art" "rest rest" "promos promos";
+    grid-template-rows: auto auto auto auto;
+    align-content: start;
+    align-self: start;
+    gap: 14px;
+    min-width: 0;
+    height: auto;
+    overflow: visible;
+    padding: 0;
+  }
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] > .public-story-column > .public-campaign-v2-hero { grid-area: header; }
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] > .public-story-column > .public-gau-cards { grid-area: cards; align-self: start; }
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] > .public-story-column > .public-national-hero-art { grid-area: art; align-self: start; }
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] > .public-story-column > .public-gau-closing { grid-area: rest; }
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] > .public-story-column > .gsaa-growth-promotions { grid-area: promos; margin: 0; align-self: start; min-width: 0; }
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] > .public-campaign-v2-signing-panel {
+    grid-area: signup;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    min-width: 0;
+    height: auto;
+    position: relative;
+  }
+}
+
+/* Keep promotions and campaign closing content in the story column so they
+   use the space beside the longer signing panel. */
+@media (min-width: 1101px) {
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"].public-layout {
+    grid-template-areas: "story signup";
+    grid-template-rows: auto;
+    align-items: start;
+  }
+  .public-only-shell .public-campaign-v2[data-premium-presentation="premium-national"] > .public-story-column {
+    grid-area: story;
+    grid-template-areas: "header header" "cards art" "promos promos" "rest rest";
+    grid-template-rows: auto auto auto auto;
+    align-content: start;
+    align-self: stretch;
+  }
+}
+@media (max-width: 1100px) {
+  .public-campaign-v2[data-premium-presentation="premium-national"] .gsaa-growth-promotions { order: 5; }
+  .public-campaign-v2[data-premium-presentation="premium-national"] .public-gau-closing { order: 6; }
+}

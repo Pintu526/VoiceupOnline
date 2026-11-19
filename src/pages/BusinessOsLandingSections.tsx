@@ -3,6 +3,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
+  ArrowUpRight,
   BadgeCheck,
   BellRing,
   Bot,
@@ -142,6 +143,76 @@ export function BusinessOsLifecycle({ t }: { t: Translate }) {
 
 function statusClass(status: BusinessOsApplicationStatus) {
   return status.toLowerCase().replace(/\s+/g, "-");
+}
+
+export function BusinessApplicationDirectory({
+  applications,
+  t
+}: {
+  applications: BusinessOsApplication[];
+  t: Translate;
+}) {
+  const applicationEntries = applications.map((application) => ({
+      ...application,
+      displayName: application.key === "campaign" ? "CampaignOS" : application.name,
+      detailHref: `/applications/${application.key}`
+    }));
+  const campaignEntry = applicationEntries.find((application) => application.key === "campaign");
+  const directoryApplications = [
+    ...(campaignEntry ? [campaignEntry] : []),
+    {
+      key: "topicwise",
+      name: "TopicWiseOS",
+      displayName: "TopicWiseOS",
+      description: t("landing.businessOs.directory.topicWiseDescription"),
+      status: "COMING SOON" as BusinessOsApplicationStatus,
+      statusDisplay: t("landing.saas.status.COMING SOON"),
+      enabled: false,
+      icon: BriefcaseBusiness,
+      detailHref: ""
+    },
+    ...applicationEntries.filter((application) => application.key !== "campaign")
+  ];
+
+  return (
+    <section className="business-os-section business-application-directory" id="application-directory" aria-labelledby="business-application-directory-title">
+      <div className="business-os-section-heading">
+        <span>{t("landing.businessOs.directory.eyebrow")}</span>
+        <h2 id="business-application-directory-title">{t("landing.businessOs.directory.title")}</h2>
+        <p>{t("landing.businessOs.directory.subtitle")}</p>
+      </div>
+      <div className="business-application-directory-grid">
+        {directoryApplications.map((application) => {
+          const Icon = application.icon;
+          const isCampaign = application.key === "campaign";
+          return (
+            <article className={`business-directory-card${isCampaign ? " is-featured" : ""}`} key={application.key}>
+              <div className="business-directory-card-heading">
+                <span className="business-directory-icon"><Icon size={23} /></span>
+                <span className={`business-application-status status-${statusClass(application.status)}`}>{application.statusDisplay}</span>
+              </div>
+              <div>
+                <h3>{application.displayName}</h3>
+                <p>{application.description}</p>
+              </div>
+              <div className="business-directory-actions">
+                {isCampaign && (
+                  <>
+                    <a className="business-directory-primary" href="/CampaignOS">{t("landing.businessOs.directory.openWorkspace")} <ArrowUpRight size={15} /></a>
+                    <a href="/admin">{t("landing.businessOs.directory.adminEntry")}</a>
+                  </>
+                )}
+                {!isCampaign && application.detailHref && (
+                  <a href={application.detailHref}>{t("landing.businessOs.directory.viewApplication")}</a>
+                )}
+                {!application.detailHref && <span>{t("landing.businessOs.directory.noEntryYet")}</span>}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
 export function BusinessApplicationCarousel({

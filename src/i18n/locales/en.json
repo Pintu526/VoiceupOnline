@@ -1,5 +1,24 @@
 {
   "goudhanCampaign": {
+    "completeCampaignSupport": "Complete your campaign support",
+    "completeSixSteps": "Complete the six steps below to support this campaign.",
+    "voiceupExplore": {
+      "eyebrow": "VoiceUp Business OS",
+      "title": "Explore More from VoiceUp",
+      "intro": "Purpose-built services for everyday community needs.",
+      "comingSoon": "Coming Soon",
+      "applications": {
+        "goudhan": {
+          "description": "Cow-based products, traditional dairy products, and rural producer marketplace."
+        },
+        "panditOnline": {
+          "description": "Traditional puja, rituals, and priest services."
+        },
+        "organicCatering": {
+          "description": "Vegetarian catering, wholesome meals, and organic food services."
+        }
+      }
+    },
     "brandName": "Goudhan.com",
     "marketplace": {
       "aria": "Goudhan.com marketplace for Panchagavya products",
@@ -992,16 +1011,16 @@
     },
     "owners": {
       "fieldLead": "Field lead",
-      "fieldlead": "Field lead",
       "reviewLead": "Review lead",
-      "reviewlead": "Review lead",
       "coordinator": "Coordinator",
       "digitalVolunteer": "Digital volunteer",
-      "digitalvolunteer": "Digital volunteer",
       "volunteer": "Volunteer",
       "wardcoordinator": "Ward Coordinator",
       "blockcoordinator": "Block Coordinator",
-      "districtcoordinator": "District Coordinator"
+      "districtcoordinator": "District Coordinator",
+      "digitalvolunteer": "Digital volunteer",
+      "fieldlead": "Field lead",
+      "reviewlead": "Review lead"
     },
     "mobile": {
       "title": "Mobile Volunteer Dashboard",
@@ -2388,6 +2407,12 @@
         "claimFailed": "The profile could not be linked safely. Please try again.",
         "skip": "Skip for now",
         "openingDashboard": "Profile linked securely. Opening your supporter dashboard..."
+      },
+      "receipt": {
+        "failed": "Your support is recorded, but the receipt could not be delivered. You can still use your referral link and optional account access below.",
+        "queued": "Your support is recorded. The receipt for {email} is queued for secure delivery.",
+        "sent": "A receipt was sent to {email}.",
+        "title": "Participation receipt"
       }
     },
     "stepProgress": "Step {current} of {total}: {step}",
@@ -2404,6 +2429,11 @@
     "name": "Name",
     "phone": "Phone",
     "sendOtp": "Send OTP",
+    "phoneCheckFailed": "We could not check this number securely. Your details are still here; retry before continuing.",
+    "retryPhoneCheck": "Retry number check",
+    "verificationRecoveryTitle": "Verification needs to be renewed",
+    "verificationRecoveryHelp": "Your entered details are preserved. Verify again before submitting.",
+    "verifyAgain": "Verify again",
     "verifyOtp": "Verify",
     "enterOtp": "Enter verification code",
     "review": "Review",
@@ -2412,6 +2442,22 @@
     "existingSupporterDuplicate": "This campaign has already been supported using this number. No new signature was added. You can still share the campaign.",
     "thankYou": "Thank you",
     "welcomeBack": "Welcome back",
+    "returning": {
+      "eyebrow": "Verified returning supporter",
+      "title": "Welcome back to Gau Samman Ahvaan Abhiyan",
+      "recorded": "Your support is already securely recorded.",
+      "help": "There is nothing more to submit. Continue to your secure account or help the movement reach more people.",
+      "dashboard": "Open my supporter dashboard",
+      "secureAccess": "Secure account access",
+      "share": "Share the campaign",
+      "privacy": "Participation details are shown only after secure identity verification.",
+      "secureTitle": "Protecting your supporter record",
+      "secureHelp": "Sign in or recover your account to continue securely. This verification method does not prove ownership of the phone number.",
+      "lookupTitle": "We could not securely check your supporter record",
+      "lookupHelp": "Your verification succeeded, but the secure lookup did not finish. Retry without submitting a new signature.",
+      "retryLookup": "Retry secure check",
+      "lookupWorking": "Checking securely…"
+    },
     "alreadySigned": "Already signed?",
     "alreadySignedHelp": "Continue your personal campaign journey using the same mobile number you used when you signed. Verify with OTP to return.",
     "required": "Required",
@@ -2655,37 +2701,71 @@
         "voiceup": {
           "name": "VoiceUp Platform",
           "description": "VoiceUp Business OS. One platform for campaign operations, team-building, and trusted growth.",
-          "highlights": { "1": "LEARN MORE", "2": "PLAN", "3": "ACT", "4": "" }
+          "highlights": {
+            "1": "LEARN MORE",
+            "2": "PLAN",
+            "3": "ACT"
+          }
         },
         "campaign": {
           "name": "Campaign",
           "description": "Collective Action & Crowd Movement Management",
-          "highlights": { "1": "Create and publish campaigns", "2": "Collect digital and paper signatures", "3": "Mobilize supporters and volunteers", "4": "Transparent collective action" }
+          "highlights": {
+            "1": "Create and publish campaigns",
+            "2": "Collect digital and paper signatures",
+            "3": "Mobilize supporters and volunteers",
+            "4": "Transparent collective action"
+          }
         },
         "goudhan": {
           "name": "Goudhan",
           "description": "Cow Economy Marketplace",
-          "highlights": { "1": "Indigenous cow-product marketplace", "2": "Buyer and seller ecosystem", "3": "Partner and promoter onboarding", "4": "Commerce, fulfilment and referral capabilities" }
+          "highlights": {
+            "1": "Indigenous cow-product marketplace",
+            "2": "Buyer and seller ecosystem",
+            "3": "Partner and promoter onboarding",
+            "4": "Commerce, fulfilment and referral capabilities"
+          }
         },
         "panditOnline": {
           "name": "PanditOnline",
           "description": "Professional Religious Services",
-          "highlights": { "1": "Trusted priest discovery", "2": "Ritual and service booking", "3": "Provider onboarding and approval", "4": "Scheduling and service management" }
+          "highlights": {
+            "1": "Trusted priest discovery",
+            "2": "Ritual and service booking",
+            "3": "Provider onboarding and approval",
+            "4": "Scheduling and service management"
+          }
         },
         "teachToday": {
           "name": "TeachToday",
           "description": "Education Platform",
-          "highlights": { "1": "Tutor and learner marketplace", "2": "Provider onboarding and verification", "3": "Course or service discovery", "4": "Scheduling and learning support" }
+          "highlights": {
+            "1": "Tutor and learner marketplace",
+            "2": "Provider onboarding and verification",
+            "3": "Course or service discovery",
+            "4": "Scheduling and learning support"
+          }
         },
         "homeNurseHub": {
           "name": "Home Nurse Hub",
           "description": "Healthcare Services",
-          "highlights": { "1": "Home-care professional discovery", "2": "Nurse onboarding and verification", "3": "Care-service requests", "4": "Scheduling and service coordination" }
+          "highlights": {
+            "1": "Home-care professional discovery",
+            "2": "Nurse onboarding and verification",
+            "3": "Care-service requests",
+            "4": "Scheduling and service coordination"
+          }
         },
         "cateringHub": {
           "name": "Catering Hub",
           "description": "Food & Event Services",
-          "highlights": { "1": "Subscription meal plans", "2": "Event and corporate catering", "3": "Home catering services", "4": "Includes SuddhaOswada healthy-food offerings" }
+          "highlights": {
+            "1": "Subscription meal plans",
+            "2": "Event and corporate catering",
+            "3": "Home catering services",
+            "4": "Includes SuddhaOswada healthy-food offerings"
+          }
         }
       }
     },
@@ -2694,6 +2774,7 @@
         "eyebrow": "Unified business infrastructure",
         "title": "VoiceUp Business OS",
         "tagline": "One Business Operating Suite.",
+        "description": "Run campaigns, learning, services, commerce, teams, funding, evidence, and growth from one connected operating platform.",
         "lines": {
           "organise": "Organise teams.",
           "launch": "Launch applications.",
@@ -2701,23 +2782,101 @@
           "impact": "Create measurable impact."
         },
         "cards": {
-          "applications": { "title": "Business Applications", "description": "Launch multiple applications from one platform." },
-          "ai": { "title": "Shared AI", "description": "One AI powering every application." },
-          "enterprise": { "title": "Enterprise Ready", "description": "Secure, scalable, multilingual, multi-tenant." },
-          "modular": { "title": "Modular Platform", "description": "Reusable services across every application." }
+          "applications": {
+            "title": "Business Applications",
+            "description": "Launch multiple applications from one platform."
+          },
+          "ai": {
+            "title": "Shared AI",
+            "description": "One AI powering every application."
+          },
+          "enterprise": {
+            "title": "Enterprise Ready",
+            "description": "Secure, scalable, multilingual, multi-tenant."
+          },
+          "modular": {
+            "title": "Modular Platform",
+            "description": "Reusable services across every application."
+          }
         }
+      },
+      "directory": {
+        "eyebrow": "Application directory",
+        "title": "Your business ecosystem, ready from one place.",
+        "subtitle": "Enter the live CampaignOS workspace now and explore the focused applications being built on the shared VoiceUp Business OS foundation.",
+        "entryPoints": "Business OS entry points",
+        "openWorkspace": "Open CampaignOS",
+        "exploreApplications": "Explore applications",
+        "adminEntry": "VoiceUp Platform Admin",
+        "viewApplication": "View application",
+        "noEntryYet": "Entry available at launch",
+        "topicWiseDescription": "Education and knowledge operations for structured, topic-led learning."
       },
       "lifecycle": {
         "eyebrow": "Business OS lifecycle",
         "title": "From organization to measurable growth.",
         "subtitle": "A connected operating rhythm shared across every VoiceUp application.",
         "stages": {
-          "organise": { "title": "ORGANISE", "items": { "teams": "Teams", "roles": "Roles", "coordinatorNetwork": "Coordinator Network", "organizationSetup": "Organization Setup" } },
-          "plan": { "title": "PLAN", "items": { "campaigns": "Campaigns", "projects": "Projects", "events": "Events", "missions": "Missions", "aiPlanning": "AI Planning" } },
-          "act": { "title": "ACT", "items": { "execute": "Execute", "volunteers": "Volunteers", "tasks": "Tasks", "mobileWorkforce": "Mobile Workforce", "offlineOperations": "Offline Operations" } },
-          "fund": { "title": "FUND", "items": { "donations": "Donations", "membership": "Membership", "marketplace": "Marketplace", "commerce": "Commerce", "subscriptions": "Subscriptions" } },
-          "prove": { "title": "PROVE", "items": { "transparency": "Transparency", "evidence": "Evidence", "reports": "Reports", "analytics": "Analytics", "auditTrail": "Audit Trail" } },
-          "grow": { "title": "GROW", "items": { "crm": "CRM", "referrals": "Referrals", "recognition": "Recognition", "rewards": "Rewards", "communication": "Communication", "aiInsights": "AI Insights" } }
+          "organise": {
+            "title": "ORGANISE",
+            "items": {
+              "teams": "Teams",
+              "roles": "Roles",
+              "coordinatorNetwork": "Coordinator Network",
+              "organizationSetup": "Organization Setup"
+            }
+          },
+          "plan": {
+            "title": "PLAN",
+            "items": {
+              "campaigns": "Campaigns",
+              "projects": "Projects",
+              "events": "Events",
+              "missions": "Missions",
+              "aiPlanning": "AI Planning"
+            }
+          },
+          "act": {
+            "title": "ACT",
+            "items": {
+              "execute": "Execute",
+              "volunteers": "Volunteers",
+              "tasks": "Tasks",
+              "mobileWorkforce": "Mobile Workforce",
+              "offlineOperations": "Offline Operations"
+            }
+          },
+          "fund": {
+            "title": "FUND",
+            "items": {
+              "donations": "Donations",
+              "membership": "Membership",
+              "marketplace": "Marketplace",
+              "commerce": "Commerce",
+              "subscriptions": "Subscriptions"
+            }
+          },
+          "prove": {
+            "title": "PROVE",
+            "items": {
+              "transparency": "Transparency",
+              "evidence": "Evidence",
+              "reports": "Reports",
+              "analytics": "Analytics",
+              "auditTrail": "Audit Trail"
+            }
+          },
+          "grow": {
+            "title": "GROW",
+            "items": {
+              "crm": "CRM",
+              "referrals": "Referrals",
+              "recognition": "Recognition",
+              "rewards": "Rewards",
+              "communication": "Communication",
+              "aiInsights": "AI Insights"
+            }
+          }
         }
       },
       "carousel": {
@@ -2728,7 +2887,11 @@
         "previous": "Previous application",
         "next": "Next application",
         "navigation": "Choose an application",
-        "actions": { "organise": "Organise", "learnMore": "Learn More", "start": "Start" }
+        "actions": {
+          "organise": "Organise",
+          "learnMore": "Learn More",
+          "start": "Start"
+        }
       },
       "services": {
         "eyebrow": "Shared platform services",
@@ -2809,14 +2972,78 @@
       "plan": {
         "categoriesAria": "Campaign planning categories",
         "sections": {
-          "basics": { "title": "Campaign Basics", "items": { "1": "Name", "2": "Purpose", "3": "Campaign type", "4": "Target outcome" } },
-          "team": { "title": "Team and Organization", "items": { "1": "Campaign admin", "2": "Coordinators", "3": "Volunteers", "4": "Role hierarchy" } },
-          "budget": { "title": "Budget and Fundraising", "items": { "1": "Planned budget", "2": "Fundraising goal", "3": "Expense categories", "4": "Transparency approach" } },
-          "coverage": { "title": "Location and Coverage", "items": { "1": "Country", "2": "State", "3": "District", "4": "Online and offline reach" } },
-          "timeline": { "title": "Timeline and Milestones", "items": { "1": "Start date", "2": "Target date", "3": "Signature milestones", "4": "Public events" } },
-          "subscription": { "title": "Subscription and Features", "items": { "1": "Trial or plan status", "2": "Available features", "3": "Upgrade requirements", "4": "Entitlement notice" } },
-          "communication": { "title": "Communication and Growth", "items": { "1": "WhatsApp and SMS", "2": "Social sharing", "3": "Referral", "4": "Volunteer outreach" } },
-          "evidence": { "title": "Evidence and Reporting", "items": { "1": "Images and videos", "2": "Paper signatures", "3": "Expense reporting", "4": "Progress reporting" } }
+          "basics": {
+            "title": "Campaign Basics",
+            "items": {
+              "1": "Name",
+              "2": "Purpose",
+              "3": "Campaign type",
+              "4": "Target outcome"
+            }
+          },
+          "team": {
+            "title": "Team and Organization",
+            "items": {
+              "1": "Campaign admin",
+              "2": "Coordinators",
+              "3": "Volunteers",
+              "4": "Role hierarchy"
+            }
+          },
+          "budget": {
+            "title": "Budget and Fundraising",
+            "items": {
+              "1": "Planned budget",
+              "2": "Fundraising goal",
+              "3": "Expense categories",
+              "4": "Transparency approach"
+            }
+          },
+          "coverage": {
+            "title": "Location and Coverage",
+            "items": {
+              "1": "Country",
+              "2": "State",
+              "3": "District",
+              "4": "Online and offline reach"
+            }
+          },
+          "timeline": {
+            "title": "Timeline and Milestones",
+            "items": {
+              "1": "Start date",
+              "2": "Target date",
+              "3": "Signature milestones",
+              "4": "Public events"
+            }
+          },
+          "subscription": {
+            "title": "Subscription and Features",
+            "items": {
+              "1": "Trial or plan status",
+              "2": "Available features",
+              "3": "Upgrade requirements",
+              "4": "Entitlement notice"
+            }
+          },
+          "communication": {
+            "title": "Communication and Growth",
+            "items": {
+              "1": "WhatsApp and SMS",
+              "2": "Social sharing",
+              "3": "Referral",
+              "4": "Volunteer outreach"
+            }
+          },
+          "evidence": {
+            "title": "Evidence and Reporting",
+            "items": {
+              "1": "Images and videos",
+              "2": "Paper signatures",
+              "3": "Expense reporting",
+              "4": "Progress reporting"
+            }
+          }
         }
       }
     },
@@ -3848,7 +4075,18 @@
     }
   },
   "framework": {
-    "nav": { "section": "Campaign Command Center", "commandCenter": "Command Center", "organize": "Organize", "plan": "Plan", "act": "Act", "fund": "Fund", "prove": "Prove", "grow": "Grow", "settings": "Settings", "connectedModules": "Connected modules" },
+    "nav": {
+      "section": "Campaign Command Center",
+      "commandCenter": "Command Center",
+      "organize": "Organize",
+      "plan": "Plan",
+      "act": "Act",
+      "fund": "Fund",
+      "prove": "Prove",
+      "grow": "Grow",
+      "settings": "Settings",
+      "connectedModules": "Connected modules"
+    },
     "command": {
       "eyebrow": "Subscriber workspace",
       "title": "Campaign Command Center",
@@ -3856,18 +4094,106 @@
       "openModule": "View →",
       "view": "View →",
       "movementSummary": "Campaign health at a glance",
-      "status": { "connected": "Connected", "onTrack": "On track" },
-      "overview": { "label": "Campaign overview", "campaignName": "Campaign Name", "campaignStatus": "Campaign Status", "campaignProgress": "Campaign Progress", "lastActivity": "Last Activity", "teamMembers": "Team Members", "supporters": "Supporters", "fundsRaised": "Funds Raised" },
-      "movement": { "risk": "Campaign Risk", "readiness": "Campaign Readiness", "growth": "Support Growth", "pending": "Pending Tasks", "activity": "Recent Activity", "goalProgress": "Supporters toward goal", "activityDetail": "Latest campaign record" },
-      "cards": {
-        "campaign": "Campaign", "campaignPurpose": "Plan the campaign workspace", "organization": "Organization", "organizationPurpose": "Manage workspace settings", "readiness": "Readiness", "readinessPurpose": "Review campaign setup", "supporters": "Supporters", "supportersPurpose": "Engage the supporter base", "fund": "Fund", "fundPurpose": "Prepare the funding workspace", "team": "Team", "teamPurpose": "Coordinate the campaign team", "activity": "Recent Activity", "activityPurpose": "Review the latest workspace activity", "nextAction": "Next Action", "nextActionPurpose": "Continue the most important setup task"
+      "status": {
+        "connected": "Connected",
+        "onTrack": "On track"
       },
-      "quickActions": { "plan": "Open Campaign Studio", "prove": "Open Prove", "fund": "Open Fund" }
+      "overview": {
+        "label": "Campaign overview",
+        "campaignName": "Campaign Name",
+        "campaignStatus": "Campaign Status",
+        "campaignProgress": "Campaign Progress",
+        "lastActivity": "Last Activity",
+        "teamMembers": "Team Members",
+        "supporters": "Supporters",
+        "fundsRaised": "Funds Raised"
+      },
+      "movement": {
+        "risk": "Campaign Risk",
+        "readiness": "Campaign Readiness",
+        "growth": "Support Growth",
+        "pending": "Pending Tasks",
+        "activity": "Recent Activity",
+        "goalProgress": "Supporters toward goal",
+        "activityDetail": "Latest campaign record"
+      },
+      "cards": {
+        "campaign": "Campaign",
+        "campaignPurpose": "Plan the campaign workspace",
+        "organization": "Organization",
+        "organizationPurpose": "Manage workspace settings",
+        "readiness": "Readiness",
+        "readinessPurpose": "Review campaign setup",
+        "supporters": "Supporters",
+        "supportersPurpose": "Engage the supporter base",
+        "fund": "Fund",
+        "fundPurpose": "Prepare the funding workspace",
+        "team": "Team",
+        "teamPurpose": "Coordinate the campaign team",
+        "activity": "Recent Activity",
+        "activityPurpose": "Review the latest workspace activity",
+        "nextAction": "Next Action",
+        "nextActionPurpose": "Continue the most important setup task"
+      },
+      "quickActions": {
+        "plan": "Open Campaign Studio",
+        "prove": "Open Prove",
+        "fund": "Open Fund"
+      }
     },
-    "placeholder": { "module": "Module", "status": "Coming soon", "comingSoon": "Coming Soon", "connected": "Existing connected components:", "future": "Future capabilities:", "locked": "This framework module is available in the campaign workspace." },
-    "organize": { "title": "Organize", "purpose": "Build the campaign organization around the connected Coordinator Network.", "organization": "Organization", "organizationPurpose": "Define the campaign operating model.", "hierarchy": "Hierarchy", "hierarchyPurpose": "Shape the reporting and locality structure.", "roles": "Roles", "rolesPurpose": "Clarify responsibilities for each team layer.", "invitations": "Invitations", "invitationsPurpose": "Prepare coordinated team onboarding.", "connected": "Coordinator Network", "organizationFuture": "Workspace profiles and operating units", "hierarchyFuture": "Visual hierarchy and delegation", "rolesFuture": "Role templates and permissions", "invitationsFuture": "Invite workflows and onboarding tracking" },
-    "fund": { "title": "Fund", "purpose": "A dashboard foundation for future campaign funding workflows.", "budget": "Budget", "budgetPurpose": "Frame campaign funding needs.", "contributions": "Contributions", "contributionsPurpose": "Prepare a view of incoming support.", "reconciliation": "Reconciliation", "reconciliationPurpose": "Create a future-ready finance review surface.", "connected": "Campaign and organization context", "budgetFuture": "Planning and allocation views", "contributionsFuture": "Contribution tracking and reporting", "reconciliationFuture": "Reconciliation and export workflows" },
-    "prove": { "title": "Prove", "purpose": "A foundation for demonstrating campaign progress and accountability.", "evidence": "Evidence", "evidencePurpose": "Collect campaign proof points.", "timeline": "Timeline", "timelinePurpose": "Present progress over time.", "audit": "Audit", "auditPurpose": "Prepare a transparent activity record.", "connected": "Existing activity and campaign data", "evidenceFuture": "Evidence collections and publishing", "timelineFuture": "Milestones and outcome timeline", "auditFuture": "Evidence-backed audit views" }
+    "placeholder": {
+      "module": "Module",
+      "status": "Coming soon",
+      "comingSoon": "Coming Soon",
+      "connected": "Existing connected components:",
+      "future": "Future capabilities:",
+      "locked": "This framework module is available in the campaign workspace."
+    },
+    "organize": {
+      "title": "Organize",
+      "purpose": "Build the campaign organization around the connected Coordinator Network.",
+      "organization": "Organization",
+      "organizationPurpose": "Define the campaign operating model.",
+      "hierarchy": "Hierarchy",
+      "hierarchyPurpose": "Shape the reporting and locality structure.",
+      "roles": "Roles",
+      "rolesPurpose": "Clarify responsibilities for each team layer.",
+      "invitations": "Invitations",
+      "invitationsPurpose": "Prepare coordinated team onboarding.",
+      "connected": "Coordinator Network",
+      "organizationFuture": "Workspace profiles and operating units",
+      "hierarchyFuture": "Visual hierarchy and delegation",
+      "rolesFuture": "Role templates and permissions",
+      "invitationsFuture": "Invite workflows and onboarding tracking"
+    },
+    "fund": {
+      "title": "Fund",
+      "purpose": "A dashboard foundation for future campaign funding workflows.",
+      "budget": "Budget",
+      "budgetPurpose": "Frame campaign funding needs.",
+      "contributions": "Contributions",
+      "contributionsPurpose": "Prepare a view of incoming support.",
+      "reconciliation": "Reconciliation",
+      "reconciliationPurpose": "Create a future-ready finance review surface.",
+      "connected": "Campaign and organization context",
+      "budgetFuture": "Planning and allocation views",
+      "contributionsFuture": "Contribution tracking and reporting",
+      "reconciliationFuture": "Reconciliation and export workflows"
+    },
+    "prove": {
+      "title": "Prove",
+      "purpose": "A foundation for demonstrating campaign progress and accountability.",
+      "evidence": "Evidence",
+      "evidencePurpose": "Collect campaign proof points.",
+      "timeline": "Timeline",
+      "timelinePurpose": "Present progress over time.",
+      "audit": "Audit",
+      "auditPurpose": "Prepare a transparent activity record.",
+      "connected": "Existing activity and campaign data",
+      "evidenceFuture": "Evidence collections and publishing",
+      "timelineFuture": "Milestones and outcome timeline",
+      "auditFuture": "Evidence-backed audit views"
+    }
   },
   "account": {
     "login": {
@@ -3910,6 +4236,8 @@
       "mode": "Account action",
       "email": "Email",
       "password": "Password",
+      "confirmPassword": "Re-enter password",
+      "passwordMismatch": "The passwords do not match.",
       "continue": "Continue securely",
       "forgotPassword": "Forgot password?",
       "back": "Back to VoiceUp",
@@ -3928,6 +4256,63 @@
       "recoveryFailed": "Password recovery could not be started."
     },
     "dashboard": {
+      "portal": {
+        "productName": "Supporter Portal",
+        "home": "Home & impact",
+        "certificates": "My certificates",
+        "rewards": "Rewards & recognition",
+        "network": "My team & network",
+        "media": "Media & activities",
+        "help": "Help & updates",
+        "eyebrow": "Secure supporter workspace",
+        "welcome": "Welcome back",
+        "welcomeHelp": "Your verified participation, certificates and next actions in one secure place.",
+        "campaign": "Campaign",
+        "backCampaign": "Back to campaign",
+        "sectionsLabel": "Supporter portal sections",
+        "homeEyebrow": "Your participation",
+        "homeTitle": "Home & impact",
+        "homeHelp": "A concise view of your verified campaign record and the next useful action.",
+        "viewCertificates": "View certificates",
+        "impactTitle": "Verified supporter impact",
+        "supportStatus": "Support status",
+        "recorded": "Recorded",
+        "pending": "Not recorded",
+        "linkedCampaigns": "Linked campaigns",
+        "authorizedRoles": "Authorized roles",
+        "serverConfirmed": "Confirmed by the server",
+        "requests": "Role requests",
+        "requestHelp": "Volunteer and coordinator requests",
+        "nextAction": "Recommended next action",
+        "keepCampaignMoving": "Keep your campaign moving",
+        "nextActionHelp": "Return to the campaign for official updates, sharing and current calls to action.",
+        "journeyTitle": "Participation progress",
+        "journeyHelp": "Milestones shown here come only from your owned supporter record and authorized roles.",
+        "accountLinked": "Account securely linked",
+        "accountLinkedHelp": "This dashboard belongs to the signed-in account.",
+        "supportRecorded": "Campaign support recorded",
+        "communityRole": "Community role",
+        "roleApproved": "An authorized volunteer or coordinator role is active.",
+        "rolePending": "A volunteer or coordinator request is being reviewed.",
+        "roleOptional": "No role request is required to remain a supporter.",
+        "notAvailable": "Not available",
+        "campaignStatus": "Campaign status",
+        "rewardsTitle": "Recognition without invented balances",
+        "rewardsUnavailable": "Your rewards and recognition details are not available in this dashboard yet.",
+        "rewardsSecurity": "Points and rewards will only be displayed when supported by verified campaign records.",
+        "networkTitle": "Your trusted campaign network",
+        "networkHelp": "Referral and role information shown here comes from your owned supporter record and authorized access manifest.",
+        "mediaTitle": "Your media & activities",
+        "mediaUnavailable": "Your personal photo and video gallery is not available here yet. Explore campaign activities and updates in the meantime.",
+        "mediaSecurity": "Personal uploads are not available in this dashboard yet. Your privacy and access permissions remain protected.",
+        "openCampaignMedia": "View campaign activities",
+        "helpTitle": "Official campaign help and updates",
+        "helpHelp": "Use only the official campaign and authenticated account information shown here.",
+        "officialCampaign": "Official campaign",
+        "officialUpdatesUnavailable": "No owner-scoped announcement feed is available yet. Return to the campaign for current published information.",
+        "accountHelpTitle": "Account and privacy",
+        "accountHelp": "Your supporter dashboard is owner-scoped. It does not expose other supporters or workspace-wide data."
+      },
       "loading": "Loading your authorized workspace...",
       "sessionExpired": "Your session has expired. Sign in again.",
       "unauthorized": "This supporter dashboard does not belong to the signed-in account.",
@@ -3964,5 +4349,76 @@
       "noAccessTitle": "No authorized workspace",
       "noAccess": "This account is authenticated but no approved role or claimed supporter profile is linked yet."
     }
+  },
+  "phase3": {
+    "goBack": "Go back",
+    "close": "Close onboarding",
+    "progress": "Onboarding progress",
+    "eyebrow": "Free campaign onboarding",
+    "headline": "Create and publish your campaign in 60 seconds",
+    "introTitle": "No credit card. No password. Your public link comes first.",
+    "introBody": "Answer a few short fields. We verify your mobile number, create the trial workspace, and publish a share link.",
+    "campaignName": "Campaign Name",
+    "campaignGoal": "Campaign Goal",
+    "orgName": "Organization or Your Name",
+    "mobile": "Mobile Number",
+    "email": "Optional Email",
+    "language": "Language",
+    "country": "Country",
+    "autoSave": "Auto-save enabled",
+    "continueOtp": "Continue to OTP",
+    "passwordless": "Passwordless verification",
+    "restoreHint": "We will restore an existing trial workspace for this number or create a new one after verification.",
+    "mobileVerify": "Mobile verification",
+    "otpHint": "OTP helps prevent spam, duplicate signatures, and misuse of campaign support.",
+    "enterOtp": "Enter OTP",
+    "back": "Back",
+    "verifyPublish": "Verify and publish campaign",
+    "background": "Working in the background",
+    "createWorkspace": "Creating your trial workspace",
+    "generateAssets": "Generating your campaign assets",
+    "provisionHint": "We are setting up the campaign record, analytics context, public link, QR code, and welcome messages.",
+    "restored": "Workspace restored",
+    "published": "Campaign published successfully",
+    "shareLink": "Share link",
+    "shortUrl": "Short URL",
+    "shareWhatsApp": "Share on WhatsApp",
+    "copyLink": "Copy Link",
+    "openCampaign": "Open campaign",
+    "qrReady": "QR code ready",
+    "qrHint": "Use it on posters, counters, events, WhatsApp, and print material.",
+    "nextSteps": "Your next steps are ready",
+    "nextStepsHint": "Share the campaign link now. Trial details, upgrade options, and next steps are available from your workspace.",
+    "downloadPoster": "Download Poster",
+    "downloadQr": "Download QR",
+    "nativeShare": "Native Share",
+    "verify": "Verify",
+    "resendIn": "Resend in",
+    "resendOtp": "Resend OTP",
+    "sendOtp": "Send OTP",
+    "campaignPlaceholder": "Save cows in Odisha",
+    "goalPlaceholder": "Collect 2,000 supporters and submit a petition to the local authority.",
+    "orgPlaceholder": "NGO, temple, school, hospital, business, or your name",
+    "otpPlaceholder": "6 digit code",
+    "suggestedCountry": "Suggested from your browser language",
+    "unknown": "Unknown",
+    "trialEnds": "Trial ends on",
+    "trialHint": "Dashboard access can wait; the campaign link works now.",
+    "authDashboardTab": "Supporter dashboard requested in a new tab. If it did not open, allow pop-ups for this site and try again.",
+    "authPasswordHint": "Use a password of at least 8 characters and confirm it exactly.",
+    "authEnterCode": "Enter the code sent to your email to activate your account.",
+    "authVerifying": "Verifying your email code...",
+    "authVerified": "Email verified. Checking your existing campaign signature...",
+    "authConfirmPassword": "Confirm password",
+    "authActivationHint": "Enter the verification code sent to your email. No confirmation link is needed.",
+    "authVerifyLink": "Verify email code and link my signature",
+    "authCreate": "Create account",
+    "authExisting": "Already have an account? Sign in",
+    "step0": "Brief",
+    "step1": "Verify",
+    "step2": "Trial",
+    "step3": "AI",
+    "step4": "Share",
+    "step5": "Welcome"
   }
 }

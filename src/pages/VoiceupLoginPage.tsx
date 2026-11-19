@@ -1,3 +1,4 @@
+import { EmailCodePasswordRecovery } from "../components/EmailCodePasswordRecovery";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowRight, BriefcaseBusiness, KeyRound, LockKeyhole, Mail, Megaphone, ShieldCheck, UserPlus } from "lucide-react";
 import { LanguageSwitcher } from "../i18n";
@@ -12,14 +13,14 @@ import {
   requestSupporterEmailOtp,
   requestSupporterPasswordRecovery,
   SupporterAuthError,
-  verifySupporterEmailOtp
+  verifySupporterEmailOtp,
+  verifySupporterSignupOtp
 } from "../supporterAuth.ts";
 import {
   AccountAccessError,
   getAuthorizedDestinations,
   loadVoiceupAccessManifest,
-  resolveAutomaticDestination,
-  resolveCampaignAutomaticDestination,
+  resolveCampaignSupporterDestination,
   selectVoiceupWorkspace,
   writeUnifiedLoginHandoff,
   type AccessDestination,
@@ -54,8 +55,11 @@ export function VoiceupLoginPage() {
   const [signInMethod, setSignInMethod] = useState<SignInMethod>("password");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
+  const [signupOtpPending, setSignupOtpPending] = useState(false);
+  const [recovering, setRecovering] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
@@ -65,12 +69,20 @@ export function VoiceupLoginPage() {
   function openDestination(manifest: VoiceupAccessManifest, destination: AccessDestination) {
     if (destination.workspaceId) selectVoiceupWorkspace(destination.workspaceId);
     writeUnifiedLoginHandoff(manifest, destination);
+    if (destination.kind === "supporter") {
+      // With noopener, window.open may return null even when the tab opens.
+      // Do not treat that return value as evidence of a blocked popup.
+      window.open(destination.path, "_blank", "noopener,noreferrer");
+      setIsError(false);
+      setMessage("Supporter dashboard requested in a new tab. If it did not open, allow pop-ups for this site and try again.");
+      return;
+    }
     window.location.assign(destination.path);
   }
 
   function routeAuthenticatedManifest(manifest: VoiceupAccessManifest) {
     if (campaignContext) {
-      const campaignDestination = resolveCampaignAutomaticDestination(manifest, campaignContext);
+      const campaignDestination = resolveCampaignSupporterDestination(manifest, campaignContext);
       if (campaignDestination) {
         setMessage(t("account.login.campaignAccessFound"));
         openDestination(manifest, campaignDestination);
@@ -83,18 +95,18 @@ export function VoiceupLoginPage() {
       return;
     }
 
-    if (!manifest.hasAuthorizedAccess) {
-      setAuthenticatedManifest(manifest);
-      setIsError(true);
-      setMessage(t("account.login.noAccess"));
+    const supporterDestination = getAuthorizedDestinations(manifest)
+      .find((destination) => destination.kind === "supporter");
+    if (supporterDestination) {
+      openDestination(manifest, supporterDestination);
       return;
     }
-    const destination = resolveAutomaticDestination(manifest);
-    if (!destination) {
-      window.location.assign("/account");
-      return;
-    }
-    openDestination(manifest, destination);
+    // A supporter entry point never silently chooses an admin/workspace role.
+    // Server-authorized alternatives remain available for explicit selection.
+    setAuthenticatedManifest(manifest);
+    setCampaignAccessMissing(true);
+    setIsError(!manifest.hasAuthorizedAccess);
+    setMessage(t(manifest.hasAuthorizedAccess ? "account.login.noCampaignAccess" : "account.login.noAccess"));
   }
 
   async function finishAuthentication() {
@@ -160,12 +172,41 @@ export function VoiceupLoginPage() {
     setIsError(false);
     setMessage(t("account.login.creating"));
     try {
+      if (signupOtpPending) {
+        setMessage("Verifying your signup email code...");
+        await verifySupporterSignupOtp(email, otp);
+        setOtp("");
+        setSignupOtpPending(false);
+        await finishAuthentication();
+        return;
+      }
+      if (signInMethod === "email_otp") {
+        if (!otpSent) {
+          await requestSupporterEmailOtp(email, returnPath, window.location.origin, undefined, true);
+          setOtpSent(true);
+          setMessage(t("account.login.otpSent"));
+          return;
+        }
+        await verifySupporterEmailOtp(email, otp);
+        setOtp("");
+        await finishAuthentication();
+        return;
+      }
+      if (password !== confirmPassword) {
+        setIsError(true);
+        setMessage(t("account.login.passwordMismatch"));
+        return;
+      }
       if (campaignContext) await registerSupporterWithEmailForContext(email, password, returnPath);
       else await registerSupporterWithEmail(email, password);
       setPassword("");
-      setMessage(t("account.login.registrationSent"));
+      setConfirmPassword("");
+      setSignupOtpPending(true);
+      setOtp("");
+      setMessage("Enter the email verification code sent to your inbox. No link is required.");
     } catch (error) {
       setPassword("");
+      setConfirmPassword("");
       setIsError(true);
       setMessage(safeLoginMessage(error, t));
     } finally {
@@ -183,7 +224,8 @@ export function VoiceupLoginPage() {
     setIsError(false);
     try {
       await requestSupporterPasswordRecovery(email);
-      setMessage(t("account.login.recoverySent"));
+      setRecovering(true);
+      setMessage("");
     } catch {
       setIsError(true);
       setMessage(t("account.login.recoveryFailed"));
@@ -200,8 +242,10 @@ export function VoiceupLoginPage() {
       setCampaignAccessMissing(false);
       setEmail("");
       setPassword("");
+      setConfirmPassword("");
       setOtp("");
       setOtpSent(false);
+      setSignupOtpPending(false);
       setMessage("");
     } finally {
       setBusy(false);
@@ -270,22 +314,23 @@ export function VoiceupLoginPage() {
             </section>
           ) : (
             <>
-              <div className="account-login-tabs" role="tablist" aria-label={t("account.login.mode")}>
-                <button type="button" role="tab" aria-selected={mode === "sign_in"} onClick={() => { setMode("sign_in"); setMessage(""); }}>{t("account.login.signIn")}</button>
-                <button type="button" role="tab" aria-selected={mode === "register"} onClick={() => { setMode("register"); setMessage(""); setOtpSent(false); }}>{t("account.login.create")}</button>
-              </div>
-              {mode === "sign_in" && (
-                <div className="account-login-methods" role="group" aria-label={t("account.login.signInMethod")}>
-                  <button type="button" aria-pressed={signInMethod === "password"} onClick={() => { setSignInMethod("password"); setOtpSent(false); setMessage(""); }}><KeyRound size={16} /> {t("account.login.passwordMethod")}</button>
-                  <button type="button" aria-pressed={signInMethod === "email_otp"} onClick={() => { setSignInMethod("email_otp"); setMessage(""); }}><Mail size={16} /> {t("account.login.emailOtpMethod")}</button>
+              {!campaignContext && (
+                <div className="account-login-tabs" role="tablist" aria-label={t("account.login.mode")}>
+                  <button type="button" role="tab" aria-selected={mode === "sign_in"} onClick={() => { setMode("sign_in"); setSignupOtpPending(false); setOtp(""); setMessage(""); }}>{t("account.login.signIn")}</button>
+                  <button type="button" role="tab" aria-selected={mode === "register"} onClick={() => { setMode("register"); setSignupOtpPending(false); setMessage(""); setOtpSent(false); }}>{t("account.login.create")}</button>
                 </div>
               )}
+              {recovering ? <EmailCodePasswordRecovery email={email.trim()} onClose={() => { setRecovering(false); setMessage(""); }} /> : <>
+              {!signupOtpPending && <div className="account-login-methods" role="group" aria-label={t("account.login.signInMethod")}>
+                  <button type="button" aria-pressed={signInMethod === "password"} onClick={() => { setSignInMethod("password"); setOtpSent(false); setMessage(""); }}><KeyRound size={16} /> {t("account.login.passwordMethod")}</button>
+                  <button type="button" aria-pressed={signInMethod === "email_otp"} onClick={() => { setSignInMethod("email_otp"); setMessage(""); }}><Mail size={16} /> {t("account.login.emailOtpMethod")}</button>
+              </div>}
               <form className="form-stack login-form" onSubmit={mode === "sign_in" ? signIn : register} aria-busy={busy}>
                 <label className="field" htmlFor="voiceup-account-email">
                   <span className="label">{t("account.login.email")}</span>
-                  <input id="voiceup-account-email" type="email" autoComplete="email" required value={email} onChange={(event) => { setEmail(event.target.value); setOtpSent(false); setOtp(""); }} />
+                  <input id="voiceup-account-email" type="email" autoComplete="email" required value={email} onChange={(event) => { if (signupOtpPending) return; setEmail(event.target.value); setOtpSent(false); setOtp(""); }} readOnly={signupOtpPending} />
                 </label>
-                {(mode === "register" || signInMethod === "password") && (
+                {signInMethod === "password" && !signupOtpPending && (
                   <label className="field" htmlFor="voiceup-account-password">
                     <span className="label">{t("account.login.password")}</span>
                     <PasswordField
@@ -301,17 +346,23 @@ export function VoiceupLoginPage() {
                     />
                   </label>
                 )}
-                {mode === "sign_in" && signInMethod === "email_otp" && otpSent && (
+                {mode === "register" && signInMethod === "password" && !signupOtpPending && (
+                  <label className="field" htmlFor="voiceup-account-confirm-password">
+                    <span className="label">{t("account.login.confirmPassword")}</span>
+                    <PasswordField id="voiceup-account-confirm-password" name="confirmPassword" autoComplete="new-password" required disabled={busy} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} showLabel={t("account.login.showPassword")} hideLabel={t("account.login.hidePassword")} />
+                  </label>
+                )}
+                {(signupOtpPending || (signInMethod === "email_otp" && otpSent)) && (
                   <label className="field" htmlFor="voiceup-account-otp">
                     <span className="label">{t("account.login.emailOtp")}</span>
                     <input id="voiceup-account-otp" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6,10}" required value={otp} onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 10))} />
                   </label>
                 )}
                 <button className="primary-button" type="submit" disabled={busy}>
-                  {busy ? t("account.login.working") : mode === "register" ? t("account.login.create") : signInMethod === "email_otp" ? t(otpSent ? "account.login.verifyOtp" : "account.login.sendOtp") : t("account.login.continue")}
+                  {busy ? t("account.login.working") : signupOtpPending ? "Verify signup code" : signInMethod === "email_otp" ? t(otpSent ? "account.login.verifyOtp" : "account.login.sendOtp") : mode === "register" ? t("account.login.create") : t("account.login.continue")}
                   {!busy && <ArrowRight size={17} />}
                 </button>
-                {mode === "sign_in" && signInMethod === "email_otp" && otpSent && (
+                {signInMethod === "email_otp" && otpSent && (
                   <button className="secondary-button" type="button" disabled={busy} onClick={() => { setOtpSent(false); setOtp(""); setMessage(""); }}>{t("account.login.resendOtp")}</button>
                 )}
                 {mode === "sign_in" && signInMethod === "password" && (
@@ -319,6 +370,7 @@ export function VoiceupLoginPage() {
                 )}
                 {message && <p className={isError ? "error-message" : "info-message"} role="status" aria-live="polite">{message}</p>}
               </form>
+              </>}
               <a className="secondary-link-button" href={campaignContext ? campaignPath : "/"}>{campaignContext ? t("account.login.returnCampaign") : t("account.login.back")}</a>
             </>
           )}

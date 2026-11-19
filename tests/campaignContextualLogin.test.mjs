@@ -9,7 +9,8 @@ import {
 } from "../src/campaignAuthContext.ts";
 import {
   getCampaignAuthorizedDestinations,
-  resolveCampaignAutomaticDestination
+  resolveCampaignAutomaticDestination,
+  resolveCampaignSupporterDestination
 } from "../src/accountAccess.ts";
 import {
   requestSupporterEmailOtp,
@@ -170,22 +171,43 @@ test("campaign admin routing requires an exact server-returned campaign assignme
   assert.equal(resolveCampaignAutomaticDestination(exact, context)?.path, "/admin/save--river");
 });
 
+test("supporter entry never automatically routes an admin-only session", () => {
+  const adminOnly = manifest({
+    workspaceMemberships: [{
+      workspaceId: "ws-1", workspaceName: "One", role: "campaign_admin", permissions: [],
+      campaignAssignments: [{ assignmentId: "assignment-1", applicationKey: "voiceup", role: "campaign_admin", resourceType: "campaign", resourceId: "campaign-1", resourceSlug: "save--river" }]
+    }]
+  });
+  assert.equal(resolveCampaignAutomaticDestination(adminOnly, context)?.kind, "campaign_admin");
+  assert.equal(resolveCampaignSupporterDestination(adminOnly, context), null);
+});
+
 test("missing campaign access stays optional and the public page exposes contextual account access without phone auth", () => {
   assert.equal(resolveCampaignAutomaticDestination(manifest({ hasAuthorizedAccess: false }), context), null);
   const publicSource = readFileSync(new URL("../src/pages/PublicCampaignPage.tsx", import.meta.url), "utf8");
   const inlineSource = readFileSync(new URL("../src/components/CampaignInlineAuthPanel.tsx", import.meta.url), "utf8");
   const loginSource = readFileSync(new URL("../src/pages/VoiceupLoginPage.tsx", import.meta.url), "utf8");
   assert.match(publicSource, /CampaignInlineAuthPanel/);
-  assert.match(publicSource, /campaign-participation-tabs/);
+  assert.match(publicSource, /gsaa-auth-popover/);
   assert.match(publicSource, /public-campaign-sign-in/);
-  assert.match(publicSource, /href=\{campaignAccountAccessPath\}/);
-  assert.match(publicSource, /campaignSignUpLoginAria/);
+  assert.match(publicSource, /const campaignAccountAccessPath = getCampaignLoginPath\(/);
+  assert.match(publicSource, /linkedSupporterAccount\s*\?/);
+  assert.match(publicSource, /encodeURIComponent\(linkedSupporterAccount\.accountId\)/);
+  assert.match(publicSource, /:\s*campaignAccountAccessPath/);
+  assert.match(publicSource, /CampaignInlineAuthPanel/);
   assert.match(inlineSource, /getCampaignLoginPath/);
+  assert.match(inlineSource, /resolveCampaignSupporterDestination/);
+  assert.match(inlineSource, /window\.open\(destination\.path, "_blank"/);
+  assert.match(inlineSource, /registerSupporterWithEmailForContext/);
+  assert.match(inlineSource, /initialRoute === "historical_signature"/);
   assert.match(inlineSource, /loadVoiceupAccessManifest/);
   assert.match(inlineSource, /requestSupporterEmailOtp/);
   assert.match(loginSource, /loadVoiceupAccessManifest/);
   assert.match(loginSource, /requestSupporterEmailOtp/);
   assert.match(loginSource, /registerSupporterWithEmailForContext/);
+  assert.match(loginSource, /!campaignContext && \(/);
+  assert.match(loginSource, /find\(\(destination\) => destination\.kind === "supporter"\)/);
+  assert.doesNotMatch(loginSource, /resolveAutomaticDestination/);
   assert.match(loginSource, /type LoginMode = "sign_in" \| "register"/);
   assert.match(loginSource, /noCampaignAccess/);
   assert.doesNotMatch(loginSource, /submitPublicSignature|voiceup-public-signing/);

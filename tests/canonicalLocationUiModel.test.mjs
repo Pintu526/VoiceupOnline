@@ -312,3 +312,19 @@ test("clear cancels pending work and disabled controllers do not load", async ()
   assert.equal(disabled.getSnapshot().status, "idle");
   assert.equal(disabled.getSnapshot().disabled, true);
 });
+
+test("disposed controller can reactivate after Strict Mode effect replay", async () => {
+  const client = fakeClient();
+  const controller = new CanonicalLocationUiController({ client, rootNodeId: "in" });
+
+  const first = controller.initialize();
+  controller.dispose();
+  await first;
+
+  controller.reactivate();
+  assert.equal(controller.getSnapshot().status, "idle");
+
+  await controller.initialize();
+  assert.equal(controller.getSnapshot().status, "ready");
+  assert.equal(controller.getSnapshot().root.nodeId, "in");
+});

@@ -38,13 +38,14 @@ function datasetSelection(): CanonicalLocationDatasetSelection {
   return { mode: "active_release", scopeKey: Deno.env.get("LOCATION_API_ACTIVE_RELEASE_SCOPE_KEY") ?? "india:odisha" };
 }
 
-function createApi(): RepositoryLocationApiV1 {
+function createApi(): { api: RepositoryLocationApiV1; close: () => Promise<void> } {
   // Direct Postgres keeps the private `location` schema out of PostgREST.
   if (!Deno.env.get("SUPABASE_URL") || !Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) throw new Error("Missing Supabase server credentials.");
   const databaseUrl = Deno.env.get("SUPABASE_DB_URL");
   if (!databaseUrl) throw new Error("Missing server-only Supabase database connection.");
-  const repository = new PostgresCanonicalLocationRepository(new SupabasePostgresReadOnlyExecutor(databaseUrl), datasetSelection());
-  return new RepositoryLocationApiV1(new RepositoryLocationService(repository));
+  const executor = new SupabasePostgresReadOnlyExecutor(databaseUrl);
+  const repository = new PostgresCanonicalLocationRepository(executor, datasetSelection());
+  return { api: new RepositoryLocationApiV1(new RepositoryLocationService(repository)), close: () => executor.close() };
 }
 
 function isLocationApiRequest(value: unknown): value is LocationApiV1Request {
@@ -69,7 +70,13 @@ Deno.serve(async (req) => {
     if (new TextEncoder().encode(rawBody).byteLength > MAX_REQUEST_BYTES) return json({ apiVersion: "v1", error: { code: "invalid_request", message: "Request body exceeds the API limit." } }, 400, origin);
     const body = JSON.parse(rawBody) as unknown;
     if (!isLocationApiRequest(body)) return json({ apiVersion: "v1", error: { code: "invalid_request", message: "A valid Location API v1 operation is required." } }, 400, origin);
-    const response = await createApi().handle(body);
+    const resource = createApi();
+    let response;
+    try {
+      response = await resource.api.handle(body);
+    } finally {
+      await resource.close();
+    }
     return json(response.body, response.httpStatus, origin);
   } catch (error) {
     console.error("Location API request failed.", error);

@@ -1,0 +1,135 @@
+
+> voiceup-online@0.1.0 build
+> vite build
+
+[36mvite v8.1.6 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 2821 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/supporter-email-confirmed.html                         2.10 kB │ gzip:     0.91 kB
+dist/supporter-reset-password.html                          5.53 kB │ gzip:     1.75 kB
+dist/index.html                                             6.75 kB │ gzip:     1.62 kB
+dist/assets/voiceup-global-hero-rQ3KIRMd.jpg              208.12 kB
+dist/assets/ReferralQrPreview-DNKo-WSd.css                  0.68 kB │ gzip:     0.33 kB
+dist/assets/CertificatePreview-B4CUNT3e.css                 6.93 kB │ gzip:     1.88 kB
+dist/assets/PublicCampaignPage-BLleZHh0.css                74.65 kB │ gzip:    12.43 kB
+dist/assets/index-BqzzzudW.css                            300.76 kB │ gzip:    51.06 kB
+dist/assets/featureFlags-AaXJRcjR.js                        0.08 kB │ gzip:     0.09 kB
+dist/assets/chevron-right-CYBXf3aT.js                       0.12 kB │ gzip:     0.14 kB
+dist/assets/plus-DXK3poXk.js                                0.15 kB │ gzip:     0.15 kB
+dist/assets/x-Cf7t7Jv_.js                                   0.15 kB │ gzip:     0.15 kB
+dist/assets/arrow-left-D4mJzSkv.js                          0.16 kB │ gzip:     0.16 kB
+dist/assets/arrow-right-CfnBEkWK.js                         0.16 kB │ gzip:     0.16 kB
+dist/assets/clock-3-tKZkW8tA.js                             0.16 kB │ gzip:     0.16 kB
+dist/assets/search-DMXHYJMU.js                              0.17 kB │ gzip:     0.16 kB
+dist/assets/trending-up-6cB-iulp.js                         0.17 kB │ gzip:     0.16 kB
+dist/assets/circle-check-fpS0y-KZ.js                        0.17 kB │ gzip:     0.16 kB
+dist/assets/smartphone-CIil35VE.js                          0.19 kB │ gzip:     0.18 kB
+dist/assets/rotate-ccw-B38tW9sB.js                          0.19 kB │ gzip:     0.18 kB
+dist/assets/rotate-cw-DDBLmc4d.js                           0.19 kB │ gzip:     0.18 kB
+dist/assets/circle-x-CJD4uuO0.js                            0.20 kB │ gzip:     0.17 kB
+dist/assets/activity-CnXg3X60.js                            0.23 kB │ gzip:     0.19 kB
+dist/assets/copy-BaXq2_Zk.js                                0.23 kB │ gzip:     0.20 kB
+dist/assets/Field-sRUHM_Ti.js                               0.23 kB │ gzip:     0.19 kB
+dist/assets/user-check-Bq-8flI1.js                          0.24 kB │ gzip:     0.20 kB
+dist/assets/chart-column-CMd3Rs_s.js                        0.24 kB │ gzip:     0.19 kB
+dist/assets/users-round-CI2FCz0D.js                         0.25 kB │ gzip:     0.21 kB
+dist/assets/map-pin-D6uF2lvh.js                             0.25 kB │ gzip:     0.22 kB
+dist/assets/typeof-B5XbjTb1.js                              0.27 kB │ gzip:     0.16 kB
+dist/assets/award-sLSeockF.js                               0.27 kB │ gzip:     0.22 kB
+dist/assets/send-CYO_yJzX.js                                0.28 kB │ gzip:     0.22 kB
+dist/assets/wallet-cards-BeOuHpiz.js                        0.29 kB │ gzip:     0.23 kB
+dist/assets/users-HLY9luKU.js                               0.30 kB │ gzip:     0.22 kB
+dist/assets/file-check-corner-NuyZzLAq.js                   0.31 kB │ gzip:     0.23 kB
+dist/assets/badge-check-BEDPnjB6.js                         0.31 kB │ gzip:     0.21 kB
+dist/assets/languages-BAQbV0Fn.js                           0.31 kB │ gzip:     0.21 kB
+dist/assets/shield-check-DW3VZ5hK.js                        0.31 kB │ gzip:     0.24 kB
+dist/assets/refresh-ccw-C1wop92s.js                         0.31 kB │ gzip:     0.22 kB
+dist/assets/phone-BBSChHNV.js                               0.32 kB │ gzip:     0.23 kB
+dist/assets/heart-pulse-DkSKR5nO.js                         0.33 kB │ gzip:     0.25 kB
+dist/assets/camera-DC7-kgDX.js                              0.33 kB │ gzip:     0.25 kB
+dist/assets/gift-1c5CiWgz.js                                0.34 kB │ gzip:     0.25 kB
+dist/assets/share-2-BbBS84Wa.js                             0.35 kB │ gzip:     0.23 kB
+dist/assets/usePersistentState-Dccz-2pM.js                  0.36 kB │ gzip:     0.26 kB
+dist/assets/clipboard-copy-r_gImihX.js                      0.37 kB │ gzip:     0.26 kB
+dist/assets/user-round-R0_zraZa.js                          0.37 kB │ gzip:     0.27 kB
+dist/assets/building-2-15_MsCxu.js                          0.38 kB │ gzip:     0.24 kB
+dist/assets/network-B3HncPun.js                             0.38 kB │ gzip:     0.23 kB
+dist/assets/file-text-B3sO1mOz.js                           0.38 kB │ gzip:     0.25 kB
+dist/assets/Panel-BCaV3eoV.js                               0.39 kB │ gzip:     0.23 kB
+dist/assets/bell-ring-CjoqJZbp.js                           0.39 kB │ gzip:     0.28 kB
+dist/assets/upload-Cr6KQDVe.js                              0.39 kB │ gzip:     0.27 kB
+dist/assets/message-circle-Bg9y3sTW.js                      0.39 kB │ gzip:     0.29 kB
+dist/assets/clipboard-list-Dc8ombsg.js                      0.40 kB │ gzip:     0.26 kB
+dist/assets/trophy-BRNO3dX9.js                              0.47 kB │ gzip:     0.27 kB
+dist/assets/calendar-days-DO8K5TQx.js                       0.49 kB │ gzip:     0.26 kB
+dist/assets/sparkles-BGpa-lQO.js                            0.49 kB │ gzip:     0.28 kB
+dist/assets/printer-By08polU.js                             0.49 kB │ gzip:     0.30 kB
+dist/assets/BarList-BKoaex8l.js                             0.50 kB │ gzip:     0.31 kB
+dist/assets/refresh-cw-C6AsxWUc.js                          0.51 kB │ gzip:     0.31 kB
+dist/assets/file-scan-D60ycp_7.js                           0.53 kB │ gzip:     0.30 kB
+dist/assets/triangle-alert-DtWlBawD.js                      0.56 kB │ gzip:     0.32 kB
+dist/assets/MetricCard-UHLimjAX.js                          0.60 kB │ gzip:     0.35 kB
+dist/assets/qr-code-MCvXQJpt.js                             0.64 kB │ gzip:     0.31 kB
+dist/assets/modulepreload-polyfill-Dezn_h7o.js              0.69 kB │ gzip:     0.39 kB
+dist/assets/india-BEu6CQq5.js                               0.72 kB │ gzip:     0.39 kB
+dist/assets/NoCampaignPanel-mLdaxsGH.js                     0.80 kB │ gzip:     0.41 kB
+dist/assets/rocket-Tto5-OJX.js                              0.83 kB │ gzip:     0.46 kB
+dist/assets/i18n-BOFFrPEq.js                                0.92 kB │ gzip:     0.56 kB
+dist/assets/preload-helper-Czpn1I53.js                      1.19 kB │ gzip:     0.67 kB
+dist/assets/ReferralQrPreview-C5Zimkhx.js                   1.25 kB │ gzip:     0.65 kB
+dist/assets/rolldown-runtime-DAXXjFlN.js                    1.26 kB │ gzip:     0.70 kB
+dist/assets/links-By6w6W0y.js                               1.73 kB │ gzip:     0.91 kB
+dist/assets/ui-Cl45BHhy.js                                  1.75 kB │ gzip:     0.85 kB
+dist/assets/GlobalLocationFields-Dw_CPpQ6.js                1.89 kB │ gzip:     0.72 kB
+dist/assets/supporter-email-confirmed-BZEDM6a_.js           2.80 kB │ gzip:     1.20 kB
+dist/assets/SupporterPortalEngagementCard-Dk3uSwxT.js       3.19 kB │ gzip:     1.23 kB
+dist/assets/useGrowth-LTiUQqL7.js                           3.72 kB │ gzip:     1.71 kB
+dist/assets/supporter-reset-password-D6xWsH4B.js            3.97 kB │ gzip:     1.59 kB
+dist/assets/MerchantDashboard-BrKsVEwc.js                   3.99 kB │ gzip:     0.90 kB
+dist/assets/authorityDirectory-BSMAB0h6.js                  4.25 kB │ gzip:     1.45 kB
+dist/assets/lib-BmFHqBdJ.js                                 4.64 kB │ gzip:     2.11 kB
+dist/assets/campaignTemplates-CcmTPe5V.js                   5.06 kB │ gzip:     2.11 kB
+dist/assets/supporterAuth-Beuxg84r.js                       5.38 kB │ gzip:     1.89 kB
+dist/assets/growthEngineService-BdbPohsr.js                 5.48 kB │ gzip:     2.24 kB
+dist/assets/goudhanCampaignBlueprint-BtHWw_0G.js            5.65 kB │ gzip:     2.32 kB
+dist/assets/IndiaLgdCatalogReader-6Y63IG3O.js               5.99 kB │ gzip:     1.95 kB
+dist/assets/RewardCenter-DvDZqXDE.js                        6.34 kB │ gzip:     1.80 kB
+dist/assets/campaign-CCVsQXQd.js                           11.25 kB │ gzip:     3.81 kB
+dist/assets/LocationReferenceGovernance-Dybfwsuc.js        12.55 kB │ gzip:     3.81 kB
+dist/assets/CommandCenterTab-B9qFjq3t.js                   15.22 kB │ gzip:     4.03 kB
+dist/assets/src-BHyPwket.js                                17.24 kB │ gzip:     7.31 kB
+dist/assets/EngagementTab-2zpR4_86.js                      17.76 kB │ gzip:     4.14 kB
+dist/assets/PublicSupporterPhoto-CNQVHhMR.js               22.23 kB │ gzip:     7.14 kB
+dist/assets/documentIntelligence-ZTbwGBtg.js               23.75 kB │ gzip:     9.07 kB
+dist/assets/MovementCrmTab-_s65Jx7z.js                     23.92 kB │ gzip:     5.27 kB
+dist/assets/AiCampaignCopilot-B2LKvCkk.js                  25.70 kB │ gzip:     7.68 kB
+dist/assets/referrals-BaFdr8o6.js                          27.65 kB │ gzip:    10.54 kB
+dist/assets/purify.es-C-v12ISi.js                          28.09 kB │ gzip:    11.09 kB
+dist/assets/PasswordField-Om_MsHsB.js                      28.24 kB │ gzip:     8.73 kB
+dist/assets/ActionCenter-CEpZ7m-j.js                       29.20 kB │ gzip:     7.70 kB
+dist/assets/ScansTab-t5FdclOP.js                           38.45 kB │ gzip:     9.45 kB
+dist/assets/ui-B8sCtPFr.js                                 38.71 kB │ gzip:    10.91 kB
+dist/assets/backend-CijJL6y3.js                            46.54 kB │ gzip:    14.32 kB
+dist/assets/ReportsTab-DK2UA4FH.js                         51.74 kB │ gzip:    13.55 kB
+dist/assets/CoordinatorNetworkTab-CTxrMtOW.js              60.73 kB │ gzip:    13.09 kB
+dist/assets/GrowthDashboardTab-Dub_u1hf.js                 62.84 kB │ gzip:    15.34 kB
+dist/assets/campaignCompletion-CT1ECayi.js                 70.99 kB │ gzip:    15.64 kB
+dist/assets/configuration-CVZjiiSQ.js                      77.84 kB │ gzip:    19.69 kB
+dist/assets/index.es-DtTUUMVc.js                          151.36 kB │ gzip:    48.90 kB
+dist/assets/CertificatePreview-BUKnezV0.js                192.48 kB │ gzip:    63.78 kB
+dist/assets/html2canvas-CNGsUNfu.js                       199.56 kB │ gzip:    46.78 kB
+dist/assets/authSession-oyI0b1GD.js                       201.74 kB │ gzip:    51.64 kB
+dist/assets/AppShell-BoBNKMkE.js                          267.55 kB │ gzip:    60.62 kB
+dist/assets/PublicCampaignPage-DLJQTCwD.js                304.88 kB │ gzip:    46.48 kB
+dist/assets/jspdf.es.min-fvc61plG.js                      399.19 kB │ gzip:   129.50 kB
+dist/assets/index-VKAtsWdy.js                             417.22 kB │ gzip:   120.75 kB
+dist/assets/useTranslation-CvhLLJzS.js                    799.35 kB │ gzip:   178.85 kB
+dist/assets/geography-BjTzdeYn.js                      21,800.25 kB │ gzip: 1,008.35 kB
+
+[32m✓ built in 11.45s[39m
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m

@@ -43,6 +43,7 @@ export function useCanonicalLocationUi(
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
 
   useEffect(() => {
+    controller.reactivate();
     controller.setDisabled(disabled);
     if (autoLoad && !disabled && controller.getSnapshot().status === "idle") void controller.initialize();
   }, [autoLoad, controller, disabled]);

@@ -1,0 +1,525 @@
+
+> voiceup-online@0.1.0 build
+> vite build
+
+[36mvite v8.1.6 [32mbuilding client environment for production...[36m[39m
+[2Ktransforming...✓ 2823 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/supporter-email-confirmed.html                         2.10 kB │ gzip:     0.91 kB
+dist/supporter-reset-password.html                          5.53 kB │ gzip:     1.75 kB
+dist/index.html                                             6.83 kB │ gzip:     1.64 kB
+dist/assets/voiceup-global-hero-rQ3KIRMd.jpg              208.12 kB
+dist/assets/ReferralQrPreview-DNKo-WSd.css                  0.68 kB │ gzip:     0.33 kB
+dist/assets/CertificatePreview-B4CUNT3e.css                 6.93 kB │ gzip:     1.88 kB
+dist/assets/PublicCampaignPage-BLleZHh0.css                74.65 kB │ gzip:    12.43 kB
+dist/assets/index-BqzzzudW.css                            300.76 kB │ gzip:    51.06 kB
+dist/assets/featureFlags-AaXJRcjR.js                        0.08 kB │ gzip:     0.09 kB
+dist/assets/chevron-right-zh5aQ2Fz.js                       0.13 kB │ gzip:     0.14 kB
+dist/assets/plus-lGalSKzP.js                                0.15 kB │ gzip:     0.15 kB
+dist/assets/x-B_iSWSf5.js                                   0.15 kB │ gzip:     0.15 kB
+dist/assets/arrow-left-B8NU-3zs.js                          0.16 kB │ gzip:     0.16 kB
+dist/assets/arrow-right-DPF3AoXj.js                         0.16 kB │ gzip:     0.16 kB
+dist/assets/clock-3-CrGX22Fy.js                             0.16 kB │ gzip:     0.16 kB
+dist/assets/search-Bz9KeSph.js                              0.17 kB │ gzip:     0.17 kB
+dist/assets/trending-up-DZMqTItL.js                         0.17 kB │ gzip:     0.17 kB
+dist/assets/circle-check-CECudSy8.js                        0.17 kB │ gzip:     0.16 kB
+dist/assets/smartphone-DvoK3bzF.js                          0.19 kB │ gzip:     0.18 kB
+dist/assets/rotate-ccw-B_nmfiQ-.js                          0.20 kB │ gzip:     0.18 kB
+dist/assets/rotate-cw-yyNpfkZ8.js                           0.20 kB │ gzip:     0.18 kB
+dist/assets/circle-x-jMzJ3xY_.js                            0.20 kB │ gzip:     0.17 kB
+dist/assets/activity-DWr0P-KR.js                            0.23 kB │ gzip:     0.19 kB
+dist/assets/copy-BNoCyT2p.js                                0.23 kB │ gzip:     0.21 kB
+dist/assets/Field-CSvQR1fc.js                               0.23 kB │ gzip:     0.18 kB
+dist/assets/user-check-CvTWlPM-.js                          0.24 kB │ gzip:     0.20 kB
+dist/assets/chart-column-DQiE4odh.js                        0.25 kB │ gzip:     0.19 kB
+dist/assets/users-round-CbFtGAK2.js                         0.25 kB │ gzip:     0.21 kB
+dist/assets/map-pin-D3zR4edQ.js                             0.25 kB │ gzip:     0.22 kB
+dist/assets/typeof-B5XbjTb1.js                              0.27 kB │ gzip:     0.16 kB
+dist/assets/award-cqwA8aFL.js                               0.27 kB │ gzip:     0.22 kB
+dist/assets/send-sj-Rh5KV.js                                0.29 kB │ gzip:     0.23 kB
+dist/assets/wallet-cards-B87QYTRD.js                        0.29 kB │ gzip:     0.23 kB
+dist/assets/users-x7pSW0Dm.js                               0.30 kB │ gzip:     0.22 kB
+dist/assets/file-check-corner-BhBpsTLV.js                   0.31 kB │ gzip:     0.23 kB
+dist/assets/badge-check-CxaPc5AW.js                         0.31 kB │ gzip:     0.21 kB
+dist/assets/languages-Do61MisY.js                           0.31 kB │ gzip:     0.22 kB
+dist/assets/shield-check-D6jPmvPf.js                        0.32 kB │ gzip:     0.24 kB
+dist/assets/refresh-ccw-BTMBbCHL.js                         0.32 kB │ gzip:     0.22 kB
+dist/assets/phone-sHYDi1Ye.js                               0.32 kB │ gzip:     0.23 kB
+dist/assets/heart-pulse-BCas0M4P.js                         0.33 kB │ gzip:     0.25 kB
+dist/assets/camera-Bjqh4C17.js                              0.33 kB │ gzip:     0.25 kB
+dist/assets/gift-BciaiANW.js                                0.34 kB │ gzip:     0.25 kB
+dist/assets/share-2-i35hNBSA.js                             0.35 kB │ gzip:     0.23 kB
+dist/assets/usePersistentState-BX0hPz9g.js                  0.36 kB │ gzip:     0.26 kB
+dist/assets/clipboard-copy-D-1pLy-w.js                      0.37 kB │ gzip:     0.26 kB
+dist/assets/user-round-BGo2X5IB.js                          0.38 kB │ gzip:     0.27 kB
+dist/assets/building-2-BvyslwM9.js                          0.38 kB │ gzip:     0.24 kB
+dist/assets/network-BAeBGQsK.js                             0.38 kB │ gzip:     0.23 kB
+dist/assets/file-text-Bfa71Ov_.js                           0.38 kB │ gzip:     0.25 kB
+dist/assets/Panel-C_ieF9Df.js                               0.39 kB │ gzip:     0.23 kB
+dist/assets/bell-ring-BVa6n6vV.js                           0.39 kB │ gzip:     0.28 kB
+dist/assets/upload-CxfaVrvv.js                              0.39 kB │ gzip:     0.27 kB
+dist/assets/message-circle-DwIiwS6I.js                      0.40 kB │ gzip:     0.29 kB
+dist/assets/clipboard-list-DmO4z5Io.js                      0.41 kB │ gzip:     0.26 kB
+dist/assets/trophy-DwxYEcFC.js                              0.47 kB │ gzip:     0.27 kB
+dist/assets/calendar-days-BneUSbwO.js                       0.49 kB │ gzip:     0.26 kB
+dist/assets/sparkles-DAfLrPw7.js                            0.49 kB │ gzip:     0.28 kB
+dist/assets/printer-89Ys5o8O.js                             0.49 kB │ gzip:     0.30 kB
+dist/assets/BarList-DRrkIgtw.js                             0.50 kB │ gzip:     0.32 kB
+dist/assets/refresh-cw-DIZUpKsh.js                          0.51 kB │ gzip:     0.31 kB
+dist/assets/file-scan-C00Q9KGR.js                           0.54 kB │ gzip:     0.30 kB
+dist/assets/triangle-alert-Cb5Z8RI2.js                      0.56 kB │ gzip:     0.32 kB
+dist/assets/MetricCard-ekcuzR8C.js                          0.60 kB │ gzip:     0.35 kB
+dist/assets/qr-code-D7PGOaNu.js                             0.65 kB │ gzip:     0.31 kB
+dist/assets/modulepreload-polyfill-Dezn_h7o.js              0.69 kB │ gzip:     0.39 kB
+dist/assets/india-BEu6CQq5.js                               0.72 kB │ gzip:     0.39 kB
+dist/assets/NoCampaignPanel-BM4dqTfO.js                     0.81 kB │ gzip:     0.42 kB
+dist/assets/rocket-BNwumqBn.js                              0.83 kB │ gzip:     0.46 kB
+dist/assets/i18n-CBrfTH0R.js                                0.96 kB │ gzip:     0.59 kB
+dist/assets/preload-helper-Czpn1I53.js                      1.19 kB │ gzip:     0.67 kB
+dist/assets/rolldown-runtime-DAXXjFlN.js                    1.26 kB │ gzip:     0.70 kB
+dist/assets/ReferralQrPreview-DfxVF08K.js                   1.30 kB │ gzip:     0.67 kB
+dist/assets/links-By6w6W0y.js                               1.73 kB │ gzip:     0.91 kB
+dist/assets/ui-B5T3dknq.js                                  1.75 kB │ gzip:     0.86 kB
+dist/assets/GlobalLocationFields-Cu1BVWps.js                1.89 kB │ gzip:     0.72 kB
+dist/assets/supporter-email-confirmed-BZEDM6a_.js           2.80 kB │ gzip:     1.20 kB
+dist/assets/SupporterPortalEngagementCard-BZAnNIK5.js       3.23 kB │ gzip:     1.25 kB
+dist/assets/useGrowth-D1UYrpl5.js                           3.73 kB │ gzip:     1.72 kB
+dist/assets/supporter-reset-password-D6xWsH4B.js            3.97 kB │ gzip:     1.59 kB
+dist/assets/MerchantDashboard-BHwRFDFi.js                   4.03 kB │ gzip:     0.92 kB
+dist/assets/authorityDirectory-BSMAB0h6.js                  4.25 kB │ gzip:     1.45 kB
+dist/assets/lib-BmFHqBdJ.js                                 4.64 kB │ gzip:     2.11 kB
+dist/assets/indiaLocationOptions-BcXDea8c.js                4.92 kB │ gzip:     1.84 kB
+dist/assets/campaignTemplates-CcmTPe5V.js                   5.06 kB │ gzip:     2.11 kB
+dist/assets/supporterAuth-Beuxg84r.js                       5.38 kB │ gzip:     1.89 kB
+dist/assets/growthEngineService-BdbPohsr.js                 5.48 kB │ gzip:     2.24 kB
+dist/assets/goudhanCampaignBlueprint-BtHWw_0G.js            5.65 kB │ gzip:     2.32 kB
+dist/assets/IndiaLgdCatalogReader-6Y63IG3O.js               5.99 kB │ gzip:     1.95 kB
+dist/assets/RewardCenter-Dce6AfSP.js                        6.39 kB │ gzip:     1.82 kB
+dist/assets/createLucideIcon-CLj53VJZ.js                    9.22 kB │ gzip:     3.63 kB
+dist/assets/IndiaLocationFields-CJeAnuGs.js                10.19 kB │ gzip:     3.31 kB
+dist/assets/campaign-CCVsQXQd.js                           11.25 kB │ gzip:     3.81 kB
+dist/assets/LocationReferenceGovernance-Dybfwsuc.js        12.55 kB │ gzip:     3.81 kB
+dist/assets/CommandCenterTab-BncITP2R.js                   15.26 kB │ gzip:     4.05 kB
+dist/assets/src-BHyPwket.js                                17.24 kB │ gzip:     7.31 kB
+dist/assets/EngagementTab-DdrzcTEv.js                      17.81 kB │ gzip:     4.17 kB
+dist/assets/PublicSupporterPhoto-zJTWjHkT.js               22.23 kB │ gzip:     7.14 kB
+dist/assets/documentIntelligence-ZTbwGBtg.js               23.75 kB │ gzip:     9.07 kB
+dist/assets/ui-Cb15HM_1.js                                 23.84 kB │ gzip:     6.69 kB
+dist/assets/MovementCrmTab-Cal09OUr.js                     23.96 kB │ gzip:     5.29 kB
+dist/assets/AiCampaignCopilot-BH7IvN2L.js                  25.74 kB │ gzip:     7.70 kB
+dist/assets/referrals-BaFdr8o6.js                          27.65 kB │ gzip:    10.54 kB
+dist/assets/purify.es-C-v12ISi.js                          28.09 kB │ gzip:    11.09 kB
+dist/assets/PasswordField-Dr9Pe8MM.js                      28.27 kB │ gzip:     8.75 kB
+dist/assets/ActionCenter-BplWq7Ez.js                       29.24 kB │ gzip:     7.71 kB
+dist/assets/ScansTab-DPdTkPdv.js                           38.49 kB │ gzip:     9.47 kB
+dist/assets/backend-CijJL6y3.js                            46.54 kB │ gzip:    14.32 kB
+dist/assets/ReportsTab-CCkgFm3i.js                         51.80 kB │ gzip:    13.57 kB
+dist/assets/CoordinatorNetworkTab-V3Um6kz2.js              60.82 kB │ gzip:    13.12 kB
+dist/assets/GrowthDashboardTab-KYUSe3Pu.js                 62.92 kB │ gzip:    15.44 kB
+dist/assets/campaignCompletion-CT1ECayi.js                 70.99 kB │ gzip:    15.64 kB
+dist/assets/configuration-CVZjiiSQ.js                      77.84 kB │ gzip:    19.69 kB
+dist/assets/index.es-DtTUUMVc.js                          151.36 kB │ gzip:    48.90 kB
+dist/assets/CertificatePreview-CwoXgiEb.js                192.48 kB │ gzip:    63.79 kB
+dist/assets/html2canvas-CNGsUNfu.js                       199.56 kB │ gzip:    46.78 kB
+dist/assets/authSession-oyI0b1GD.js                       201.74 kB │ gzip:    51.64 kB
+dist/assets/AppShell-D5CJr4i1.js                          267.84 kB │ gzip:    60.68 kB
+dist/assets/PublicCampaignPage-iEuLgIHo.js                306.14 kB │ gzip:    46.98 kB
+dist/assets/jspdf.es.min-fvc61plG.js                      399.19 kB │ gzip:   129.50 kB
+dist/assets/index-BWgpI9D6.js                             417.42 kB │ gzip:   120.77 kB
+dist/assets/useTranslation-BlcKAlqM.js                    790.24 kB │ gzip:   175.27 kB
+dist/assets/geography-BjTzdeYn.js                      21,800.25 kB │ gzip: 1,008.35 kB
+
+[33m[33m[PLUGIN_TIMINGS] [0mYour build spent significant time in plugins. Here is a breakdown:
+  - vite:css (30%)
+  - vite:css-post (18%)
+  - vite:asset (16%)
+  - vite:build-import-analysis (11%)
+  - vite:terser (9%)
+See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+[39m
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m✓ built in 11.46s[39m
+✔ the app entry's static import graph never reaches the Odisha LGD geography dataset (132.3116ms)
+✖ the lazy public campaign page's static import graph never reaches the geography dataset (209.6394ms)
+✖ geography-dependent code is loaded on demand and stays available (8.261ms)
+✖ on-demand modules still expose the full India location and OCR vocabulary behaviour (14401.1234ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 1
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15045.5528
+
+✖ failing tests:
+
+test at tests\initialBundleGeography.test.mjs:66:1
+✖ the lazy public campaign page's static import graph never reaches the geography dataset (209.6394ms)
+  AssertionError [ERR_ASSERTION]: src/geography.ts is statically reachable: src/geography.ts <- src/components/indiaLocationOptions.ts <- src/pages/PublicCampaignPage.tsx
+  
+  true !== false
+  
+      at TestContext.<anonymous> (file:///D:/VoiceupOnline-ReleaseCandidates/VOICEUP-UNIFIED-DEVELOPMENT/tests/initialBundleGeography.test.mjs:70:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\initialBundleGeography.test.mjs:74:1
+✖ geography-dependent code is loaded on demand and stays available (8.261ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /export \{[^}]*resolveIndiaLocationCatalog[^}]*\}/u. Input:
+  
+  'import {\n' +
+    '  getBlockOptions,\n' +
+    '  getDistrictOptions,\n' +
+    '  getPanchayatOptions,\n' +
+    '  getPinOptions,\n' +
+    '  getUrbanLocalBodyOptions,\n' +
+    '  getWardOptions,\n' +
+    '  indianStatesAndUnionTerritories,\n' +
+    '  isUrbanLocalBodySelection,\n' +
+    '  type LocationDeletions,\n' +
+    '  type LocationOverrides,\n' +
+    '  type LocationWithPin\n' +
+    '} from "../geography.ts";\n' +
+    'import type { PublicCampaignCustomLocation } from "../backend";\n' +
+    '\n' +
+    'export interface IndiaLocationOptions {\n' +
+    '  stateOptions: string[];\n' +
+    '  districtOptions: string[];\n' +
+    '  blockOptions: string[];\n' +
+    '  panchayatOptions: string[];\n' +
+    '  villageOptions: string[];\n' +
+    '  pinOptions: string[];\n' +
+    '}\n' +
+    '\n' +
+    'export type IndiaLocationCatalogStatus = "idle" | "loading" | "ready" | "error";\n' +
+    '\n' +
+    '/** Static geography.ts / PIN directory may be used only when no VBOSS catalog fetch is in play. */\n' +
+    'export function allowsStaticIndiaLocationFallback(\n' +
+    '  catalogStatus: IndiaLocationCatalogStatus | undefined,\n' +
+    '  catalogLength: number\n' +
+    '): boolean {\n' +
+    '  if (catalogStatus === "loading" || catalogStatus === "error" || catalogStatus === "ready") {\n' +
+    '    return false;\n' +
+    '  }\n' +
+    '  return catalogLength === 0;\n' +
+    '}\n' +
+    '\n' +
+    'export function normalizeIndiaLocationOptionKey(value: string): string {\n' +
+    '  return String(value ?? "")\n' +
+    '    .normalize("NFKC")\n' +
+    '    .replace(/\\s+/gu, " ")\n' +
+    '    .trim()\n' +
+    '    .toLowerCase();\n' +
+    '}\n' +
+    '\n' +
+    'function cleanIndiaLocationOptionLabel(value: string): string {\n' +
+    '  return String(value ?? "")\n' +
+    '    .normalize("NFKC")\n' +
+    '    .replace(/\\s+/gu, " ")\n' +
+    '    .trim();\n' +
+    '}\n' +
+    '\n' +
+    'function isIndiaCountryKey(value: string): boolean {\n' +
+    '  const key = normalizeIndiaLocationOptionKey(value);\n' +
+    '  return key === "" || key === "india" || key === "in" || key === "ind";\n' +
+    '}\n' +
+    '\n' +
+    'export function locationMatchesSelectedCountry(\n' +
+    '  locationCountry: string | undefined,\n' +
+    '  selectedCountry: string\n' +
+    '): boolean {\n' +
+    '  if (isIndiaCountryKey(selectedCountry) && isIndiaCountryKey(locationCountry ?? "")) {\n' +
+    '    return true;\n' +
+    '  }\n' +
+    '  return normalizeIndiaLocationOptionKey(locationCountry ?? "") === normalizeIndiaLocationOptionKey(selectedCountry);\n' +
+    '}\n' +
+    '\n' +
+    'export function locationMatchesSelectedParent(\n' +
+    '  locationValue: string | undefined,\n' +
+    '  selectedValue: string\n' +
+    '): boolean {\n' +
+    '  return normalizeIndiaLocationOptionKey(locationValue ?? "") === normalizeIndiaLocationOptionKey(selectedValue);\n' +
+    '}\n' +
+    '\n' +
+    'export function normalizePublicCampaignCustomLocations(\n' +
+    '  input: unknown\n' +
+    '): PublicCampaignCustomLocation[] {\n' +
+    '  if (!Array.isArray(input)) return [];\n' +
+    '  return input.flatMap((entry) => {\n' +
+    '    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];\n' +
+    '    const location = entry as Record<string, unknown>;\n' +
+    '    const country = cleanIndiaLocationOptionLabel(String(location.country ?? ""));\n' +
+    '    if (!country && !location.state) return [];\n' +
+    '    return [{\n' +
+    '      country: country || "India",\n' +
+    '      state: cleanIndiaLocationOptionLabel(String(location.state ?? "")) || undefined,\n' +
+    '      district: cleanIndiaLocationOptionLabel(String(location.district ?? "")) || undefined,\n' +
+    '      block: cleanIndiaLocationOptionLabel(String(location.block ?? "")) || undefined,\n' +
+    '      panchayat: cleanIndiaLocationOptionLabel(String(location.panchayat ?? "")) || undefined,\n' +
+    '      village: cleanIndiaLocationOptionLabel(String(location.village ?? "")) || undefined,\n' +
+    '      postalCode: cleanIndiaLocationOptionLabel(\n' +
+    '        String(location.postalCode ?? location.postal_code ?? "")\n' +
+    '      ) || undefined\n' +
+    '    }];\n' +
+    '  });\n' +
+    '}\n' +
+    '\n' +
+    'export function resolveIndiaLocationCatalog(\n' +
+    '  customLocations: PublicCampaignCustomLocation[] | undefined,\n' +
+    '  nestedCatalog?: unknown\n' +
+    '): PublicCampaignCustomLocation[] {\n' +
+    '  const fromProp = normalizePublicCampaignCustomLocations(customLocations);\n' +
+    '  if (fromProp.length > 0) return fromProp;\n' +
+    '  return normalizePublicCampaignCustomLocations(nestedCatalog);\n' +
+    '}\n' +
+    '\n' +
+    'function hasSelectedParent(value: string | undefined): boolean {\n' +
+    '  return Boolean(normalizeIndiaLocationOptionKey(value ?? ""));\n' +
+    '}\n' +
+    '\n' +
+    'function catalogMatchesSelectedParents(\n' +
+    '  location: PublicCampaignCustomLocation,\n' +
+    '  selectedCountry: string,\n' +
+    '  values: Pick<LocationWithPin, "state" | "district" | "block" | "panchayat">,\n' +
+    '  levels: Array<"state" | "district" | "block" | "panchayat">\n' +
+    '): boolean {\n' +
+    '  if (!locationMatchesSelectedCountry(location.country, selectedCountry)) return false;\n' +
+    '  for (const level of levels) {\n' +
+    '    const selected = values[level] ?? "";\n' +
+    '    if (!hasSelectedParent(selected)) return false;\n' +
+    '    if (!locationMatchesSelectedParent(location[level], selected)) return false;\n' +
+    '  }\n' +
+    '  return true;\n' +
+    '}\n' +
+    '\n' +
+    'function indiaLocationHierarchyKey(location: PublicCampaignCustomLocation): string {\n' +
+    '  const countryKey = isIndiaCountryKey(location.country ?? "")\n' +
+    '    ? "india"\n' +
+    '    : normalizeIndiaLocationOptionKey(location.country ?? "");\n' +
+    '  return [\n' +
+    '    countryKey,\n' +
+    '    normalizeIndiaLocationOptionKey(location.state ?? ""),\n' +
+    '    normalizeIndiaLocationOptionKey(location.district ?? ""),\n' +
+    '    normalizeIndiaLocationOptionKey(location.block ?? ""),\n' +
+    '    normalizeIndiaLocationOptionKey(location.panchayat ?? "")\n' +
+    '  ].join("|");\n' +
+    '}\n' +
+    '\n' +
+    'export function compactIndiaLocationHierarchy(\n' +
+    '  catalog: PublicCampaignCustomLocation[]\n' +
+    '): PublicCampaignCustomLocation[] {\n' +
+    '  const compacted: PublicCampaignCustomLocation[] = [];\n' +
+    '  const seen = new Set<string>();\n' +
+    '\n' +
+    '  for (const location of catalog) {\n' +
+    '    const country = cleanIndiaLocationOptionLabel(location.country ?? "") || "India";\n' +
+    '    const state = cleanIndiaLocationOptionLabel(location.state ?? "");\n' +
+    '    const district = cleanIndiaLocationOptionLabel(location.district ?? "");\n' +
+    '    const block = cleanIndiaLocationOptionLabel(location.block ?? "");\n' +
+    '    const panchayat = cleanIndiaLocationOptionLabel(location.panchayat ?? "");\n' +
+    '    const key = indiaLocationHierarchyKey({\n' +
+    '      country,\n' +
+    '      state: state || undefined,\n' +
+    '      district: district || undefined,\n' +
+    '      block: block || undefined,\n' +
+    '      panchayat: panchayat || undefined\n' +
+    '    });\n' +
+    '    if (seen.has(key)) continue;\n' +
+    '    seen.add(key);\n' +
+    '    compacted.push({\n' +
+    '      country,\n' +
+    '      state: state || undefined,\n' +
+    '      district: district || undefined,\n' +
+    '      block: block || undefined,\n' +
+    '      panchayat: panchayat || undefined\n' +
+    '    });\n' +
+    '  }\n' +
+    '\n' +
+    '  return compacted;\n' +
+    '}\n' +
+    '\n' +
+    'export function mergeIndiaLocationOptions(\n' +
+    '  master: string[],\n' +
+    '  additions: string[],\n' +
+    '  customAuthoritative = false\n' +
+    '): string[] {\n' +
+    '  if (customAuthoritative) {\n' +
+    '    const customOptions = dedupeCustomLocationOptions(additions);\n' +
+    '    if (customOptions.length > 0) {\n' +
+    '      return customOptions;\n' +
+    '    }\n' +
+    '  }\n' +
+    '\n' +
+    '  const merged: string[] = [];\n' +
+    '  const seen = new Set<string>();\n' +
+    '\n' +
+    '  const canonicalLabel = (key: string, fallback: string) => {\n' +
+    '    const masterMatch = master.find((option) => normalizeIndiaLocationOptionKey(option) === key);\n' +
+    '    return cleanIndiaLocationOptionLabel(masterMatch ?? fallback);\n' +
+    '  };\n' +
+    '\n' +
+    '  for (const option of master) {\n' +
+    '    const cleaned = cleanIndiaLocationOptionLabel(option);\n' +
+    '    if (!cleaned) continue;\n' +
+    '\n' +
+    '    const key = normalizeIndiaLocationOptionKey(cleaned);\n' +
+    '    if (seen.has(key)) continue;\n' +
+    '\n' +
+    '    merged.push(canonicalLabel(key, cleaned));\n' +
+    '    seen.add(key);\n' +
+    '  }\n' +
+    '\n' +
+    '  if (customAuthoritative) {\n' +
+    '    return merged;\n' +
+    '  }\n' +
+    '\n' +
+    '  for (const addition of additions) {\n' +
+    '    const cleaned = cleanIndiaLocationOptionLabel(addition);\n' +
+    '    if (!cleaned) continue;\n' +
+    '\n' +
+    '    const key = normalizeIndiaLocationOptionKey(cleaned);\n' +
+    '    if (seen.has(key)) continue;\n' +
+    '\n' +
+    '    merged.push(canonicalLabel(key, cleaned));\n' +
+    '    seen.add(key);\n' +
+    '  }\n' +
+    '\n' +
+    '  return merged;\n' +
+    '}\n' +
+    '\n' +
+    'function dedupeCustomLocationOptions(values: string[]): string[] {\n' +
+    '  const options: string[] = [];\n' +
+    '  const seen = new Set<string>();\n' +
+    '\n' +
+    '  for (const value of values) {\n' +
+    '    const cleaned = cleanIndiaLocationOptionLabel(value);\n' +
+    '    if (!cleaned) continue;\n' +
+    '\n' +
+    '    const key = normalizeIndiaLocationOptionKey(cleaned);\n' +
+    '    if (seen.has(key)) continue;\n' +
+    '\n' +
+    '    options.push(cleaned);\n' +
+    '    seen.add(key);\n' +
+    '  }\n' +
+    '\n' +
+    '  return options;\n' +
+    '}\n' +
+    '\n' +
+    'export interface IndiaLocationCatalogIndex {\n' +
+    '  rawCatalog: PublicCampaignCustomLocation[];\n' +
+    '  hierarchyCatalog: PublicCampaignCustomLocation[];\n' +
+    '  catalogLength: number;\n' +
+    '  statesForCountry: Map<string, string[]>;\n' +
+    '  districtsForState: Map<string, string[]>;\n' +
+    '  blocksForDistrict: Map<string, string[]>;\n' +
+    '  panchayatsForBlock: Map<string, string[]>;\n' +
+    '  villagesForPath: Map<string, string[]>;\n' +
+    '  pinsForPath: Map<string, string[]>;\n' +
+    '}\n' +
+    '\n' +
+    'type IndiaLocationHierarchyLevel = "state" | "district" | "block" | "panchayat";\n' +
+    '\n' +
+    '/**\n' +
+    ' * A campaign catalog is policy, not a geography source: it may narrow a\n' +
+    ' * canonical option, but it can never introduce a location outside the shared\n' +
+    ' * GeographyNode hierarchy. An omitted level scopes the whole canonical\n' +
+    ' * subtree below it.\n' +
+    ' */\n' +
+    'function policyAllowsCanonicalOption(\n' +
+    '  policy: PublicCampaignCustomLocation[],\n' +
+    '  selectedCountry: string,\n' +
+    '  values: Pick<LocationWithPin, "state" | "district" | "block" | "panchayat">,\n' +
+    '  level: IndiaLocationHierarchyLevel,\n' +
+    '  candidate: string\n' +
+    '): boolean {\n' +
+    '  if (policy.length === 0) return true;\n' +
+    '\n' +
+    '  const levels: IndiaLocationHierarchyLevel[] = ["state", "district", "block", "panchayat"];\n' +
+    '  const targetIndex = levels.indexOf(level);\n' +
+    '\n' +
+    '  return policy.some((location) => {\n' +
+    '    if (!locationMatchesSelectedCountry(location.country, selectedCountry)) return false;\n' +
+    '\n' +
+    '    for (let index = 0; index < targetIndex; index += 1) {\n' +
+    '      const parentLevel = levels[index];\n' +
+    '      const selectedValue = values[parentLevel] ?? "";\n' +
+    '      const policyValue = location[parentLevel] ?? "";\n' +
+    '      if (hasSelectedParent(policyValue)\n' +
+    '        && hasSelectedParent(selectedValue)\n' +
+    '        && !locationMatchesSelectedParent(policyValue, selectedValue)) {\n' +
+    '        return false;\n' +
+    '      }\n' +
+    '    }\n' +
+    '\n' +
+    '    const policyValue = location[level] ?? "";\n' +
+    '    return !hasSelectedParent(policyValue)\n' +
+    '      || locationMatchesSelectedParent(policyValue, candidate);\n' +
+    '  });\n' +
+    '}\n' +
+    '\n' +
+    '/**\n' +
+    ' * Canonical India choices remain the authority. Campaign catalog entries are\n' +
+    ' * an unverified policy/custom overlay and can add or narrow choices, but a\n' +
+    ' * ready empty overlay branch must never erase canonical children.\n' +
+    ' */\n' +
+    'export function getIndiaLocationOptions({\n' +
+    '  values,\n' +
+    '  locationOverrides,\n' +
+    '  locationDeletions,\n' +
+    '  verifiedSuggestionsOnly,\n' +
+    '  customLocations,\n' +
+    '  allowedState,\n' +
+    '  allowedDistrict,\n' +
+    '  allowedBlock,\n' +
+    '  allowedPanchayat,\n' +
+    '  fixedCountry,\n' +
+    '  catalogS'... 9779 more characters
+  
+      at TestContext.<anonymous> (file:///D:/VoiceupOnline-ReleaseCandidates/VOICEUP-UNIFIED-DEVELOPMENT/tests/initialBundleGeography.test.mjs:87:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'import {\n  getBlockOptions,\n  getDistrictOptions,\n  getPanchayatOptions,\n  getPinOptions,\n  getUrbanLocalBodyOptions,\n  getWardOptions,\n  indianStatesAndUnionTerritories,\n  isUrbanLocalBodySelection,\n  type LocationDeletions,\n  type LocationOverrides,\n  type LocationWithPin\n} from "../geography.ts";\nimport type { PublicCampaignCustomLocation } from "../backend";\n\nexport interface IndiaLocationOptions {\n  stateOptions: string[];\n  districtOptions: string[];\n  blockOptions: string[];\n  panchayatOptions: string[];\n  villageOptions: string[];\n  pinOptions: string[];\n}\n\nexport type IndiaLocationCatalogStatus = "idle" | "loading" | "ready" | "error";\n\n/** Static geography.ts / PIN directory may be used only when no VBOSS catalog fetch is in play. */\nexport function allowsStaticIndiaLocationFallback(\n  catalogStatus: IndiaLocationCatalogStatus | undefined,\n  catalogLength: number\n): boolean {\n  if (catalogStatus === "loading" || catalogStatus === "error" || catalogStatus === "ready") {\n    return false;\n  }\n  return catalogLength === 0;\n}\n\nexport function normalizeIndiaLocationOptionKey(value: string): string {\n  return String(value ?? "")\n    .normalize("NFKC")\n    .replace(/\\s+/gu, " ")\n    .trim()\n    .toLowerCase();\n}\n\nfunction cleanIndiaLocationOptionLabel(value: string): string {\n  return String(value ?? "")\n    .normalize("NFKC")\n    .replace(/\\s+/gu, " ")\n    .trim();\n}\n\nfunction isIndiaCountryKey(value: string): boolean {\n  const key = normalizeIndiaLocationOptionKey(value);\n  return key === "" || key === "india" || key === "in" || key === "ind";\n}\n\nexport function locationMatchesSelectedCountry(\n  locationCountry: string | undefined,\n  selectedCountry: string\n): boolean {\n  if (isIndiaCountryKey(selectedCountry) && isIndiaCountryKey(locationCountry ?? "")) {\n    return true;\n  }\n  return normalizeIndiaLocationOptionKey(locationCountry ?? "") === normalizeIndiaLocationOptionKey(selectedCountry);\n}\n\nexport function locationMatchesSelectedParent(\n  locationValue: string | undefined,\n  selectedValue: string\n): boolean {\n  return normalizeIndiaLocationOptionKey(locationValue ?? "") === normalizeIndiaLocationOptionKey(selectedValue);\n}\n\nexport function normalizePublicCampaignCustomLocations(\n  input: unknown\n): PublicCampaignCustomLocation[] {\n  if (!Array.isArray(input)) return [];\n  return input.flatMap((entry) => {\n    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];\n    const location = entry as Record<string, unknown>;\n    const country = cleanIndiaLocationOptionLabel(String(location.country ?? ""));\n    if (!country && !location.state) return [];\n    return [{\n      country: country || "India",\n      state: cleanIndiaLocationOptionLabel(String(location.state ?? "")) || undefined,\n      district: cleanIndiaLocationOptionLabel(String(location.district ?? "")) || undefined,\n      block: cleanIndiaLocationOptionLabel(String(location.block ?? "")) || undefined,\n      panchayat: cleanIndiaLocationOptionLabel(String(location.panchayat ?? "")) || undefined,\n      village: cleanIndiaLocationOptionLabel(String(location.village ?? "")) || undefined,\n      postalCode: cleanIndiaLocationOptionLabel(\n        String(location.postalCode ?? location.postal_code ?? "")\n      ) || undefined\n    }];\n  });\n}\n\nexport function resolveIndiaLocationCatalog(\n  customLocations: PublicCampaignCustomLocation[] | undefined,\n  nestedCatalog?: unknown\n): PublicCampaignCustomLocation[] {\n  const fromProp = normalizePublicCampaignCustomLocations(customLocations);\n  if (fromProp.length > 0) return fromProp;\n  return normalizePublicCampaignCustomLocations(nestedCatalog);\n}\n\nfunction hasSelectedParent(value: string | undefined): boolean {\n  return Boolean(normalizeIndiaLocationOptionKey(value ?? ""));\n}\n\nfunction catalogMatchesSelectedParents(\n  location: PublicCampaignCustomLocation,\n  selectedCountry: string,\n  values: Pick<LocationWithPin, "state" | "district" | "block" | "panchayat">,\n  levels: Array<"state" | "district" | "block" | "panchayat">\n): boolean {\n  if (!locationMatchesSelectedCountry(location.country, selectedCountry)) return false;\n  for (const level of levels) {\n    const selected = values[level] ?? "";\n    if (!hasSelectedParent(selected)) return false;\n    if (!locationMatchesSelectedParent(location[level], selected)) return false;\n  }\n  return true;\n}\n\nfunction indiaLocationHierarchyKey(location: PublicCampaignCustomLocation): string {\n  const countryKey = isIndiaCountryKey(location.country ?? "")\n    ? "india"\n    : normalizeIndiaLocationOptionKey(location.country ?? "");\n  return [\n    countryKey,\n    normalizeIndiaLocationOptionKey(location.state ?? ""),\n    normalizeIndiaLocationOptionKey(location.district ?? ""),\n    normalizeIndiaLocationOptionKey(location.block ?? ""),\n    normalizeIndiaLocationOptionKey(location.panchayat ?? "")\n  ].join("|");\n}\n\nexport function compactIndiaLocationHierarchy(\n  catalog: PublicCampaignCustomLocation[]\n): PublicCampaignCustomLocation[] {\n  const compacted: PublicCampaignCustomLocation[] = [];\n  const seen = new Set<string>();\n\n  for (const location of catalog) {\n    const country = cleanIndiaLocationOptionLabel(location.country ?? "") || "India";\n    const state = cleanIndiaLocationOptionLabel(location.state ?? "");\n    const district = cleanIndiaLocationOptionLabel(location.district ?? "");\n    const block = cleanIndiaLocationOptionLabel(location.block ?? "");\n    const panchayat = cleanIndiaLocationOptionLabel(location.panchayat ?? "");\n    const key = indiaLocationHierarchyKey({\n      country,\n      state: state || undefined,\n      district: district || undefined,\n      block: block || undefined,\n      panchayat: panchayat || undefined\n    });\n    if (seen.has(key)) continue;\n    seen.add(key);\n    compacted.push({\n      country,\n      state: state || undefined,\n      district: district || undefined,\n      block: block || undefined,\n      panchayat: panchayat || undefined\n    });\n  }\n\n  return compacted;\n}\n\nexport function mergeIndiaLocationOptions(\n  master: string[],\n  additions: string[],\n  customAuthoritative = false\n): string[] {\n  if (customAuthoritative) {\n    const customOptions = dedupeCustomLocationOptions(additions);\n    if (customOptions.length > 0) {\n      return customOptions;\n    }\n  }\n\n  const merged: string[] = [];\n  const seen = new Set<string>();\n\n  const canonicalLabel = (key: string, fallback: string) => {\n    const masterMatch = master.find((option) => normalizeIndiaLocationOptionKey(option) === key);\n    return cleanIndiaLocationOptionLabel(masterMatch ?? fallback);\n  };\n\n  for (const option of master) {\n    const cleaned = cleanIndiaLocationOptionLabel(option);\n    if (!cleaned) continue;\n\n    const key = normalizeIndiaLocationOptionKey(cleaned);\n    if (seen.has(key)) continue;\n\n    merged.push(canonicalLabel(key, cleaned));\n    seen.add(key);\n  }\n\n  if (customAuthoritative) {\n    return merged;\n  }\n\n  for (const addition of additions) {\n    const cleaned = cleanIndiaLocationOptionLabel(addition);\n    if (!cleaned) continue;\n\n    const key = normalizeIndiaLocationOptionKey(cleaned);\n    if (seen.has(key)) continue;\n\n    merged.push(canonicalLabel(key, cleaned));\n    seen.add(key);\n  }\n\n  return merged;\n}\n\nfunction dedupeCustomLocationOptions(values: string[]): string[] {\n  const options: string[] = [];\n  const seen = new Set<string>();\n\n  for (const value of values) {\n    const cleaned = cleanIndiaLocationOptionLabel(value);\n    if (!cleaned) continue;\n\n    const key = normalizeIndiaLocationOptionKey(cleaned);\n    if (seen.has(key)) continue;\n\n    options.push(cleaned);\n    seen.add(key);\n  }\n\n  return options;\n}\n\nexport interface IndiaLocationCatalogIndex {\n  rawCatalog: PublicCampaignCustomLocation[];\n  hierarchyCatalog: PublicCampaignCustomLocation[];\n  catalogLength: number;\n  statesForCountry: Map<string, string[]>;\n  districtsForState: Map<string, string[]>;\n  blocksForDistrict: Map<string, string[]>;\n  panchayatsForBlock: Map<string, string[]>;\n  villagesForPath: Map<string, string[]>;\n  pinsForPath: Map<string, string[]>;\n}\n\ntype IndiaLocationHierarchyLevel = "state" | "district" | "block" | "panchayat";\n\n/**\n * A campaign catalog is policy, not a geography source: it may narrow a\n * canonical option, but it can never introduce a location outside the shared\n * GeographyNode hierarchy. An omitted level scopes the whole canonical\n * subtree below it.\n */\nfunction policyAllowsCanonicalOption(\n  policy: PublicCampaignCustomLocation[],\n  selectedCountry: string,\n  values: Pick<LocationWithPin, "state" | "district" | "block" | "panchayat">,\n  level: IndiaLocationHierarchyLevel,\n  candidate: string\n): boolean {\n  if (policy.length === 0) return true;\n\n  const levels: IndiaLocationHierarchyLevel[] = ["state", "district", "block", "panchayat"];\n  const targetIndex = levels.indexOf(level);\n\n  return policy.some((location) => {\n    if (!locationMatchesSelectedCountry(location.country, selectedCountry)) return false;\n\n    for (let index = 0; index < targetIndex; index += 1) {\n      const parentLevel = levels[index];\n      const selectedValue = values[parentLevel] ?? "";\n      const policyValue = location[parentLevel] ?? "";\n      if (hasSelectedParent(policyValue)\n        && hasSelectedParent(selectedValue)\n        && !locationMatchesSelectedParent(policyValue, selectedValue)) {\n        return false;\n      }\n    }\n\n    const policyValue = location[level] ?? "";\n    return !hasSelectedParent(policyValue)\n      || locationMatchesSelectedParent(policyValue, candidate);\n  });\n}\n\n/**\n * Canonical India choices remain the authority. Campaign catalog entries are\n * an unverified policy/custom overlay and can add or narrow choices, but a\n * ready empty overlay branch must never erase canonical children.\n */\nexport function getIndiaLocationOptions({\n  values,\n  locationOverrides,\n  locationDeletions,\n  verifiedSuggestionsOnly,\n  customLocations,\n  allowedState,\n  allowedDistrict,\n  allowedBlock,\n  allowedPanchayat,\n  fixedCountry,\n  catalogS'... 9779 more characters,
+    expected: /export \{[^}]*resolveIndiaLocationCatalog[^}]*\}/u,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests\initialBundleGeography.test.mjs:90:1
+✖ on-demand modules still expose the full India location and OCR vocabulary behaviour (14401.1234ms)
+  AssertionError [ERR_ASSERTION]: normalizeIndiaLocationOptionKey must be the same function from both entry points
+  + actual - expected
+  
+  + [Function: normalizeIndiaLocationOptionKey]
+  - [Function: normalizeIndiaLocationOptionKey]
+  
+      at TestContext.<anonymous> (file:///D:/VoiceupOnline-ReleaseCandidates/VOICEUP-UNIFIED-DEVELOPMENT/tests/initialBundleGeography.test.mjs:94:12)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

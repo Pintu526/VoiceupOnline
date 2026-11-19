@@ -158,7 +158,7 @@ const gauSammanCopy: Record<Language, PublicCampaignPresentationCopy> = {
     subtitle: "For the service, protection, honour, and National Mother declaration of Gau Mata and Nandi Baba (the bull)",
     invocation: "|| Shri Surabhyai Namah Jai Gau Mata Jai Nandi Baba ||",
     primaryAction: "Add Your Support",
-    primaryActionHint: "Join in just 60 seconds",
+    primaryActionHint: "",
     secondaryAction: "Share on WhatsApp",
     secondaryActionHint: "Help the campaign grow",
     participationTitle: "Add Your Support",

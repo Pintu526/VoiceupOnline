@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useTranslation } from "../i18n/useTranslation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
@@ -382,6 +383,7 @@ function ProvisioningSkeleton() {
 }
 
 export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizardProps) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<OnboardingDraft>(() => loadDraft());
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -651,28 +653,28 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
               type="button"
               onClick={goBack}
               disabled={step === 0 || isProvisioning}
-              aria-label="Go back"
-              title="Go back"
+              aria-label={t("phase3.goBack")}
+              title={t("phase3.goBack")}
             >
               <ArrowLeft size={18} />
             </button>
             <div>
-              <span className="eyebrow">Free campaign onboarding</span>
-              <h2 id="onboarding-title">Create and publish your campaign in 60 seconds</h2>
+              <span className="eyebrow">{t("phase3.eyebrow")}</span>
+              <h2 id="onboarding-title">{t("phase3.headline")}</h2>
             </div>
             <button
               className="secondary-button icon-button"
               type="button"
               onClick={onClose}
               disabled={isProvisioning}
-              aria-label="Close onboarding"
+              aria-label={t("phase3.close")}
               title="Close onboarding"
             >
               <X size={18} />
             </button>
           </header>
 
-          <nav className="onboarding-progress" aria-label="Onboarding progress">
+          <nav className="onboarding-progress" aria-label={t("phase3.progress")}>
             {progressSteps.map((label, index) => (
               <span
                 key={label}
@@ -680,7 +682,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                 aria-current={index === step ? "step" : undefined}
               >
                 <strong>{index + 1}</strong>
-                {label}
+                {t(`phase3.step${index}`)}
               </span>
             ))}
           </nav>
@@ -691,29 +693,29 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                 <div className="onboarding-intro-card">
                   <Sparkles size={24} />
                   <div>
-                    <strong>No credit card. No password. Your public link comes first.</strong>
-                    <p>Answer a few short fields. We verify your mobile number, create the trial workspace, and publish a share link.</p>
+                    <strong>{t("phase3.introTitle")}</strong>
+                    <p>{t("phase3.introBody")}</p>
                   </div>
                 </div>
 
                 <label className="field">
-                  <span className="label">Campaign Name</span>
+                  <span className="label">{t("phase3.campaignName")}</span>
                   <input
                     autoFocus
                     value={draft.campaignName}
                     onChange={(event) => updateDraft({ campaignName: event.target.value })}
-                    placeholder="Save cows in Odisha"
+                    placeholder={t("phase3.campaignPlaceholder")}
                     aria-invalid={Boolean(errors.campaignName)}
                   />
                   {errors.campaignName && <small className="field-error">{errors.campaignName}</small>}
                 </label>
 
                 <label className="field">
-                  <span className="label">Campaign Goal</span>
+                  <span className="label">{t("phase3.campaignGoal")}</span>
                   <textarea
                     value={draft.campaignGoal}
                     onChange={(event) => updateDraft({ campaignGoal: event.target.value })}
-                    placeholder="Collect 2,000 supporters and submit a petition to the local authority."
+                    placeholder={t("phase3.goalPlaceholder")}
                     rows={3}
                     aria-invalid={Boolean(errors.campaignGoal)}
                   />
@@ -722,17 +724,17 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
 
                 <div className="onboarding-two">
                   <label className="field">
-                    <span className="label">Organization or Your Name</span>
+                    <span className="label">{t("phase3.orgName")}</span>
                     <input
                       value={draft.businessName}
                       onChange={(event) => updateDraft({ businessName: event.target.value })}
-                      placeholder="NGO, temple, school, hospital, business, or your name"
+                      placeholder={t("phase3.orgPlaceholder")}
                       aria-invalid={Boolean(errors.businessName)}
                     />
                     {errors.businessName && <small className="field-error">{errors.businessName}</small>}
                   </label>
                   <label className="field">
-                    <span className="label">Mobile Number</span>
+                    <span className="label">{t("phase3.mobile")}</span>
                     <input
                       value={draft.mobileNumber}
                       onChange={(event) => updateDraft({ mobileNumber: event.target.value })}
@@ -746,7 +748,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
 
                 <div className="onboarding-two">
                   <label className="field">
-                    <span className="label">Optional Email</span>
+                    <span className="label">{t("phase3.email")}</span>
                     <input
                       value={draft.email}
                       onChange={(event) => updateDraft({ email: event.target.value })}
@@ -757,7 +759,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                     {errors.email && <small className="field-error">{errors.email}</small>}
                   </label>
                   <label className="field">
-                    <span className="label">Language</span>
+                    <span className="label">{t("phase3.language")}</span>
                     <select
                       value={draft.language}
                       onChange={(event) => updateDraft({ language: event.target.value })}
@@ -770,7 +772,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                 </div>
 
                 <label className="field">
-                  <span className="label">Country</span>
+                  <span className="label">{t("phase3.country")}</span>
                   <select
                     value={draft.country}
                     onChange={(event) => updateDraft({ country: event.target.value })}
@@ -780,14 +782,14 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                     ))}
                   </select>
                   <small>
-                    Suggested from your browser language: {tracking.detectedCountry || "Unknown"} / {tracking.browserLanguage}
+                    {t("phase3.suggestedCountry")}: {tracking.detectedCountry || t("phase3.unknown")} / {tracking.browserLanguage}
                   </small>
                 </label>
 
                 <div className="onboarding-actions">
-                  <span><ShieldCheck size={16} /> Auto-save enabled</span>
+                  <span><ShieldCheck size={16} /> {t("phase3.autoSave")}</span>
                   <button className="primary-button" type="submit">
-                    Continue to OTP <Smartphone size={18} />
+                    {t("phase3.continueOtp")} <Smartphone size={18} />
                   </button>
                 </div>
               </form>
@@ -798,16 +800,16 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                 <div className="verification-card">
                   <Smartphone size={28} />
                   <div>
-                    <span className="eyebrow">Passwordless verification</span>
-                    <h3>Verify {maskPhone(draft.mobileNumber)}</h3>
-                    <p>We will restore an existing trial workspace for this number or create a new one after verification.</p>
+                    <span className="eyebrow">{t("phase3.passwordless")}</span>
+                    <h3>{t("phase3.verify")} {maskPhone(draft.mobileNumber)}</h3>
+                    <p>{t("phase3.restoreHint")}</p>
                   </div>
                 </div>
 
                 <div className="otp-provider-card">
                   <div>
-                    <strong>Mobile verification</strong>
-                    <span>OTP helps prevent spam, duplicate signatures, and misuse of campaign support.</span>
+                    <strong>{t("phase3.mobileVerify")}</strong>
+                    <span>{t("phase3.otpHint")}</span>
                   </div>
                   <button
                     className="secondary-button"
@@ -816,16 +818,16 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                     disabled={isSendingOtp || resendSeconds > 0}
                   >
                     {isSendingOtp ? <Loader2 className="spin" size={16} /> : <RefreshCw size={16} />}
-                    {resendSeconds > 0 ? `Resend in ${resendSeconds}s` : otpChallengeId ? "Resend OTP" : "Send OTP"}
+                    {resendSeconds > 0 ? `${t("phase3.resendIn")} ${resendSeconds}s` : otpChallengeId ? t("phase3.resendOtp") : t("phase3.sendOtp")}
                   </button>
                 </div>
 
                 <label className="field">
-                  <span className="label">Enter OTP</span>
+                  <span className="label">{t("phase3.enterOtp")}</span>
                   <input
                     value={otpInput}
                     onChange={(event) => setOtpInput(event.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="6 digit code"
+                    placeholder={t("phase3.otpPlaceholder")}
                     inputMode="numeric"
                     maxLength={6}
                   />
@@ -840,10 +842,10 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
 
                 <div className="onboarding-actions">
                   <button className="secondary-button" type="button" onClick={() => setStep(0)}>
-                    <ArrowLeft size={16} /> Back
+                    <ArrowLeft size={16} /> {t("phase3.back")}
                   </button>
                   <button className="primary-button" type="button" onClick={verifyOtp} disabled={!otpChallengeId || otpInput.length < 6}>
-                    Verify and publish campaign <Sparkles size={18} />
+                    {t("phase3.verifyPublish")} <Sparkles size={18} />
                   </button>
                 </div>
               </section>
@@ -854,9 +856,9 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                 <div className="provisioning-hero">
                   <Loader2 className="spin" size={32} />
                   <div>
-                    <span className="eyebrow">Working in the background</span>
-                    <h3>{step === 2 ? "Creating your trial workspace" : "Generating your campaign assets"}</h3>
-                    <p>We are setting up the campaign record, analytics context, public link, QR code, and welcome messages.</p>
+                    <span className="eyebrow">{t("phase3.background")}</span>
+                    <h3>{step === 2 ? t("phase3.createWorkspace") : t("phase3.generateAssets")}</h3>
+                    <p>{t("phase3.provisionHint")}</p>
                   </div>
                 </div>
                 <ProvisioningSkeleton />
@@ -873,7 +875,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                 <div className="success-hero">
                   <CheckCircle2 size={38} />
                   <div>
-                    <span className="eyebrow">{result.restored ? "Workspace restored" : "Campaign published successfully"}</span>
+                    <span className="eyebrow">{result.restored ? t("phase3.restored") : t("phase3.published")}</span>
                     <h3>{result.campaign.title}</h3>
                     <p>{result.campaign.description}</p>
                   </div>
@@ -881,9 +883,9 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
 
                 <div className="created-campaign-grid">
                   <div className="created-link-card">
-                    <span className="label">Share link</span>
+                    <span className="label">{t("phase3.shareLink")}</span>
                     <code>{canonicalShareUrl}</code>
-                    <span className="label">Short URL</span>
+                    <span className="label">{t("phase3.shortUrl")}</span>
                     <code>{result.shortUrl}</code>
                     <div className="button-row">
                       <a
@@ -893,20 +895,20 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                         rel="noreferrer"
                         onClick={() => trackEvent("share_clicked", { channel: "whatsapp" })}
                       >
-                        <Send size={16} /> Share on WhatsApp
+                        <Send size={16} /> {t("phase3.shareWhatsApp")}
                       </a>
                       <button className="secondary-button" type="button" onClick={() => copyText("Campaign link", canonicalShareUrl)}>
-                        <ClipboardCopy size={16} /> Copy Link
+                        <ClipboardCopy size={16} /> {t("phase3.copyLink")}
                       </button>
                       <a className="secondary-link-button" href={canonicalShareUrl} target="_blank" rel="noreferrer">
-                        <ExternalLink size={16} /> Open campaign
+                        <ExternalLink size={16} /> {t("phase3.openCampaign")}
                       </a>
                     </div>
                   </div>
                   <div className="created-qr-card">
                     <QrPreview value={canonicalShareUrl} />
-                    <strong>QR code ready</strong>
-                    <span>Use it on posters, counters, events, WhatsApp, and print material.</span>
+                    <strong>{t("phase3.qrReady")}</strong>
+                    <span>{t("phase3.qrHint")}</span>
                   </div>
                 </div>
 
@@ -967,7 +969,7 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                     <Smartphone size={16} /> SMS
                   </a>
                   <button className="secondary-button" type="button" onClick={nativeShare}>
-                    <Globe2 size={16} /> Native Share
+                    <Globe2 size={16} /> {t("phase3.nativeShare")}
                   </button>
                   <button
                     className="secondary-button"
@@ -978,21 +980,21 @@ export function OnboardingWizard({ open, onClose, onComplete }: OnboardingWizard
                       url: canonicalShareUrl
                     })}
                   >
-                    <Download size={16} /> Download Poster
+                    <Download size={16} /> {t("phase3.downloadPoster")}
                   </button>
                   <button
                     className="secondary-button"
                     type="button"
                     onClick={() => downloadQrPng(canonicalShareUrl, `${result.campaign.slug}-qr.png`)}
                   >
-                    <QrCode size={16} /> Download QR
+                    <QrCode size={16} /> {t("phase3.downloadQr")}
                   </button>
                 </div>
 
                 <div className="welcome-message-card">
-                  <strong>Your next steps are ready</strong>
-                  <span>Share the campaign link now. Trial details, upgrade options, and next steps are available from your workspace.</span>
-                  <small>Trial ends on {result.trialEndsAt}. Dashboard access can wait; the campaign link works now.</small>
+                  <strong>{t("phase3.nextSteps")}</strong>
+                  <span>{t("phase3.nextStepsHint")}</span>
+                  <small>{t("phase3.trialEnds")} {result.trialEndsAt}. {t("phase3.trialHint")}</small>
                 </div>
               </section>
             )}

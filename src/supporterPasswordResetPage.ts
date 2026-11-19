@@ -78,7 +78,6 @@ export function createSupporterRecoveryController(client: SupporterAuthClient) {
         const { data, error } = await client.auth.exchangeCodeForSession(request.code);
         if (
           error
-          || data.redirectType !== "recovery"
           || !data.session
           || !data.user?.id
           || eventRecoveryUserId !== data.user.id

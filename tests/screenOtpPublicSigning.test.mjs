@@ -59,7 +59,12 @@ test("unbound screen proof cannot resume or modify an existing phone-bound suppo
   assert.match(migration, /'supporterId', v_result_supporter_id/);
   assert.match(migration, /'submitIdempotencyKey', p_idempotency_key/);
   assert.match(migration, /v_existing_signer ->> 'id' <> v_bound_supporter_id/);
-  assert.match(app, /result\.verificationMethod !== "screen_otp"[\s\S]*resume_verified_supporter/);
+  // Screen OTP never grants account ownership or discloses anonymous classification.
+  assert.match(app, /result\.verificationMethod === "screen_otp"[\s\S]*return "new_supporter";/);
+  assert.match(app, /result\.phoneOwnershipVerified !== true[\s\S]*return "secure_access_required";[\s\S]*return resolveVerifiedPublicSupporter\(phone, result\.verificationToken\)/);
+  assert.doesNotMatch(page, /supporterRoutingPrecheck\?\.supporterRoute/);
+  assert.match(page, /routingToken=\{supporterRoutingPrecheck\?\.routingToken\}/);
+  assert.match(app, /async function saveVerifiedPublicDraft\(\)[\s\S]*verificationMethod === "screen_otp"\) return;/);
 });
 
 test("Campaign Admin participation uses public signing without changing account roles", () => {

@@ -113,7 +113,8 @@ test("the signing grant stays out of URLs, logs, analytics, and browser storage"
 
   const sensitiveClientFlow = `${claimSource}\n${panelSource}`;
   assert.doesNotMatch(sensitiveClientFlow, /localStorage|sessionStorage|URLSearchParams|console\.|analytics|track/i);
-  assert.match(panelSource, /location\.assign\(`\/account\/supporter\/\$\{encodeURIComponent\(link\.accountId\)\}`\)/);
+  assert.match(panelSource, /href=\{`\/account\/supporter\/\$\{encodeURIComponent\(linked\.accountId\)\}`\}/);
+  assert.match(panelSource, /target="_blank" rel="noopener noreferrer"/);
   assert.doesNotMatch(panelSource, /location\.assign\([^)]*(?:grant|token)/i);
   assert.match(backendSource, /supporterAccountClaimGrant:\s*result\.supporterAccountClaimGrant/);
   assert.match(appSource, /setSupporterAccountClaimGrant/);

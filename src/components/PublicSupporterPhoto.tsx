@@ -126,6 +126,7 @@ export function PublicSupporterPhoto({
       setMessage(copy.uploaded);
     } catch {
       setProgress(0);
+      // Never expose backend or storage exception details to public supporters.
       setMessage(copy.uploadFailed);
     } finally {
       setUploading(false);

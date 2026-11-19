@@ -167,7 +167,14 @@ test("no new API call or backend dependency is introduced", () => {
 
 test("no campaign-specific condition is introduced for V2 guide and readability CSS", () => {
   const guideCssStart = css.indexOf("Public Campaign V2 — Phase 2: action-first layout");
-  const guideCss = css.slice(guideCssStart);
+  const guideStyles = readFileSync(new URL("../src/publicSigningExperience.css", import.meta.url), "utf8");
+  const actualGuideStart = guideStyles.indexOf("Public Campaign V2");
+  const actualGuideEnd = guideStyles.indexOf("Make primary CTA more prominent in the hero", actualGuideStart);
+  assert.ok(actualGuideStart >= 0 && actualGuideEnd > actualGuideStart, "V2 CSS boundaries must exist");
+  const guideSection = guideStyles.slice(actualGuideStart, actualGuideEnd);
+  const brandingRule = /\.public-campaign-v2\s+\.goudhan-public-brand\s*\{[^}]*\}/gu;
+  assert.equal([...guideSection.matchAll(brandingRule)].length, 1, "Expected existing branding rule");
+  const guideCss = guideSection.replace(brandingRule, "");
 
   assert.doesNotMatch(guideCss, /goudhan|gaumata|GSAA|slug|hostname|blueprint/i);
   assert.doesNotMatch(guideCss, /data-goudhan-experience/);

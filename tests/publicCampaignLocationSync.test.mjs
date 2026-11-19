@@ -116,5 +116,5 @@ test("Campaign Admin uses canonical hierarchy fields and public India renders on
   assert.match(manager, /Panchayat \/ Ward/);
   assert.equal((page.match(/addressLabel/g) ?? []).length > 0, true);
   assert.match(page, /values=\{\{ \.\.\.publicLocationForm, address: publicForm\.address, country: "India" \}\}/);
-  assert.match(page, /address: values\.address \?\? publicForm\.address/);
+  assert.match(page, /address: values\.address \?\? current\.address/);
 });

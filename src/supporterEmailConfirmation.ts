@@ -6,6 +6,7 @@ import { sanitizeVoiceupLoginReturnPath } from "./campaignAuthContext.ts";
 
 export interface SupporterEmailConfirmationRequest {
   code: string | null;
+  implicitTokens?: { accessToken: string; refreshToken: string } | null;
   invalid: boolean;
   returnPath: string;
 }
@@ -27,12 +28,7 @@ declare global {
 }
 
 const errorParameterNames = ["error", "error_code", "error_description"];
-const credentialParameterNames = [
-  "access_token",
-  "refresh_token",
-  "token",
-  "token_hash"
-];
+const forbiddenCredentialNames = ["token", "token_hash"];
 
 function hasAnyParameter(
   search: URLSearchParams,
@@ -61,13 +57,31 @@ export function readSupporterEmailConfirmationRequest(
   const returnPath = returnPaths.length === 1
     ? sanitizeVoiceupLoginReturnPath(returnPaths[0])
     : "/login";
+  // Supabase's hosted magic-link template may redirect with an implicit session
+  // fragment rather than a PKCE code. Only accept a complete pair in the hash;
+  // the session is validated remotely before the page reports success.
+  const accessTokens = hash.getAll("access_token");
+  const refreshTokens = hash.getAll("refresh_token");
+  const hasImplicitCredentials = accessTokens.length > 0 || refreshTokens.length > 0;
+  const implicitTokens = accessTokens.length === 1 && refreshTokens.length === 1
+    && accessTokens[0].length >= 16 && refreshTokens[0].length >= 16
+    && accessTokens[0].length <= 8192 && refreshTokens[0].length <= 8192
+    ? { accessToken: accessTokens[0], refreshToken: refreshTokens[0] }
+    : null;
   const invalid = hasAnyParameter(search, hash, errorParameterNames)
-    || hasAnyParameter(search, hash, credentialParameterNames)
+    || hasAnyParameter(search, hash, forbiddenCredentialNames)
+    || search.has("access_token") || search.has("refresh_token")
+    || (hasImplicitCredentials && !implicitTokens)
+    || (hasImplicitCredentials && code !== null)
+    || (hasImplicitCredentials && ![null, "magiclink", "signup", "email"].includes(hash.get("type")))
+    || (hasImplicitCredentials && search.has("type"))
+    || hash.getAll("access_token").length > 1
+    || hash.getAll("refresh_token").length > 1
     || codes.length > 1
     || returnPaths.length > 1
     || (code !== null && !isWellFormedAuthorizationCode(code));
 
-  return { code, invalid, returnPath };
+  return { code, invalid, returnPath, ...(implicitTokens ? { implicitTokens } : {}) };
 }
 
 async function clearInvalidSession(client: SupporterAuthClient): Promise<void> {
@@ -86,6 +100,15 @@ export async function confirmSupporterEmail(
 
   if (request.code) {
     const { data, error } = await client.auth.exchangeCodeForSession(request.code);
+    if (error || !data.session) {
+      await clearInvalidSession(client);
+      return "invalid";
+    }
+  } else if (request.implicitTokens) {
+    const { data, error } = await client.auth.setSession({
+      access_token: request.implicitTokens.accessToken,
+      refresh_token: request.implicitTokens.refreshToken
+    });
     if (error || !data.session) {
       await clearInvalidSession(client);
       return "invalid";

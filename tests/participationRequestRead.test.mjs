@@ -182,10 +182,9 @@ test("refresh hydration is deduplicated in memory and cleared with the verified 
     appSource,
     /publicMovementRequestLoadRef\.current\?\.key === key[\s\S]*return publicMovementRequestLoadRef\.current\.promise/
   );
-  assert.match(
-    appSource,
-    /if \(restoredSigner\.status === "verified"\)[\s\S]*await hydratePublicMovementRequests\(phone, result\.verificationToken\)/
-  );
+  // A verified restored signer hydrates requests; unverified signers are rejected.
+  assert.match(appSource, /if \(restoredSigner\.status !== "verified"\) \{[\s\S]*?return "new_supporter";[\s\S]*?\}/);
+  assert.match(appSource, /setLastSignedSigner\(restoredSigner\);\s*void hydratePublicMovementRequests\(phone, verificationToken\)/);
   assert.match(appSource, /publicMovementRequestLoadGenerationRef\.current \+= 1/);
   assert.match(appSource, /setPublicMovementRequests\(\[\]\)/);
   assert.doesNotMatch(appSource, /localStorage.*publicMovementRequests|sessionStorage.*publicMovementRequests/);

@@ -444,10 +444,8 @@ test("O2a. participation steps expose one valid next action and keep Enter insid
   const submitEnd = publicPageSource.indexOf("\n  function handleStartNewJourney", submitStart);
   const submitSource = publicPageSource.slice(submitStart, submitEnd);
   assert.match(submitSource, /if \(wizardStep !== "review"\)/);
-  assert.match(submitSource, /wizardStep === "phone" && phoneReady/);
-  assert.match(submitSource, /wizardStep === "otp" && otpReady/);
-  assert.match(submitSource, /wizardStep === "profile" && profileReady/);
-  assert.match(submitSource, /wizardStep === "address" && detailsReady/);
+  assert.match(submitSource, /event\.preventDefault\(\);\s*return;/);
+  assert.doesNotMatch(submitSource, /handleSendOtpWizard|handleVerifyOtpWizard|setWizardStep\(/);
   assert.ok(submitSource.indexOf('if (wizardStep !== "review")') < submitSource.indexOf("await onSubmit(event)"));
 
   const progressStart = publicPageSource.indexOf('<ol className="wizard-steps"');
@@ -468,7 +466,7 @@ test("O2b. phone and OTP failures remain visible and inputs expose accessible va
   assert.match(phoneSource, /\{otpMessage && \(/);
   assert.match(phoneSource, /role=\{otpMessageIsError \? "alert" : "status"\}/);
   assert.match(phoneSource, /aria-invalid=\{showPhoneError\}/);
-  assert.match(phoneSource, /disabled=\{sendingOtp \|\| !phoneReady\}/);
+  assert.match(phoneSource, /disabled=\{sendingOtp \|\| supporterRoutingChecking \|\| supporterRoutingError \|\| !phoneReady\}/);
   assert.match(otpSource, /pattern="\[0-9\]\{6\}"/);
   assert.match(otpSource, /replace\(\/\\D\/g, ""\)\.slice\(0, 6\)/);
   assert.match(otpSource, /disabled=\{verifyingOtp \|\| !otpReady\}/);

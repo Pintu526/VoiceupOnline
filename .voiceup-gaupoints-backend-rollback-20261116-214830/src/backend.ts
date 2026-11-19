@@ -1,0 +1,2461 @@
+import { createClient } from "@supabase/supabase-js";
+import { getSaasAdminPasswordRecoveryRedirectTo } from "./adminPasswordRecoveryRedirect";
+import { VOICEUP_AUTH_STORAGE_KEY } from "./authSession";
+import {
+  mergeWorkspaceStateForSave,
+  nextWorkspaceUpdatedAt
+} from "../supabase/functions/_shared/workspaceStateMerge";
+import {
+  normalizePublicCampaignSlug,
+  publicCampaignSlugsMatch
+} from "../supabase/functions/_shared/publicCampaignSlug";
+import { getPublicCampaignUrl } from "./utils/links";
+import type {
+  AuditLogEntry,
+  AuthorityRule,
+  Campaign,
+  CommercialPackage,
+  IntegrationSettings,
+  Organization,
+  ParticipationRequest,
+  ParticipationRequestSubmission,
+  PublicParticipationRequest,
+  ScanReviewItem,
+  Signer
+} from "./types";
+import type { LocationDeletions, LocationOverrideReferences, LocationOverrides } from "./geography";
+import type {
+  CoordinatorDraft,
+  CoordinatorNetworkSnapshot,
+  CoordinatorStatus
+} from "./coordinators";
+import { geographyForRole } from "./coordinators";
+import { normalizeIndianPhone } from "./shared/deduplication/supporterIdentity";
+import {
+  evaluateSecureFieldUploadAccess,
+  secureFieldUploadRoles,
+  type CampaignAdminAssignment,
+  type SecureFieldUploadAccess
+} from "./secureFieldUploadAuth";
+import {
+  evaluateWorkspaceMembership,
+  evaluateWorkspaceResourceAssignment,
+  type WorkspaceMembershipStatus,
+  type WorkspaceResourceAssignmentStatus
+} from "./authorization/workspaceAccess";
+import { readPublicSigningBackendError } from "./publicSigningJourney";
+import type { LocationBrowserCatalogRequest } from "./businessOs/location/browser/LocationBrowserCatalogContract.ts";
+import { selectAuthorizedLocationCatalogWorkspace } from "./businessOs/location/browser/WorkspaceCatalogAuthorization.ts";
+import { createUnverifiedLocationReference } from "./businessOs/location/persistence/LocationReferenceGovernance.ts";
+
+export interface VoiceupRemoteState {
+  campaigns: Campaign[];
+  signers: Signer[];
+  authorities: AuthorityRule[];
+  organization: Organization;
+  activeCampaignId?: string;
+  scanItems: ScanReviewItem[];
+  locationOverrides: LocationOverrides;
+  locationOverrideReferences?: LocationOverrideReferences;
+  locationDeletions: LocationDeletions;
+  auditLogs?: AuditLogEntry[];
+  integrations?: IntegrationSettings;
+  commercialPackages?: CommercialPackage[];
+}
+
+export interface VoiceupAccessContext {
+  platformAdmin: boolean;
+  workspaceMember: boolean;
+  customerWorkspace: boolean;
+  role: string;
+  email: string;
+  workspaceId: string;
+}
+
+export class WorkspaceSaveError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly code?: string
+  ) {
+    super(message);
+    this.name = "WorkspaceSaveError";
+  }
+}
+
+export interface PublicCampaignPayload {
+  campaign: Campaign;
+  customLocations?: PublicCampaignCustomLocation[];
+  organization?: Organization;
+  authorities: AuthorityRule[];
+  metrics: {
+    total: number;
+    verified: number;
+    pending: number;
+    duplicates: number;
+    online: number;
+    scanned: number;
+    progress: number;
+    digitalSupporters?: number;
+    paperRecordsReceived?: number;
+    paperRecordsDigitised?: number;
+    paperRecordsPending?: number;
+    verifiedSupporters?: number;
+    activeGeographyCoverage?: number;
+    coordinatorCounts?: {
+      total: number;
+      active: number;
+    };
+  };
+}
+
+export interface PublicCampaignCustomLocation {
+  country: string;
+  state?: string;
+  district?: string;
+  block?: string;
+  panchayat?: string;
+  village?: string;
+  postalCode?: string;
+}
+
+export interface PublicCampaignJourney {
+  supporterCode: string;
+  displayName: string;
+  campaignTitle: string;
+  campaignSlug: string;
+  publicCampaignUrl: string;
+  joinedDate: string | null;
+  state: string | null;
+  district: string | null;
+  status: "verified" | "pending";
+  referralCount: number;
+}
+
+export type CampaignLocationLeafLevel =
+  | "country"
+  | "state"
+  | "district"
+  | "block"
+  | "panchayat"
+  | "village";
+
+export interface CampaignLocationPath {
+  country: string;
+  state?: string;
+  district?: string;
+  block?: string;
+  panchayat?: string;
+  village?: string;
+  postalCode?: string;
+  locationReference?: import("./businessOs/location/persistence/PersistedLocationReference.ts").PersistedLocationReference | null;
+}
+
+export interface CampaignLocationRecord extends CampaignLocationPath {
+  id: string;
+  leafLevel: CampaignLocationLeafLevel;
+  source: "campaign_manual" | "campaign_import";
+  active: boolean;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CampaignLocationScope {
+  workspaceId: string;
+  campaignId: string;
+  campaignSlug: string;
+}
+
+/** A database-aggregated campaign policy path. It is not a canonical identity. */
+export interface CampaignLocationHierarchyEntry extends CampaignLocationPath {
+  leafLevel: CampaignLocationLeafLevel;
+  verificationStatus: "unverified_custom";
+  canonicalNodeId: null;
+  officialCode: null;
+}
+
+export interface CampaignLocationSummary {
+  active: number;
+  inactive: number;
+  configuredRows?: { active: number; inactive: number };
+  levelsRepresented: number;
+  coverage: {
+    states: number;
+    districts: number;
+    blocks: number;
+    panchayats: number;
+    villages: number;
+    pins: number;
+  };
+  distinctValues?: {
+    states: number;
+    districts: number;
+    blocks: number;
+    panchayats: number;
+    villages: number;
+    pins: number;
+  };
+  coverageSemantics?: "distinct_normalized_ancestry_paths";
+  configurationVersion: number;
+}
+
+export class CampaignLocationApiError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = "CampaignLocationApiError";
+  }
+}
+
+export type PublicParticipationAction =
+  | "save_draft"
+  | "submit_support"
+  | "resume_verified_supporter"
+  | "update_profile"
+  | "record_consents"
+  | "read_participation_requests"
+  | "submit_coordinator_application"
+  | "sync_coordinator_application_state";
+
+export interface SupporterAccountClaimGrant {
+  token: string;
+  expiresAt: string;
+}
+
+export interface PublicParticipationResult {
+  action: PublicParticipationAction;
+  signer: Signer | null;
+  profile: Signer | null;
+  supporterStatus: string;
+  coordinatorApplicationStatus?: string;
+  message: string;
+  metrics: PublicCampaignPayload["metrics"];
+  supporterAccountClaimGrant?: SupporterAccountClaimGrant;
+}
+
+export interface OtpRequestResult {
+  challengeId: string;
+  resendAfterSeconds: number;
+  message: string;
+  otp?: string;
+  screenOtp?: string;
+  verificationMethod?: "phone_otp" | "screen_otp";
+  developmentOtp?: string;
+}
+
+export interface OtpVerifyResult {
+  verified: boolean;
+  verificationToken: string;
+  verificationMethod?: "phone_otp" | "screen_otp";
+  phoneOwnershipVerified?: boolean;
+  customerSessionToken?: string;
+  workspaceId?: string;
+  message: string;
+}
+
+export type ScanApprovalResultCode =
+  | "approval_completed"
+  | "approval_already_completed"
+  | "existing_supporter_returned"
+  | "exact_phone_duplicate_blocked"
+  | "same_source_row_blocked"
+  | "already_approved"
+  | "validation_failed"
+  | "consent_missing"
+  | "stale_review_version"
+  | "unauthorized"
+  | "review_item_not_found"
+  | "system_error";
+
+export interface ScanApprovalRpcResult {
+  code: ScanApprovalResultCode;
+  blocking: boolean;
+  message: string;
+  reviewItemId: string;
+  supporterId?: string;
+  matchedSupporterId?: string;
+}
+
+export interface ApproveScanReviewItemRequest {
+  workspaceId: string;
+  campaignId: string;
+  reviewItemId: string;
+  expectedVersion: number;
+  uploadFingerprint: string;
+  sourceReference: string;
+  sourceRowFingerprint: string;
+  approvalKey: string;
+  reviewPayload: ScanReviewItem;
+  supporterFields: ScanReviewItem["parsedSigner"] & Partial<Signer>;
+  consent: {
+    paperConsentRecorded: boolean;
+    smsConsent: boolean;
+    whatsappConsent: boolean;
+    noOngoingCommunications: boolean;
+    consentPurpose?: string;
+    consentCapturedAt?: string;
+    consentCapturedBy?: string;
+  };
+}
+
+export interface AuthoritativeFieldCollectionState {
+  reviewItems: ScanReviewItem[];
+  supporters: Signer[];
+  auditLogs: AuditLogEntry[];
+}
+
+export interface CoordinatorOtpRequestResult {
+  challengeId: string;
+  resendAfterSeconds: number;
+  message: string;
+  developmentOtp?: string;
+}
+
+export interface CoordinatorOtpVerifyResult {
+  verified: boolean;
+  verificationToken: string;
+  message: string;
+}
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const fallbackWorkspaceId = (import.meta.env.VITE_VOICEUP_WORKSPACE_ID as string | undefined) || "default";
+const customerSessionKey = "voiceup-customer-session-v1";
+const customerWorkspaceKey = "voiceup-customer-workspace-v1";
+
+export const isBackendConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+
+const supabase = isBackendConfigured
+  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+      auth: {
+        storageKey: VOICEUP_AUTH_STORAGE_KEY,
+        persistSession: true,
+        autoRefreshToken: true,
+        flowType: "pkce"
+      }
+    })
+  : null;
+
+let passwordRecoveryUserId = "";
+const passwordRecoveryWaiters = new Set<(ready: boolean) => void>();
+
+function setPasswordRecoverySession(userId: string): void {
+  passwordRecoveryUserId = userId;
+  for (const waiter of passwordRecoveryWaiters) waiter(Boolean(userId));
+  passwordRecoveryWaiters.clear();
+}
+
+// Capture the one event that proves the current browser session came from a genuine
+// Supabase recovery link. A normal SIGNED_IN or restored session never opens the reset gate.
+if (supabase) {
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY" && session?.user?.id) {
+      setPasswordRecoverySession(session.user.id);
+    } else if (event === "SIGNED_OUT") {
+      setPasswordRecoverySession("");
+    }
+  });
+}
+
+export const isSupabaseAuthAvailable = Boolean(supabase);
+export const isSupabaseStorageAvailable = Boolean(supabase);
+
+function requireSupabase() {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  return supabase;
+}
+
+function createId(prefix: string) {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  const random = Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${prefix}-${Date.now()}-${random}`;
+}
+
+function createSecureToken(prefix: string) {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  const random = Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  return `${prefix}_${random}`;
+}
+
+function slugifyValue(value: string) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64) || "voice-campaign";
+}
+
+function toTitleCase(value: string) {
+  return String(value || "")
+    .trim()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ") || "New Voiceup Campaign";
+}
+
+function inferGoal(goalText: string) {
+  const numberMatch = String(goalText || "").replace(/,/g, "").match(/\d{2,}/);
+  if (!numberMatch) return 100;
+  const parsed = Number(numberMatch[0]);
+  if (!Number.isFinite(parsed)) return 100;
+  return Math.min(Math.max(parsed, 25), 1000000);
+}
+
+function inferCategory(text: string): Campaign["category"] {
+  const normalized = String(text || "").toLowerCase();
+  if (/cow|forest|tree|river|water|pollution|climate|animal|environment/.test(normalized)) return "Environment";
+  if (/school|student|college|education|teacher/.test(normalized)) return "Education";
+  if (/blood|health|hospital|doctor|medicine|clinic/.test(normalized)) return "Health";
+  if (/road|bus|train|traffic|transport|metro/.test(normalized)) return "Transport";
+  if (/house|housing|rent|slum|apartment/.test(normalized)) return "Housing";
+  return "Civic";
+}
+
+function addDaysIso(days: number) {
+  return new Date(Date.now() + days * 86400_000).toISOString().slice(0, 10);
+}
+
+function normalizePhone(value: string) {
+  return String(value || "").replace(/[^\d+]/g, "");
+}
+
+function isValidPublicPhone(value: string) {
+  return /^[0-9]{8,15}$/.test(normalizePhone(value).replace(/\D/g, ""));
+}
+
+function asInvokeRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") return null;
+  return value as Record<string, unknown>;
+}
+
+function extractReturnedOtp(payload: unknown): string | undefined {
+  const records: Array<Record<string, unknown> | null> = [asInvokeRecord(payload)];
+  const root = asInvokeRecord(payload);
+  if (root?.data) records.push(asInvokeRecord(root.data));
+  if (typeof payload === "string") {
+    try {
+      records.push(asInvokeRecord(JSON.parse(payload)));
+    } catch {
+      /* ignore malformed invoke body */
+    }
+  }
+  for (const record of records) {
+    if (!record) continue;
+    for (const key of ["otp", "developmentOtp"]) {
+      const digits = String(record[key] ?? "").replace(/\D/g, "");
+      if (/^\d{4,8}$/.test(digits)) return digits;
+    }
+  }
+  return undefined;
+}
+
+async function readClonedInvokeJson(
+  response: { clone?: () => { json?: () => Promise<unknown> } } | undefined
+) {
+  try {
+    return await response?.clone?.()?.json?.();
+  } catch {
+    return undefined;
+  }
+}
+
+function trustedPublicError(
+  error: { message: string; code?: string } | null,
+  fallbackMessage: string
+) {
+  if (error?.code && /^[a-z][a-z0-9_]{1,63}$/.test(error.code)) return error;
+  return { message: fallbackMessage, code: "server_error" };
+}
+
+function hasDuplicateSigner(candidate: unknown, signers: Signer[], campaignId: string) {
+  const input = (candidate ?? {}) as Record<string, unknown>;
+  const email = String(input.email ?? "").trim().toLowerCase();
+  const phone = normalizePhone(String(input.phone ?? ""));
+  return signers.some((signer) => {
+    if (signer.campaignId !== campaignId) return false;
+    const signerEmail = String(signer.email ?? "").trim().toLowerCase();
+    const signerPhone = normalizePhone(String(signer.phone ?? ""));
+    return Boolean((email && signerEmail === email) || (phone && signerPhone === phone));
+  });
+}
+
+function getCampaignMetrics(campaign: Campaign, signers: Signer[]): PublicCampaignPayload["metrics"] {
+  const campaignSigners = signers.filter((signer) => signer.campaignId === campaign.id);
+  const verified = campaignSigners.filter((signer) => signer.status === "verified").length;
+  const pending = campaignSigners.filter((signer) => signer.status === "pending").length;
+  const duplicates = campaignSigners.filter((signer) => signer.status === "duplicate").length;
+  const online = campaignSigners.filter((signer) => signer.source === "online").length;
+  const scanned = campaignSigners.filter((signer) => signer.source === "scan").length;
+  const target = campaign.maxSignersAllowed > 0 ? campaign.maxSignersAllowed : campaign.goal;
+  return {
+    total: campaignSigners.length,
+    verified,
+    pending,
+    duplicates,
+    online,
+    scanned,
+    progress: target > 0 ? Math.min(Math.round((verified / target) * 100), 100) : 0
+  };
+}
+
+function publicAuthoritiesForCampaign(state: VoiceupRemoteState, campaign: Campaign) {
+  return Array.isArray(state.authorities)
+    ? state.authorities.filter((authority) => {
+        if (authority.category && authority.category !== "Any" && authority.category !== campaign.category) return false;
+        if (authority.state && campaign.state && authority.state !== campaign.state) return false;
+        if (authority.district && campaign.district && authority.district !== campaign.district) return false;
+        return true;
+      })
+    : [];
+}
+
+interface WorkspaceStateSnapshot {
+  state: VoiceupRemoteState | null;
+  updatedAt: string | null;
+}
+
+interface WorkspaceSaveBaseline {
+  serverState: VoiceupRemoteState | Record<string, unknown>;
+  clientState: VoiceupRemoteState | Record<string, unknown>;
+  updatedAt: string | null;
+}
+
+const workspaceSaveBaselines = new Map<string, WorkspaceSaveBaseline>();
+
+async function readWorkspaceSnapshotById(workspaceId: string): Promise<WorkspaceStateSnapshot> {
+  const client = requireSupabase();
+  const { data, error } = await client
+    .from("voiceup_workspaces")
+    .select("data,updated_at")
+    .eq("id", workspaceId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return {
+    state: (data?.data as VoiceupRemoteState | null) ?? null,
+    updatedAt: data?.updated_at ? String(data.updated_at) : null
+  };
+}
+
+async function loadWorkspaceStateById(workspaceId: string): Promise<VoiceupRemoteState | null> {
+  const snapshot = await readWorkspaceSnapshotById(workspaceId);
+  const baselineState = snapshot.state ?? {};
+  workspaceSaveBaselines.set(workspaceId, {
+    serverState: baselineState,
+    clientState: baselineState,
+    updatedAt: snapshot.updatedAt
+  });
+  return snapshot.state;
+}
+
+async function saveWorkspaceState(workspaceId: string, state: VoiceupRemoteState): Promise<void> {
+  const client = requireSupabase();
+  const baseline = workspaceSaveBaselines.get(workspaceId);
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const snapshot = await readWorkspaceSnapshotById(workspaceId);
+
+    if (!snapshot.state) {
+      if (baseline?.updatedAt) {
+        throw new Error("The workspace was removed after it was loaded. Refresh before saving.");
+      }
+      const nextUpdatedAt = nextWorkspaceUpdatedAt(null);
+      const { error } = await client
+        .from("voiceup_workspaces")
+        .insert({ id: workspaceId, data: state, updated_at: nextUpdatedAt });
+      if (error?.code === "23505") continue;
+      if (error) throw new Error(error.message);
+      workspaceSaveBaselines.set(workspaceId, {
+        serverState: state,
+        clientState: state,
+        updatedAt: nextUpdatedAt
+      });
+      return;
+    }
+
+    if (!baseline) {
+      throw new Error("Reload the workspace before saving so recent participation is preserved.");
+    }
+
+    const merged = mergeWorkspaceStateForSave(
+      snapshot.state,
+      state,
+      baseline.serverState,
+      baseline.clientState
+    );
+    if (merged.conflicts.length > 0) {
+      throw new Error("Public participation changed while this workspace was being edited. Refresh and retry.");
+    }
+
+    const nextUpdatedAt = nextWorkspaceUpdatedAt(snapshot.updatedAt);
+    let update = client
+      .from("voiceup_workspaces")
+      .update({ data: merged.state, updated_at: nextUpdatedAt })
+      .eq("id", workspaceId);
+    update = snapshot.updatedAt
+      ? update.eq("updated_at", snapshot.updatedAt)
+      : update.is("updated_at", null);
+    const { data: updated, error } = await update
+      .select("updated_at")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!updated) continue;
+
+    const savedUpdatedAt = updated.updated_at ? String(updated.updated_at) : nextUpdatedAt;
+    workspaceSaveBaselines.set(workspaceId, {
+      serverState: merged.state as unknown as VoiceupRemoteState,
+      clientState: state,
+      updatedAt: savedUpdatedAt
+    });
+    return;
+  }
+
+  throw new Error("The workspace changed repeatedly while saving. Refresh and retry.");
+}
+
+async function listWorkspaceStates(): Promise<Array<{ id: string; data: VoiceupRemoteState | null }>> {
+  const client = requireSupabase();
+  const { data, error } = await client.from("voiceup_workspaces").select("id,data");
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Array<{ id: string; data: VoiceupRemoteState | null }>;
+}
+
+async function findPublishedCampaignBySlug(
+  slug: string
+): Promise<{ workspaceId: string; state: VoiceupRemoteState; campaign: Campaign } | null> {
+  const normalizedSlug = normalizePublicCampaignSlug(slug);
+  if (!normalizedSlug) return null;
+
+  const rows = await listWorkspaceStates();
+  let resolved: { workspaceId: string; state: VoiceupRemoteState; campaign: Campaign } | null = null;
+  for (const row of rows) {
+    const state = row.data;
+    if (!state || !Array.isArray(state.campaigns)) continue;
+    for (const campaign of state.campaigns) {
+      if (
+        campaign.status !== "Published" ||
+        !publicCampaignSlugsMatch(campaign.slug, normalizedSlug)
+      ) {
+        continue;
+      }
+      if (resolved) return null;
+      resolved = { workspaceId: row.id, state, campaign };
+    }
+  }
+  return resolved;
+}
+
+function readCustomerSessionToken(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(customerSessionKey) ?? "";
+}
+
+function readWorkspaceId(): string {
+  if (typeof window === "undefined") return fallbackWorkspaceId;
+  return window.localStorage.getItem(customerWorkspaceKey) || fallbackWorkspaceId;
+}
+
+export function getCurrentWorkspaceId(): string {
+  return readWorkspaceId();
+}
+
+interface WorkspaceMembershipContext {
+  workspaceId: string;
+  workspaceMember: boolean;
+  platformAdmin: boolean;
+  role: string;
+}
+
+async function resolveWorkspaceMembershipContext(
+  userId: string,
+  preferredWorkspaceId = readWorkspaceId()
+): Promise<WorkspaceMembershipContext> {
+  const { data: orgMembership } = await requireSupabase()
+    .from("organization_members")
+    .select("role")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  const { data: workspaceMemberships } = await requireSupabase()
+    .from("voiceup_workspace_members")
+    .select("workspace_id,role,active")
+    .eq("user_id", userId)
+    .eq("active", true);
+
+  const activeMemberships = workspaceMemberships ?? [];
+  const workspaceMembership = activeMemberships.find(
+    (membership) => membership.workspace_id === preferredWorkspaceId
+  ) ?? (activeMemberships.length === 1 ? activeMemberships[0] : undefined);
+
+  const orgRole = orgMembership?.role ?? "";
+  const workspaceRole = workspaceMembership?.role ?? "";
+  const role = workspaceRole || orgRole;
+
+  return {
+    workspaceId: workspaceMembership?.workspace_id ?? "",
+    workspaceMember: Boolean(workspaceMembership?.workspace_id && workspaceMembership.active === true),
+    platformAdmin: orgRole === "platform_owner" || workspaceRole === "platform_owner",
+    role
+  };
+}
+
+async function resolveWorkspaceId(): Promise<string | null> {
+  if (!supabase) return readWorkspaceId();
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const user = userError ? null : userData.user;
+  if (user) {
+    const membership = await resolveWorkspaceMembershipContext(user.id);
+    return membership.workspaceId || null;
+  }
+
+  return readWorkspaceId();
+}
+
+async function resolveLocationCatalogWorkspaceId(requestedWorkspaceId: string): Promise<string | null> {
+  const requested = requestedWorkspaceId.trim();
+  if (!requested) return null;
+  if (!supabase) return requested === readWorkspaceId() ? requested : null;
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const user = userError ? null : userData.user;
+  if (!user) return null;
+
+  const membership = await resolveWorkspaceMembershipContext(user.id);
+  return selectAuthorizedLocationCatalogWorkspace(requested, membership);
+}
+
+/**
+ * Authenticated workspace transport for the canonical browser catalog.
+ * Ordinary callers are pinned to their active workspace membership. A trusted
+ * platform owner may request the selected workspace; the Edge function repeats
+ * the platform/workspace authorization before returning canonical data.
+ */
+export async function invokeWorkspaceLocationCatalog(
+  request: LocationBrowserCatalogRequest
+): Promise<unknown> {
+  const client = requireSupabase();
+  const requestedWorkspaceId = request.access.type === "workspace"
+    ? request.access.workspaceId
+    : "";
+  const workspaceId = await resolveLocationCatalogWorkspaceId(requestedWorkspaceId);
+  if (!workspaceId) {
+    throw new Error("Authenticated user is not authorized for this workspace.");
+  }
+  const { data, error } = await client.functions.invoke(
+    "voiceup-location-catalog-v1",
+    {
+      body: {
+        ...request,
+        access: { type: "workspace", workspaceId }
+      }
+    }
+  );
+  if (error) throw new Error("Canonical location catalog could not be loaded.");
+  return data;
+}
+
+/**
+ * Public, read-only transport for C11. The gateway re-resolves this slug to an
+ * actually published campaign on every request; no browser session or server
+ * Location API credential is accepted from the caller.
+ */
+export async function invokePublicCampaignLocationCatalog(
+  request: LocationBrowserCatalogRequest
+): Promise<unknown> {
+  const campaignSlug = request.access.type === "public_campaign"
+    ? request.access.campaignSlug.trim()
+    : "";
+  if (!campaignSlug) throw new Error("Published campaign access is required.");
+
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke(
+    "voiceup-location-catalog-v1",
+    {
+      body: {
+        ...request,
+        access: { type: "public_campaign", campaignSlug }
+      }
+    }
+  );
+  if (error) throw new Error("Canonical location catalog could not be loaded.");
+  return data;
+}
+
+export function clearCustomerSessionToken(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(customerSessionKey);
+  window.localStorage.removeItem(customerWorkspaceKey);
+}
+
+function writeCustomerSessionToken(token: string, workspaceId?: string): void {
+  if (typeof window === "undefined" || !token) return;
+  window.localStorage.setItem(customerSessionKey, token);
+  if (workspaceId) window.localStorage.setItem(customerWorkspaceKey, workspaceId);
+}
+
+const otpChallengeStoreKey = "voiceup-otp-challenges-v1";
+
+type LocalOtpChallenge = {
+  challengeId: string;
+  phone: string;
+  purpose: "public-signing" | "onboarding";
+  code: string;
+  expiresAt: number;
+  attempts: number;
+};
+
+function readLocalOtpChallenges(): LocalOtpChallenge[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(otpChallengeStoreKey) ?? "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalOtpChallenges(challenges: LocalOtpChallenge[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(otpChallengeStoreKey, JSON.stringify(challenges));
+}
+
+export async function getCurrentAuthUser() {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error) return null;
+  return data.user;
+}
+
+/**
+ * Fail-fast check for a real, locally-held Supabase Auth session (session + user + access
+ * token all present) -- used to guard protected Edge Function calls (e.g. Campaign Admin
+ * provisioning) so they are never attempted without a valid Supabase user JWT. Never returns
+ * or logs the access token itself.
+ */
+export async function getCurrentAuthSession(): Promise<{ userId: string } | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getSession();
+  if (error) return null;
+  const session = data.session;
+  if (!session?.user?.id || !session.access_token) return null;
+  return { userId: session.user.id };
+}
+
+export async function verifySecureFieldUploadAccess(
+  expectedWorkspaceId: string,
+  storageProvider: string,
+  knownUser?: { id: string } | null
+): Promise<SecureFieldUploadAccess> {
+  // When the caller just established (or already holds) the authenticated user from
+  // signInWithPassword()/getCurrentAuthUser(), use it directly instead of issuing a second,
+  // redundant getUser() round-trip immediately after sign-in.
+  const user = knownUser !== undefined ? knownUser : await getCurrentAuthUser();
+  if (!supabase || !user) {
+    return evaluateSecureFieldUploadAccess({
+      supabaseConfigured: Boolean(supabase),
+      storageProvider,
+      userId: user?.id,
+      currentWorkspaceId: expectedWorkspaceId
+    });
+  }
+
+  const { data: membership, error } = await supabase
+    .from("voiceup_workspace_members")
+    .select("workspace_id,user_id,role,active")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
+
+  const resolvedWorkspaceId = membership?.workspace_id || expectedWorkspaceId;
+
+  return evaluateSecureFieldUploadAccess({
+    supabaseConfigured: true,
+    storageProvider,
+    userId: user.id,
+    currentWorkspaceId: resolvedWorkspaceId,
+    membership: error || !membership
+      ? null
+      : {
+          workspaceId: membership.workspace_id,
+          userId: membership.user_id,
+          role: membership.role,
+          active: membership.active === true
+        }
+  });
+}
+
+export interface CampaignAdminAssignmentContext {
+  assignment: CampaignAdminAssignment | null;
+  assignmentStatus: WorkspaceResourceAssignmentStatus;
+  workspaceMembershipActive: boolean;
+  hasValidWorkspaceMembershipRole: boolean;
+  membershipStatus: WorkspaceMembershipStatus;
+}
+
+/**
+ * Resolves the database-verified facts needed by `evaluateCampaignAdminLoginAccess`, using
+ * the generic, reusable `evaluateWorkspaceResourceAssignment` / `evaluateWorkspaceMembership`
+ * evaluators from `./authorization/workspaceAccess` (see that module for the full typed
+ * status set). Both queries are filtered by `user_id = authenticatedUserId` explicitly (in
+ * addition to Postgres RLS already scoping every row to `auth.uid()`) so a browser-supplied
+ * user id can never widen what is returned -- and are deliberately broader than a single
+ * exact-match row so the evaluators can distinguish *why* access fails (wrong workspace,
+ * wrong role, inactive, ambiguous, etc.) rather than only "found" or "not found". Must only
+ * be called AFTER a successful `signInWithPassword`/`getCurrentAuthUser` call.
+ */
+export async function resolveCampaignAdminAssignmentContext(
+  workspaceId: string,
+  resourceId: string,
+  resourceSlug: string,
+  authenticatedUserId: string,
+  applicationKey = "voiceup",
+  role = "campaign_admin"
+): Promise<CampaignAdminAssignmentContext> {
+  const denied = (
+    assignmentStatus: WorkspaceResourceAssignmentStatus,
+    membershipStatus: WorkspaceMembershipStatus
+  ): CampaignAdminAssignmentContext => ({
+    assignment: null,
+    assignmentStatus,
+    workspaceMembershipActive: false,
+    hasValidWorkspaceMembershipRole: false,
+    membershipStatus
+  });
+
+  if (!supabase || !authenticatedUserId) return denied("query_failed", "query_failed");
+
+  const [assignmentResponse, membershipResponse] = await Promise.all([
+    supabase
+      .from("workspace_resource_members")
+      .select("user_id,workspace_id,application_key,role,resource_type,resource_id,resource_slug,active")
+      .eq("user_id", authenticatedUserId)
+      .eq("application_key", applicationKey)
+      .eq("resource_type", "campaign")
+      .eq("resource_id", resourceId),
+    supabase
+      .from("voiceup_workspace_members")
+      .select("user_id,workspace_id,role,active")
+      .eq("user_id", authenticatedUserId)
+  ]);
+
+  const assignmentResult = evaluateWorkspaceResourceAssignment(
+    assignmentResponse.error
+      ? null
+      : (assignmentResponse.data ?? []).map((row) => ({
+          userId: row.user_id,
+          workspaceId: row.workspace_id,
+          applicationKey: row.application_key,
+          role: row.role,
+          resourceType: row.resource_type,
+          resourceId: row.resource_id,
+          resourceSlug: row.resource_slug ?? undefined,
+          active: row.active === true
+        })),
+    Boolean(assignmentResponse.error),
+    {
+      applicationKey,
+      workspaceId,
+      resourceType: "campaign",
+      resourceId,
+      resourceSlug,
+      requiredRole: role,
+      authenticatedUserId
+    }
+  );
+
+  const membershipResult = evaluateWorkspaceMembership(
+    membershipResponse.error
+      ? null
+      : (membershipResponse.data ?? []).map((row) => ({
+          userId: row.user_id,
+          workspaceId: row.workspace_id,
+          role: row.role,
+          active: row.active === true
+        })),
+    Boolean(membershipResponse.error),
+    { workspaceId, authenticatedUserId, validRoles: secureFieldUploadRoles }
+  );
+
+  const membershipValid = membershipResult.status === "membership_found";
+
+  return {
+    assignment:
+      assignmentResult.status === "assignment_found" && assignmentResult.assignment
+        ? {
+            userId: assignmentResult.assignment.userId,
+            workspaceId: assignmentResult.assignment.workspaceId,
+            resourceType: assignmentResult.assignment.resourceType,
+            resourceId: assignmentResult.assignment.resourceId,
+            resourceSlug: assignmentResult.assignment.resourceSlug ?? undefined,
+            active: assignmentResult.assignment.active
+          }
+        : null,
+    assignmentStatus: assignmentResult.status,
+    workspaceMembershipActive: membershipValid,
+    hasValidWorkspaceMembershipRole: membershipValid,
+    membershipStatus: membershipResult.status
+  };
+}
+
+export interface ProvisionWorkspaceMemberRequest {
+  workspaceId: string;
+  applicationKey: string;
+  role: string;
+  email?: string;
+  password?: string;
+  selfAssign?: boolean;
+  assignment: { resourceType: string; resourceId: string; resourceSlug?: string };
+}
+
+export interface ProvisionWorkspaceMemberResult {
+  userId: string;
+  authUserAction: "create" | "reuse";
+  workspaceMembership: { workspaceId: string; role: string; active: boolean };
+  assignment: {
+    id: string;
+    transition: "create" | "already_active" | "replace";
+    resourceType: string;
+    resourceId: string;
+    resourceSlug: string;
+    active: boolean;
+  };
+}
+
+/**
+ * A safe, typed provisioning failure. `message` is always end-user-safe (it
+ * originates only from the Edge Function's own `error` field or a generic
+ * fallback -- never from raw Supabase client internals) and NEVER contains
+ * the submitted password. `code` is an optional machine-readable reason
+ * (e.g. "identity_conflict") a caller can branch on without parsing text.
+ */
+export class ProvisionWorkspaceMemberError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ProvisionWorkspaceMemberError";
+    this.code = code;
+  }
+}
+
+/**
+ * Calls the `provision-workspace-member` Edge Function. Never sends or stores the
+ * service-role key -- this uses the same authenticated anon-key client as every other
+ * Supabase call, so the bearer token forwarded is always the currently signed-in SaaS
+ * Admin's own session token; the Edge Function itself independently re-verifies the
+ * caller's authorization via that token. The password is only ever included in this
+ * single request body -- it is never logged, never echoed back, and never appears in
+ * any error thrown from here.
+ */
+export async function provisionWorkspaceMember(
+  request: ProvisionWorkspaceMemberRequest
+): Promise<ProvisionWorkspaceMemberResult> {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke<
+    ProvisionWorkspaceMemberResult & { error?: string; code?: string }
+  >("provision-workspace-member", { body: request });
+
+  if (error) {
+    throw new ProvisionWorkspaceMemberError(error.message || "Unable to provision the workspace member.");
+  }
+  if (!data) {
+    throw new ProvisionWorkspaceMemberError("Unable to provision the workspace member.");
+  }
+  if (data.error) {
+    throw new ProvisionWorkspaceMemberError(data.error, data.code);
+  }
+
+  return data;
+}
+
+/**
+ * Assigns the already authenticated workspace member to a campaign without
+ * creating or modifying an Auth identity. The Edge Function verifies the
+ * caller's workspace authority and preserves any existing workspace role.
+ */
+export async function assignCurrentWorkspaceMemberAsCampaignAdmin(input: {
+  workspaceId: string;
+  campaignId: string;
+  campaignSlug: string;
+}): Promise<ProvisionWorkspaceMemberResult> {
+  return provisionWorkspaceMember({
+    workspaceId: input.workspaceId,
+    applicationKey: "voiceup",
+    role: "campaign_admin",
+    selfAssign: true,
+    assignment: {
+      resourceType: "campaign",
+      resourceId: input.campaignId,
+      resourceSlug: input.campaignSlug
+    }
+  });
+}
+
+async function resolveSecureStorageWorkspaceId(): Promise<string | null> {
+  const expectedWorkspaceId = readWorkspaceId();
+  const access = await verifySecureFieldUploadAccess(
+    expectedWorkspaceId,
+    "Supabase Storage"
+  );
+  return access.available ? access.workspaceId : null;
+}
+
+export async function getAuthContext(): Promise<VoiceupAccessContext> {
+  if (!supabase) {
+    return {
+      platformAdmin: false,
+      workspaceMember: false,
+      customerWorkspace: false,
+      role: "",
+      email: "",
+      workspaceId: fallbackWorkspaceId
+    };
+  }
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  const user = userError ? null : userData.user;
+
+  if (!user) {
+    return {
+      platformAdmin: false,
+      workspaceMember: false,
+      customerWorkspace: false,
+      role: "",
+      email: "",
+      workspaceId: fallbackWorkspaceId
+    };
+  }
+
+  const membership = await resolveWorkspaceMembershipContext(user.id);
+
+  return {
+    platformAdmin: membership.platformAdmin,
+    workspaceMember: membership.workspaceMember,
+    customerWorkspace: false,
+    role: membership.role,
+    email: user.email ?? "",
+    workspaceId: membership.workspaceId || ""
+  };
+}
+
+export async function signInWithSupabase(email: string, password: string) {
+  if (!supabase) {
+    throw new Error("Supabase Auth is required for platform administration.");
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data.user;
+}
+
+export async function requestSaasAdminPasswordRecovery(email: string): Promise<void> {
+  const client = requireSupabase();
+  const redirectTo = getSaasAdminPasswordRecoveryRedirectTo(window.location.origin);
+  const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw new Error("password_recovery_request_failed");
+}
+
+export async function waitForPasswordRecoverySession(): Promise<boolean> {
+  if (!supabase) return false;
+  if (passwordRecoveryUserId) return true;
+
+  // getSession waits for the client's URL initialization. The recovery event is then
+  // delivered asynchronously; retain a short bounded wait without accepting the session
+  // itself as proof, because an ordinary signed-in session is not a recovery grant.
+  const { error } = await supabase.auth.getSession();
+  if (error) return false;
+  if (passwordRecoveryUserId) return true;
+
+  return await new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (ready: boolean) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      passwordRecoveryWaiters.delete(finish);
+      resolve(ready);
+    };
+    const timeoutId = window.setTimeout(() => finish(false), 2_000);
+    passwordRecoveryWaiters.add(finish);
+    if (passwordRecoveryUserId) finish(true);
+  });
+}
+
+export async function updatePasswordFromRecovery(newPassword: string): Promise<void> {
+  if (!supabase || !passwordRecoveryUserId) {
+    throw new Error("recovery_session_invalid");
+  }
+
+  const recoveryUserId = passwordRecoveryUserId;
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (
+    sessionError
+    || !sessionData.session?.user?.id
+    || sessionData.session.user.id !== recoveryUserId
+  ) {
+    setPasswordRecoverySession("");
+    throw new Error("recovery_session_invalid");
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw new Error("password_update_failed");
+  setPasswordRecoverySession("");
+}
+
+export async function signOutSupabase() {
+  if (!supabase) return;
+  await supabase.auth.signOut();
+}
+
+export async function loadRemoteState() {
+  if (!supabase) return null;
+
+  const workspaceId = await resolveWorkspaceId();
+  if (!workspaceId) return null;
+
+  return loadWorkspaceStateById(workspaceId);
+}
+
+export async function saveRemoteState(state: VoiceupRemoteState) {
+  if (!supabase) return;
+  const workspaceId = await resolveWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("Authenticated user does not have a workspace membership.");
+  }
+
+  const client = requireSupabase();
+  const snapshot = await readWorkspaceSnapshotById(workspaceId);
+  const baseline = workspaceSaveBaselines.get(workspaceId);
+  const baseState = (baseline?.serverState as VoiceupRemoteState | undefined) ?? snapshot.state ?? {};
+  const expectedUpdatedAt = baseline?.updatedAt ?? snapshot.updatedAt;
+
+  const { data, error, response } = await client.functions.invoke<{
+    ok?: boolean;
+    state?: VoiceupRemoteState;
+    updatedAt?: string | null;
+    error?: string;
+    code?: string;
+  }>("voiceup-workspace-state", {
+    body: {
+      workspaceId,
+      action: "save",
+      state,
+      baseState,
+      expectedUpdatedAt,
+      customerSessionToken: readCustomerSessionToken()
+    }
+  });
+
+  if (error) {
+    const body = await readPublicSigningBackendError(response);
+    const fallback = error instanceof Error ? error.message : "Workspace save failed.";
+    throw new WorkspaceSaveError(body?.message ?? fallback, response?.status, body?.code);
+  }
+  if (data?.error) {
+    throw new WorkspaceSaveError(data.error, response?.status, data.code);
+  }
+  if (!data?.ok || !data.state) {
+    throw new Error("Workspace save response was incomplete.");
+  }
+
+  workspaceSaveBaselines.set(workspaceId, {
+    serverState: data.state,
+    clientState: state,
+    updatedAt: data.updatedAt ?? expectedUpdatedAt
+  });
+}
+
+export async function approveScanReviewItem(
+  request: ApproveScanReviewItemRequest
+): Promise<ScanApprovalRpcResult> {
+  const client = requireSupabase();
+  const { data, error } = await client.rpc("approve_voiceup_scan_review_item", {
+    p_workspace_id: request.workspaceId,
+    p_campaign_id: request.campaignId,
+    p_review_item_id: request.reviewItemId,
+    p_expected_version: request.expectedVersion,
+    p_upload_fingerprint: request.uploadFingerprint,
+    p_source_reference: request.sourceReference,
+    p_source_row_fingerprint: request.sourceRowFingerprint,
+    p_approval_key: request.approvalKey,
+    p_review_payload: request.reviewPayload,
+    p_supporter_fields: request.supporterFields,
+    p_consent: request.consent
+  });
+  if (error || !data || typeof data !== "object") {
+    return {
+      code: "system_error",
+      blocking: true,
+      message: "The review item could not be approved safely. Retry after refreshing.",
+      reviewItemId: request.reviewItemId
+    };
+  }
+  return data as ScanApprovalRpcResult;
+}
+
+export async function loadAuthoritativeFieldCollectionState(
+  workspaceId: string,
+  campaignId: string
+): Promise<AuthoritativeFieldCollectionState> {
+  const client = requireSupabase();
+  const [reviewResponse, supporterResponse, auditResponse] = await Promise.all([
+    client
+      .from("voiceup_scan_review_items")
+      .select("review_payload,status,supporter_id,approval_key,upload_fingerprint,source_row_fingerprint,version,historical_link_uncertain")
+      .eq("workspace_id", workspaceId)
+      .eq("campaign_id", campaignId),
+    client
+      .from("voiceup_scan_supporters")
+      .select("supporter_payload")
+      .eq("workspace_id", workspaceId)
+      .eq("campaign_id", campaignId),
+    client
+      .from("voiceup_field_collection_audit")
+      .select("audit_payload")
+      .eq("workspace_id", workspaceId)
+      .eq("campaign_id", campaignId)
+      .order("created_at", { ascending: false })
+  ]);
+
+  const firstError = reviewResponse.error ?? supporterResponse.error ?? auditResponse.error;
+  if (firstError) throw new Error(firstError.message);
+
+  return {
+    reviewItems: (reviewResponse.data ?? []).map((row) => ({
+      ...(row.review_payload as ScanReviewItem),
+      status: row.status === "approved" ? "Approved" : row.status === "rejected" ? "Rejected" : "Needs review",
+      supporterId: row.supporter_id ?? undefined,
+      approvalKey: row.approval_key ?? undefined,
+      uploadFingerprint: row.upload_fingerprint,
+      sourceRowFingerprint: row.source_row_fingerprint,
+      reviewVersion: row.version,
+      historicalLinkUncertain: row.historical_link_uncertain
+    })),
+    supporters: (supporterResponse.data ?? []).map((row) => row.supporter_payload as Signer),
+    auditLogs: (auditResponse.data ?? []).map((row) => row.audit_payload as AuditLogEntry)
+  };
+}
+
+export async function recordScanApprovalBatchAudit(input: {
+  workspaceId: string;
+  campaignId: string;
+  batchId: string;
+  resultCode: "batch_started" | "batch_completed" | "batch_partial_failure";
+  counts?: Record<string, number>;
+}): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("record_voiceup_scan_batch_audit", {
+    p_workspace_id: input.workspaceId,
+    p_campaign_id: input.campaignId,
+    p_batch_id: input.batchId,
+    p_result_code: input.resultCode,
+    p_counts: input.counts ?? {}
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function loadCoordinatorNetwork(): Promise<CoordinatorNetworkSnapshot> {
+  const client = requireSupabase();
+  const workspaceId = await resolveWorkspaceId();
+  if (!workspaceId) throw new Error("Authenticated workspace access is required.");
+  const { data, error } = await client.rpc("get_voiceup_coordinator_network_with_location", {
+    p_workspace_id: workspaceId
+  });
+  if (error || !data) throw new Error(error?.message || "Coordinator network could not be loaded.");
+  return data as CoordinatorNetworkSnapshot;
+}
+
+export async function requestCoordinatorMobileOtp(
+  workspaceId: string,
+  phone: string
+): Promise<CoordinatorOtpRequestResult> {
+  const client = requireSupabase();
+  const normalizedPhone = normalizeIndianPhone(phone);
+  if (!normalizedPhone.verified) throw new Error("Enter a valid 10-digit Indian mobile number.");
+  const { data, error } = await client.functions.invoke<{
+    challengeId?: string;
+    resendAfterSeconds?: number;
+    message?: string;
+    otp?: string;
+    error?: string;
+  }>("voiceup-otp", {
+    body: {
+      action: "send",
+      purpose: "coordinator-mobile",
+      workspaceId,
+      phone: normalizedPhone.normalized,
+      metadata: { source: "coordinator-network" }
+    }
+  });
+  if (error || data?.error || !data?.challengeId) {
+    throw new Error(data?.error || error?.message || "Verification code could not be sent.");
+  }
+  return {
+    challengeId: data.challengeId,
+    resendAfterSeconds: data.resendAfterSeconds ?? 30,
+    message: data.message ?? "Verification code sent.",
+    developmentOtp: data.otp
+  };
+}
+
+export async function verifyCoordinatorMobileOtp(input: {
+  workspaceId: string;
+  phone: string;
+  challengeId: string;
+  code: string;
+}): Promise<CoordinatorOtpVerifyResult> {
+  const client = requireSupabase();
+  const normalizedPhone = normalizeIndianPhone(input.phone);
+  if (!normalizedPhone.verified) throw new Error("Enter a valid 10-digit Indian mobile number.");
+  const { data, error } = await client.functions.invoke<{
+    verified?: boolean;
+    verificationToken?: string;
+    message?: string;
+    error?: string;
+  }>("voiceup-otp", {
+    body: {
+      action: "verify",
+      purpose: "coordinator-mobile",
+      workspaceId: input.workspaceId,
+      phone: normalizedPhone.normalized,
+      challengeId: input.challengeId,
+      code: input.code,
+      metadata: { source: "coordinator-network" }
+    }
+  });
+  if (error || data?.error || !data?.verified || !data.verificationToken) {
+    throw new Error(data?.error || error?.message || "Mobile verification failed.");
+  }
+  return {
+    verified: true,
+    verificationToken: data.verificationToken,
+    message: data.message ?? "Mobile number verified."
+  };
+}
+
+export async function saveCoordinator(
+  workspaceId: string,
+  draft: CoordinatorDraft,
+  verificationToken = ""
+): Promise<{ id: string; referralCode: string; version: number }> {
+  const client = requireSupabase();
+  const { geography, campaignIds, ...coordinator } = draft;
+  const { data, error } = await client.rpc("upsert_voiceup_coordinator_with_location", {
+    p_workspace_id: workspaceId,
+    p_coordinator: coordinator,
+    p_geography: geographyForRole(geography, draft.role),
+    p_campaign_ids: campaignIds,
+    p_verification_token: verificationToken || null
+  });
+  if (error || !data) throw new Error(error?.message || "Coordinator could not be saved.");
+  return data as { id: string; referralCode: string; version: number };
+}
+
+export async function changeCoordinatorStatus(input: {
+  workspaceId: string;
+  coordinatorId: string;
+  status: CoordinatorStatus;
+  expectedVersion: number;
+}): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("set_voiceup_coordinator_status", {
+    p_workspace_id: input.workspaceId,
+    p_coordinator_id: input.coordinatorId,
+    p_status: input.status,
+    p_expected_version: input.expectedVersion
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function removeCoordinator(input: {
+  workspaceId: string;
+  coordinatorId: string;
+  expectedVersion: number;
+}): Promise<void> {
+  const client = requireSupabase();
+  const { error } = await client.rpc("delete_voiceup_coordinator", {
+    p_workspace_id: input.workspaceId,
+    p_coordinator_id: input.coordinatorId,
+    p_expected_version: input.expectedVersion
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function uploadCoordinatorPhoto(
+  coordinatorId: string,
+  file: File
+): Promise<string> {
+  if (!file.type.startsWith("image/")) throw new Error("Choose an image file.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Coordinator photos must be 5 MB or smaller.");
+  const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const result = await uploadPrivateFileToStorage(
+    "campaign-private",
+    `coordinators/${coordinatorId}/profile-${Date.now()}.${extension}`,
+    file
+  );
+  return result.path;
+}
+
+export async function openCoordinatorPhoto(path: string): Promise<string> {
+  return createSignedStorageUrl("campaign-private", path, 300);
+}
+
+export async function loadPublicCampaign(slug: string): Promise<PublicCampaignPayload | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.functions.invoke<{
+    campaign?: PublicCampaignPayload | null;
+  }>("voiceup-public-campaign", {
+    body: { slug }
+  });
+  if (error) {
+    throw new Error("Campaign could not be loaded.");
+  }
+  return data?.campaign ?? null;
+}
+
+export async function loadPublicCampaignJourney(referralCode: string): Promise<PublicCampaignJourney | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.functions.invoke<{
+    journey?: Omit<PublicCampaignJourney, "publicCampaignUrl"> | null;
+  }>("voiceup-public-campaign", {
+    body: { action: "read_campaign_journey", referralCode }
+  });
+  if (error) throw new Error("Campaign journey could not be loaded.");
+  if (!data?.journey) return null;
+  return {
+    ...data.journey,
+    publicCampaignUrl: getPublicCampaignUrl(data.journey.campaignSlug)
+  };
+}
+
+type CampaignLocationFunctionResponse = {
+  locations?: Array<CampaignLocationRecord | CampaignLocationHierarchyEntry>;
+  summary?: Omit<CampaignLocationSummary, "configurationVersion">;
+  total?: number;
+  limit?: number;
+  offset?: number;
+  hasMore?: boolean;
+  nextOffset?: number | null;
+  location?: Pick<CampaignLocationRecord, "id" | "version">;
+  configurationVersion?: number;
+  result?: "created" | "reactivated" | "duplicate" | "deactivated";
+  error?: string;
+};
+
+async function invokeCampaignLocationApi(body: Record<string, unknown>): Promise<CampaignLocationFunctionResponse> {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke<CampaignLocationFunctionResponse>(
+    "voiceup-campaign-locations",
+    { body }
+  );
+  const code = data?.error;
+  if (error || code) throw new CampaignLocationApiError(code || "server_error");
+  return data ?? {};
+}
+
+export async function readCampaignLocations(
+  scope: CampaignLocationScope,
+  options: { active?: boolean; parentPath?: Partial<CampaignLocationPath>; limit?: number; offset?: number } = {}
+): Promise<{
+  locations: CampaignLocationRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+  nextOffset: number | null;
+  configurationVersion: number;
+}> {
+  const response = await invokeCampaignLocationApi({
+    action: "read_campaign_locations",
+    ...scope,
+    ...options
+  });
+  return {
+    locations: (response.locations ?? []) as CampaignLocationRecord[],
+    total: response.total ?? 0,
+    limit: response.limit ?? 500,
+    offset: response.offset ?? 0,
+    hasMore: response.hasMore ?? false,
+    nextOffset: response.nextOffset ?? null,
+    configurationVersion: response.configurationVersion ?? 0
+  };
+}
+
+export async function readPublicCampaignLocationHierarchy(
+  campaignSlug: string,
+  parentPath: Partial<CampaignLocationPath>
+): Promise<{
+  locations: CampaignLocationHierarchyEntry[];
+  total: number;
+  configurationVersion: number;
+}> {
+  const client = requireSupabase();
+  const { data, error } = await client.functions.invoke<CampaignLocationFunctionResponse>(
+    "voiceup-public-campaign",
+    {
+      body: {
+        action: "read_campaign_location_hierarchy",
+        slug: campaignSlug,
+        parentPath
+      }
+    }
+  );
+  if (error || data?.error) throw new CampaignLocationApiError(data?.error || "server_error");
+  return {
+    locations: (data?.locations ?? []) as CampaignLocationHierarchyEntry[],
+    total: data?.total ?? 0,
+    configurationVersion: data?.configurationVersion ?? 0
+  };
+}
+
+export async function readCampaignLocationHierarchy(
+  scope: CampaignLocationScope,
+  parentPath: Partial<CampaignLocationPath>
+): Promise<{
+  locations: CampaignLocationHierarchyEntry[];
+  total: number;
+  configurationVersion: number;
+}> {
+  const response = await invokeCampaignLocationApi({
+    action: "read_campaign_location_hierarchy",
+    ...scope,
+    parentPath
+  });
+  return {
+    locations: (response.locations ?? []) as CampaignLocationHierarchyEntry[],
+    total: response.total ?? 0,
+    configurationVersion: response.configurationVersion ?? 0
+  };
+}
+
+export async function readCampaignLocationSummary(
+  scope: CampaignLocationScope
+): Promise<CampaignLocationSummary> {
+  const response = await invokeCampaignLocationApi({
+    action: "read_campaign_location_summary",
+    ...scope
+  });
+  if (!response.summary) throw new CampaignLocationApiError("server_error");
+  return {
+    ...response.summary,
+    configurationVersion: response.configurationVersion ?? 0
+  };
+}
+
+export async function addCampaignLocation(
+  scope: CampaignLocationScope,
+  path: CampaignLocationPath,
+  idempotencyKey: string
+): Promise<{ location: Pick<CampaignLocationRecord, "id" | "version">; configurationVersion: number; result: string }> {
+  const response = await invokeCampaignLocationApi({
+    action: "add_campaign_location",
+    ...scope,
+    path,
+    idempotencyKey
+  });
+  if (!response.location || !response.result) throw new CampaignLocationApiError("server_error");
+  return {
+    location: response.location,
+    configurationVersion: response.configurationVersion ?? 0,
+    result: response.result
+  };
+}
+
+export async function deactivateCampaignLocation(
+  scope: CampaignLocationScope,
+  locationId: string,
+  expectedVersion: number
+): Promise<{ location: Pick<CampaignLocationRecord, "id" | "version">; configurationVersion: number }> {
+  const response = await invokeCampaignLocationApi({
+    action: "deactivate_campaign_location",
+    ...scope,
+    locationId,
+    expectedVersion
+  });
+  if (!response.location) throw new CampaignLocationApiError("server_error");
+  return {
+    location: response.location,
+    configurationVersion: response.configurationVersion ?? 0
+  };
+}
+
+export interface CampaignLocationImportRow extends CampaignLocationPath {
+  rowNumber: number;
+  normalizedPath?: string;
+  leafLevel?: CampaignLocationLeafLevel;
+  classification: string;
+  errorCode?: string | null;
+}
+
+export interface CampaignLocationImport {
+  importId: string;
+  status: "validating" | "validation_failed" | "ready" | "importing" | "completed" | "failed";
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateInFileRows: number;
+  existingRows: number;
+  reactivationRows: number;
+  masterConflictRows: number;
+  configurationVersion?: number;
+  rows: CampaignLocationImportRow[];
+}
+
+export async function validateCampaignLocationImport(
+  scope: CampaignLocationScope,
+  rows: CampaignLocationPath[],
+  idempotencyKey: string,
+  contentHash: string
+): Promise<CampaignLocationImport> {
+  return await invokeCampaignLocationApi({
+    action: "validate_campaign_location_import", ...scope, rows, idempotencyKey, contentHash
+  }) as CampaignLocationImport;
+}
+
+export async function commitCampaignLocationImport(
+  scope: CampaignLocationScope, importId: string, idempotencyKey: string, contentHash: string
+): Promise<{ importId: string; configurationVersion: number }> {
+  return await invokeCampaignLocationApi({
+    action: "commit_campaign_location_import", ...scope, importId, idempotencyKey, contentHash
+  }) as { importId: string; configurationVersion: number };
+}
+
+export async function readCampaignLocationImport(
+  scope: CampaignLocationScope, importId: string
+): Promise<CampaignLocationImport> {
+  return await invokeCampaignLocationApi({
+    action: "read_campaign_location_import", ...scope, importId
+  }) as CampaignLocationImport;
+}
+
+export async function requestOtp(
+  phone: string,
+  purpose: "public-signing" | "onboarding",
+  metadata: Record<string, unknown> = {}
+): Promise<OtpRequestResult> {
+  const normalizedPhone = normalizePhone(phone);
+  if (!isValidPublicPhone(normalizedPhone)) {
+    throw new PublicSignatureSubmissionError("Enter a valid phone number.", "invalid_phone");
+  }
+  if (supabase) {
+    const { data, error, response } = await supabase.functions.invoke<{
+      challengeId?: string;
+      resendAfterSeconds?: number;
+      message?: string;
+      otp?: string;
+      verificationMethod?: "phone_otp" | "screen_otp";
+      error?: string;
+      code?: string;
+    }>("voiceup-otp", {
+      body: {
+        action: "send",
+        phone: normalizedPhone,
+        purpose,
+        metadata
+      }
+    });
+    if (error || data?.error || !data?.challengeId) {
+      const safeError = error ? await readPublicSigningBackendError(response) : null;
+      const publicError = trustedPublicError(
+        data?.error ? { message: data.error, code: data.code } : safeError,
+        "Verification code could not be sent. Please retry."
+      );
+      throw new PublicSignatureSubmissionError(
+        publicError.message,
+        publicError.code
+      );
+    }
+    const invokeBody = await readClonedInvokeJson(response);
+    const returnedOtp = extractReturnedOtp(invokeBody) ?? extractReturnedOtp(data);
+    return {
+      challengeId: data.challengeId,
+      resendAfterSeconds: data.resendAfterSeconds ?? 30,
+      message: data.message ?? "Verification code sent.",
+      otp: returnedOtp,
+      screenOtp: data.verificationMethod === "screen_otp" ? returnedOtp : undefined,
+      verificationMethod: data.verificationMethod,
+      developmentOtp: data.verificationMethod === "screen_otp" ? undefined : returnedOtp
+    };
+  }
+  if (purpose === "public-signing") {
+    throw new PublicSignatureSubmissionError(
+      "Verification service is temporarily unavailable. Please retry.",
+      "server_error"
+    );
+  }
+  if (!import.meta.env.DEV) {
+    throw new PublicSignatureSubmissionError(
+      "Verification service is temporarily unavailable. Please retry.",
+      "server_error"
+    );
+  }
+  const challenges = readLocalOtpChallenges().filter((item) => item.expiresAt > Date.now());
+  const challengeId = createId("otp");
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  challenges.push({
+    challengeId,
+    phone: normalizedPhone,
+    purpose,
+    code,
+    expiresAt: Date.now() + 10 * 60 * 1000,
+    attempts: 0
+  });
+  writeLocalOtpChallenges(challenges);
+  return {
+    challengeId,
+    resendAfterSeconds: 30,
+    message: metadata && Object.keys(metadata).length >= 0 ? "Development OTP generated." : "Development OTP generated.",
+    developmentOtp: code
+  };
+}
+
+export async function verifyOtp(
+  challengeId: string,
+  phone: string,
+  code: string,
+  purpose: "public-signing" | "onboarding",
+  metadata: Record<string, unknown> = {}
+): Promise<OtpVerifyResult> {
+  const normalizedPhone = normalizePhone(phone);
+  if (!isValidPublicPhone(normalizedPhone)) {
+    throw new PublicSignatureSubmissionError("Enter a valid phone number.", "invalid_phone");
+  }
+  if (supabase) {
+    const { data, error, response } = await supabase.functions.invoke<{
+      verified?: boolean;
+      verificationToken?: string;
+      verificationMethod?: "phone_otp" | "screen_otp";
+      phoneOwnershipVerified?: boolean;
+      message?: string;
+      error?: string;
+      code?: string;
+    }>("voiceup-otp", {
+      body: {
+        action: "verify",
+        challengeId,
+        phone: normalizedPhone,
+        code,
+        purpose,
+        metadata
+      }
+    });
+    if (error || data?.error || !data?.verified || !data.verificationToken) {
+      const safeError = error ? await readPublicSigningBackendError(response) : null;
+      const publicError = trustedPublicError(
+        data?.error ? { message: data.error, code: data.code } : safeError,
+        "Phone verification failed. Please retry."
+      );
+      throw new PublicSignatureSubmissionError(
+        publicError.message,
+        publicError.code
+      );
+    }
+    return {
+      verified: true,
+      verificationToken: data.verificationToken,
+      verificationMethod: data.verificationMethod,
+      phoneOwnershipVerified: data.phoneOwnershipVerified,
+      message: data.message ?? "Verification complete."
+    };
+  }
+  if (purpose === "public-signing") {
+    throw new PublicSignatureSubmissionError(
+      "Verification service is temporarily unavailable. Please retry.",
+      "server_error"
+    );
+  }
+  const challenges = readLocalOtpChallenges().filter((item) => item.expiresAt > Date.now());
+  const challenge = challenges.find(
+    (item) => item.challengeId === challengeId && item.phone === normalizedPhone && item.purpose === purpose
+  );
+
+  if (!challenge) {
+    throw new Error("OTP challenge not found.");
+  }
+
+  if (challenge.code !== String(code).trim()) {
+    challenge.attempts += 1;
+    writeLocalOtpChallenges(challenges);
+    throw new Error("Invalid OTP.");
+  }
+
+  const nextChallenges = challenges.filter((item) => item.challengeId !== challengeId);
+  writeLocalOtpChallenges(nextChallenges);
+
+  const result: OtpVerifyResult = {
+    verified: true,
+    verificationToken: createSecureToken("otpv"),
+    verificationMethod: "phone_otp",
+    phoneOwnershipVerified: true,
+    message: metadata && Object.keys(metadata).length >= 0 ? "Verification complete." : "Verification complete."
+  };
+  return result;
+}
+
+export async function createTrialWorkspace(payload: unknown): Promise<{
+  result: {
+    campaign: Campaign;
+    organization: Organization;
+    userId: string;
+    tenantId: string;
+    workspaceId: string;
+    shareUrl: string;
+    shortUrl: string;
+    qrValue: string;
+    trialEndsAt: string;
+    restored: boolean;
+  };
+  state: VoiceupRemoteState;
+  customerSessionToken: string;
+}> {
+  const body = (payload ?? {}) as Record<string, unknown>;
+  const workspaceId = createId("workspace");
+  const userId = createId("guest");
+  const tenantId = createId("tenant");
+  const campaignId = createId("cmp");
+  const campaignName = String(body.campaignName ?? "");
+  const campaignGoal = String(body.campaignGoal ?? "");
+  const businessName = String(body.businessName ?? "Voiceup campaign").trim() || "Voiceup campaign";
+  const country = String(body.country ?? "India").trim() || "India";
+  const email = String(body.email ?? "").trim();
+  const title = toTitleCase(campaignName || campaignGoal || "New Voiceup Campaign");
+  const slug = slugifyValue(campaignName || campaignGoal || `voice-campaign-${Date.now()}`);
+  const goal = inferGoal(campaignGoal);
+  const trialEndsAt = addDaysIso(1);
+
+  const organization: Organization = {
+    id: tenantId,
+    name: businessName,
+    plan: "Free Trial",
+    subscriptionStatus: "Trial",
+    trialEndsAt,
+    monthlySignatureLimit: 100,
+    monthlyScanLimit: 10,
+    monthlyMessageLimit: 0,
+    bonusSignatureCredits: 0,
+    bonusScanCredits: 0,
+    bonusMessageCredits: 0,
+    customBranding: false,
+    customDomain: "",
+    ownerEmail: email,
+    billingEmail: email,
+    seats: 1,
+    paymentReference: "",
+    billingCadence: "monthly",
+    campaignDurationDays: 30,
+    supporterCountEstimate: Math.min(goal, 100),
+    enabledFeatureKeys: ["public_signing", "basic_reports"],
+    prepaidWalletEnabled: false,
+    prepaidWalletMode: "online_payment",
+    signaturePriceInr: 0,
+    signatureWalletBalanceInr: 0,
+    signaturePinPrefix: "VUP"
+  };
+
+  const campaign: Campaign = {
+    id: campaignId,
+    title,
+    slug,
+    category: inferCategory(`${campaignName} ${campaignGoal}`),
+    description: `${businessName} is launching a public campaign in ${country} to ${campaignGoal} Add your voice and help build visible support.`,
+    appealContent: `I support "${title}" and request the relevant authority, community leaders, and stakeholders to take timely action. ${campaignGoal}`,
+    authorityTargetLevel: "country",
+    authoritySelectionMode: "admin_enforced",
+    selectedAuthorityId: "",
+    geographyMode: "global",
+    campaignScope: country === "Other" ? "global" : "national",
+    country,
+    donationEnabled: false,
+    donationLockedBySaas: false,
+    donationCaption: "Support this campaign with a voluntary contribution.",
+    donationUpiId: "",
+    donationQrImage: "",
+    donationPaymentDetails: "",
+    donationAllowOneTime: true,
+    donationAllowRecurring: false,
+    state: "",
+    district: "",
+    block: "",
+    panchayat: "",
+    location: country,
+    postalCode: "",
+    locationReference: createUnverifiedLocationReference(
+      { country },
+      "onboarding_country"
+    ),
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: addDaysIso(30),
+    goal,
+    status: "Published",
+    consentText: "I consent to this organization storing my details and using them only for this campaign.",
+    requiredFields: ["name", "phone"],
+    requiredFieldsLockedBySaas: false,
+    authorityLockedBySaas: false,
+    publishingLockedBySaas: false,
+    goalLockedBySaas: false,
+    datesLockedBySaas: false,
+    maxSignersAllowed: Math.min(goal, 100),
+    maxScansAllowed: 10,
+    shareUrl: `${window.location.origin.replace(/\/$/, "")}/c/${slug}`,
+    adminUrl: `${window.location.origin.replace(/\/$/, "")}/admin/${slug}`,
+    adminEmail: email,
+    adminPasscode: createSecureToken("camp").slice(0, 18),
+    qrLabel: "VOICEUP-GLOBAL-TRIAL",
+    heroImage: "",
+    heroImagePosition: "center center",
+    heroImageZoom: 120,
+    campaignVideoUrl: "",
+    socialShareText: `Add your voice to ${title}.`,
+    thankYouMessage: `Thank you for signing ${title}. Share this campaign: {{url}}`,
+    participantUpdateMessage: `{{campaign}} update: {{verified}} verified supporters have joined. Share this campaign: {{url}}`,
+    signerLocationRestrictionLevel: "none"
+  };
+
+  const state: VoiceupRemoteState = {
+    campaigns: [campaign],
+    activeCampaignId: campaignId,
+    signers: [],
+    authorities: [],
+    organization,
+    scanItems: [],
+    locationOverrides: {},
+    locationOverrideReferences: {},
+    locationDeletions: { districts: [], blocks: [], panchayats: [] },
+    auditLogs: [
+      {
+        id: createId("audit"),
+        action: "campaign.created",
+        actor: email || String(body.mobileNumber ?? ""),
+        campaignId,
+        description: `Created public onboarding campaign "${title}"`,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          userId,
+          tenantId,
+          workspaceId,
+          source: String((body.tracking as Record<string, unknown> | undefined)?.utmSource ?? "direct"),
+          deviceId: String((body.tracking as Record<string, unknown> | undefined)?.deviceId ?? "")
+        }
+      },
+      {
+        id: createId("audit"),
+        action: "campaign.published",
+        actor: email || String(body.mobileNumber ?? ""),
+        campaignId,
+        description: "Published campaign from 60-second onboarding",
+        createdAt: new Date().toISOString(),
+        metadata: { shareUrl: campaign.shareUrl, trialEndsAt }
+      }
+    ],
+    integrations: {
+      razorpayKeyId: "",
+      razorpayPlanReference: "",
+      whatsappProvider: "Not configured",
+      whatsappSenderId: "",
+      smsProvider: "Not configured",
+      smsSenderId: "",
+      emailProvider: "Not configured",
+      emailSender: "",
+      storageProvider: "Supabase Storage",
+      storageBucket: "voiceup-campaign-media",
+      analyticsProvider: "Vercel Analytics",
+      analyticsKey: ""
+    },
+    commercialPackages: []
+  };
+
+  await saveWorkspaceState(workspaceId, state);
+
+  const customerSessionToken = createSecureToken("cust");
+  writeCustomerSessionToken(customerSessionToken, workspaceId);
+
+  return {
+    result: {
+      campaign,
+      organization,
+      userId,
+      tenantId,
+      workspaceId,
+      shareUrl: campaign.shareUrl,
+      shortUrl: campaign.shareUrl,
+      qrValue: campaign.shareUrl,
+      trialEndsAt,
+      restored: false
+    },
+    state,
+    customerSessionToken
+  };
+}
+
+export async function submitPublicSignatureSecure(
+  slug: string,
+  signer: unknown,
+  consent?: {
+    consentAccepted: boolean;
+    consentText: string;
+    consentVersion: string;
+    consentAcceptedAt: string;
+    consentSource: "public_web";
+  },
+  communicationConsent = false,
+  idempotencyKey = createPublicParticipationIdempotencyKey("support")
+): Promise<{
+  signer: Signer;
+  message: string;
+  metrics: PublicCampaignPayload["metrics"];
+  supporterAccountClaimGrant?: SupporterAccountClaimGrant;
+}> {
+  const result = await mutatePublicParticipation({
+    slug,
+    action: "submit_support",
+    signer,
+    consent,
+    communicationConsent,
+    idempotencyKey
+  });
+  if (!result.signer) throw new Error("Signature submission failed.");
+  return {
+    signer: result.signer,
+    message: result.message,
+    metrics: result.metrics,
+    supporterAccountClaimGrant: result.supporterAccountClaimGrant
+  };
+}
+
+export function createPublicParticipationIdempotencyKey(scope: string): string {
+  const random = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `${scope}:${random}`;
+}
+
+export async function mutatePublicParticipation(input: {
+  slug: string;
+  action: PublicParticipationAction;
+  phone?: string;
+  otpVerificationToken?: string;
+  idempotencyKey: string;
+  signer?: unknown;
+  consent?: {
+    consentAccepted: boolean;
+    consentText: string;
+    consentVersion: string;
+    consentAcceptedAt: string;
+    consentSource: "public_web";
+  };
+  payload?: {
+    profile?: Record<string, unknown>;
+    consents?: Record<string, {
+      granted: boolean;
+      version: string;
+      policyId?: string;
+    }>;
+    application?: Record<string, unknown>;
+    baseUpdatedAt?: string;
+  };
+  communicationConsent?: boolean;
+}): Promise<PublicParticipationResult> {
+  const client = requireSupabase();
+  const { data, error, response } = await client.functions.invoke<
+    PublicParticipationResult & { error?: string; code?: string; retryable?: boolean }
+  >("voiceup-public-signing", {
+    body: {
+      slug: input.slug,
+      action: input.action,
+      phone: input.phone,
+      otpVerificationToken: input.otpVerificationToken,
+      idempotencyKey: input.idempotencyKey,
+      signer: input.signer,
+      consent: input.consent,
+      payload: input.payload,
+      communicationConsent: input.communicationConsent,
+      clientVersion: "public-participation-v1"
+    }
+  });
+  if (error) {
+    throw await readPublicParticipationInvokeError(error, response);
+  }
+  if (!data) {
+    throw new Error("Participation request failed.");
+  }
+  if (data.error) {
+    throw new PublicSignatureSubmissionError(data.error, data.code);
+  }
+  return data;
+}
+
+export async function submitParticipationRequest(input: {
+  slug: string;
+  phone: string;
+  otpVerificationToken: string;
+  idempotencyKey: string;
+  request: ParticipationRequestSubmission;
+}): Promise<{ request: ParticipationRequest; message: string }> {
+  const client = requireSupabase();
+  const { data, error, response } = await client.functions.invoke<{
+    request?: ParticipationRequest;
+    message?: string;
+    error?: string;
+    code?: string;
+    retryable?: boolean;
+  }>("voiceup-public-signing", {
+    body: {
+      slug: input.slug,
+      action: "submit_participation_request",
+      phone: input.phone,
+      otpVerificationToken: input.otpVerificationToken,
+      idempotencyKey: input.idempotencyKey,
+      payload: { request: input.request },
+      clientVersion: "public-participation-v1"
+    }
+  });
+  if (error) {
+    throw await readPublicParticipationInvokeError(error, response);
+  }
+  if (!data) {
+    throw new Error("Participation request failed.");
+  }
+  if (data.error) {
+    throw new PublicSignatureSubmissionError(data.error, data.code);
+  }
+  if (!data.request || !data.message) {
+    throw new Error("Participation request response was incomplete.");
+  }
+  return { request: data.request, message: data.message };
+}
+
+export async function readOwnParticipationRequests(input: {
+  slug: string;
+  phone: string;
+  otpVerificationToken: string;
+}): Promise<PublicParticipationRequest[]> {
+  const client = requireSupabase();
+  const { data, error, response } = await client.functions.invoke<{
+    requests?: PublicParticipationRequest[];
+    error?: string;
+    code?: string;
+  }>("voiceup-public-signing", {
+    body: {
+      slug: input.slug,
+      action: "read_participation_requests",
+      phone: input.phone,
+      otpVerificationToken: input.otpVerificationToken,
+      clientVersion: "public-participation-v1"
+    }
+  });
+  if (error) {
+    throw await readPublicParticipationInvokeError(error, response);
+  }
+  if (!data) {
+    throw new Error("Movement requests could not be loaded.");
+  }
+  if (data.error) {
+    throw new PublicSignatureSubmissionError(data.error, data.code);
+  }
+  if (!Array.isArray(data.requests)) {
+    throw new Error("Movement request response was incomplete.");
+  }
+  return data.requests;
+}
+
+export async function uploadPublicSupporterPhoto(input: {
+  slug: string;
+  supporterId: string;
+  phone: string;
+  otpVerificationToken: string;
+  file: File;
+}): Promise<{ signer: Signer; message: string }> {
+  const client = requireSupabase();
+  if (!input.file.type.startsWith("image/")) throw new Error("Choose an image file.");
+  if (input.file.size <= 0 || input.file.size > 5 * 1024 * 1024) {
+    throw new Error("Supporter photos must be 5 MB or smaller.");
+  }
+  const commonBody = {
+    slug: input.slug,
+    supporterId: input.supporterId,
+    phone: input.phone,
+    otpVerificationToken: input.otpVerificationToken
+  };
+  const { data: prepared, error: prepareError, response: prepareResponse } = await client.functions.invoke<{
+    path?: string;
+    token?: string;
+    error?: string;
+    code?: string;
+  }>("voiceup-public-signing", {
+    body: {
+      ...commonBody,
+      action: "prepare_supporter_photo",
+      idempotencyKey: createPublicParticipationIdempotencyKey("photo-prepare"),
+      contentType: input.file.type,
+      fileSize: input.file.size
+    }
+  });
+  if (prepareError || prepared?.error || !prepared?.path || !prepared.token) {
+    const safeError = prepareError ? await readPublicSigningBackendError(prepareResponse) : null;
+    const publicError = trustedPublicError(
+      prepared?.error ? { message: prepared.error, code: prepared.code } : safeError,
+      "Private photo upload could not be prepared."
+    );
+    throw new PublicSignatureSubmissionError(
+      publicError.message,
+      publicError.code
+    );
+  }
+
+  const { error: uploadError } = await client.storage
+    .from("campaign-private")
+    .uploadToSignedUrl(prepared.path, prepared.token, input.file, {
+      contentType: input.file.type,
+      upsert: false
+    });
+  if (uploadError) throw new Error("Private photo upload failed. Please retry.");
+
+  const { data: attached, error: attachError, response: attachResponse } = await client.functions.invoke<{
+    signer?: Signer;
+    message?: string;
+    error?: string;
+    code?: string;
+  }>("voiceup-public-signing", {
+    body: {
+      ...commonBody,
+      action: "attach_supporter_photo",
+      idempotencyKey: createPublicParticipationIdempotencyKey("photo-attach"),
+      path: prepared.path
+    }
+  });
+  if (attachError || attached?.error || !attached?.signer) {
+    const safeError = attachError ? await readPublicSigningBackendError(attachResponse) : null;
+    const publicError = trustedPublicError(
+      attached?.error ? { message: attached.error, code: attached.code } : safeError,
+      "Private photo could not be attached."
+    );
+    throw new PublicSignatureSubmissionError(
+      publicError.message,
+      publicError.code
+    );
+  }
+  return {
+    signer: attached.signer,
+    message: attached.message ?? "Private profile photo saved."
+  };
+}
+
+export class PublicSignatureSubmissionError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "PublicSignatureSubmissionError";
+    this.code = code;
+  }
+}
+
+interface PublicParticipationErrorResponse {
+  clone?: () => PublicParticipationErrorResponse;
+  json?: () => Promise<unknown>;
+}
+
+export async function readPublicParticipationInvokeError(
+  invokeError: unknown,
+  response?: PublicParticipationErrorResponse
+): Promise<PublicSignatureSubmissionError> {
+  const contextualResponse =
+    response ??
+    (
+      invokeError &&
+      typeof invokeError === "object" &&
+      "context" in invokeError
+        ? (invokeError as { context?: PublicParticipationErrorResponse }).context
+        : undefined
+    );
+  const safeError = await readPublicSigningBackendError(contextualResponse);
+  const publicError = trustedPublicError(safeError, "Participation request failed. Please retry.");
+  return new PublicSignatureSubmissionError(publicError.message, publicError.code);
+}
+
+export async function uploadFileToStorage(bucket: string, path: string, file: File) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const user = await getCurrentAuthUser();
+  if (!user) {
+    throw new Error("Authenticated workspace access is required before uploading files.");
+  }
+
+  const workspaceId = await resolveWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("Authenticated user does not have a workspace membership.");
+  }
+  const workspaceScopedPath = path.startsWith(`${workspaceId}/`)
+    ? path
+    : `${workspaceId}/${path}`;
+
+  const { error } = await supabase.storage.from(bucket).upload(workspaceScopedPath, file, {
+    cacheControl: "3600",
+    contentType: file.type || "application/octet-stream",
+    upsert: false
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(workspaceScopedPath);
+
+  return {
+    path: workspaceScopedPath,
+    publicUrl: data.publicUrl
+  };
+}
+
+export async function uploadPrivateFileToStorage(bucket: string, path: string, file: File) {
+  if (!supabase) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const user = await getCurrentAuthUser();
+  if (!user) {
+    throw new Error("Authenticated workspace access is required before uploading files.");
+  }
+
+  const workspaceId = await resolveSecureStorageWorkspaceId();
+  if (!workspaceId) {
+    throw new Error("Authenticated user does not have a workspace membership.");
+  }
+  const workspaceScopedPath = path.startsWith(`${workspaceId}/`)
+    ? path
+    : `${workspaceId}/${path}`;
+
+  const { error } = await supabase.storage.from(bucket).upload(workspaceScopedPath, file, {
+    cacheControl: "3600",
+    contentType: file.type || "application/octet-stream",
+    upsert: false
+  });
+  if (error) throw new Error(error.message);
+
+  return { path: workspaceScopedPath };
+}
+
+export async function createSignedStorageUrl(bucket: string, path: string, expiresInSeconds = 300) {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const user = await getCurrentAuthUser();
+  if (!user) throw new Error("Authenticated workspace access is required before opening files.");
+  const workspaceId = await resolveSecureStorageWorkspaceId();
+  if (!workspaceId || !path.startsWith(`${workspaceId}/`)) {
+    throw new Error("The requested file is outside the authenticated workspace.");
+  }
+
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(path, Math.max(60, Math.min(expiresInSeconds, 600)));
+  if (error || !data?.signedUrl) throw new Error(error?.message || "Unable to create signed file URL.");
+  return data.signedUrl;
+}

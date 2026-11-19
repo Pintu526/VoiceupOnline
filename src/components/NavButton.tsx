@@ -10,6 +10,7 @@ export type Tab =
   | "movement"
   | "coordinators"
   | "growth"
+  | "gaupoints"
   | "scans"
   | "reports"
   | "engagement"

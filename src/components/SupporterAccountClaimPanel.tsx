@@ -5,6 +5,7 @@ import {
   loginSupporterWithEmail,
   logoutSupporter,
   registerSupporterWithEmailForContext,
+  verifySupporterSignupOtp,
   requestSupporterPasswordRecovery,
   SupporterAuthError,
   type SupporterIdentity
@@ -21,7 +22,7 @@ import {
 import { getCampaignLoginPath } from "../campaignAuthContext.ts";
 import { PasswordField } from "../ui/PasswordField";
 
-type ClaimAuthMode = "register" | "sign_in";
+type ClaimAuthMode = "register" | "sign_in" | "verify_signup_otp";
 
 export interface SupporterAccountClaimCopy {
   eyebrow: string;
@@ -108,6 +109,7 @@ export function SupporterAccountClaimPanel({
   const email = signingEmail;
   const campaignLoginPath = getCampaignLoginPath({ campaignId, campaignSlug });
   const [password, setPassword] = useState("");
+  const [signupOtp, setSignupOtp] = useState("");
   const [authMode, setAuthMode] = useState<ClaimAuthMode>("register");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -172,11 +174,9 @@ export function SupporterAccountClaimPanel({
     setIsError(false);
     setMessage(openDashboard ? copy.openingDashboard : "");
     onLinked(link);
-    if (openDashboard) {
-      window.setTimeout(() => {
-        window.location.assign(`/account/supporter/${encodeURIComponent(link.accountId)}`);
-      }, 700);
-    }
+    // Keep the completed six-step campaign journey in the current tab.
+    // The explicit dashboard link below opens a separate tab, avoiding
+    // popup blockers triggered by asynchronous account-link completion.
   };
 
   const linkForIdentity = async (accountEmail: string) => {
@@ -235,8 +235,26 @@ export function SupporterAccountClaimPanel({
     try {
       await registerSupporterWithEmailForContext(email, password, campaignLoginPath);
       setPassword("");
-      setAuthMode("sign_in");
-      setMessage(copy.registrationSent);
+      setAuthMode("verify_signup_otp");
+       setSignupOtp("");
+      setMessage("Enter the verification code sent to your email.");
+    } catch (error) {
+      setIsError(true);
+      setMessage(safeMessage(error, copy));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifySignupOtpAndLink = async () => {
+    setBusy(true);
+    setIsError(false);
+    setMessage("Verifying your email code...");
+    try {
+      const verified = await verifySupporterSignupOtp(email, signupOtp);
+      setIdentity(verified);
+      setSignupOtp("");
+      await linkForIdentity(verified.email);
     } catch (error) {
       setIsError(true);
       setMessage(safeMessage(error, copy));
@@ -312,7 +330,7 @@ export function SupporterAccountClaimPanel({
           <div><dt>{copy.supporterId}</dt><dd><code>{supporterId}</code></dd></div>
           <div><dt>{copy.campaign}</dt><dd>{campaignTitle}</dd></div>
         </dl>
-        <a className="secondary-link-button" href={`/account/supporter/${encodeURIComponent(linked.accountId)}`}>
+        <a className="secondary-link-button" href={`/account/supporter/${encodeURIComponent(linked.accountId)}`} target="_blank" rel="noopener noreferrer">
           <UserRound size={18} /> {copy.openProfile}
         </a>
         {message && <p className="public-supporter-account-message" data-tone={isError ? "error" : "status"} role="status" aria-live="polite">{message}</p>}
@@ -331,7 +349,27 @@ export function SupporterAccountClaimPanel({
         <div><dt>{copy.signingEmail}</dt><dd>{signingEmail}</dd></div>
         {identity && <div><dt>{copy.accountEmail}</dt><dd>{identity.email}</dd></div>}
       </dl>
-      {identity ? (
+      {authMode === "verify_signup_otp" && !linked ? (
+        <div className="public-supporter-account-form" aria-busy={busy}>
+          <p>Enter the verification code sent to <strong>{signingEmail}</strong>.</p>
+          <label htmlFor="supporter-signup-otp">Email verification code</label>
+          <input
+            id="supporter-signup-otp"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={10}
+            value={signupOtp}
+            disabled={busy}
+            onChange={(event) => setSignupOtp(event.target.value.replace(/\D/g, ""))}
+          />
+          <div className="public-post-sign-actions">
+            <button className="primary-button" type="button" disabled={busy || !/^\d{6,10}$/.test(signupOtp)} onClick={() => void verifySignupOtpAndLink()}>
+              Verify & Continue
+            </button>
+          </div>
+        </div>
+      ) : identity ? (
         <div className="public-supporter-account-session">
           <p>{copy.signedInAs} <strong>{identity.email}</strong></p>
           <div className="public-post-sign-actions">

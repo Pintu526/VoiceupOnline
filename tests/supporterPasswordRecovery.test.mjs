@@ -39,7 +39,7 @@ function fakeRecoveryClient(overrides = {}) {
         const eventUser = overrides.eventUser ?? user;
         authCallback(event, { user: eventUser });
         return overrides.exchange ?? {
-          data: { user, session: { user }, redirectType: "recovery" },
+          data: { user, session: { user } },
           error: null
         };
       },
@@ -77,7 +77,7 @@ test("supporter recovery email uses the isolated localhost reset route", async (
   }]);
 });
 
-test("a valid recovery requires PASSWORD_RECOVERY, recovery redirect type, and matching remote user", async () => {
+test("a valid recovery requires PASSWORD_RECOVERY and matching remote user without undocumented redirectType", async () => {
   const code = "valid-supporter-recovery-code-1234";
   const request = readSupporterRecoveryRequest(`?code=${code}`, "");
   const { client, calls } = fakeRecoveryClient();
@@ -90,6 +90,17 @@ test("a valid recovery requires PASSWORD_RECOVERY, recovery redirect type, and m
   assert.deepEqual(calls.update, [{ password: "a-new-password-with-12-characters" }]);
   assert.deepEqual(calls.signOut, [{ scope: "local" }]);
   assert.equal(calls.unsubscribe, 1);
+});
+
+test("a forged redirectType cannot elevate an ordinary sign-in event", async () => {
+  const user = { id: "supporter-recovery-user", email: "supporter@example.com" };
+  const { client, calls } = fakeRecoveryClient({
+    event: "SIGNED_IN",
+    exchange: { data: { user, session: { user }, redirectType: "recovery" }, error: null }
+  });
+  const controller = createSupporterRecoveryController(client);
+  assert.equal(await controller.establish(readSupporterRecoveryRequest("?code=ordinary-sign-in-code-12345", "")), "invalid");
+  assert.deepEqual(calls.update, []);
 });
 
 test("an ordinary supporter sign-in event cannot open the recovery gate", async () => {
@@ -150,7 +161,7 @@ test("supporter recovery remains isolated from GSAA/admin and is included as a s
   assert.ok(page.indexOf("supporter-password-recovery-bootstrap.js") < page.indexOf("<body>"));
   assert.match(bootstrap, /history\.replaceState\(null, "", window\.location\.pathname\)/);
   assert.match(resetSource, /event === "PASSWORD_RECOVERY"/);
-  assert.match(resetSource, /data\.redirectType !== "recovery"/);
+  assert.doesNotMatch(resetSource, /data\.redirectType/);
   assert.match(resetSource, /signOut\(\{ scope: "local" \}\)/);
   assert.doesNotMatch(resetSource, /signOutSupabase|updatePasswordFromRecovery|SaasAdmin/);
   assert.doesNotMatch(appSource, /supporter-reset-password|SupporterPasswordReset/);

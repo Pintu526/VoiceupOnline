@@ -1,0 +1,993 @@
+✔ activation embeds the reviewed migration body without changing migration history (3.7331ms)
+✔ SQL activation is atomically fenced to Development and verifies every queue boundary (3.2553ms)
+✔ retry schedule uses one Development URL and only a dedicated trigger secret (0.6177ms)
+✔ deployment script refuses non-Development targets and preserves per-function JWT policy (0.5985ms)
+✔ all exact custom secrets are gated without embedding a credential value (0.4927ms)
+✔ worker trigger authentication is constant-time and separate from database service authority (0.5651ms)
+✖ the campaign container offers accessible support and sign-in paths without changing six-step signing (9.1059ms)
+✖ inline auth reuses verified Supabase email auth, recovery, and authoritative campaign routing (1.6433ms)
+✔ campaign header account access opens the contextual account creation and login experience (3.6179ms)
+✖ optional claiming reuses the participation email and preserves memory-only server claiming (1.3377ms)
+✔ post-sign account access remains inside the signing journey without nesting forms (0.4693ms)
+✔ receipt SQL is private, canonical, idempotent, and retry-safe (1.8094ms)
+✔ backend-confirmed participation queues receipts fail-open after signing (0.5528ms)
+✔ receipt worker authenticates a dedicated scheduler secret and sends only safe participation content (1.3127ms)
+✔ new customer-journey copy remains structurally complete in English, Hindi, and Odia (25.0122ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 12
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 270.2647
+
+✖ failing tests:
+
+test at tests\productionCustomerJourney.test.mjs:26:1
+✖ the campaign container offers accessible support and sign-in paths without changing six-step signing (9.1059ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /campaign-participation-tabs/. Input:
+  
+  'import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";\n' +
+    'import {\n' +
+    '  ArrowRight,\n' +
+    '  Award,\n' +
+    '  BadgeCheck,\n' +
+    '  CalendarDays,\n' +
+    '  CheckCircle2,\n' +
+    '  ChevronDown,\n' +
+    '  ClipboardList,\n' +
+    '  Copy,\n' +
+    '  HeartHandshake,\n' +
+    '  Home,\n' +
+    '  Landmark,\n' +
+    '  LockKeyhole,\n' +
+    '  LogIn,\n' +
+    '  LogOut,\n' +
+    '  LayoutDashboard,\n' +
+    '  Mail,\n' +
+    '  MapPin,\n' +
+    '  MessageCircle,\n' +
+    '  QrCode,\n' +
+    '  Share2,\n' +
+    '  ShieldCheck,\n' +
+    '  Smartphone,\n' +
+    '  UserRound,\n' +
+    '  Users,\n' +
+    '  Volume2,\n' +
+    '  VolumeX,\n' +
+    '  X\n' +
+    '} from "lucide-react";\n' +
+    'import type {\n' +
+    '  AuthorityRule,\n' +
+    '  Campaign,\n' +
+    '  Organization,\n' +
+    '  ParticipationRequestLevel,\n' +
+    '  ParticipationRequestSubmission,\n' +
+    '  PublicParticipationRequest,\n' +
+    '  Signer,\n' +
+    '  SignerRequiredField\n' +
+    '} from "../types";\n' +
+    'import { getConfiguredGrowthShareMessages } from "../growth/configuration";\n' +
+    'import type { GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";\n' +
+    'import type { SupporterGrowthPortalModel } from "../growth/tree";\n' +
+    'import type {\n' +
+    '  LocationDeletions,\n' +
+    '  LocationOverrides,\n' +
+    '  LocationWithPin\n' +
+    '} from "../geography";\n' +
+    'import type { getCampaignMetrics } from "../lib";\n' +
+    'import { Panel } from "../ui/Panel";\n' +
+    'import { Field } from "../ui/Field";\n' +
+    'import { DonationCard } from "../components/DonationCard";\n' +
+    'import { IndiaLocationFields, preloadIndiaLocationFields } from "../components/IndiaLocationFieldsLazy";\n' +
+    'import { resolveIndiaLocationCatalog } from "../components/indiaLocationCatalogResolver";\n' +
+    'import { usePublicCampaignLocationCatalog } from "../components/usePublicCampaignLocationCatalog";\n' +
+    'import { GlobalLocationFields } from "../components/GlobalLocationFields";\n' +
+    'import { ReferralQrPreview } from "../components/ReferralQrPreview";\n' +
+    'import { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";\n' +
+    'import { GauSammanApprovedContent } from "../components/GauSammanApprovedContent";\n' +
+    'import { PublicCampaignCanonicalLocationDisplay } from "../businessOs/location/ui";\n' +
+    'import {\n' +
+    '  createObservedLocationReference,\n' +
+    '  createUnverifiedLocationReference\n' +
+    '} from "../businessOs/location/persistence/LocationReferenceGovernance.ts";\n' +
+    'import type { PersistedLocationReference } from "../businessOs/location/persistence/PersistedLocationReference.ts";\n' +
+    'import {\n' +
+    '  PublicSupporterPhoto,\n' +
+    '  type PublicSupporterPhotoCopy\n' +
+    '} from "../components/PublicSupporterPhoto";\n' +
+    'import { SupporterAccountClaimPanel } from "../components/SupporterAccountClaimPanel";\n' +
+    'import { CampaignInlineAuthPanel } from "../components/CampaignInlineAuthPanel";\n' +
+    'import { SupporterGrowthCenter, VoiceUpPublicPromotions } from "../components/SupporterGrowthCenter";\n' +
+    'import type {\n' +
+    '  SupporterAccountClaimGrant,\n' +
+    '  SupporterAccountLink\n' +
+    '} from "../supporterAccountClaim";\n' +
+    'import { getCampaignLoginPath } from "../campaignAuthContext";\n' +
+    'import { getCurrentSupporterIdentity, getSupporterAuthClient, logoutSupporter } from "../supporterAuth";\n' +
+    'import "../gsaaV3AccountHeader.css";\n' +
+    'import {\n' +
+    '  loadOwnedSupporterDashboard,\n' +
+    '  loadVoiceupAccessManifest,\n' +
+    '  resolveCampaignSupporterDestination,\n' +
+    '  type SupporterDashboardModel\n' +
+    '} from "../accountAccess";\n' +
+    'import { blankSigner } from "../constants";\n' +
+    'import {\n' +
+    '  isGaumataPublicHostname,\n' +
+    '  isGoudhanProductionCampaign\n' +
+    '} from "../config/goudhanProduction";\n' +
+    'import {\n' +
+    '  INDIAN_MOBILE_INPUT_MAX_LENGTH,\n' +
+    '  getPublicCampaignPresentation,\n' +
+    '  getPublicCampaignPresentationCopy,\n' +
+    '  getSafeOtpDisplayMessage,\n' +
+    '  getVisiblePublicMetrics,\n' +
+    '  normalizeIndianMobileInput,\n' +
+    '  sanitizePublicCampaignMediaUrl\n' +
+    '} from "../config/publicCampaignPresentation";\n' +
+    'import { LanguageSwitcher, useTranslation, type Language } from "../i18n";\n' +
+    'import { getLocalizedCampaignContent } from "../i18n/campaignContent";\n' +
+    'import {\n' +
+    '  getAppealAuthority,\n' +
+    '  getAuthorityOptionsForCampaign,\n' +
+    '  getConfiguredAppealAuthority,\n' +
+    '  getPublicAuthorityOptions,\n' +
+    '  formatAuthorityDisplay\n' +
+    '} from "../utils/authority";\n' +
+    'import {\n' +
+    '  applySignerLocationRestriction,\n' +
+    '  formatLocationForCampaign,\n' +
+    '  getCampaignGoalValue,\n' +
+    '  getCampaignGeographyMode,\n' +
+    '  getCampaignLocationLabels,\n' +
+    '  getCampaignPublicUrl,\n' +
+    '  getCampaignScope,\n' +
+    '  getEffectiveSignerLocationRestrictionLevel,\n' +
+    '  getLocationRestrictionMessage,\n' +
+    '  getLockedLocationValues,\n' +
+    '  renderCampaignMessage\n' +
+    '} from "../utils/campaign";\n' +
+    'import {\n' +
+    '  downloadQrPosterSvg,\n' +
+    '  getCampaignReferralUrl,\n' +
+    '  getPersistedSupporterReferralCode,\n' +
+    '  normalizeReferralCode\n' +
+    '} from "../utils/referrals";\n' +
+    'import {\n' +
+    '  clearPublicSigningJourney,\n' +
+    '  clearPublicSigningOtpState,\n' +
+    '  getPublicSigningJourneyStorageKey,\n' +
+    '  isValidPublicSignerEmail,\n' +
+    '  readPublicSigningDraft,\n' +
+    '  type PublicSigningStepId,\n' +
+    '  type PublicSigningVerificationOutcome,\n' +
+    '  writePublicSigningDraft\n' +
+    '} from "../publicSigningJourney";\n' +
+    'import { createConsentVersion } from "../utils/consent";\n' +
+    'import {\n' +
+    '  PARTICIPATION_REQUEST_LEVELS,\n' +
+    '  createParticipationRequestIdempotencyKey,\n' +
+    '  getMinimumParticipationLevels,\n' +
+    '  parseParticipationRequestList,\n' +
+    '  participationRequestFingerprint\n' +
+    '} from "../movementRequests";\n' +
+    'import "../publicSigningExperience.css";\n' +
+    'import {\n' +
+    '  invokePublicCampaignLocationCatalog,\n' +
+    '  type PublicCampaignCustomLocation\n' +
+    '} from "../backend";\n' +
+    'import {\n' +
+    '  clearSupporterRoutingPrecheck,\n' +
+    '  precheckPublicSupporterRouting,\n' +
+    '  readSupporterRoutingPrecheck,\n' +
+    '  writeSupporterRoutingPrecheck,\n' +
+    '  type PublicSupporterRoutingPrecheck\n' +
+    '} from "../supporterRouting";\n' +
+    '\n' +
+    'interface PublicCampaignPageProps {\n' +
+    '  campaign: Campaign;\n' +
+    '  organization?: Organization;\n' +
+    '  metrics: ReturnType<typeof getCampaignMetrics>;\n' +
+    '  authority?: AuthorityRule;\n' +
+    '  authorities: AuthorityRule[];\n' +
+    '  campaignSigners: Signer[];\n' +
+    '  publicForm: typeof blankSigner;\n' +
+    '  setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;\n' +
+    '  publicMessage: string;\n' +
+    '  lastSignedSigner: Signer | null;\n' +
+    '  supporterAccountClaimGrant?: SupporterAccountClaimGrant | null;\n' +
+    '  linkedSupporterAccount?: SupporterAccountLink | null;\n' +
+    '  onSupporterAccountLinked?: (link: SupporterAccountLink) => void;\n' +
+    '  growthSnapshot?: GrowthSupporterSnapshot;\n' +
+    '  growthPortal?: SupporterGrowthPortalModel;\n' +
+    '  otpInput: string;\n' +
+    '  setOtpInput: React.Dispatch<React.SetStateAction<string>>;\n' +
+    '  otpMessage: string;\n' +
+    '  onSendOtp: () => void | boolean | Promise<void | boolean>;\n' +
+    '  onVerifyOtp: () => PublicSigningVerificationOutcome | Promise<PublicSigningVerificationOutcome>;\n' +
+    '  onRetryVerifiedSupporterLookup?: () =>\n' +
+    '    PublicSigningVerificationOutcome | Promise<PublicSigningVerificationOutcome>;\n' +
+    '  locationOverrides: LocationOverrides;\n' +
+    '  locationDeletions: LocationDeletions;\n' +
+    '  customLocations?: PublicCampaignCustomLocation[];\n' +
+    '  onGrowthShare?: (share: GrowthShareContext) => void;\n' +
+    '  onUploadSupporterPhoto?: (file: File) => Promise<void>;\n' +
+    '  onSaveDraft?: () => void | Promise<void>;\n' +
+    '  onCommunicationConsentChange?: (granted: boolean) => void | Promise<void>;\n' +
+    '  onSubmitMovementRequest?: (\n' +
+    '    request: ParticipationRequestSubmission,\n' +
+    '    idempotencyKey: string\n' +
+    '  ) => Promise<PublicParticipationRequest>;\n' +
+    '  movementRequests?: PublicParticipationRequest[];\n' +
+    '  movementRequestsLoading?: boolean;\n' +
+    '  movementRequestsError?: string;\n' +
+    '  onRefreshMovementRequests?: () => void | Promise<void>;\n' +
+    '  onSubmitCoordinatorApplication?: () => void | Promise<void>;\n' +
+    '  onStartNewJourney: () => void;\n' +
+    '  onSubmit: (event: FormEvent) => void | Promise<void>;\n' +
+    '}\n' +
+    '\n' +
+    'type SigningStepId = PublicSigningStepId;\n' +
+    'type InvolvementPanel = "none" | "volunteer" | "coordinator";\n' +
+    '\n' +
+    'interface CampaignSupporterSession {\n' +
+    '  name: string;\n' +
+    '  email: string;\n' +
+    '  dashboardPath: string;\n' +
+    '  dashboard: SupporterDashboardModel | null;\n' +
+    '  approvedVolunteer: boolean;\n' +
+    '  authorizedCoordinator: boolean;\n' +
+    '}\n' +
+    '\n' +
+    'const signingSteps: Array<{ id: SigningStepId }> = [\n' +
+    '  { id: "phone" },\n' +
+    '  { id: "otp" },\n' +
+    '  { id: "profile" },\n' +
+    '  { id: "address" },\n' +
+    '  { id: "review" },\n' +
+    '  { id: "done" }\n' +
+    '];\n' +
+    '\n' +
+    'function isPublicFailureMessage(message: string) {\n' +
+    '  return (\n' +
+    '    /\\([a-z][a-z0-9_]{1,63}\\)\\s*$/i.test(message) ||\n' +
+    '    /\\b(could not|failed|failure|expired|invalid|unavailable|required|outside|retry|error|blocked|has ended|past due|cancelled|not active|not currently open|reached its|reached the)\\b/i.test(message) ||\n' +
+    '    /^(create and publish|enter |request |please verify|verify your)/i.test(message)\n' +
+    '  );\n' +
+    '}\n' +
+    '\n' +
+    'const participationRequestErrorCodes = new Set([\n' +
+    '  "invalid_request_payload",\n' +
+    '  "invalid_request_type",\n' +
+    '  "invalid_coordinator_level",\n' +
+    '  "invalid_minimum_level",\n' +
+    '  "incomplete_request_geography",\n' +
+    '  "request_consent_required",\n' +
+    '  "support_completion_required",\n' +
+    '  "otp_verification_required",\n' +
+    '  "active_participation_request_exists",\n' +
+    '  "busy"\n' +
+    ']);\n' +
+    '\n' +
+    'function participationRequestErrorCode(error: unknown): string {\n' +
+    '  if (!error || typeof error !== "object" || !("code" in error)) return "";\n' +
+    '  const code = String((error as { code?: string }).code ?? "");\n' +
+    '  return participationRequestErrorCodes.has(code) ? code : "";\n' +
+    '}\n' +
+    '\n' +
+    'function formatParticipationRequestGeography(request: PublicParticipationRequest): string {\n' +
+    '  return [\n' +
+    '    request.geographicScope.country,\n' +
+    '    request.geographicScope.state,\n' +
+    '    request.geographicScope.district,\n' +
+    '    request.geographicScope.block,\n' +
+    '    request.geographicScope.panchayat,\n' +
+    '    request.geographicScope.ward\n' +
+    '  ].filter(Boolean).join(", ");\n' +
+    '}\n' +
+    '\n' +
+    'function getYouTubeEmbedUrl(value: string): string {\n' +
+    '  if (!value.trim()) return "";\n' +
+    '  try {\n' +
+    '    const url = new URL(value);\n' +
+    '    const hostname = url.hostname.toLowerCase().replace(/^www\\./, "");\n' +
+    '    const videoId =\n' +
+    '      hostname === "youtu.be"\n' +
+    '        ? url.pathname.split("/").filter(Boolean)[0] ?? ""\n' +
+    '        : hostname === "youtube.com" || hostname === "m.youtube.com"\n' +
+    '          ? url.pathname.startsWith("/shorts/")\n' +
+    '            ? url.pathname.split("/")[2] ?? ""\n' +
+    '            : url.searchParams.get("v") ?? ""\n' +
+    '          : "";\n' +
+    '    return /^[a-zA-Z0-9_-]{6,20}$/.test(videoId)\n' +
+    '      ? `https://www.youtube-nocookie.com/embed/${videoId}`\n' +
+    '      : "";\n' +
+    '  } catch {\n' +
+    '    return "";\n' +
+    '  }\n' +
+    '}\n' +
+    '\n' +
+    'const publicSigningCopyEn = {\n' +
+    '  steps: {\n' +
+    '    phone: "Phone",\n' +
+    '    otp: "Verify",\n' +
+    '    profile: "Profile",\n' +
+    '    address: "Details",\n' +
+    '    review: "Review",\n' +
+    '    done: "Done"\n' +
+    '  },\n' +
+    '  panelTitleComplete: "Signature complete",\n' +
+    '  panelTitleSign: "Sign this campaign",\n' +
+    '  secureSigning: "Secure signing",\n' +
+    '  headerComplete: "Thank you for adding your voice.",\n' +
+    '  headerActive: "Sign in about 60 seconds.",\n' +
+    '  headerHelp: "Onl'... 234104 more characters
+  
+      at TestContext.<anonymous> (file:///D:/VoiceupOnline-ReleaseCandidates/VOICEUP-UNIFIED-DEVELOPMENT/tests/productionCustomerJourney.test.mjs:27:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.start (node:internal/test_runner/test:1191:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";\nimport {\n  ArrowRight,\n  Award,\n  BadgeCheck,\n  CalendarDays,\n  CheckCircle2,\n  ChevronDown,\n  ClipboardList,\n  Copy,\n  HeartHandshake,\n  Home,\n  Landmark,\n  LockKeyhole,\n  LogIn,\n  LogOut,\n  LayoutDashboard,\n  Mail,\n  MapPin,\n  MessageCircle,\n  QrCode,\n  Share2,\n  ShieldCheck,\n  Smartphone,\n  UserRound,\n  Users,\n  Volume2,\n  VolumeX,\n  X\n} from "lucide-react";\nimport type {\n  AuthorityRule,\n  Campaign,\n  Organization,\n  ParticipationRequestLevel,\n  ParticipationRequestSubmission,\n  PublicParticipationRequest,\n  Signer,\n  SignerRequiredField\n} from "../types";\nimport { getConfiguredGrowthShareMessages } from "../growth/configuration";\nimport type { GrowthShareContext, GrowthSupporterSnapshot } from "../growth/lifecycle";\nimport type { SupporterGrowthPortalModel } from "../growth/tree";\nimport type {\n  LocationDeletions,\n  LocationOverrides,\n  LocationWithPin\n} from "../geography";\nimport type { getCampaignMetrics } from "../lib";\nimport { Panel } from "../ui/Panel";\nimport { Field } from "../ui/Field";\nimport { DonationCard } from "../components/DonationCard";\nimport { IndiaLocationFields, preloadIndiaLocationFields } from "../components/IndiaLocationFieldsLazy";\nimport { resolveIndiaLocationCatalog } from "../components/indiaLocationCatalogResolver";\nimport { usePublicCampaignLocationCatalog } from "../components/usePublicCampaignLocationCatalog";\nimport { GlobalLocationFields } from "../components/GlobalLocationFields";\nimport { ReferralQrPreview } from "../components/ReferralQrPreview";\nimport { VoiceUpStoryCarousel } from "../components/VoiceUpStoryCarousel";\nimport { GauSammanApprovedContent } from "../components/GauSammanApprovedContent";\nimport { PublicCampaignCanonicalLocationDisplay } from "../businessOs/location/ui";\nimport {\n  createObservedLocationReference,\n  createUnverifiedLocationReference\n} from "../businessOs/location/persistence/LocationReferenceGovernance.ts";\nimport type { PersistedLocationReference } from "../businessOs/location/persistence/PersistedLocationReference.ts";\nimport {\n  PublicSupporterPhoto,\n  type PublicSupporterPhotoCopy\n} from "../components/PublicSupporterPhoto";\nimport { SupporterAccountClaimPanel } from "../components/SupporterAccountClaimPanel";\nimport { CampaignInlineAuthPanel } from "../components/CampaignInlineAuthPanel";\nimport { SupporterGrowthCenter, VoiceUpPublicPromotions } from "../components/SupporterGrowthCenter";\nimport type {\n  SupporterAccountClaimGrant,\n  SupporterAccountLink\n} from "../supporterAccountClaim";\nimport { getCampaignLoginPath } from "../campaignAuthContext";\nimport { getCurrentSupporterIdentity, getSupporterAuthClient, logoutSupporter } from "../supporterAuth";\nimport "../gsaaV3AccountHeader.css";\nimport {\n  loadOwnedSupporterDashboard,\n  loadVoiceupAccessManifest,\n  resolveCampaignSupporterDestination,\n  type SupporterDashboardModel\n} from "../accountAccess";\nimport { blankSigner } from "../constants";\nimport {\n  isGaumataPublicHostname,\n  isGoudhanProductionCampaign\n} from "../config/goudhanProduction";\nimport {\n  INDIAN_MOBILE_INPUT_MAX_LENGTH,\n  getPublicCampaignPresentation,\n  getPublicCampaignPresentationCopy,\n  getSafeOtpDisplayMessage,\n  getVisiblePublicMetrics,\n  normalizeIndianMobileInput,\n  sanitizePublicCampaignMediaUrl\n} from "../config/publicCampaignPresentation";\nimport { LanguageSwitcher, useTranslation, type Language } from "../i18n";\nimport { getLocalizedCampaignContent } from "../i18n/campaignContent";\nimport {\n  getAppealAuthority,\n  getAuthorityOptionsForCampaign,\n  getConfiguredAppealAuthority,\n  getPublicAuthorityOptions,\n  formatAuthorityDisplay\n} from "../utils/authority";\nimport {\n  applySignerLocationRestriction,\n  formatLocationForCampaign,\n  getCampaignGoalValue,\n  getCampaignGeographyMode,\n  getCampaignLocationLabels,\n  getCampaignPublicUrl,\n  getCampaignScope,\n  getEffectiveSignerLocationRestrictionLevel,\n  getLocationRestrictionMessage,\n  getLockedLocationValues,\n  renderCampaignMessage\n} from "../utils/campaign";\nimport {\n  downloadQrPosterSvg,\n  getCampaignReferralUrl,\n  getPersistedSupporterReferralCode,\n  normalizeReferralCode\n} from "../utils/referrals";\nimport {\n  clearPublicSigningJourney,\n  clearPublicSigningOtpState,\n  getPublicSigningJourneyStorageKey,\n  isValidPublicSignerEmail,\n  readPublicSigningDraft,\n  type PublicSigningStepId,\n  type PublicSigningVerificationOutcome,\n  writePublicSigningDraft\n} from "../publicSigningJourney";\nimport { createConsentVersion } from "../utils/consent";\nimport {\n  PARTICIPATION_REQUEST_LEVELS,\n  createParticipationRequestIdempotencyKey,\n  getMinimumParticipationLevels,\n  parseParticipationRequestList,\n  participationRequestFingerprint\n} from "../movementRequests";\nimport "../publicSigningExperience.css";\nimport {\n  invokePublicCampaignLocationCatalog,\n  type PublicCampaignCustomLocation\n} from "../backend";\nimport {\n  clearSupporterRoutingPrecheck,\n  precheckPublicSupporterRouting,\n  readSupporterRoutingPrecheck,\n  writeSupporterRoutingPrecheck,\n  type PublicSupporterRoutingPrecheck\n} from "../supporterRouting";\n\ninterface PublicCampaignPageProps {\n  campaign: Campaign;\n  organization?: Organization;\n  metrics: ReturnType<typeof getCampaignMetrics>;\n  authority?: AuthorityRule;\n  authorities: AuthorityRule[];\n  campaignSigners: Signer[];\n  publicForm: typeof blankSigner;\n  setPublicForm: React.Dispatch<React.SetStateAction<typeof blankSigner>>;\n  publicMessage: string;\n  lastSignedSigner: Signer | null;\n  supporterAccountClaimGrant?: SupporterAccountClaimGrant | null;\n  linkedSupporterAccount?: SupporterAccountLink | null;\n  onSupporterAccountLinked?: (link: SupporterAccountLink) => void;\n  growthSnapshot?: GrowthSupporterSnapshot;\n  growthPortal?: SupporterGrowthPortalModel;\n  otpInput: string;\n  setOtpInput: React.Dispatch<React.SetStateAction<string>>;\n  otpMessage: string;\n  onSendOtp: () => void | boolean | Promise<void | boolean>;\n  onVerifyOtp: () => PublicSigningVerificationOutcome | Promise<PublicSigningVerificationOutcome>;\n  onRetryVerifiedSupporterLookup?: () =>\n    PublicSigningVerificationOutcome | Promise<PublicSigningVerificationOutcome>;\n  locationOverrides: LocationOverrides;\n  locationDeletions: LocationDeletions;\n  customLocations?: PublicCampaignCustomLocation[];\n  onGrowthShare?: (share: GrowthShareContext) => void;\n  onUploadSupporterPhoto?: (file: File) => Promise<void>;\n  onSaveDraft?: () => void | Promise<void>;\n  onCommunicationConsentChange?: (granted: boolean) => void | Promise<void>;\n  onSubmitMovementRequest?: (\n    request: ParticipationRequestSubmission,\n    idempotencyKey: string\n  ) => Promise<PublicParticipationRequest>;\n  movementRequests?: PublicParticipationRequest[];\n  movementRequestsLoading?: boolean;\n  movementRequestsError?: string;\n  onRefreshMovementRequests?: () => void | Promise<void>;\n  onSubmitCoordinatorApplication?: () => void | Promise<void>;\n  onStartNewJourney: () => void;\n  onSubmit: (event: FormEvent) => void | Promise<void>;\n}\n\ntype SigningStepId = PublicSigningStepId;\ntype InvolvementPanel = "none" | "volunteer" | "coordinator";\n\ninterface CampaignSupporterSession {\n  name: string;\n  email: string;\n  dashboardPath: string;\n  dashboard: SupporterDashboardModel | null;\n  approvedVolunteer: boolean;\n  authorizedCoordinator: boolean;\n}\n\nconst signingSteps: Array<{ id: SigningStepId }> = [\n  { id: "phone" },\n  { id: "otp" },\n  { id: "profile" },\n  { id: "address" },\n  { id: "review" },\n  { id: "done" }\n];\n\nfunction isPublicFailureMessage(message: string) {\n  return (\n    /\\([a-z][a-z0-9_]{1,63}\\)\\s*$/i.test(message) ||\n    /\\b(could not|failed|failure|expired|invalid|unavailable|required|outside|retry|error|blocked|has ended|past due|cancelled|not active|not currently open|reached its|reached the)\\b/i.test(message) ||\n    /^(create and publish|enter |request |please verify|verify your)/i.test(message)\n  );\n}\n\nconst participationRequestErrorCodes = new Set([\n  "invalid_request_payload",\n  "invalid_request_type",\n  "invalid_coordinator_level",\n  "invalid_minimum_level",\n  "incomplete_request_geography",\n  "request_consent_required",\n  "support_completion_required",\n  "otp_verification_required",\n  "active_participation_request_exists",\n  "busy"\n]);\n\nfunction participationRequestErrorCode(error: unknown): string {\n  if (!error || typeof error !== "object" || !("code" in error)) return "";\n  const code = String((error as { code?: string }).code ?? "");\n  return participationRequestErrorCodes.has(code) ? code : "";\n}\n\nfunction formatParticipationRequestGeography(request: PublicParticipationRequest): string {\n  return [\n    request.geographicScope.country,\n    request.geographicScope.state,\n    request.geographicScope.district,\n    request.geographicScope.block,\n    request.geographicScope.panchayat,\n    request.geographicScope.ward\n  ].filter(Boolean).join(", ");\n}\n\nfunction getYouTubeEmbedUrl(value: string): string {\n  if (!value.trim()) return "";\n  try {\n    const url = new URL(value);\n    const hostname = url.hostname.toLowerCase().replace(/^www\\./, "");\n    const videoId =\n      hostname === "youtu.be"\n        ? url.pathname.split("/").filter(Boolean)[0] ?? ""\n        : hostname === "youtube.com" || hostname === "m.youtube.com"\n          ? url.pathname.startsWith("/shorts/")\n            ? url.pathname.split("/")[2] ?? ""\n            : url.searchParams.get("v") ?? ""\n          : "";\n    return /^[a-zA-Z0-9_-]{6,20}$/.test(videoId)\n      ? `https://www.youtube-nocookie.com/embed/${videoId}`\n      : "";\n  } catch {\n    return "";\n  }\n}\n\nconst publicSigningCopyEn = {\n  steps: {\n    phone: "Phone",\n    otp: "Verify",\n    profile: "Profile",\n    address: "Details",\n    review: "Review",\n    done: "Done"\n  },\n  panelTitleComplete: "Signature complete",\n  panelTitleSign: "Sign this campaign",\n  secureSigning: "Secure signing",\n  headerComplete: "Thank you for adding your voice.",\n  headerActive: "Sign in about 60 seconds.",\n  headerHelp: "Onl'... 234104 more characters,
+    expected: /campaign-participation-tabs/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests\productionCustomerJourney.test.mjs:43:1
+✖ inline auth reuses verified Supabase email auth, recovery, and authoritative campaign routing (1.6433ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /resolveCampaignAutomaticDestination/. Input:
+  
+  'import { EmailCodePasswordRecovery } from "./EmailCodePasswordRecovery";\n' +
+    'import { useEffect, useState, type FormEvent } from "react";\n' +
+    'import { ArrowRight, BriefcaseBusiness, KeyRound, Mail, ShieldCheck } from "lucide-react";\n' +
+    'import {\n' +
+    '  AccountAccessError,\n' +
+    '  getAuthorizedDestinations,\n' +
+    '  loadVoiceupAccessManifest,\n' +
+    '  resolveCampaignSupporterDestination,\n' +
+    '  selectVoiceupWorkspace,\n' +
+    '  writeUnifiedLoginHandoff,\n' +
+    '  type AccessDestination,\n' +
+    '  type VoiceupAccessManifest\n' +
+    '} from "../accountAccess.ts";\n' +
+    'import {\n' +
+    '  getCampaignLoginPath,\n' +
+    '  type CampaignAuthContext\n' +
+    '} from "../campaignAuthContext.ts";\n' +
+    'import { useTranslation } from "../i18n/useTranslation";\n' +
+    'import {\n' +
+    '  getCurrentSupporterIdentity,\n' +
+    '  loginSupporterWithEmail,\n' +
+    '  registerSupporterWithEmailForContext,\n' +
+    '  logoutSupporter,\n' +
+    '  requestSupporterEmailOtp,\n' +
+    '  requestSupporterPasswordRecovery,\n' +
+    '  SupporterAuthError,\n' +
+    '  verifySupporterEmailOtp,\n' +
+    '  verifySupporterSignupOtp\n' +
+    '} from "../supporterAuth.ts";\n' +
+    'import {\n' +
+    '  claimHistoricalSupporterRoutingGrant,\n' +
+    '  resolveAuthenticatedSupporterRouting\n' +
+    '} from "../supporterRouting.ts";\n' +
+    'import { PasswordField } from "../ui/PasswordField";\n' +
+    '\n' +
+    'type SignInMethod = "password" | "email_otp";\n' +
+    '\n' +
+    'interface CampaignInlineAuthPanelProps {\n' +
+    '  active: boolean;\n' +
+    '  context: CampaignAuthContext;\n' +
+    '  routingToken?: string;\n' +
+    '  initialRoute?: "new_number" | "existing_account" | "historical_signature" | "ambiguous";\n' +
+    '  onContinueSigning?: () => void;\n' +
+    '  onAuthenticated?: (identity?: { id: string; email: string }) => void;\n' +
+    '}\n' +
+    '\n' +
+    'function safeMessage(error: unknown, t: (key: string) => string): string {\n' +
+    '  if (error instanceof SupporterAuthError) {\n' +
+    '    if (error.code === "supporter_email_not_confirmed") return t("account.login.confirmEmail");\n' +
+    '    if (error.code === "supporter_otp_request_failed") return t("account.login.otpRequestFailed");\n' +
+    '    if (error.code === "supporter_otp_verification_failed") return t("account.login.otpVerificationFailed");\n' +
+    '  }\n' +
+    '  if (error instanceof AccountAccessError) {\n' +
+    '    return error.code === "email_confirmation_required"\n' +
+    '      ? t("account.login.confirmEmail")\n' +
+    '      : t("account.login.accessUnavailable");\n' +
+    '  }\n' +
+    '  return t("account.login.failed");\n' +
+    '}\n' +
+    '\n' +
+    'export function CampaignInlineAuthPanel({\n' +
+    '  active,\n' +
+    '  context,\n' +
+    '  routingToken = "",\n' +
+    '  initialRoute,\n' +
+    '  onContinueSigning,\n' +
+    '  onAuthenticated\n' +
+    '}: CampaignInlineAuthPanelProps) {\n' +
+    '  const { t } = useTranslation();\n' +
+    '  const returnPath = getCampaignLoginPath(context);\n' +
+    '  const [method, setMethod] = useState<SignInMethod>("password");\n' +
+    '  const [creatingAccount, setCreatingAccount] = useState(initialRoute === "historical_signature");\n' +
+    '  const [confirmPassword, setConfirmPassword] = useState("");\n' +
+    '  const [activationPending, setActivationPending] = useState(false);\n' +
+    '  const [email, setEmail] = useState("");\n' +
+    '  const [password, setPassword] = useState("");\n' +
+    '  const [otp, setOtp] = useState("");\n' +
+    '  const [otpSent, setOtpSent] = useState(false);\n' +
+    '  const [recovering, setRecovering] = useState(false);\n' +
+    '  const [busy, setBusy] = useState(false);\n' +
+    '  const [message, setMessage] = useState("");\n' +
+    '  const [isError, setIsError] = useState(false);\n' +
+    '  const [manifest, setManifest] = useState<VoiceupAccessManifest | null>(null);\n' +
+    '  const [accessMissing, setAccessMissing] = useState(false);\n' +
+    '  const [canContinueSigning, setCanContinueSigning] = useState(false);\n' +
+    '\n' +
+    '  function openDestination(value: VoiceupAccessManifest, destination: AccessDestination) {\n' +
+    '    if (destination.workspaceId) selectVoiceupWorkspace(destination.workspaceId);\n' +
+    '    writeUnifiedLoginHandoff(value, destination);\n' +
+    '    if (destination.kind === "supporter") {\n' +
+    '      // With noopener, window.open may return null even when the tab opens.\n' +
+    '      // Do not treat that return value as evidence of a blocked popup.\n' +
+    '      window.open(destination.path, "_blank", "noopener,noreferrer");\n' +
+    '      setIsError(false);\n' +
+    '      setMessage(t("phase3.authDashboardTab"));\n' +
+    '      return;\n' +
+    '    }\n' +
+    '    window.location.assign(destination.path);\n' +
+    '  }\n' +
+    '\n' +
+    '  function resolveManifest(value: VoiceupAccessManifest) {\n' +
+    '    const destination = resolveCampaignSupporterDestination(value, context);\n' +
+    '    if (destination) {\n' +
+    '      setManifest(value);\n' +
+    '      setAccessMissing(false);\n' +
+    '      setIsError(false);\n' +
+    '      setMessage(t("account.login.campaignAccessFound"));\n' +
+    '      return;\n' +
+    '    }\n' +
+    '    setManifest(value);\n' +
+    '    setAccessMissing(true);\n' +
+    '    setIsError(false);\n' +
+    '    setMessage(t("account.login.noCampaignAccess"));\n' +
+    '  }\n' +
+    '\n' +
+    '  async function finishAuthenticatedRouting(identity?: { id: string; email: string }) {\n' +
+    '    onAuthenticated?.(identity);\n' +
+    '    if (routingToken) {\n' +
+    '      const routing = await resolveAuthenticatedSupporterRouting(\n' +
+    '        context.campaignSlug,\n' +
+    '        routingToken\n' +
+    '      );\n' +
+    '      if (routing.route === "claim_available" && routing.claimGrant) {\n' +
+    '        await claimHistoricalSupporterRoutingGrant(routing.claimGrant);\n' +
+    '        onAuthenticated?.();\n' +
+    '      } else if (routing.route === "eligible_to_sign") {\n' +
+    '        setManifest(await loadVoiceupAccessManifest());\n' +
+    '        setAccessMissing(true);\n' +
+    '        setCanContinueSigning(true);\n' +
+    '        setIsError(false);\n' +
+    '        setMessage(t("account.login.noCampaignAccess"));\n' +
+    '        return;\n' +
+    '      } else if (routing.route === "identity_not_linked") {\n' +
+    '        setManifest(await loadVoiceupAccessManifest());\n' +
+    '        setAccessMissing(true);\n' +
+    '        setCanContinueSigning(false);\n' +
+    '        setIsError(false);\n' +
+    '        setMessage(t("account.login.accessUnavailable"));\n' +
+    '        return;\n' +
+    '      }\n' +
+    '    }\n' +
+    '    setCanContinueSigning(false);\n' +
+    '    resolveManifest(await loadVoiceupAccessManifest());\n' +
+    '  }\n' +
+    '\n' +
+    '  useEffect(() => {\n' +
+    '    if (!active || initialRoute === "historical_signature") return;\n' +
+    '    let current = true;\n' +
+    '    void (async () => {\n' +
+    '      try {\n' +
+    '        const identity = await getCurrentSupporterIdentity();\n' +
+    '        if (!current || !identity) return;\n' +
+    '        setEmail(identity.email);\n' +
+    '        setBusy(true);\n' +
+    '        await finishAuthenticatedRouting();\n' +
+    '      } catch {\n' +
+    '        // Missing or expired sessions leave the normal sign-in controls available.\n' +
+    '      } finally {\n' +
+    '        if (current) setBusy(false);\n' +
+    '      }\n' +
+    '    })();\n' +
+    '    return () => { current = false; };\n' +
+    '    // Re-run when a debounced precheck arrives for an already authenticated user.\n' +
+    '    // eslint-disable-next-line react-hooks/exhaustive-deps\n' +
+    '  }, [active, context.campaignId, context.campaignSlug, routingToken]);\n' +
+    '\n' +
+    '  useEffect(() => {\n' +
+    '    if (!active || !initialRoute) return;\n' +
+    '    if (initialRoute === "historical_signature") {\n' +
+    '      setCreatingAccount(true);\n' +
+    '    } else {\n' +
+    '      setCreatingAccount(false);\n' +
+    '    }\n' +
+    '  }, [active, initialRoute]);\n' +
+    '  async function submit(event: FormEvent) {\n' +
+    '    event.preventDefault();\n' +
+    '    setBusy(true);\n' +
+    '    setIsError(false);\n' +
+    '    setAccessMissing(false);\n' +
+    '    try {\n' +
+    '      if (creatingAccount && !activationPending) {\n' +
+    '        if (password.length < 8 || password !== confirmPassword) {\n' +
+    '          setIsError(true);\n' +
+    '          setMessage(t("phase3.authPasswordHint"));\n' +
+    '          return;\n' +
+    '        }\n' +
+    '        await registerSupporterWithEmailForContext(email, password, returnPath);\n' +
+    '        setPassword("");\n' +
+    '        setConfirmPassword("");\n' +
+    '        setActivationPending(true);\n' +
+    '        setIsError(false);\n' +
+    '        setOtp("");\n' +
+    '        setMessage(t("phase3.authEnterCode"));\n' +
+    '        return;\n' +
+    '      }\n' +
+    '      if (activationPending) {\n' +
+    '        setMessage(t("phase3.authVerifying"));\n' +
+    '        const verifiedIdentity = await verifySupporterSignupOtp(email, otp);\n' +
+    '        setOtp("");\n' +
+    '        setMessage(t("phase3.authVerified"));\n' +
+    '        await finishAuthenticatedRouting(verifiedIdentity);\n' +
+    '        setActivationPending(false);\n' +
+    '        return;\n' +
+    '      }\n' +
+    '      if (method === "email_otp") {\n' +
+    '        if (!otpSent) {\n' +
+    '          await requestSupporterEmailOtp(email, returnPath);\n' +
+    '          setOtpSent(true);\n' +
+    '          setMessage(t("account.login.otpSent"));\n' +
+    '          return;\n' +
+    '        }\n' +
+    '        setMessage(t("account.login.verifyingOtp"));\n' +
+    '        const verifiedIdentity = await verifySupporterEmailOtp(email, otp);\n' +
+    '        setOtp("");\n' +
+    '        onAuthenticated?.(verifiedIdentity);\n' +
+    '      } else {\n' +
+    '        setMessage(t("account.login.checking"));\n' +
+    '        await loginSupporterWithEmail(email, password);\n' +
+    '        setPassword("");\n' +
+    '      }\n' +
+    '      await finishAuthenticatedRouting();\n' +
+    '    } catch (error) {\n' +
+    '      setPassword("");\n' +
+    '      setIsError(true);\n' +
+    '      setMessage(safeMessage(error, t));\n' +
+    '    } finally {\n' +
+    '      setBusy(false);\n' +
+    '    }\n' +
+    '  }\n' +
+    '\n' +
+    '  async function recoverPassword() {\n' +
+    '    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())) {\n' +
+    '      setIsError(true);\n' +
+    '      setMessage(t("account.login.enterEmail"));\n' +
+    '      return;\n' +
+    '    }\n' +
+    '    setBusy(true);\n' +
+    '    setIsError(false);\n' +
+    '    try {\n' +
+    '      await requestSupporterPasswordRecovery(email);\n' +
+    '      setRecovering(true);\n' +
+    '      setMessage("");\n' +
+    '    } catch {\n' +
+    '      setIsError(true);\n' +
+    '      setMessage(t("account.login.recoveryFailed"));\n' +
+    '    } finally {\n' +
+    '      setBusy(false);\n' +
+    '    }\n' +
+    '  }\n' +
+    '\n' +
+    '  async function switchAccount() {\n' +
+    '    setBusy(true);\n' +
+    '    try {\n' +
+    '      await logoutSupporter();\n' +
+    '      setManifest(null);\n' +
+    '      setAccessMissing(false);\n' +
+    '      setCanContinueSigning(false);\n' +
+    '      setEmail("");\n' +
+    '      setPassword("");\n' +
+    '      setOtp("");\n' +
+    '      setOtpSent(false);\n' +
+    '      setCreatingAccount(false);\n' +
+    '      setActivationPending(false);\n' +
+    '      setConfirmPassword("");\n' +
+    '      setMessage("");\n' +
+    '    } finally {\n' +
+    '      setBusy(false);\n' +
+    '    }\n' +
+    '  }\n' +
+    '\n' +
+    '  if (!active) return null;\n' +
+    '  const alternatives = manifest ? getAuthorizedDestinations(manifest) : [];\n' +
+    '\n' +
+    '  return (\n' +
+    '    <section id="campaign-sign-in-panel" className="campaign-inline-auth" aria-labelledby="campaign-inline-auth-heading">\n' +
+    '      <div className="public-section-heading">\n' +
+    '        <span className="eyebrow">{t("account.login.secureAccess")}</span>\n' +
+    '        <h3 id="campaign-inline-auth-heading">{creatingAccount ? "Activate your existing campaign signature" : t("account.login.campaignTitle")}</h3>\n' +
+    '        <p>{t("account.login.inlineHelp")}</p>\n' +
+    '      </div>\n' +
+    '\n' +
+    '      {accessMissing && manifest ? (\n' +
+    '        <div className="campaign-inline-auth-no-access" aria-live="polite">\n' +
+    '          <ShieldCheck size={28} aria-hidden="true" />\n' +
+    '          <strong>{t("account.login.noCampaignAccessTitle"'... 6087 more characters
+  
+      at TestContext.<anonymous> (file:///D:/VoiceupOnline-ReleaseCandidates/VOICEUP-UNIFIED-DEVELOPMENT/tests/productionCustomerJourney.test.mjs:50:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'import { EmailCodePasswordRecovery } from "./EmailCodePasswordRecovery";\nimport { useEffect, useState, type FormEvent } from "react";\nimport { ArrowRight, BriefcaseBusiness, KeyRound, Mail, ShieldCheck } from "lucide-react";\nimport {\n  AccountAccessError,\n  getAuthorizedDestinations,\n  loadVoiceupAccessManifest,\n  resolveCampaignSupporterDestination,\n  selectVoiceupWorkspace,\n  writeUnifiedLoginHandoff,\n  type AccessDestination,\n  type VoiceupAccessManifest\n} from "../accountAccess.ts";\nimport {\n  getCampaignLoginPath,\n  type CampaignAuthContext\n} from "../campaignAuthContext.ts";\nimport { useTranslation } from "../i18n/useTranslation";\nimport {\n  getCurrentSupporterIdentity,\n  loginSupporterWithEmail,\n  registerSupporterWithEmailForContext,\n  logoutSupporter,\n  requestSupporterEmailOtp,\n  requestSupporterPasswordRecovery,\n  SupporterAuthError,\n  verifySupporterEmailOtp,\n  verifySupporterSignupOtp\n} from "../supporterAuth.ts";\nimport {\n  claimHistoricalSupporterRoutingGrant,\n  resolveAuthenticatedSupporterRouting\n} from "../supporterRouting.ts";\nimport { PasswordField } from "../ui/PasswordField";\n\ntype SignInMethod = "password" | "email_otp";\n\ninterface CampaignInlineAuthPanelProps {\n  active: boolean;\n  context: CampaignAuthContext;\n  routingToken?: string;\n  initialRoute?: "new_number" | "existing_account" | "historical_signature" | "ambiguous";\n  onContinueSigning?: () => void;\n  onAuthenticated?: (identity?: { id: string; email: string }) => void;\n}\n\nfunction safeMessage(error: unknown, t: (key: string) => string): string {\n  if (error instanceof SupporterAuthError) {\n    if (error.code === "supporter_email_not_confirmed") return t("account.login.confirmEmail");\n    if (error.code === "supporter_otp_request_failed") return t("account.login.otpRequestFailed");\n    if (error.code === "supporter_otp_verification_failed") return t("account.login.otpVerificationFailed");\n  }\n  if (error instanceof AccountAccessError) {\n    return error.code === "email_confirmation_required"\n      ? t("account.login.confirmEmail")\n      : t("account.login.accessUnavailable");\n  }\n  return t("account.login.failed");\n}\n\nexport function CampaignInlineAuthPanel({\n  active,\n  context,\n  routingToken = "",\n  initialRoute,\n  onContinueSigning,\n  onAuthenticated\n}: CampaignInlineAuthPanelProps) {\n  const { t } = useTranslation();\n  const returnPath = getCampaignLoginPath(context);\n  const [method, setMethod] = useState<SignInMethod>("password");\n  const [creatingAccount, setCreatingAccount] = useState(initialRoute === "historical_signature");\n  const [confirmPassword, setConfirmPassword] = useState("");\n  const [activationPending, setActivationPending] = useState(false);\n  const [email, setEmail] = useState("");\n  const [password, setPassword] = useState("");\n  const [otp, setOtp] = useState("");\n  const [otpSent, setOtpSent] = useState(false);\n  const [recovering, setRecovering] = useState(false);\n  const [busy, setBusy] = useState(false);\n  const [message, setMessage] = useState("");\n  const [isError, setIsError] = useState(false);\n  const [manifest, setManifest] = useState<VoiceupAccessManifest | null>(null);\n  const [accessMissing, setAccessMissing] = useState(false);\n  const [canContinueSigning, setCanContinueSigning] = useState(false);\n\n  function openDestination(value: VoiceupAccessManifest, destination: AccessDestination) {\n    if (destination.workspaceId) selectVoiceupWorkspace(destination.workspaceId);\n    writeUnifiedLoginHandoff(value, destination);\n    if (destination.kind === "supporter") {\n      // With noopener, window.open may return null even when the tab opens.\n      // Do not treat that return value as evidence of a blocked popup.\n      window.open(destination.path, "_blank", "noopener,noreferrer");\n      setIsError(false);\n      setMessage(t("phase3.authDashboardTab"));\n      return;\n    }\n    window.location.assign(destination.path);\n  }\n\n  function resolveManifest(value: VoiceupAccessManifest) {\n    const destination = resolveCampaignSupporterDestination(value, context);\n    if (destination) {\n      setManifest(value);\n      setAccessMissing(false);\n      setIsError(false);\n      setMessage(t("account.login.campaignAccessFound"));\n      return;\n    }\n    setManifest(value);\n    setAccessMissing(true);\n    setIsError(false);\n    setMessage(t("account.login.noCampaignAccess"));\n  }\n\n  async function finishAuthenticatedRouting(identity?: { id: string; email: string }) {\n    onAuthenticated?.(identity);\n    if (routingToken) {\n      const routing = await resolveAuthenticatedSupporterRouting(\n        context.campaignSlug,\n        routingToken\n      );\n      if (routing.route === "claim_available" && routing.claimGrant) {\n        await claimHistoricalSupporterRoutingGrant(routing.claimGrant);\n        onAuthenticated?.();\n      } else if (routing.route === "eligible_to_sign") {\n        setManifest(await loadVoiceupAccessManifest());\n        setAccessMissing(true);\n        setCanContinueSigning(true);\n        setIsError(false);\n        setMessage(t("account.login.noCampaignAccess"));\n        return;\n      } else if (routing.route === "identity_not_linked") {\n        setManifest(await loadVoiceupAccessManifest());\n        setAccessMissing(true);\n        setCanContinueSigning(false);\n        setIsError(false);\n        setMessage(t("account.login.accessUnavailable"));\n        return;\n      }\n    }\n    setCanContinueSigning(false);\n    resolveManifest(await loadVoiceupAccessManifest());\n  }\n\n  useEffect(() => {\n    if (!active || initialRoute === "historical_signature") return;\n    let current = true;\n    void (async () => {\n      try {\n        const identity = await getCurrentSupporterIdentity();\n        if (!current || !identity) return;\n        setEmail(identity.email);\n        setBusy(true);\n        await finishAuthenticatedRouting();\n      } catch {\n        // Missing or expired sessions leave the normal sign-in controls available.\n      } finally {\n        if (current) setBusy(false);\n      }\n    })();\n    return () => { current = false; };\n    // Re-run when a debounced precheck arrives for an already authenticated user.\n    // eslint-disable-next-line react-hooks/exhaustive-deps\n  }, [active, context.campaignId, context.campaignSlug, routingToken]);\n\n  useEffect(() => {\n    if (!active || !initialRoute) return;\n    if (initialRoute === "historical_signature") {\n      setCreatingAccount(true);\n    } else {\n      setCreatingAccount(false);\n    }\n  }, [active, initialRoute]);\n  async function submit(event: FormEvent) {\n    event.preventDefault();\n    setBusy(true);\n    setIsError(false);\n    setAccessMissing(false);\n    try {\n      if (creatingAccount && !activationPending) {\n        if (password.length < 8 || password !== confirmPassword) {\n          setIsError(true);\n          setMessage(t("phase3.authPasswordHint"));\n          return;\n        }\n        await registerSupporterWithEmailForContext(email, password, returnPath);\n        setPassword("");\n        setConfirmPassword("");\n        setActivationPending(true);\n        setIsError(false);\n        setOtp("");\n        setMessage(t("phase3.authEnterCode"));\n        return;\n      }\n      if (activationPending) {\n        setMessage(t("phase3.authVerifying"));\n        const verifiedIdentity = await verifySupporterSignupOtp(email, otp);\n        setOtp("");\n        setMessage(t("phase3.authVerified"));\n        await finishAuthenticatedRouting(verifiedIdentity);\n        setActivationPending(false);\n        return;\n      }\n      if (method === "email_otp") {\n        if (!otpSent) {\n          await requestSupporterEmailOtp(email, returnPath);\n          setOtpSent(true);\n          setMessage(t("account.login.otpSent"));\n          return;\n        }\n        setMessage(t("account.login.verifyingOtp"));\n        const verifiedIdentity = await verifySupporterEmailOtp(email, otp);\n        setOtp("");\n        onAuthenticated?.(verifiedIdentity);\n      } else {\n        setMessage(t("account.login.checking"));\n        await loginSupporterWithEmail(email, password);\n        setPassword("");\n      }\n      await finishAuthenticatedRouting();\n    } catch (error) {\n      setPassword("");\n      setIsError(true);\n      setMessage(safeMessage(error, t));\n    } finally {\n      setBusy(false);\n    }\n  }\n\n  async function recoverPassword() {\n    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim())) {\n      setIsError(true);\n      setMessage(t("account.login.enterEmail"));\n      return;\n    }\n    setBusy(true);\n    setIsError(false);\n    try {\n      await requestSupporterPasswordRecovery(email);\n      setRecovering(true);\n      setMessage("");\n    } catch {\n      setIsError(true);\n      setMessage(t("account.login.recoveryFailed"));\n    } finally {\n      setBusy(false);\n    }\n  }\n\n  async function switchAccount() {\n    setBusy(true);\n    try {\n      await logoutSupporter();\n      setManifest(null);\n      setAccessMissing(false);\n      setCanContinueSigning(false);\n      setEmail("");\n      setPassword("");\n      setOtp("");\n      setOtpSent(false);\n      setCreatingAccount(false);\n      setActivationPending(false);\n      setConfirmPassword("");\n      setMessage("");\n    } finally {\n      setBusy(false);\n    }\n  }\n\n  if (!active) return null;\n  const alternatives = manifest ? getAuthorizedDestinations(manifest) : [];\n\n  return (\n    <section id="campaign-sign-in-panel" className="campaign-inline-auth" aria-labelledby="campaign-inline-auth-heading">\n      <div className="public-section-heading">\n        <span className="eyebrow">{t("account.login.secureAccess")}</span>\n        <h3 id="campaign-inline-auth-heading">{creatingAccount ? "Activate your existing campaign signature" : t("account.login.campaignTitle")}</h3>\n        <p>{t("account.login.inlineHelp")}</p>\n      </div>\n\n      {accessMissing && manifest ? (\n        <div className="campaign-inline-auth-no-access" aria-live="polite">\n          <ShieldCheck size={28} aria-hidden="true" />\n          <strong>{t("account.login.noCampaignAccessTitle"'... 6087 more characters,
+    expected: /resolveCampaignAutomaticDestination/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests\productionCustomerJourney.test.mjs:64:1
+✖ optional claiming reuses the participation email and preserves memory-only server claiming (1.3377ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /location\.assign\(`\/account\/supporter\/\$\{encodeURIComponent\(link\.accountId\)\}`\)/. Input:
+  
+  'import { useEffect, useRef, useState } from "react";\r\n' +
+    'import { CheckCircle2, LockKeyhole, UserRound } from "lucide-react";\r\n' +
+    'import {\r\n' +
+    '  getCurrentSupporterIdentity,\r\n' +
+    '  loginSupporterWithEmail,\r\n' +
+    '  logoutSupporter,\r\n' +
+    '  registerSupporterWithEmailForContext,\r\n' +
+    '  verifySupporterSignupOtp,\r\n' +
+    '  requestSupporterPasswordRecovery,\r\n' +
+    '  SupporterAuthError,\r\n' +
+    '  type SupporterIdentity\r\n' +
+    '} from "../supporterAuth.ts";\r\n' +
+    'import {\r\n' +
+    '  claimSupporterAccount,\r\n' +
+    '  findLinkedSupporterAccount,\r\n' +
+    '  isUsableSupporterClaimGrant,\r\n' +
+    '  readOwnSupporterAccountLinks,\r\n' +
+    '  SupporterAccountClaimError,\r\n' +
+    '  type SupporterAccountClaimGrant,\r\n' +
+    '  type SupporterAccountLink\r\n' +
+    '} from "../supporterAccountClaim.ts";\r\n' +
+    'import { getCampaignLoginPath } from "../campaignAuthContext.ts";\r\n' +
+    'import { PasswordField } from "../ui/PasswordField";\r\n' +
+    '\r\n' +
+    'type ClaimAuthMode = "register" | "sign_in" | "verify_signup_otp";\r\n' +
+    '\r\n' +
+    'export interface SupporterAccountClaimCopy {\r\n' +
+    '  eyebrow: string;\r\n' +
+    '  title: string;\r\n' +
+    '  help: string;\r\n' +
+    '  email: string;\r\n' +
+    '  password: string;\r\n' +
+    '  showPassword: string;\r\n' +
+    '  hidePassword: string;\r\n' +
+    '  register: string;\r\n' +
+    '  loginAndClaim: string;\r\n' +
+    '  claim: string;\r\n' +
+    '  useAnotherAccount: string;\r\n' +
+    '  registrationSent: string;\r\n' +
+    '  signedInAs: string;\r\n' +
+    '  signingEmail: string;\r\n' +
+    '  accountEmail: string;\r\n' +
+    '  emailMismatch: string;\r\n' +
+    '  linkedTitle: string;\r\n' +
+    '  linkedHelp: string;\r\n' +
+    '  profileName: string;\r\n' +
+    '  supporterId: string;\r\n' +
+    '  campaign: string;\r\n' +
+    '  openProfile: string;\r\n' +
+    '  working: string;\r\n' +
+    '  authFailed: string;\r\n' +
+    '  confirmationRequired: string;\r\n' +
+    '  claimInvalid: string;\r\n' +
+    '  claimExpired: string;\r\n' +
+    '  claimFailed: string;\r\n' +
+    '  skip: string;\r\n' +
+    '  openingDashboard: string;\r\n' +
+    '  forgotPassword: string;\r\n' +
+    '  recoverySent: string;\r\n' +
+    '  recoveryFailed: string;\r\n' +
+    '}\r\n' +
+    '\r\n' +
+    'interface SupporterAccountClaimPanelProps {\r\n' +
+    '  grant: SupporterAccountClaimGrant | null;\r\n' +
+    '  linkedAccount: SupporterAccountLink | null;\r\n' +
+    '  campaignId: string;\r\n' +
+    '  campaignSlug: string;\r\n' +
+    '  campaignTitle: string;\r\n' +
+    '  supporterId: string;\r\n' +
+    '  supporterName: string;\r\n' +
+    '  supporterEmail: string;\r\n' +
+    '  copy: SupporterAccountClaimCopy;\r\n' +
+    '  onLinked: (link: SupporterAccountLink) => void;\r\n' +
+    '}\r\n' +
+    '\r\n' +
+    'function safeMessage(error: unknown, copy: SupporterAccountClaimCopy): string {\r\n' +
+    '  if (error instanceof SupporterAuthError) {\r\n' +
+    '    if (error.code === "supporter_email_not_confirmed") return copy.confirmationRequired;\r\n' +
+    '    return copy.authFailed;\r\n' +
+    '  }\r\n' +
+    '  if (error instanceof SupporterAccountClaimError) {\r\n' +
+    '    if (error.code === "supporter_claim_email_confirmation_required") {\r\n' +
+    '      return copy.confirmationRequired;\r\n' +
+    '    }\r\n' +
+    '    if (error.code === "supporter_claim_invalid") return copy.claimInvalid;\r\n' +
+    '  }\r\n' +
+    '  return copy.claimFailed;\r\n' +
+    '}\r\n' +
+    '\r\n' +
+    'function normalizedEmail(value: string): string {\r\n' +
+    '  return value.trim().toLowerCase();\r\n' +
+    '}\r\n' +
+    '\r\n' +
+    'export function SupporterAccountClaimPanel({\r\n' +
+    '  grant,\r\n' +
+    '  linkedAccount,\r\n' +
+    '  campaignId,\r\n' +
+    '  campaignSlug,\r\n' +
+    '  campaignTitle,\r\n' +
+    '  supporterId,\r\n' +
+    '  supporterName,\r\n' +
+    '  supporterEmail,\r\n' +
+    '  copy,\r\n' +
+    '  onLinked\r\n' +
+    '}: SupporterAccountClaimPanelProps) {\r\n' +
+    '  const [identity, setIdentity] = useState<SupporterIdentity | null>(null);\r\n' +
+    '  const [linked, setLinked] = useState<SupporterAccountLink | null>(linkedAccount);\r\n' +
+    '  const signingEmail = normalizedEmail(supporterEmail);\r\n' +
+    '  const email = signingEmail;\r\n' +
+    '  const campaignLoginPath = getCampaignLoginPath({ campaignId, campaignSlug });\r\n' +
+    '  const [password, setPassword] = useState("");\r\n' +
+    '  const [signupOtp, setSignupOtp] = useState("");\r\n' +
+    '  const [authMode, setAuthMode] = useState<ClaimAuthMode>("register");\r\n' +
+    '  const [busy, setBusy] = useState(false);\r\n' +
+    '  const [message, setMessage] = useState("");\r\n' +
+    '  const [isError, setIsError] = useState(false);\r\n' +
+    '  const [skipped, setSkipped] = useState(false);\r\n' +
+    '  const onLinkedRef = useRef(onLinked);\r\n' +
+    '  const identityMatchesSigningEmail = Boolean(\r\n' +
+    '    identity && normalizedEmail(identity.email) === signingEmail\r\n' +
+    '  );\r\n' +
+    '\r\n' +
+    '  useEffect(() => setLinked(linkedAccount), [linkedAccount]);\r\n' +
+    '  useEffect(() => {\r\n' +
+    '    onLinkedRef.current = onLinked;\r\n' +
+    '  }, [onLinked]);\r\n' +
+    '\r\n' +
+    '  useEffect(() => {\r\n' +
+    '    let active = true;\r\n' +
+    '    void (async () => {\r\n' +
+    '      try {\r\n' +
+    '        const currentIdentity = await getCurrentSupporterIdentity();\r\n' +
+    '        if (!active || !currentIdentity) return;\r\n' +
+    '        setIdentity(currentIdentity);\r\n' +
+    '        if (normalizedEmail(currentIdentity.email) !== signingEmail) {\r\n' +
+    '          setIsError(true);\r\n' +
+    '          setMessage(copy.emailMismatch);\r\n' +
+    '          return;\r\n' +
+    '        }\r\n' +
+    '        const existing = findLinkedSupporterAccount(\r\n' +
+    '          await readOwnSupporterAccountLinks(),\r\n' +
+    '          campaignId,\r\n' +
+    '          supporterId\r\n' +
+    '        );\r\n' +
+    '        if (active && existing) {\r\n' +
+    '          setLinked(existing);\r\n' +
+    '          onLinkedRef.current(existing);\r\n' +
+    '        }\r\n' +
+    '      } catch {\r\n' +
+    '        if (active) {\r\n' +
+    '          setIsError(true);\r\n' +
+    '          setMessage(copy.authFailed);\r\n' +
+    '        }\r\n' +
+    '      }\r\n' +
+    '    })();\r\n' +
+    '    return () => {\r\n' +
+    '      active = false;\r\n' +
+    '    };\r\n' +
+    '  }, [campaignId, copy.authFailed, copy.emailMismatch, signingEmail, supporterId]);\r\n' +
+    '\r\n' +
+    '  useEffect(() => {\r\n' +
+    '    if (grant && !isUsableSupporterClaimGrant(grant) && !linkedAccount) {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(copy.claimExpired);\r\n' +
+    '    }\r\n' +
+    '  }, [copy.claimExpired, grant, linkedAccount]);\r\n' +
+    '\r\n' +
+    '  const finishLink = (link: SupporterAccountLink, openDashboard: boolean) => {\r\n' +
+    '    if (link.campaignId !== campaignId || link.supporterId !== supporterId) {\r\n' +
+    '      throw new SupporterAccountClaimError("supporter_claim_failed");\r\n' +
+    '    }\r\n' +
+    '    setLinked(link);\r\n' +
+    '    setPassword("");\r\n' +
+    '    setIsError(false);\r\n' +
+    '    setMessage(openDashboard ? copy.openingDashboard : "");\r\n' +
+    '    onLinked(link);\r\n' +
+    '    // Keep the completed six-step campaign journey in the current tab.\r\n' +
+    '    // The explicit dashboard link below opens a separate tab, avoiding\r\n' +
+    '    // popup blockers triggered by asynchronous account-link completion.\r\n' +
+    '  };\r\n' +
+    '\r\n' +
+    '  const linkForIdentity = async (accountEmail: string) => {\r\n' +
+    '    if (normalizedEmail(accountEmail) !== signingEmail) {\r\n' +
+    '      throw new SupporterAccountClaimError("supporter_claim_invalid");\r\n' +
+    '    }\r\n' +
+    '    const existing = findLinkedSupporterAccount(\r\n' +
+    '      await readOwnSupporterAccountLinks(),\r\n' +
+    '      campaignId,\r\n' +
+    '      supporterId\r\n' +
+    '    );\r\n' +
+    '    if (existing) {\r\n' +
+    '      finishLink(existing, true);\r\n' +
+    '      return;\r\n' +
+    '    }\r\n' +
+    '    if (!grant) throw new SupporterAccountClaimError("supporter_claim_invalid");\r\n' +
+    '    finishLink(await claimSupporterAccount(grant), true);\r\n' +
+    '  };\r\n' +
+    '\r\n' +
+    '  const signInAndLink = async () => {\r\n' +
+    '    if (normalizedEmail(email) !== signingEmail) {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(copy.emailMismatch);\r\n' +
+    '      return;\r\n' +
+    '    }\r\n' +
+    '    setBusy(true);\r\n' +
+    '    setIsError(false);\r\n' +
+    '    setMessage(copy.working);\r\n' +
+    '    try {\r\n' +
+    '      const nextIdentity = await loginSupporterWithEmail(email, password);\r\n' +
+    '      setIdentity(nextIdentity);\r\n' +
+    '      if (normalizedEmail(nextIdentity.email) !== signingEmail) {\r\n' +
+    '        setIsError(true);\r\n' +
+    '        setMessage(copy.emailMismatch);\r\n' +
+    '        return;\r\n' +
+    '      }\r\n' +
+    '      await linkForIdentity(nextIdentity.email);\r\n' +
+    '    } catch (error) {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(safeMessage(error, copy));\r\n' +
+    '    } finally {\r\n' +
+    '      setPassword("");\r\n' +
+    '      setBusy(false);\r\n' +
+    '    }\r\n' +
+    '  };\r\n' +
+    '\r\n' +
+    '  const register = async () => {\r\n' +
+    '    if (normalizedEmail(email) !== signingEmail) {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(copy.emailMismatch);\r\n' +
+    '      return;\r\n' +
+    '    }\r\n' +
+    '    setBusy(true);\r\n' +
+    '    setIsError(false);\r\n' +
+    '    setMessage(copy.working);\r\n' +
+    '    try {\r\n' +
+    '      await registerSupporterWithEmailForContext(email, password, campaignLoginPath);\r\n' +
+    '      setPassword("");\r\n' +
+    '      setAuthMode("verify_signup_otp");\r\n' +
+    '       setSignupOtp("");\r\n' +
+    '      setMessage("Enter the verification code sent to your email.");\r\n' +
+    '    } catch (error) {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(safeMessage(error, copy));\r\n' +
+    '    } finally {\r\n' +
+    '      setBusy(false);\r\n' +
+    '    }\r\n' +
+    '  };\r\n' +
+    '\r\n' +
+    '  const verifySignupOtpAndLink = async () => {\r\n' +
+    '    setBusy(true);\r\n' +
+    '    setIsError(false);\r\n' +
+    '    setMessage("Verifying your email code...");\r\n' +
+    '    try {\r\n' +
+    '      const verified = await verifySupporterSignupOtp(email, signupOtp);\r\n' +
+    '      setIdentity(verified);\r\n' +
+    '      setSignupOtp("");\r\n' +
+    '      await linkForIdentity(verified.email);\r\n' +
+    '    } catch (error) {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(safeMessage(error, copy));\r\n' +
+    '    } finally {\r\n' +
+    '      setBusy(false);\r\n' +
+    '    }\r\n' +
+    '  };\r\n' +
+    '\r\n' +
+    '  const linkCurrentIdentity = async () => {\r\n' +
+    '    if (!identity || !identityMatchesSigningEmail) {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(copy.emailMismatch);\r\n' +
+    '      return;\r\n' +
+    '    }\r\n' +
+    '    setBusy(true);\r\n' +
+    '    setIsError(false);\r\n' +
+    '    setMessage(copy.working);\r\n' +
+    '    try {\r\n' +
+    '      await linkForIdentity(identity.email);\r\n' +
+    '    } catch (error) {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(safeMessage(error, copy));\r\n' +
+    '    } finally {\r\n' +
+    '      setBusy(false);\r\n' +
+    '    }\r\n' +
+    '  };\r\n' +
+    '\r\n' +
+    '  const useAnotherAccount = async () => {\r\n' +
+    '    setBusy(true);\r\n' +
+    '    try {\r\n' +
+    '      await logoutSupporter();\r\n' +
+    '      setIdentity(null);\r\n' +
+    '      setPassword("");\r\n' +
+    '      setAuthMode("sign_in");\r\n' +
+    '      setIsError(false);\r\n' +
+    '      setMessage("");\r\n' +
+    '    } catch {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(copy.authFailed);\r\n' +
+    '    } finally {\r\n' +
+    '      setBusy(false);\r\n' +
+    '    }\r\n' +
+    '  };\r\n' +
+    '\r\n' +
+    '  const recoverPassword = async () => {\r\n' +
+    '    setBusy(true);\r\n' +
+    '    setIsError(false);\r\n' +
+    '    setMessage(copy.working);\r\n' +
+    '    try {\r\n' +
+    '      await requestSupporterPasswordRecovery(signingEmail);\r\n' +
+    '      setMessage(copy.recoverySent);\r\n' +
+    '    } catch {\r\n' +
+    '      setIsError(true);\r\n' +
+    '      setMessage(copy.recoveryFailed);\r\n' +
+    '    } finally {\r\n' +
+    '      setBusy(false);\r\n' +
+    '    }\r\n' +
+    '  };\r\n' +
+    '\r\n' +
+    '  if (skipped) return null;\r\n' +
+    '\r\n' +
+    '  if (linked) {\r\n' +
+    '    return (\r\n' +
+    '      <section className="public-supporter-account public-supporter-account-linked" aria-labelledby="supporter-linked-profile-heading">\r\n' +
+    '        <CheckCircle2 size={26} aria-hidden="true" />\r\n' +
+    '        <div className="public-section-heading">\r\n' +
+    '          <span className="eyebrow">{copy.eyebrow}</span>\r\n' +
+    '          <h4 id="supporter-linked-profile-heading">{copy.linkedTitle}</h4>\r\n' +
+    '          <p>{copy.linkedHelp}</p>\r\n' +
+    '        </div>\r\n' +
+    '        <dl className="public-supporter-account-profile">\r\n' +
+    '          <div><dt>{copy.profileName}</dt><dd>{sup'... 5383 more characters
+  
+      at TestContext.<anonymous> (file:///D:/VoiceupOnline-ReleaseCandidates/VOICEUP-UNIFIED-DEVELOPMENT/tests/productionCustomerJourney.test.mjs:69:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1325:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:911:18)
+      at Test.postRun (node:internal/test_runner/test:1465:19)
+      at Test.run (node:internal/test_runner/test:1390:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'import { useEffect, useRef, useState } from "react";\r\nimport { CheckCircle2, LockKeyhole, UserRound } from "lucide-react";\r\nimport {\r\n  getCurrentSupporterIdentity,\r\n  loginSupporterWithEmail,\r\n  logoutSupporter,\r\n  registerSupporterWithEmailForContext,\r\n  verifySupporterSignupOtp,\r\n  requestSupporterPasswordRecovery,\r\n  SupporterAuthError,\r\n  type SupporterIdentity\r\n} from "../supporterAuth.ts";\r\nimport {\r\n  claimSupporterAccount,\r\n  findLinkedSupporterAccount,\r\n  isUsableSupporterClaimGrant,\r\n  readOwnSupporterAccountLinks,\r\n  SupporterAccountClaimError,\r\n  type SupporterAccountClaimGrant,\r\n  type SupporterAccountLink\r\n} from "../supporterAccountClaim.ts";\r\nimport { getCampaignLoginPath } from "../campaignAuthContext.ts";\r\nimport { PasswordField } from "../ui/PasswordField";\r\n\r\ntype ClaimAuthMode = "register" | "sign_in" | "verify_signup_otp";\r\n\r\nexport interface SupporterAccountClaimCopy {\r\n  eyebrow: string;\r\n  title: string;\r\n  help: string;\r\n  email: string;\r\n  password: string;\r\n  showPassword: string;\r\n  hidePassword: string;\r\n  register: string;\r\n  loginAndClaim: string;\r\n  claim: string;\r\n  useAnotherAccount: string;\r\n  registrationSent: string;\r\n  signedInAs: string;\r\n  signingEmail: string;\r\n  accountEmail: string;\r\n  emailMismatch: string;\r\n  linkedTitle: string;\r\n  linkedHelp: string;\r\n  profileName: string;\r\n  supporterId: string;\r\n  campaign: string;\r\n  openProfile: string;\r\n  working: string;\r\n  authFailed: string;\r\n  confirmationRequired: string;\r\n  claimInvalid: string;\r\n  claimExpired: string;\r\n  claimFailed: string;\r\n  skip: string;\r\n  openingDashboard: string;\r\n  forgotPassword: string;\r\n  recoverySent: string;\r\n  recoveryFailed: string;\r\n}\r\n\r\ninterface SupporterAccountClaimPanelProps {\r\n  grant: SupporterAccountClaimGrant | null;\r\n  linkedAccount: SupporterAccountLink | null;\r\n  campaignId: string;\r\n  campaignSlug: string;\r\n  campaignTitle: string;\r\n  supporterId: string;\r\n  supporterName: string;\r\n  supporterEmail: string;\r\n  copy: SupporterAccountClaimCopy;\r\n  onLinked: (link: SupporterAccountLink) => void;\r\n}\r\n\r\nfunction safeMessage(error: unknown, copy: SupporterAccountClaimCopy): string {\r\n  if (error instanceof SupporterAuthError) {\r\n    if (error.code === "supporter_email_not_confirmed") return copy.confirmationRequired;\r\n    return copy.authFailed;\r\n  }\r\n  if (error instanceof SupporterAccountClaimError) {\r\n    if (error.code === "supporter_claim_email_confirmation_required") {\r\n      return copy.confirmationRequired;\r\n    }\r\n    if (error.code === "supporter_claim_invalid") return copy.claimInvalid;\r\n  }\r\n  return copy.claimFailed;\r\n}\r\n\r\nfunction normalizedEmail(value: string): string {\r\n  return value.trim().toLowerCase();\r\n}\r\n\r\nexport function SupporterAccountClaimPanel({\r\n  grant,\r\n  linkedAccount,\r\n  campaignId,\r\n  campaignSlug,\r\n  campaignTitle,\r\n  supporterId,\r\n  supporterName,\r\n  supporterEmail,\r\n  copy,\r\n  onLinked\r\n}: SupporterAccountClaimPanelProps) {\r\n  const [identity, setIdentity] = useState<SupporterIdentity | null>(null);\r\n  const [linked, setLinked] = useState<SupporterAccountLink | null>(linkedAccount);\r\n  const signingEmail = normalizedEmail(supporterEmail);\r\n  const email = signingEmail;\r\n  const campaignLoginPath = getCampaignLoginPath({ campaignId, campaignSlug });\r\n  const [password, setPassword] = useState("");\r\n  const [signupOtp, setSignupOtp] = useState("");\r\n  const [authMode, setAuthMode] = useState<ClaimAuthMode>("register");\r\n  const [busy, setBusy] = useState(false);\r\n  const [message, setMessage] = useState("");\r\n  const [isError, setIsError] = useState(false);\r\n  const [skipped, setSkipped] = useState(false);\r\n  const onLinkedRef = useRef(onLinked);\r\n  const identityMatchesSigningEmail = Boolean(\r\n    identity && normalizedEmail(identity.email) === signingEmail\r\n  );\r\n\r\n  useEffect(() => setLinked(linkedAccount), [linkedAccount]);\r\n  useEffect(() => {\r\n    onLinkedRef.current = onLinked;\r\n  }, [onLinked]);\r\n\r\n  useEffect(() => {\r\n    let active = true;\r\n    void (async () => {\r\n      try {\r\n        const currentIdentity = await getCurrentSupporterIdentity();\r\n        if (!active || !currentIdentity) return;\r\n        setIdentity(currentIdentity);\r\n        if (normalizedEmail(currentIdentity.email) !== signingEmail) {\r\n          setIsError(true);\r\n          setMessage(copy.emailMismatch);\r\n          return;\r\n        }\r\n        const existing = findLinkedSupporterAccount(\r\n          await readOwnSupporterAccountLinks(),\r\n          campaignId,\r\n          supporterId\r\n        );\r\n        if (active && existing) {\r\n          setLinked(existing);\r\n          onLinkedRef.current(existing);\r\n        }\r\n      } catch {\r\n        if (active) {\r\n          setIsError(true);\r\n          setMessage(copy.authFailed);\r\n        }\r\n      }\r\n    })();\r\n    return () => {\r\n      active = false;\r\n    };\r\n  }, [campaignId, copy.authFailed, copy.emailMismatch, signingEmail, supporterId]);\r\n\r\n  useEffect(() => {\r\n    if (grant && !isUsableSupporterClaimGrant(grant) && !linkedAccount) {\r\n      setIsError(true);\r\n      setMessage(copy.claimExpired);\r\n    }\r\n  }, [copy.claimExpired, grant, linkedAccount]);\r\n\r\n  const finishLink = (link: SupporterAccountLink, openDashboard: boolean) => {\r\n    if (link.campaignId !== campaignId || link.supporterId !== supporterId) {\r\n      throw new SupporterAccountClaimError("supporter_claim_failed");\r\n    }\r\n    setLinked(link);\r\n    setPassword("");\r\n    setIsError(false);\r\n    setMessage(openDashboard ? copy.openingDashboard : "");\r\n    onLinked(link);\r\n    // Keep the completed six-step campaign journey in the current tab.\r\n    // The explicit dashboard link below opens a separate tab, avoiding\r\n    // popup blockers triggered by asynchronous account-link completion.\r\n  };\r\n\r\n  const linkForIdentity = async (accountEmail: string) => {\r\n    if (normalizedEmail(accountEmail) !== signingEmail) {\r\n      throw new SupporterAccountClaimError("supporter_claim_invalid");\r\n    }\r\n    const existing = findLinkedSupporterAccount(\r\n      await readOwnSupporterAccountLinks(),\r\n      campaignId,\r\n      supporterId\r\n    );\r\n    if (existing) {\r\n      finishLink(existing, true);\r\n      return;\r\n    }\r\n    if (!grant) throw new SupporterAccountClaimError("supporter_claim_invalid");\r\n    finishLink(await claimSupporterAccount(grant), true);\r\n  };\r\n\r\n  const signInAndLink = async () => {\r\n    if (normalizedEmail(email) !== signingEmail) {\r\n      setIsError(true);\r\n      setMessage(copy.emailMismatch);\r\n      return;\r\n    }\r\n    setBusy(true);\r\n    setIsError(false);\r\n    setMessage(copy.working);\r\n    try {\r\n      const nextIdentity = await loginSupporterWithEmail(email, password);\r\n      setIdentity(nextIdentity);\r\n      if (normalizedEmail(nextIdentity.email) !== signingEmail) {\r\n        setIsError(true);\r\n        setMessage(copy.emailMismatch);\r\n        return;\r\n      }\r\n      await linkForIdentity(nextIdentity.email);\r\n    } catch (error) {\r\n      setIsError(true);\r\n      setMessage(safeMessage(error, copy));\r\n    } finally {\r\n      setPassword("");\r\n      setBusy(false);\r\n    }\r\n  };\r\n\r\n  const register = async () => {\r\n    if (normalizedEmail(email) !== signingEmail) {\r\n      setIsError(true);\r\n      setMessage(copy.emailMismatch);\r\n      return;\r\n    }\r\n    setBusy(true);\r\n    setIsError(false);\r\n    setMessage(copy.working);\r\n    try {\r\n      await registerSupporterWithEmailForContext(email, password, campaignLoginPath);\r\n      setPassword("");\r\n      setAuthMode("verify_signup_otp");\r\n       setSignupOtp("");\r\n      setMessage("Enter the verification code sent to your email.");\r\n    } catch (error) {\r\n      setIsError(true);\r\n      setMessage(safeMessage(error, copy));\r\n    } finally {\r\n      setBusy(false);\r\n    }\r\n  };\r\n\r\n  const verifySignupOtpAndLink = async () => {\r\n    setBusy(true);\r\n    setIsError(false);\r\n    setMessage("Verifying your email code...");\r\n    try {\r\n      const verified = await verifySupporterSignupOtp(email, signupOtp);\r\n      setIdentity(verified);\r\n      setSignupOtp("");\r\n      await linkForIdentity(verified.email);\r\n    } catch (error) {\r\n      setIsError(true);\r\n      setMessage(safeMessage(error, copy));\r\n    } finally {\r\n      setBusy(false);\r\n    }\r\n  };\r\n\r\n  const linkCurrentIdentity = async () => {\r\n    if (!identity || !identityMatchesSigningEmail) {\r\n      setIsError(true);\r\n      setMessage(copy.emailMismatch);\r\n      return;\r\n    }\r\n    setBusy(true);\r\n    setIsError(false);\r\n    setMessage(copy.working);\r\n    try {\r\n      await linkForIdentity(identity.email);\r\n    } catch (error) {\r\n      setIsError(true);\r\n      setMessage(safeMessage(error, copy));\r\n    } finally {\r\n      setBusy(false);\r\n    }\r\n  };\r\n\r\n  const useAnotherAccount = async () => {\r\n    setBusy(true);\r\n    try {\r\n      await logoutSupporter();\r\n      setIdentity(null);\r\n      setPassword("");\r\n      setAuthMode("sign_in");\r\n      setIsError(false);\r\n      setMessage("");\r\n    } catch {\r\n      setIsError(true);\r\n      setMessage(copy.authFailed);\r\n    } finally {\r\n      setBusy(false);\r\n    }\r\n  };\r\n\r\n  const recoverPassword = async () => {\r\n    setBusy(true);\r\n    setIsError(false);\r\n    setMessage(copy.working);\r\n    try {\r\n      await requestSupporterPasswordRecovery(signingEmail);\r\n      setMessage(copy.recoverySent);\r\n    } catch {\r\n      setIsError(true);\r\n      setMessage(copy.recoveryFailed);\r\n    } finally {\r\n      setBusy(false);\r\n    }\r\n  };\r\n\r\n  if (skipped) return null;\r\n\r\n  if (linked) {\r\n    return (\r\n      <section className="public-supporter-account public-supporter-account-linked" aria-labelledby="supporter-linked-profile-heading">\r\n        <CheckCircle2 size={26} aria-hidden="true" />\r\n        <div className="public-section-heading">\r\n          <span className="eyebrow">{copy.eyebrow}</span>\r\n          <h4 id="supporter-linked-profile-heading">{copy.linkedTitle}</h4>\r\n          <p>{copy.linkedHelp}</p>\r\n        </div>\r\n        <dl className="public-supporter-account-profile">\r\n          <div><dt>{copy.profileName}</dt><dd>{sup'... 5383 more characters,
+    expected: /location\.assign\(`\/account\/supporter\/\$\{encodeURIComponent\(link\.accountId\)\}`\)/,
+    operator: 'match',
+    diff: 'simple'
+  }

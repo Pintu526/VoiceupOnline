@@ -1,3 +1,4 @@
+import SharedMediaPage from "./pages/SharedMediaPage.tsx";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import * as Toast from "@radix-ui/react-toast";
 import {
@@ -136,7 +137,7 @@ import {
   type LocationOverrideReferences,
   type LocationOverrides,
   type LocationWithPin
-} from "./geography";
+} from "./locationManagement";
 import type {
   AuthorityRule,
   AuditLogEntry,
@@ -166,9 +167,11 @@ import {
 } from "./constants";
 import {
   getCampaignAdminSlug,
+  getIsCampaignOsRoute,
   getIsAppRoute,
   getIsVoiceupAccountRoute,
   getIsVoiceupLoginRoute,
+  getCertificateVerificationRoute,
   getIsLandingPageRoute,
   getIsSaasAdminPasswordResetRoute,
   getIsStartRoute,
@@ -284,7 +287,8 @@ import {
   isValidPublicSignerEmail,
   transitionPublicSigningCampaign,
   type PublicSigningCampaignScope,
-  type PublicSigningSubmissionAttempt
+  type PublicSigningSubmissionAttempt,
+  type PublicSigningVerificationOutcome
 } from "./publicSigningJourney";
 import {
   GOUDHAN_CAMPAIGN_SLUG,
@@ -294,6 +298,7 @@ import {
 import { toPublicParticipationRequest } from "./movementRequests";
 
 import { MarketingHomePage } from "./pages/MarketingHomePage";
+import { CampaignOsLandingPage } from "./pages/CampaignOsLandingPage";
 import type {
   OnboardingCompletionPayload,
   OnboardingCompletionResult
@@ -303,19 +308,26 @@ import { SaasAppLoginPage } from "./pages/SaasAppLoginPage";
 import { SaasAdminPasswordResetPage } from "./pages/SaasAdminPasswordResetPage";
 import { VoiceupLoginPage } from "./pages/VoiceupLoginPage";
 import { VoiceupAccountPage } from "./pages/VoiceupAccountPage";
+import { CertificateVerificationPage } from "./certificates/CertificateVerificationPage";
 import { readCampaignAuthContext } from "./campaignAuthContext";
+import { lazy, Suspense } from "react";
 import {
-  PublicCampaignPage,
   PublicCampaignNotFound,
   PublicCampaignLoading
-} from "./pages/PublicCampaignPage";
+} from "./pages/PublicCampaignRouteStates";
+
+const PublicCampaignPage = lazy(async () => ({
+  default: (await import("./pages/PublicCampaignPage")).PublicCampaignPage
+}));
 import {
   CampaignAdminLoginPage,
   CampaignAdminNotFound
 } from "./pages/CampaignAdminLoginPage";
 
 // Layout
-import { AppShell } from "./layouts/AppShell";
+const AppShell = lazy(async () => ({
+  default: (await import("./layouts/AppShell")).AppShell
+}));
 
 function getInitialWorkspaceTab():
   | "dashboard"
@@ -327,6 +339,7 @@ function getInitialWorkspaceTab():
   | "movement"
   | "coordinators"
   | "growth"
+  | "gaupoints"
   | "scans"
   | "reports"
   | "engagement"
@@ -335,7 +348,8 @@ function getInitialWorkspaceTab():
   | "ideas" {
   if (typeof window === "undefined") return "command";
   const queryTab = new URLSearchParams(window.location.search).get("tab");
-  if (queryTab === "coordinators") return "coordinators";
+  const validTabs = new Set(["dashboard", "command", "campaigns", "public", "movement", "coordinators", "growth", "gaupoints", "scans", "reports", "engagement", "activity", "saas"]);
+  if (queryTab && validTabs.has(queryTab)) return queryTab as ReturnType<typeof getInitialWorkspaceTab>;
   return "command";
 }
 
@@ -349,11 +363,13 @@ const appCampaignContext = isAppRoute && typeof window !== "undefined"
   : null;
 const isVoiceupLoginRoute = getIsVoiceupLoginRoute();
 const isVoiceupAccountRoute = getIsVoiceupAccountRoute();
+const certificateVerificationRoute = getCertificateVerificationRoute();
 const supporterAccountDashboardId = getSupporterAccountDashboardId();
 const isSaasAdminRoute = getIsSaasAdminRoute();
 const isSaasAdminPasswordResetRoute = getIsSaasAdminPasswordResetRoute();
 const legalPage = getLegalPage();
 const isLandingPageRoute = getIsLandingPageRoute();
+const isCampaignOsRoute = getIsCampaignOsRoute();
 const isStartRoute = getIsStartRoute();
 const isPublicCampaignRoute = Boolean(publicCampaignSlug);
 const isSupporterPortalRoute = Boolean(supporterPortalCode);
@@ -552,7 +568,7 @@ function App() {
 
   // ─── UI state ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "command" | "fund" | "prove" | "campaigns" | "public" | "movement" | "coordinators" | "growth" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
+    "dashboard" | "command" | "fund" | "prove" | "campaigns" | "public" | "movement" | "coordinators" | "growth" | "gaupoints" | "scans" | "reports" | "engagement" | "activity" | "saas" | "ideas"
   >(() => getInitialWorkspaceTab());
   const [theme, setTheme] = usePersistentState<"light" | "dark">(`${storagePrefix}-theme`, "light");
   const [commandOpen, setCommandOpen] = useState(false);
@@ -584,6 +600,11 @@ function App() {
   const publicMovementRequestLoadGenerationRef = useRef(0);
   const publicSigningCampaignRef = useRef<PublicSigningCampaignScope | null>(null);
   const publicSigningSubmissionRef = useRef<PublicSigningSubmissionAttempt | null>(null);
+  const publicSupporterLookupGenerationRef = useRef(0);
+  const publicSupporterLookupRef = useRef<{
+    key: string;
+    promise: Promise<PublicSigningVerificationOutcome>;
+  } | null>(null);
   const [publicCampaignPayload, setPublicCampaignPayload] = useState<PublicCampaignPayload | null>(null);
   const [publicCampaignJourney, setPublicCampaignJourney] = useState<PublicCampaignJourney | null>(null);
   const [publicCampaignJourneyLoading, setPublicCampaignJourneyLoading] = useState(
@@ -731,6 +752,8 @@ function App() {
     if (!campaignChanged) return;
 
     publicSigningSubmissionRef.current = null;
+    publicSupporterLookupGenerationRef.current += 1;
+    publicSupporterLookupRef.current = null;
     setPublicForm(blankSigner);
     setPublicMessage("");
     setOtpCode("");
@@ -2143,8 +2166,18 @@ function App() {
       authorities
     );
     const referralInput = restrictedPublicForm.referredByPhoneOrCode?.trim() ?? "";
-    const referrer = findReferrer(campaignSigners, activeCampaign.id, referralInput);
-    const referredBy = referrer ? getSupporterReferralCode(referrer) : normalizeReferralCode(referralInput);
+    const localReferrer = isBackendConfigured
+      ? undefined
+      : findReferrer(campaignSigners, activeCampaign.id, referralInput);
+    if (!isBackendConfigured && referralInput && !localReferrer) {
+      setPublicMessage("Referring supporter could not be confirmed. Remove the referral or enter a verified supporter number/code.");
+      return;
+    }
+    if (localReferrer && localReferrer.phone.replace(/\D/g, "") === restrictedPublicForm.phone.replace(/\D/g, "")) {
+      setPublicMessage("You cannot refer yourself. Remove the referral or enter another verified supporter.");
+      return;
+    }
+    const referredBy = localReferrer ? getSupporterReferralCode(localReferrer) : "";
     const signerReferralCode = createReferralCode(
       activeCampaign.id,
       restrictedPublicForm.phone || restrictedPublicForm.email || restrictedPublicForm.name || `${Date.now()}`
@@ -2314,6 +2347,8 @@ function App() {
 
   function startNewPublicSigningJourney() {
     publicSigningSubmissionRef.current = null;
+    publicSupporterLookupGenerationRef.current += 1;
+    publicSupporterLookupRef.current = null;
     if (typeof window !== "undefined" && publicSigningCampaignRef.current) {
       clearPublicSigningJourney(window.sessionStorage, publicSigningCampaignRef.current);
     }
@@ -2342,6 +2377,8 @@ function App() {
     const phone = publicForm.phone.trim();
     if (!phone) { setOtpMessage("Enter phone number before requesting OTP."); return false; }
     publicSigningSubmissionRef.current = null;
+    publicSupporterLookupGenerationRef.current += 1;
+    publicSupporterLookupRef.current = null;
     if (typeof window !== "undefined" && publicSigningCampaignRef.current) {
       clearPublicSigningJourney(window.sessionStorage, publicSigningCampaignRef.current);
     }
@@ -2396,11 +2433,118 @@ function App() {
     }
   }
 
-  async function verifyOtp() {
+  async function resolveVerifiedPublicSupporter(
+    phone: string,
+    verificationToken: string
+  ): Promise<PublicSigningVerificationOutcome> {
+    if (!isBackendConfigured || !activeCampaign?.slug || !verificationToken) {
+      return "lookup_unavailable";
+    }
+    const key = `${activeCampaign.id}:${phone}:${verificationToken}`;
+    const existing = publicSupporterLookupRef.current;
+    const withTimeout = async (promise: Promise<PublicSigningVerificationOutcome>) => {
+      let timeoutId = 0;
+      try {
+        return await Promise.race([
+          promise,
+          new Promise<PublicSigningVerificationOutcome>((resolve) => {
+            timeoutId = window.setTimeout(() => resolve("lookup_unavailable"), 12_000);
+          })
+        ]);
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    };
+    if (existing?.key === key) return withTimeout(existing.promise);
+
+    const generation = ++publicSupporterLookupGenerationRef.current;
+    const lookup = (async (): Promise<PublicSigningVerificationOutcome> => {
+      try {
+        const resumed = await mutatePublicParticipation({
+          slug: publicParticipationSlug,
+          action: "resume_verified_supporter",
+          phone,
+          otpVerificationToken: verificationToken,
+          idempotencyKey: createPublicParticipationIdempotencyKey("resume")
+        });
+        if (generation !== publicSupporterLookupGenerationRef.current) return "stale";
+        if (!resumed.signer) return "new_supporter";
+
+        const restoredSigner = resumed.signer;
+        setPublicForm((current) => {
+          if (current.phone.trim() !== phone) return current;
+          const restored = Object.fromEntries(
+            Object.keys(blankSigner)
+              .filter((field) => field in restoredSigner)
+              .map((field) => [field, restoredSigner[field as keyof Signer]])
+          );
+          return {
+            ...current,
+            ...restored,
+            phone,
+            otpVerified: true,
+            phoneOwnershipVerified: true,
+            otpChallengeId: current.otpChallengeId,
+            otpVerificationToken: verificationToken
+          };
+        });
+        setPublicCampaignPayload((current) =>
+          current?.campaign.id === activeCampaign.id
+            ? { ...current, metrics: resumed.metrics }
+            : current
+        );
+        if (restoredSigner.status !== "verified") {
+          setPublicMovementRequests([]);
+          return "new_supporter";
+        }
+        setLastSignedSigner(restoredSigner);
+        void hydratePublicMovementRequests(phone, verificationToken);
+        return "returning_supporter";
+      } catch (error) {
+        if (generation !== publicSupporterLookupGenerationRef.current) return "stale";
+        if (
+          error instanceof PublicSignatureSubmissionError &&
+          error.code === "idempotency_conflict"
+        ) {
+          return "secure_access_required";
+        }
+        return "lookup_unavailable";
+      }
+    })();
+    publicSupporterLookupRef.current = { key, promise: lookup };
+    void lookup.finally(() => {
+      if (publicSupporterLookupRef.current?.promise === lookup) {
+        publicSupporterLookupRef.current = null;
+      }
+    });
+    return withTimeout(lookup);
+  }
+
+  async function retryVerifiedPublicSupporterLookup(): Promise<PublicSigningVerificationOutcome> {
+    if (
+      !publicForm.phoneOwnershipVerified ||
+      publicForm.verificationMethod === "screen_otp" ||
+      !publicForm.otpVerificationToken
+    ) {
+      return "secure_access_required";
+    }
+    return resolveVerifiedPublicSupporter(
+      publicForm.phone.trim(),
+      publicForm.otpVerificationToken
+    );
+  }
+
+  async function verifyOtp(): Promise<PublicSigningVerificationOutcome> {
     const phone = publicForm.phone.trim();
-    if (!publicForm.otpChallengeId) { setOtpMessage("Request a verification code first."); return; }
-    if (!otpInput.trim()) { setOtpMessage("Enter the verification code."); return; }
-      setOtpMessage("Completing verification...");
+    if (!publicForm.otpChallengeId) {
+      setOtpMessage("Request a verification code first.");
+      return "lookup_unavailable";
+    }
+    if (!otpInput.trim()) {
+      setOtpMessage("Enter the verification code.");
+      return "lookup_unavailable";
+    }
+    setOtpMessage("Completing verification...");
     try {
       const result = await verifyPublicOtp(
         publicForm.otpChallengeId,
@@ -2413,6 +2557,7 @@ function App() {
         }
       );
       setOtpCode("");
+      setPublicOtpExpiresAt(0);
       setLastPublicOtpVerificationToken(result.verificationToken);
       setPublicForm((current) => current.phone.trim() === phone
         ? {
@@ -2427,58 +2572,15 @@ function App() {
       );
       setOtpMessage("");
       setPublicMessage("");
-      if (
-        isBackendConfigured &&
-        activeCampaign?.slug &&
-        result.verificationMethod !== "screen_otp"
-      ) {
-        const resumed = await mutatePublicParticipation({
-          slug: publicParticipationSlug,
-          action: "resume_verified_supporter",
-          phone,
-          otpVerificationToken: result.verificationToken,
-          idempotencyKey: createPublicParticipationIdempotencyKey("resume")
-        });
-        if (resumed.signer) {
-          let restoredSigner = resumed.signer;
-          if (resumed.signer.coordinatorApplication) {
-            const synchronized = await mutatePublicParticipation({
-              slug: publicParticipationSlug,
-              action: "sync_coordinator_application_state",
-              phone,
-              otpVerificationToken: result.verificationToken,
-              idempotencyKey: createPublicParticipationIdempotencyKey("coordinator-sync")
-            });
-            restoredSigner = synchronized.signer ?? restoredSigner;
-          }
-          setPublicForm((current) => {
-            const restored = Object.fromEntries(
-              Object.keys(blankSigner)
-                .filter((key) => key in restoredSigner)
-                .map((key) => [key, restoredSigner[key as keyof Signer]])
-            );
-            return {
-              ...current,
-              ...restored,
-              phone,
-              otpVerified: true,
-              otpChallengeId: current.otpChallengeId,
-              otpVerificationToken: result.verificationToken
-            };
-          });
-          if (restoredSigner.status === "verified") {
-            setLastSignedSigner(restoredSigner);
-            await hydratePublicMovementRequests(phone, result.verificationToken);
-          } else {
-            setPublicMovementRequests([]);
-          }
-          setPublicCampaignPayload((current) =>
-            current?.campaign.id === activeCampaign.id
-              ? { ...current, metrics: resumed.metrics }
-              : current
-          );
-        }
+      if (result.verificationMethod === "screen_otp") {
+        // Screen OTP authorizes a new signing attempt, never phone ownership or account recovery.
+        // The server rejects existing supporters and unbound post-sign mutations.
+        return "new_supporter";
       }
+      if (result.phoneOwnershipVerified !== true) {
+        return "secure_access_required";
+      }
+      return resolveVerifiedPublicSupporter(phone, result.verificationToken);
     } catch (error) {
       const message =
         error instanceof PublicSignatureSubmissionError
@@ -2499,10 +2601,13 @@ function App() {
         setLastPublicOtpVerificationToken("");
       }
       setOtpMessage(message);
+      return "lookup_unavailable";
     }
   }
 
   async function saveVerifiedPublicDraft() {
+    // An unbound screen-OTP challenge can only submit support, not save a draft.
+    if (publicForm.verificationMethod === "screen_otp") return;
     if (!isBackendConfigured || !activeCampaign || !publicParticipationSlug || !publicForm.otpVerificationToken) return;
     try {
       const saved = await mutatePublicParticipation({
@@ -4048,6 +4153,10 @@ function App() {
     return <VoiceupLoginPage />;
   }
 
+  if (certificateVerificationRoute) {
+    return <CertificateVerificationPage {...certificateVerificationRoute} />;
+  }
+
   if (isVoiceupAccountRoute) {
     return <VoiceupAccountPage supporterAccountId={supporterAccountDashboardId || undefined} />;
   }
@@ -4071,6 +4180,7 @@ function App() {
     }
     return activeCampaign ? (
       <div className="public-only-shell">
+        <Suspense fallback={<PublicCampaignLoading message="Loading campaign..." />}>
         <PublicCampaignPage
           campaign={activeCampaign}
           customLocations={publicCampaignPayload?.customLocations ?? []}
@@ -4103,6 +4213,7 @@ function App() {
           onStartNewJourney={startNewPublicSigningJourney}
           onSendOtp={sendOtp}
           onVerifyOtp={verifyOtp}
+          onRetryVerifiedSupporterLookup={retryVerifiedPublicSupporterLookup}
           onGrowthShare={recordPublicShareGrowth}
           onUploadSupporterPhoto={isBackendConfigured ? uploadLastSupporterPhoto : undefined}
           onSaveDraft={isBackendConfigured ? saveVerifiedPublicDraft : undefined}
@@ -4117,6 +4228,7 @@ function App() {
           locationDeletions={locationDeletions}
           onSubmit={submitPublicSignature}
         />
+        </Suspense>
       </div>
     ) : (
       <PublicCampaignNotFound onRetry={() => window.location.reload()} />
@@ -4143,6 +4255,7 @@ function App() {
   }
 
   if (legalPage) return <LegalPage page={legalPage} />;
+  if (isCampaignOsRoute) return <CampaignOsLandingPage />;
   if (isLandingPageRoute || isStartRoute) return marketingHome;
   if (!isAppRoute && !isSaasAdminRoute && !isCampaignAdminRoute && !isSupporterPortalRoute) {
     return marketingHome;
@@ -4177,7 +4290,8 @@ function App() {
 
   return (
     <Toast.Provider swipeDirection="right">
-      <AppShell
+      <Suspense fallback={<div role="status">Loading workspace...</div>}>
+<AppShell
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         theme={theme}
@@ -4305,6 +4419,7 @@ function App() {
         onLogoutCampaignAdmin={logoutCampaignAdmin}
         onLogoutAppAdmin={logoutAppAdmin}
       />
+</Suspense>
     </Toast.Provider>
   );
 }
@@ -4316,4 +4431,9 @@ function getLocationLevel(values: LocationWithPin): LocationDeletionLevel {
   return "district";
 }
 
-export default App;
+function VoiceUpRoot() {
+  if (window.location.pathname.startsWith("/m/")) return <SharedMediaPage />;
+  return <App />;
+}
+
+export default VoiceUpRoot;

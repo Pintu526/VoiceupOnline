@@ -48,6 +48,29 @@ test("celebration reuses configured campaign copy and fabricates no impact claim
   assert.doesNotMatch(celebrationSource, /million|recognition|reward|achievement/i);
 });
 
+test("confirmed GSAA success shows the supplied celebration GIF without affecting other outcomes", () => {
+  const confirmedSuccessSource = sliceBetween(
+    publicPageSource,
+    'wizardStep === "done" && hasSignedCampaign && !returningSupporterDetected',
+    '<section className="public-post-sign-next"'
+  );
+  const gif = readFileSync(
+    new URL("../public/brands/gau-samman/scene-1.gif", import.meta.url)
+  );
+
+  assert.equal(
+    (publicPageSource.match(/\/brands\/gau-samman\/scene-1\.gif/g) ?? []).length,
+    1
+  );
+  assert.match(confirmedSuccessSource, /isGoudhanExperience/);
+  assert.match(confirmedSuccessSource, /!prefersReducedMotion/);
+  assert.match(confirmedSuccessSource, /className="public-success-celebration-animation"/);
+  assert.match(confirmedSuccessSource, /src="\/brands\/gau-samman\/scene-1\.gif"/);
+  assert.match(confirmedSuccessSource, /decoding="async"/);
+  assert.match(confirmedSuccessSource, /draggable=\{false\}/);
+  assert.match(gif.subarray(0, 6).toString("ascii"), /^GIF8[79]a$/);
+});
+
 test("one post-sign share surface uses the existing personal referral URL for every channel", () => {
   assert.equal(
     (publicPageSource.match(/className="public-post-sign-sharing"/g) ?? []).length,
@@ -157,6 +180,9 @@ test("premium success UI is responsive, keyboard-focused, and motion-safe", () =
   assert.match(publicCss, /\.public-dashboard-share-links a[\s\S]*min-height:\s*44px/);
   assert.match(publicCss, /@media \(max-width: 600px\)[\s\S]*\.public-success-facts,[\s\S]*grid-template-columns:\s*1fr/);
   assert.match(publicCss, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(publicCss, /\.public-success-celebration-animation img[\s\S]*height:\s*auto/);
+  assert.match(publicCss, /\.public-success-celebration-animation img[\s\S]*width:\s*min\(240px, 72vw\)/);
+  assert.match(publicCss, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.public-success-celebration-animation[\s\S]*display:\s*none/);
   assert.match(publicPageSource, /movementRequestResultRef\.current\?\.focus\(\)/);
 });
 

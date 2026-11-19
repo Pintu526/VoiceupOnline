@@ -6,11 +6,12 @@ import { clearPublicSigningOtpState, transitionPublicSigningStep } from "../src/
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 const app = read("../src/App.tsx");
 const page = read("../src/pages/PublicCampaignPage.tsx");
+const publicLocationCatalog = read("../src/components/usePublicCampaignLocationCatalog.ts");
 const en = JSON.parse(read("../src/i18n/locales/en.json"));
 const hi = JSON.parse(read("../src/i18n/locales/hi.json"));
 const or = JSON.parse(read("../src/i18n/locales/or.json"));
 
-test("verification expiry clears only OTP proof and returns to the step needing renewed proof", () => {
+test("challenge expiry preserves profile data and verification state never moves the active step", () => {
   const form = {
     name: "Synthetic signer",
     email: "signer@example.invalid",
@@ -31,12 +32,12 @@ test("verification expiry clears only OTP proof and returns to the step needing 
   assert.equal(cleared.otpChallengeId, "");
   assert.equal(cleared.otpVerificationToken, "");
   assert.deepEqual(transitionPublicSigningStep("review", false, "profile"), {
-    step: "phone",
-    resumeStep: "review"
-  });
-  assert.deepEqual(transitionPublicSigningStep("phone", true, "review"), {
     step: "review",
     resumeStep: "profile"
+  });
+  assert.deepEqual(transitionPublicSigningStep("phone", true, "review"), {
+    step: "phone",
+    resumeStep: "review"
   });
 
   const expiryIndex = app.indexOf("if (!publicOtpExpiresAt) return;");
@@ -46,11 +47,10 @@ test("verification expiry clears only OTP proof and returns to the step needing 
   );
   assert.match(expiryEffect, /clearPublicSigningOtpState\(current\)/);
   assert.doesNotMatch(expiryEffect, /setPublicForm\(blankSigner\)/);
-  const stepTransitionStart = page.indexOf("const transition = transitionPublicSigningStep(");
-  const stepTransitionEnd = page.indexOf("\n  }, [hasSignedCampaign", stepTransitionStart);
-  const stepTransitionEffect = page.slice(stepTransitionStart, stepTransitionEnd);
-  assert.match(stepTransitionEffect, /publicVerificationComplete/);
-  assert.doesNotMatch(stepTransitionEffect, /setAppealConsent|setCampaignConsent|setCommunicationConsent/);
+  const verifyStart = app.indexOf("async function verifyOtp()");
+  const verifyEnd = app.indexOf("\n  async function saveVerifiedPublicDraft", verifyStart);
+  assert.match(app.slice(verifyStart, verifyEnd), /setPublicOtpExpiresAt\(0\)/);
+  assert.doesNotMatch(page, /transitionPublicSigningStep/);
 });
 
 test("public signing uses manual administrative location fields without GPS controls or messages", () => {
@@ -63,6 +63,23 @@ test("public signing uses manual administrative location fields without GPS cont
   assert.doesNotMatch(page, /campaign\.(state|district|block|panchayat|postalCode)/);
   for (const locale of [en, hi, or]) {
     assert.doesNotMatch(locale.goudhanCampaign.locationHelp, /GPS/i);
+  }
+});
+
+test("location catalog refresh preserves the active input and debounces hierarchy reads", () => {
+  assert.match(publicLocationCatalog, /current\.locations\.length > 0\s*\? current/);
+  assert.match(publicLocationCatalog, /window\.setTimeout\(\(\) => void loadCatalog\(\), 250\)/);
+  assert.match(publicLocationCatalog, /window\.clearTimeout\(timer\)/);
+});
+
+test("review copy does not claim storage or delivery before successful submission", () => {
+  assert.match(page, /Stored securely only after successful submission/);
+  assert.match(page, /Prepared for the selected authority; delivery is not yet claimed/);
+  assert.doesNotMatch(page, /Signature stored securely|Petition routed to selected authority/);
+  for (const locale of [en, hi, or]) {
+    assert.ok(locale.public.verificationRecoveryTitle.trim());
+    assert.ok(locale.public.verificationRecoveryHelp.trim());
+    assert.ok(locale.public.verifyAgain.trim());
   }
 });
 
